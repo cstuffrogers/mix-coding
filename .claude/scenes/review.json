@@ -1,0 +1,72 @@
+{
+  "scene_id": "review",
+  "workflow": "review",
+  "name": "代码审查 + 安全审计",
+  "description": "全面代码质量审查 + 自动化安全漏洞扫描（集成CE多Agent深度审查 + anthropic-cybersecurity-skills）",
+  "trigger_keywords": ["审查", "review", "检查代码", "安全审计", "security"],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": { "mode": "full" },
+      "description": "ESLint → react-doctor → Playwright 视觉 → AI 语义 → 聚合，五层审查",
+      "auto_execute": true,
+      "on_error": "retry"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-review",
+      "params": { "scope": "all", "agent_count": 9 },
+      "description": "CE Plugin 多Agent深度审查：架构、安全、性能、代码规范、可维护性、文档、测试、国际化、最佳实践",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "AnthropicSecuritySkill",
+      "action": "anthropic-cybersecurity-skills",
+      "params": {
+        "scope": "current_diffs",
+        "min_confidence": 0.85,
+        "block_merge_on_critical": true,
+        "risk_levels": ["HIGH", "CRITICAL"]
+      },
+      "description": "代码安全深度审计：执行高置信度 (>=0.85) 的漏洞扫描，阻断高危漏洞（SQLi、XSS、命令注入等）",
+      "auto_execute": true,
+      "condition": "plugin_ce_available && anthropic_skill_available",
+      "on_error": "fail_workflow",
+      "timeout": 600,
+      "criticality": "BLOCK-MERGE"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": { "type": "review", "source": "auto" },
+      "description": "将审查 + 安全审计知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "代码审查 + 安全审计完成"
+      },
+      "description": "通知审计结果（含漏洞统计与合规状态）",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ]
+}
