@@ -1,0 +1,224 @@
+{
+  "scene_id": "onboard",
+  "workflow": "onboard",
+  "name": "开发者入职/环境搭建",
+  "description": "一键环境搭建：检测缺失依赖 → 安装 → 配置.env → 验证构建 → 启动开发服务器",
+  "trigger_keywords": [
+    "环境搭建",
+    "setup",
+    "init project",
+    "新手入门",
+    "onboard",
+    "配置环境",
+    "环境准备"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "onboard",
+            "setup",
+            "environment"
+          ]
+        }
+      },
+      "description": "注入历史上下文和相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "detectLanguage",
+      "params": {
+        "detect": [
+          "package.json",
+          "go.mod",
+          "Cargo.toml",
+          "pubspec.yaml",
+          "build.gradle",
+          "CMakeLists.txt",
+          "requirements.txt",
+          "pyproject.toml"
+        ]
+      },
+      "description": "检测项目语言生态和所需工具链",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "BuildService",
+      "action": "checkPrerequisites",
+      "params": {
+        "required": [
+          "node",
+          "git"
+        ],
+        "optional": [
+          "docker",
+          "pnpm"
+        ]
+      },
+      "description": "检查系统是否安装了必需的运行时和工具",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "BuildService",
+      "action": "installDeps",
+      "params": {
+        "ecosystem": "auto",
+        "frozen_lockfile": true
+      },
+      "description": "安装项目依赖（自动选择npm/pip/cargo/go mod）",
+      "auto_execute": true,
+      "on_error": "abort",
+      "timeout": 300
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "checkEnvFile",
+      "params": {
+        "template": ".env.example",
+        "target": ".env"
+      },
+      "description": "检查.env配置，从.env.example模板提示缺失的环境变量",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "input",
+      "params": {
+        "message": "以下环境变量缺失，请输入值（或按回车跳过）：\n${missing_env_vars}",
+        "validation": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "description": "交互式填写缺失的环境变量",
+      "auto_execute": false,
+      "condition": "missing_env_vars_detected",
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "generateEnv",
+      "params": {
+        "template": ".env.example"
+      },
+      "description": "根据模板和用户输入生成.env文件",
+      "auto_execute": true,
+      "condition": "missing_env_vars_detected",
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "BuildService",
+      "action": "build",
+      "params": {
+        "mode": "dev"
+      },
+      "description": "开发构建验证：确保项目可正常编译",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "运行测试验证环境和代码正确",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "BuildService",
+      "action": "startDevServer",
+      "params": {
+        "mode": "background",
+        "port": "auto"
+      },
+      "description": "启动开发服务器（后台运行）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "VerifyService",
+      "action": "verify",
+      "params": {
+        "scope": "dev_server",
+        "mode": "health_check",
+        "retry": 3
+      },
+      "description": "验证开发服务器是否正常启动",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "onboard",
+        "data": {
+          "source": "onboard_workflow"
+        }
+      },
+      "description": "记录环境搭建信息到项目记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "✅ 环境搭建完成！\n🔧 语言: ${detected_language}\n📦 依赖已安装\n⚙️ 环境变量已配置\n🏗️ 构建验证通过\n🧪 测试通过\n🌐 开发服务器: ${dev_server_url}"
+      },
+      "description": "通知用户环境搭建结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

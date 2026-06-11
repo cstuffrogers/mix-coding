@@ -1,0 +1,45 @@
+# project-health-check.yml - 工作流验证CI步骤
+# 添加到 .github/workflows/review-pipeline.yml 或其他CI流程中
+
+name: Workflow Health Check
+on:
+  pull_request:
+    paths:
+      - '.archon/workflows/**'
+      - '.github/workflows/validate_workflows.py'
+      - '.github/workflows/test_validate_workflows.py'
+  push:
+    branches: [main]
+    paths:
+      - '.archon/workflows/**'
+      - '.github/workflows/validate_workflows.py'
+      - '.github/workflows/test_validate_workflows.py'
+
+jobs:
+  validate-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Run unit tests
+        run: python -m pytest .github/workflows/test_validate_workflows.py -v
+
+      - name: Validate all workflows
+        run: python .github/workflows/run_validator_tests.py
+
+      - name: Print Workflow Summary
+        run: |
+          echo "## Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          for wf in .archon/workflows/*.yaml; do
+            name=$(basename "$wf" .yaml)
+            nodes=$(grep -c "^  - id:" "$wf")
+            echo "- $name.yaml: $nodes nodes" >> $GITHUB_STEP_SUMMARY
+          done

@@ -1,0 +1,211 @@
+# {{PROJECT_NAME}} — Agent Operating Manual
+
+> 本文件遵循 Harness Engineering 最佳实践，为 AI 编码 Agent 提供结构化操作指南。
+> 基于 Learn Harness Engineering (https://github.com/walkinglabs/learn-harness-engineering) 改编，
+> 适配本系统的三层架构 + 五层能力体系。
+
+---
+
+## System Overview
+
+本系统是一个基于 **三层架构 + 场景选择器** 的智能开发平台：
+
+- **交互层**: 场景选择器 (`/new-project`, `/feature`, `/bugfix`, `/refactor`, `/design`, `/review`, `/hunt`, `/analyze`, `/loop`, `/simplify`, `/optimize`)
+- **能力层**: MemoryService, DesignService, ReviewEngine, TestEngine, OpenDiggerService, NotificationService
+- **运行时层**: Claude Code 核心, MCP Servers, archon CLI, 各类工具链
+
+---
+
+## Before You Start
+
+### 1. Read Project State
+
+Always read these files in order before starting work:
+
+1. `feature_list.json` — What features exist, which are done
+2. `progress.md` — What happened in previous sessions
+3. `ARCHITECTURE.md` — System architecture and conventions
+4. `.claude/rules/coding.md` — Coding standards
+5. `.claude/rules/karpathy-principles.md` — Karpathy coding principles (Think First, Simplicity, Surgical, Goal-Driven)
+
+### 2. Run Initialization
+
+```bash
+# Verify environment is healthy
+bash init.sh
+```
+
+This checks:
+- Dependencies installed
+- Tests pass in current state
+- No uncommitted changes that aren't yours
+
+### 3. Confirm Scope
+
+Check `feature_list.json` for the **single feature** you're working on.
+
+**Rule: WIP = 1** — Only work on one feature at a time. Never start a second feature before the first is verified done.
+
+---
+
+## While You Work
+
+### Code Standards
+
+- **Naming**: camelCase (vars/functions), PascalCase (classes/types), UPPER_SNAKE_CASE (constants), kebab-case (files)
+- **Files**: One main export per file, tests co-located with `.test.ts` suffix
+- **Comments**: JSDoc for public APIs, inline for complex logic, skip the obvious
+- **Types**: Strict TypeScript, no `any` without justification
+
+### Architecture Rules
+
+- **Three-layer purity**: No business logic in runtime layer, no UI in capability layer
+- **Simplicity first**: Minimum code that solves the problem. No speculative abstractions. See `.claude/rules/karpathy-principles.md` Principle 2.
+- **Surgical changes**: Touch only what you must. Don't "improve" adjacent code. See `.claude/rules/karpathy-principles.md` Principle 3.
+- **Zero-conflict**: Tool name prefixes mandatory (`memory-*`, `review-*`, etc.)
+- **Stateless services**: Capability layer services are stateless; state goes to MemoryService
+
+### When to Stop
+
+**Do NOT declare victory until:**
+
+1. ✅ All tests pass (`npm test` or `npx vitest run`)
+2. ✅ Lint clean (`npx eslint .`)
+3. ✅ Type check passes (`npx tsc --noEmit`)
+4. ✅ ReviewEngine Layer 1-2 pass (auto-fixable issues resolved)
+5. ✅ Feature verification: The feature actually works as described in `feature_list.json`
+
+### Anti-Rationalization Table
+
+> 基于 Agent Skills (https://github.com/addyosmani/agent-skills) 的反借口机制。
+> Agent 倾向于走"最短路径"，跳过"麻烦事"。以下是常见借口及反驳。
+
+| Excuse | Reality |
+|--------|---------|
+| "It's working, no need to touch it" | Working code that's hard to read will be hard to fix when it breaks. Simplifying now saves time on every future change. |
+| "I'll write tests after the code works" | You won't. And tests written after the fact test implementation, not behavior. Write the failing test first. |
+| "This is too simple to test" | Simple code gets complicated. The test documents the expected behavior. |
+| "I tested it manually" | Manual testing doesn't persist. Tomorrow's change might break it with no way to know. |
+| "We'll optimize later" | Performance debt compounds. Fix obvious anti-patterns now, defer micro-optimizations only after measurement. |
+| "It's fast on my machine" | Your machine isn't the user's. Profile on representative hardware and networks. |
+| "Fewer lines is always simpler" | A 1-line nested ternary is not simpler than a 5-line if/else. Simplicity is about comprehension speed, not line count. |
+| "I'll just quickly simplify this unrelated code too" | Unscoped simplification creates noisy diffs and risks regressions. Stay focused on the assigned feature. |
+| "The types make it self-documenting" | Types document structure, not intent. A well-named function explains *why* better than a type signature explains *what*. |
+| "This abstraction might be useful later" | Don't preserve speculative abstractions. If it's not used now, it's complexity without value. Remove it and re-add when needed. |
+| "The original author must have had a reason" | Maybe. Check git blame — apply Chesterton's Fence. But accumulated complexity often has no reason; it's just residue of iteration under pressure. |
+| "I'll refactor while adding this feature" | Separate refactoring from feature work. Mixed changes are harder to review, revert, and understand in history. |
+| "Tests slow me down" | Tests slow you down now. They speed you up every time you change the code later. |
+| "It's just a prototype" | Prototypes become production code. Tests and specs from day one prevent the "debt" crisis. |
+
+---
+
+## After You Finish
+
+### 1. Update State
+
+- Mark feature as done in `feature_list.json`
+- Append session summary to `progress.md`
+- Update `DECISIONS.md` if architectural decisions were made
+
+### 2. Leave Clean State
+
+```bash
+# Verify nothing is broken
+bash init.sh
+
+# Commit if tests pass
+git add -A
+git commit -m "feat: {{FEATURE_NAME}} — {{BRIEF_DESCRIPTION}}"
+```
+
+### 3. Handoff Note
+
+If the feature is not fully complete, write a handoff note in `progress.md`:
+
+```markdown
+## Session {{DATE}} — Handoff
+
+Feature: {{FEATURE_NAME}}
+Status: {{IN_PROGRESS | BLOCKED | NEEDS_REVIEW}}
+Next: {{WHAT_NEEDS_TO_HAPPEN_NEXT}}
+Blockers: {{ANY_BLOCKERS}}
+```
+
+---
+
+## Emergency Procedures
+
+### Agent Gets Stuck in a Loop
+
+1. Stop immediately (Ctrl+C)
+2. Run `git status` to see what changed
+3. If changes are partial/broken: `git reset --hard HEAD` (last clean state)
+4. Update `progress.md` with what went wrong
+5. Restart with smaller scope
+
+### Tests Broken After Agent Session
+
+1. Run `git diff` to see all changes
+2. Identify the breaking change
+3. Either fix it or revert: `git checkout -- {{file}}`
+4. Update `progress.md`: "Attempted X, broke Y, reverted Z"
+
+### Agent Overreaches (Starts Multiple Features)
+
+1. Stop immediately
+2. Check `feature_list.json` — which feature was assigned?
+3. Revert changes not related to assigned feature
+4. Remind agent: "WIP = 1. Only {{ASSIGNED_FEATURE}}."
+
+---
+
+## System-Specific Conventions
+
+### Scene Commands
+
+Use these commands to trigger system capabilities:
+
+| Command | When to Use |
+|---------|-------------|
+| `/new-project` | Starting a brand new project |
+| `/feature` | Adding a feature to existing project |
+| `/bugfix` | Fixing a bug |
+| `/refactor` | Code refactoring |
+| `/design` | UI/UX design work |
+| `/review` | Comprehensive code review (5-layer) |
+| `/hunt` | Security vulnerability hunting |
+| `/analyze` | Competitor analysis with OpenDigger |
+| `/loop` | Long-running autonomous iteration |
+| `/simplify` | Code simplification (clarity over cleverness) |
+| `/optimize` | Performance optimization (measure-first) |
+| `/polish` | Frontend UI polish with DaisyUI/Animate.css/Lucide |
+
+### Memory System
+
+Four memory tools are available:
+- **Claude-Mem** — Markdown-based persistent memory (native plugin, no prefix)
+- `memory-agentmemory_*` — SQLite structured data
+- `memory-nexo_*` — Graph-based semantic memory
+- `memory-codegraph_*` — Code relationship knowledge graph
+
+Always use the correct prefix for prefixed tools. Never mix prefixes.
+
+### Review Pipeline
+
+5-layer review runs automatically:
+1. ESLint + reviewdog (syntax, style, common bugs)
+2. react-doctor (React-specific patterns)
+3. Playwright (visual regression)
+4. Claude Code Headless (semantic logic, security)
+5. Aggregate (prioritize, deduplicate)
+
+Layer 1-2 auto-fix. Layer 3-4 require manual review.
+
+---
+
+## Reference
+
+- **Harness Engineering**: https://github.com/walkinglabs/learn-harness-engineering
+- **Karpathy Coding Principles**: https://github.com/multica-ai/andrej-karpathy-skills
+- **System Architecture**: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Zero-Conflict Check**: `bash zero-conflict-check.sh`

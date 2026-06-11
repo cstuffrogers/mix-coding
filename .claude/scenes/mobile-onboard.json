@@ -1,0 +1,213 @@
+{
+  "scene_id": "mobile-onboard",
+  "workflow": "mobile-onboard",
+  "name": "移动端开发环境搭建",
+  "description": "自动检测并搭建移动端开发环境：Xcode/Android Studio/Node/JDK/CocoaPods，验证首次构建",
+  "trigger_keywords": [
+    "移动端环境",
+    "RN环境",
+    "Flutter环境",
+    "iOS开发环境",
+    "Android开发环境",
+    "mobile setup",
+    "环境搭建"
+  ],
+  "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["mobile", "onboard", "environment"]
+        }
+      },
+      "description": "注入历史环境配置记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "detectProject",
+      "params": {},
+      "description": "识别项目类型：RN/Expo/Flutter/原生iOS/原生Android/小程序",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "checkPrerequisites",
+      "params": {
+        "checks": ["node", "jdk", "xcode", "android_studio", "ruby", "cocoapods"]
+      },
+      "description": "检测前置依赖：Xcode/Android Studio/Node.js/JDK/Ruby/CocoaPods 版本",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "autoInstall",
+      "params": {
+        "missing_only": true
+      },
+      "description": "自动安装缺失依赖（给出安装命令，交互模式下用户确认后执行）",
+      "auto_execute": false,
+      "skip_on_auto": true,
+      "skip_reason": "系统级工具安装需用户确认，--auto 模式下跳过；checkGate 会列出缺失项供手动安装",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "checkRnDoctor",
+      "params": {},
+      "description": "react-native doctor 环境完整性检查（条件：RN/Expo 项目）",
+      "auto_execute": true,
+      "condition": "project_type === 'rn' || project_type === 'expo'",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "initFastlane",
+      "params": {
+        "mode": "match"
+      },
+      "description": "fastlane match 初始化 iOS 证书/Profile（条件：iOS 项目 + fastlane 可用）",
+      "auto_execute": true,
+      "condition": "ios_platform && fastlane_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "checkAndroidSDK",
+      "params": {},
+      "description": "Android SDK/NDK 路径+版本检查（条件：Android 项目）",
+      "auto_execute": true,
+      "condition": "android_platform",
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "setupEnv",
+      "params": {},
+      "description": "生成 .env 模板：API地址/推送证书/地图Key/第三方服务配置",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "setupEmulator",
+      "params": {},
+      "description": "模拟器/真机调试配置指引（系统镜像下载+开发者模式+USB调试）— 在构建前完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "verifyBuild",
+      "params": {},
+      "description": "首次构建验证：iOS pod install + build / Android gradle sync + build（按检测平台执行）",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 600
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": ["env_prerequisites", "build_pass", "env_template"],
+        "mode": "relaxed"
+      },
+      "description": "环境搭建质量门禁：检查依赖安装+构建通过+.env模板",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "mobile-onboard",
+        "source": "auto"
+      },
+      "description": "环境配置知识沉淀",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": ["tokens", "api_calls"]
+      },
+      "description": "环境搭建流程成本报告",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "mobile-onboard",
+        "data": {
+          "source": "mobile-onboard_workflow"
+        }
+      },
+      "description": "保存环境配置到记忆（工具版本/路径/配置选择）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 15,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "移动端开发环境搭建完成 🎉 可以开始开发了！"
+      },
+      "description": "通知用户环境搭建完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

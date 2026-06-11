@@ -1,0 +1,103 @@
+{
+  "scene_id": "backup",
+  "workflow": "backup",
+  "name": "备份配置",
+  "description": "使用 Restic 配置加密去重备份，生成备份脚本和排除规则",
+  "trigger_keywords": ["备份", "backup", "restic", "数据备份", "灾难恢复", "数据保护"],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "core",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": { "type": "backup", "filters": { "type": ["backup", "restic", "disaster-recovery"] } },
+      "description": "注入备份相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "BackupService",
+      "action": "setupBackup",
+      "params": {},
+      "description": "检测 Restic、扫描源目录、生成备份脚本",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "core",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": { "checks": ["backup"] },
+      "description": "备份配置质量门禁",
+      "auto_execute": true,
+      "condition": "backupConfigured == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "BackupService",
+      "action": "autoFix",
+      "params": { "source": "backup" },
+      "description": "自动修复备份配置问题",
+      "auto_execute": true,
+      "condition": "backupConfigured == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "core",
+      "service": "NotifyService",
+      "action": "send",
+      "params": {
+        "level": "warning",
+        "title": "备份配置失败",
+        "content": "未能生成有效的备份配置，请检查项目结构和文件权限"
+      },
+      "description": "备份配置失败通知",
+      "auto_execute": true,
+      "condition": "backupConfigured == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "backup",
+        "data": {
+          "backupConfigured": "{{backupConfigured}}",
+          "backupScriptPath": "{{backupScriptPath}}",
+          "resticAvailable": "{{resticAvailable}}"
+        }
+      },
+      "description": "保存备份配置结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理去重记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "core",
+      "service": "NotifyService",
+      "action": "notify",
+      "params": { "message": "备份配置工作流完成" },
+      "description": "通知备份配置完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ]
+}

@@ -1,0 +1,303 @@
+{
+  "scene_id": "mobile-audit",
+  "workflow": "mobile-audit",
+  "name": "移动端全维度审计",
+  "description": "一键移动端安全+性能+合规+质量审计：MobSF安全扫描 → OWASP MASVS对照 → 隐私合规 → 依赖CVE → 性能基线 → 商店清单",
+  "trigger_keywords": [
+    "App安全",
+    "App审计",
+    "移动端审计",
+    "检查App安全",
+    "mobile audit",
+    "App体检",
+    "应用安全检查"
+  ],
+  "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["mobile-security", "audit", "compliance"]
+        }
+      },
+      "description": "注入历史审计上下文和安全策略记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "detectProject",
+      "params": {},
+      "description": "识别平台：RN/Expo/Flutter/原生iOS/原生Android/小程序",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "checkTools",
+      "params": {
+        "tools": ["mobsf", "mobsfscan", "bearer", "dependencycheck"]
+      },
+      "description": "自动检测工具可用性 + 缺失工具安装指引",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.5,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "autoInstall",
+      "params": {
+        "missing_only": true
+      },
+      "description": "自动安装步骤2检测到的缺失工具（MobSF/mobsfscan/Bearer/DependencyCheck），安装失败不阻断后续",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.6,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "buildApp",
+      "params": {
+        "mode": "release"
+      },
+      "description": "构建 release APK/IPA（条件：Android/iOS 项目），产物供 MobSF 扫描使用，构建失败不阻断",
+      "auto_execute": true,
+      "condition": "mobile_platform",
+      "on_error": "continue",
+      "timeout": 900
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "MobSFMCP",
+      "action": "upload",
+      "params": {
+        "auto_build": false,
+        "source_step": 2.6
+      },
+      "description": "上传 step 2.6 构建产物（APK/IPA）至 MobSF 服务，auto_build 关闭——依赖前置构建步骤",
+      "auto_execute": true,
+      "condition": "mobsf_mcp_available && mobile_platform",
+      "on_error": "continue",
+      "timeout": 600
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "MobSFMCP",
+      "action": "scan",
+      "params": {
+        "mode": "static"
+      },
+      "description": "MobSF 静态安全分析：权限/组件导出/API密钥/证书/代码混淆",
+      "auto_execute": true,
+      "condition": "mobsf_mcp_available && mobile_platform",
+      "on_error": "continue",
+      "timeout": 600
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "scanSource",
+      "params": {
+        "tool": "mobsfscan"
+      },
+      "description": "mobsfscan 源码级 SAST：硬编码密钥/不安全存储/弱加密/无SSL Pinning/WebView注入（补充 MobSF APK 级分析，AST 级精度检测代码模式）",
+      "auto_execute": true,
+      "condition": "mobsfscan_available",
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "BearerMCP",
+      "action": "bearerScan",
+      "params": {},
+      "description": "Bearer CLI 隐私合规扫描：PII泄露/GDPR合规/数据收集声明",
+      "auto_execute": true,
+      "condition": "bearer_mcp_available",
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "scanDependencies",
+      "params": {
+        "tool": "dependencycheck"
+      },
+      "description": "DependencyCheck 第三方依赖 CVE 扫描",
+      "auto_execute": true,
+      "condition": "dependencycheck_available",
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "masvsCheck",
+      "params": {
+        "level": "L1"
+      },
+      "description": "OWASP MASVS L1 安全标准对照（标准应用），高安全项目自动升级 L2",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "perfBaseline",
+      "params": {
+        "metrics": ["bundle_size", "asset_size", "method_count", "permissions_count"]
+      },
+      "description": "性能基线快照（静态指标）：包体积/资源占比/方法数/权限数 — 运行时指标（启动/FPS/内存）见 mobile-optimize",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "storeCompliance",
+      "params": {},
+      "description": "应用商店合规清单：隐私标签/权限声明/测试账号/截图规范（Apple/Google/微信）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": ["security", "privacy", "dependencies", "performance", "store_compliance"],
+        "mode": "strict",
+        "block_critical": true
+      },
+      "description": "质量门禁：CRITICAL/HIGH 安全问题阻断，性能超标警告，合规缺失提示",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 11.5,
+      "layer": "capability",
+      "service": "AgentRunner",
+      "action": "runAgent",
+      "params": {
+        "agent": "mobile-security",
+        "focus": ["masvs_mapping", "finding_interpretation", "fix_prioritization"]
+      },
+      "description": "mobile-security Agent AI 安全审计：综合扫描结果→MASVS 对照→修复优先级排序→为报告提供专家解读",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "mobileGenerateReport",
+      "params": {
+        "format": "plain_language",
+        "sections": ["security", "privacy", "dependencies", "performance", "store_compliance"]
+      },
+      "description": "生成通俗审计报告：emoji 指标 + 自然语言 + 一键修复清单",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "mobileAutoFix",
+      "params": {
+        "mode": "safe_only"
+      },
+      "description": "自动修复安全/性能问题：密钥移入.env→WebP转换→minifyEnabled启用→SSL配置生成",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 600
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "mobile-audit",
+        "source": "auto"
+      },
+      "description": "安全审计知识沉淀到项目知识库",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 15,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": ["tokens", "api_calls"]
+      },
+      "description": "审计流程成本报告",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 16,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "mobile-audit",
+        "data": {
+          "source": "mobile-audit_workflow"
+        }
+      },
+      "description": "保存审计结果到记忆（安全发现/质量指标/性能热点/合规状态）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 17,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性，去重过期条目",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 18,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "移动端安全审计完成 🛡️ 报告已生成，包含安全评分+合规状态+一键修复清单"
+      },
+      "description": "通知用户审计完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

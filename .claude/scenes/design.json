@@ -1,0 +1,344 @@
+{
+  "scene_id": "design",
+  "workflow": "design",
+  "name": "设计生成",
+  "description": "一键AI辅助UI设计与交互设计生成流程，覆盖交互原型、视觉设计、组件库检查",
+  "trigger_keywords": [
+    "UI设计",
+    "设计",
+    "画图",
+    "画界面",
+    "生成设计",
+    "UI生成"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "TavilyMCP",
+      "action": "search",
+      "params": {
+        "query": "latest UI design trends 2025 2026",
+        "limit": 10
+      },
+      "description": "使用 Tavily MCP 搜索最新的 UI 设计趋势",
+      "auto_execute": true,
+      "condition": "tavily_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "design system best practices"
+      },
+      "description": "使用 Context7 MCP 获取设计系统最佳实践",
+      "auto_execute": true,
+      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "category": "design_requirements",
+        "limit": 3
+      },
+      "description": "回溯最近3条设计相关需求，提取设计要素和风格偏好",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "input",
+      "params": {
+        "message": "🎨 请描述需要设计的界面/组件：",
+        "validation": {
+          "type": "string",
+          "required": true,
+          "min_length": 10,
+          "max_length": 500
+        },
+        "placeholder": "例如：用户登录界面，包含用户名、密码输入框和登录按钮"
+      },
+      "description": "获取用户设计输入并验证",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 4.5,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "web-design-declare-system",
+      "params": {},
+      "description": "Web Design Engineer: 声明设计系统（Palette/Typography/Spacing/Motion/Radius/Shadows）",
+      "auto_execute": true,
+      "condition": "web_design_engineer_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 4.6,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-brand-protocol",
+      "params": {},
+      "description": "Huashu brand-asset-protocol: 检测品牌提及→生成 5 步资产清单→写 brand-spec.md",
+      "auto_execute": true,
+      "condition": "enh_huashu_brand_protocol",
+      "on_error": "continue"
+    },
+    {
+      "step": 4.7,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "awm-brand-list",
+      "params": {
+        "message": "🎨 是否导入品牌设计系统（Awesome Design MD）？\n\n可用品牌：\n1. Vercel — 现代 SaaS 仪表板\n2. Linear — 任务管理/Issue Tracker\n3. Stripe — 金融/支付/Dashboard\n4. Notion — 内容/知识库/协作\n5. Apple — 极简/高端/营销站\n\n输入品牌名（Vercel/Linear/Stripe/Notion/Apple），或输入 skip 跳过："
+      },
+      "description": "Awesome Design MD: 提示用户选择品牌设计系统（可选）",
+      "auto_execute": false,
+      "condition": "awesome_design_md_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 4.8,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "awm-brand-import",
+      "params": {
+        "brand": "${user_selected_brand}"
+      },
+      "description": "Awesome Design MD: 加载所选品牌的 DESIGN.md（颜色/字体/间距/组件）",
+      "auto_execute": true,
+      "condition": "awesome_design_md_available && user_selected_brand",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "generateLowFi",
+      "params": {
+        "mode": "component",
+        "style": "material",
+        "target": "web"
+      },
+      "description": "生成低保真组件草图（基于Material Design风格）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "generateHiFi",
+      "params": {
+        "style": "google_material",
+        "color_scheme": "auto",
+        "dark_mode": true
+      },
+      "description": "生成高保真界面设计稿（Google Material风格，深色模式）",
+      "auto_execute": true,
+      "condition": "lowFi_generated === true",
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "ContractChecker",
+      "action": "checkAPIConsistency",
+      "params": {},
+      "description": "API 契约一致性检查：从设计稿提取数据字段/端点，与项目后端代码交叉验证",
+      "auto_execute": true,
+      "condition": "open_design_executed",
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "analyzeConsistency",
+      "params": {
+        "check": [
+          "color_palette",
+          "typography",
+          "spacing"
+        ]
+      },
+      "description": "检查设计稿与公司设计系统一性，包括色彩、字体、间距",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "choose",
+      "params": {
+        "message": "请选择设计方案：",
+        "options": [
+          {
+            "label": "方案 A",
+            "description": "Google Material风格，色彩活泼"
+          },
+          {
+            "label": "方案 B",
+            "description": "Neumorphism风格，柔和阴影"
+          },
+          {
+            "label": "方案 C",
+            "description": "Apple风格，简洁大气"
+          },
+          {
+            "label": "重新生成",
+            "description": "重新生成设计方案"
+          }
+        ],
+        "validation": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "description": "人工选择最佳设计方案",
+      "auto_execute": false,
+      "on_error": "retry"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "exportAssets",
+      "params": {
+        "formats": [
+          "svg",
+          "png@2x",
+          "css_variables"
+        ],
+        "destination": "src/assets/design-system"
+      },
+      "description": "导出SVG/PNG资源文件和CSS变量到设计系统目录",
+      "auto_execute": true,
+      "condition": "design_selected",
+      "on_error": "continue"
+    },
+    {
+      "step": 10.5,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "ai-friendly-review",
+      "params": {},
+      "description": "AI-Friendly Web Design: 可访问性审查（语义HTML/ARIA/稳定定位器/表单最佳实践/对比度）",
+      "auto_execute": true,
+      "condition": "ai_friendly_web_design_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 10.6,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-expert-review",
+      "params": {},
+      "description": "Huashu 5 维度专家评审（philosophy/hierarchy/craft/functionality/originality）→ Keep/Quick Wins/Fix 报告",
+      "auto_execute": true,
+      "condition": "enh_huashu_expert_review",
+      "on_error": "continue"
+    },
+    {
+      "step": 10.7,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "impeccable-critique",
+      "params": {
+        "rules": ["anti-patterns", "llm-critique"],
+        "checks": [
+          "no-inter-default",
+          "no-purple-blue-gradient",
+          "no-pure-black-white",
+          "no-cards-nested-in-cards",
+          "spacing-consistency",
+          "typography-scale",
+          "color-contrast",
+          "motion-preference"
+        ]
+      },
+      "description": "Impeccable 设计打磨：运行 27 条反模式规则 + 12 条 LLM 批判规则，在设计落地前修正 AI 塑料感问题",
+      "auto_execute": true,
+      "condition": "enh_impeccable_audit && impeccable_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "confirm",
+      "params": {
+        "message": "✅ 设计生成完成！\n📁 已导出设计资源到：src/assets/design-system\n📊 文件格式：SVG/PNG@2x/CSS变量\n\n是否将设计方案添加到设计系统记录？",
+        "validation": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "description": "确认是否归档设计方案",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "persist",
+      "params": {
+        "category": "generated_designs"
+      },
+      "description": "将设计记录持久化到知识库",
+      "auto_execute": true,
+      "condition": "user_confirmed === true",
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "design",
+        "data": {
+          "source": "design_workflow"
+        }
+      },
+      "description": "保存设计生成结果到记忆（风格/方案/资源）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 15,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "设计生成完成：资源已导出、设计已归档"
+      },
+      "description": "通知用户设计生成完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

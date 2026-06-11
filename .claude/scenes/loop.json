@@ -1,0 +1,160 @@
+{
+  "scene_id": "loop",
+  "workflow": "loop",
+  "name": "自动迭代循环",
+  "description": "无人值守自动迭代（集成CE知识沉淀）",
+  "trigger_keywords": [
+    "通宵",
+    "自动迭代",
+    "Ralph Loop"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "loop",
+            "review",
+            "iteration"
+          ]
+        }
+      },
+      "description": "注入历史上下文和相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listIssues",
+      "params": {
+        "state": "open",
+        "limit": 10
+      },
+      "description": "使用 GitHub MCP 列出待处理的 issues",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "continuous integration best practices"
+      },
+      "description": "使用 Context7 MCP 获取持续集成最佳实践",
+      "auto_execute": true,
+      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "full",
+        "options": {
+          "rules": [
+            "eslint",
+            "typescript"
+          ],
+          "autoFix": true
+        }
+      },
+      "description": "持续监控：全量审查并自动修复",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "自动修复后运行测试验证",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "loop",
+        "source": "auto"
+      },
+      "description": "将迭代循环知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "loop",
+        "data": {
+          "source": "loop_workflow"
+        }
+      },
+      "description": "保存迭代循环结果到记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨组件记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": [
+          "tokens",
+          "api_calls",
+          "mcp_usage"
+        ]
+      },
+      "description": "输出本轮迭代的Token/API调用/MCP使用成本汇总",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "自动迭代循环完成：审查→修复→测试验证已完成"
+      },
+      "description": "通知用户迭代循环完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

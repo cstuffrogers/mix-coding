@@ -1,0 +1,228 @@
+{
+  "version": "1.0.0",
+  "description": "archon 工作流场景与 MCP Servers 的动态启用映射表",
+  "mcp_mappings": {
+    "new-project": {
+      "enabled_servers": ["github", "tavily-search", "context7", "supabase", "stripe", "resend"],
+      "token_estimate": 2200,
+      "rationale": "全流程覆盖：仓库分析、文档查询、数据库、支付、邮件"
+    },
+    "feature": {
+      "enabled_servers": ["github", "context7", "supabase", "schemaforge"],
+      "token_estimate": 1400,
+      "rationale": "新增功能涉及代码仓库+数据库+可选迁移审查"
+    },
+    "bugfix": {
+      "enabled_servers": ["sentry", "tavily-search", "context7", "github", "codegraph"],
+      "token_estimate": 1800,
+      "rationale": "错误修复需要错误监控、搜索、文档查询、仓库和代码图谱分析"
+    },
+    "refactor": {
+      "enabled_servers": ["github", "context7"],
+      "token_estimate": 700,
+      "rationale": "重构主要依赖代码仓库和文档"
+    },
+    "design": {
+      "enabled_servers": ["tavily-search", "context7"],
+      "token_estimate": 400,
+      "rationale": "Open Design AI 生成，需要设计参考搜索和文档"
+    },
+    "ui-polish": {
+      "enabled_servers": ["memory", "playwright", "a11y"],
+      "token_estimate": 800,
+      "rationale": "DaisyUI/Animate.css/Lucide 纯前端工具链 + Playwright 视觉回归 + 可选无障碍扫描"
+    },
+    "simplify": {
+      "enabled_servers": ["github", "context7"],
+      "token_estimate": 500,
+      "rationale": "代码简化需要仓库访问和文档"
+    },
+    "optimize": {
+      "enabled_servers": ["github", "context7"],
+      "token_estimate": 500,
+      "rationale": "性能优化需要仓库访问和文档"
+    },
+    "review": {
+      "enabled_servers": ["github", "context7", "a11y"],
+      "token_estimate": 900,
+      "rationale": "代码审查需要仓库+文档+可选无障碍扫描"
+    },
+    "hunt": {
+      "enabled_servers": ["sentry", "tavily-search", "context7", "github", "codegraph"],
+      "token_estimate": 1800,
+      "rationale": "安全审查需要错误监控、漏洞搜索、文档和代码图谱分析"
+    },
+    "analyze": {
+      "enabled_servers": ["tavily-search", "opendigger"],
+      "token_estimate": 700,
+      "rationale": "竞品分析需要搜索服务 + OpenDigger 开源数据分析"
+    },
+    "loop": {
+      "enabled_servers": ["github", "context7"],
+      "token_estimate": 500,
+      "rationale": "循环监控需要仓库访问和文档"
+    },
+    "release": {
+      "enabled_servers": ["github", "schemaforge"],
+      "token_estimate": 600,
+      "rationale": "发布流程：质量门禁+GitHub Release+可选迁移审查"
+    },
+    "audit": {
+      "enabled_servers": ["github", "tavily-search", "context7", "codegraph"],
+      "token_estimate": 1500,
+      "rationale": "全面审计：安全扫描+代码质量+依赖+性能，需要多数据源"
+    },
+    "prototype": {
+      "enabled_servers": [],
+      "token_estimate": 300,
+      "rationale": "快速原型主要依赖Matt Pocock技能，无需MCP"
+    },
+    "deps": {
+      "enabled_servers": ["github"],
+      "token_estimate": 300,
+      "rationale": "依赖更新主要本地操作，仅提交时需要GitHub"
+    },
+    "rollback": {
+      "enabled_servers": ["github", "codegraph"],
+      "token_estimate": 500,
+      "rationale": "回滚需要GitHub版本信息+CodeGraph差异分析"
+    },
+    "onboard": {
+      "enabled_servers": [],
+      "token_estimate": 200,
+      "rationale": "环境搭建纯本地操作，无需MCP"
+    },
+    "mobile-audit": {
+      "enabled_servers": ["github", "codegraph", "memory", "mobsf", "bearer", "sentry"],
+      "token_estimate": 1800,
+      "rationale": "移动端全维度审计：MobSF安全+MobSF源码扫描+Bearer隐私+依赖CVE+性能基线+质量门禁"
+    },
+    "mobile-review": {
+      "enabled_servers": ["github", "codegraph", "memory", "maestro", "detox"],
+      "token_estimate": 1500,
+      "rationale": "移动端5层审查：ESLint+RN规则 → mobsfscan安全 → Detox/Maestro截图 → AI语义+a11y → 聚合"
+    },
+    "mobile-release": {
+      "enabled_servers": ["github", "sentry", "shorebird", "memory"],
+      "token_estimate": 1200,
+      "rationale": "移动端发布：fastlane构建签名+iOS TestFlight/Android Play+Shorebird OTA+崩溃监控"
+    },
+    "mobile-optimize": {
+      "enabled_servers": ["github", "codegraph", "memory"],
+      "token_estimate": 800,
+      "rationale": "移动端性能优化：Bundle分析+启动时间+FPS+内存+网络+资产优化+性能预算"
+    },
+    "mobile-e2e": {
+      "enabled_servers": ["github", "maestro", "detox", "memory"],
+      "token_estimate": 1000,
+      "rationale": "移动端E2E配置：Detox(RN首选)/Maestro(通用跨平台)/miniprogram-automator(小程序)+CI集成"
+    },
+    "mobile-onboard": {
+      "enabled_servers": ["github", "memory"],
+      "token_estimate": 400,
+      "rationale": "移动端环境搭建：react-native-doctor+fastlane+Android SDK/Xcode+模拟器配置"
+    }
+  },
+  "server_definitions": {
+    "github": {
+      "type": "github-mcp",
+      "required_env_vars": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "setup_command": "env GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }} gh repo clone ..."
+    },
+    "tavily-search": {
+      "type": "tavily-mcp",
+      "required_env_vars": ["TAVILY_API_KEY"],
+      "rate_limit": "1000/day"
+    },
+    "context7": {
+      "type": "context7-mcp",
+      "setup_command": "/context7"
+    },
+    "supabase": {
+      "type": "supabase-mcp",
+      "required_env_vars": ["SUPABASE_ACCESS_TOKEN"],
+      "setup_command": "supabase login"
+    },
+    "stripe": {
+      "type": "stripe-mcp",
+      "setup_command": "stripe login"
+    },
+    "resend": {
+      "type": "resend-mcp",
+      "required_env_vars": ["RESEND_API_KEY"]
+    },
+    "sentry": {
+      "type": "sentry-mcp",
+      "required_env_vars": ["SENTRY_AUTH_TOKEN"]
+    },
+    "opendigger": {
+      "type": "opendigger-cli",
+      "install_command": "npm install -g opendigger-cli",
+      "config_file": ".claude/opendigger.json"
+    },
+    "codegraph": {
+      "type": "codegraph",
+      "install_command": "独立安装 codegraph-win32-x64.zip",
+      "description": "代码图谱分析"
+    },
+    "memory": {
+      "type": "memory",
+      "description": "会话持久化记忆"
+    },
+    "playwright": {
+      "type": "playwright",
+      "description": "浏览器自动化测试"
+    },
+    "schemaforge": {
+      "type": "schemaforge-mcp",
+      "install_command": "npx schemaforge-mcp",
+      "description": "数据库迁移审查：schema diff / 迁移生成 / dry-run 校验，支持 PG/MySQL/SQLite"
+    },
+    "a11y": {
+      "type": "a11y-mcp",
+      "install_command": "npm install -g a11y-mcp-server",
+      "description": "无障碍扫描：静态分析 HTML/JSX，64 条 WCAG 2.2 规则，无需浏览器"
+    },
+    "mobsf": {
+      "type": "mobsf-mcp",
+      "install_command": "pip install mobsf",
+      "required_env_vars": ["MOBSF_URL", "MOBSF_API_KEY"],
+      "description": "移动端安全框架：全自动 Android/iOS 静态+动态安全分析，REST API",
+      "rate_limit": "100/day"
+    },
+    "maestro": {
+      "type": "maestro-mcp",
+      "install_command": "curl -Ls \"https://get.maestro.mobile.dev\" | bash",
+      "description": "跨平台移动 UI 自动化（RN/Flutter/原生），YAML 配置零代码，已有 MCP Server"
+    },
+    "detox": {
+      "type": "detox-mcp",
+      "install_command": "npm install -g detox-cli",
+      "description": "React Native Gray box E2E 测试框架，截图对比+CI 集成"
+    },
+    "bearer": {
+      "type": "bearer-mcp",
+      "install_command": "npm install -g @bearer/cli",
+      "description": "PII/GDPR 隐私合规扫描，120+ 内置规则，CI 友好"
+    },
+    "toxiproxy": {
+      "type": "toxiproxy-mcp",
+      "install_command": "brew install toxiproxy || go install github.com/Shopify/toxiproxy/v2/cmd/toxiproxy@latest",
+      "description": "网络故障注入：弱网/超时/丢包场景测试移动端网络弹性"
+    },
+    "shorebird": {
+      "type": "shorebird-mcp",
+      "install_command": "dart pub global activate shorebird_cli",
+      "description": "Flutter/RN OTA 热更新：无需应用商店审核即可推送代码/资源修复"
+    }
+  },
+  "activation_strategy": {
+    "mode": "per-workflow",
+    "enabled_by_default": false,
+    "auto_enable_mcp": true,
+    "token_budget_per_workflow": {
+      "warning_threshold": 2000,
+      "hard_limit": 5000
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "adoptExistingLintConfig": false,
+  "ignore": {
+    "rules": [
+      "react-doctor/no-missing-use-effect-deps",
+      "react-doctor/no-rules-of-hooks"
+    ]
+  }
+}

@@ -1,0 +1,331 @@
+{
+  "scene_id": "refactor",
+  "workflow": "refactor",
+  "name": "代码重构",
+  "description": "自动执行重构流程：分析重构点、生成重构方案、执行重构、验证效果",
+  "trigger_keywords": [
+    "重构",
+    "refactor",
+    "代码重构",
+    "clean code",
+    "重构代码"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "UpdateService",
+      "action": "autoUpdate",
+      "params": {
+        "mode": "pull",
+        "rebase": true
+      },
+      "description": "拉取最新代码，避免合并冲突",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "refactor",
+            "architecture",
+            "quality"
+          ]
+        }
+      },
+      "description": "注入历史上下文和相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listIssues",
+      "params": {
+        "state": "open",
+        "labels": [
+          "refactor"
+        ],
+        "limit": 5
+      },
+      "description": "使用 GitHub MCP 列出重构相关的 issues",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "refactoring best practices"
+      },
+      "description": "使用 Context7 MCP 获取重构最佳实践文档",
+      "auto_execute": true,
+      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "codeMetrics",
+      "params": {
+        "thresholds": {
+          "cyclomatic_complexity": 15,
+          "maintainability": 60
+        }
+      },
+      "description": "计算圈复杂度、维护性得分，识别重构点",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "detectAntiPatterns",
+      "params": {
+        "patterns": [
+          "god_object",
+          "long_method",
+          "duplicate_code"
+        ]
+      },
+      "description": "检测God Object、长方法、重复代码等反模式",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-improve-codebase-architecture",
+      "params": {
+        "focus": [
+          "deepening_opportunities",
+          "module_cohesion",
+          "testability",
+          "ai_navigability"
+        ]
+      },
+      "description": "Matt Pocock /improve-codebase-architecture: 基于 ADR 和 CONTEXT.md 寻找架构深化机会",
+      "auto_execute": true,
+      "condition": "mattpocock_skill_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "detectLanguage",
+      "params": {
+        "detect": [
+          "go.mod",
+          "Cargo.toml",
+          "pubspec.yaml",
+          "build.gradle",
+          "CMakeLists.txt"
+        ]
+      },
+      "description": "检测项目语言生态，确定使用哪种构建/测试工具链",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "languageTest",
+      "params": {
+        "mapping": {
+          "go.mod": "go-test",
+          "Cargo.toml": "rust-test",
+          "pubspec.yaml": "flutter-test",
+          "build.gradle": "kotlin-test"
+        }
+      },
+      "description": "根据检测到的语言运行对应测试工具，建立非JS项目的重构前基线",
+      "auto_execute": true,
+      "condition": "non_js_project_detected",
+      "on_error": "abort"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "重构前运行测试建立基线，确保重构前代码可正常工作",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "generateRefactorPlan",
+      "params": {
+        "mode": "detailed",
+        "include_tests": true
+      },
+      "description": "生成重构计划：包含代码结构调整、测试覆盖率要求",
+      "auto_execute": true,
+      "condition": "refactor_points.length > 0",
+      "on_error": "abort"
+    },
+    {
+      "step": 12,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "confirm",
+      "params": {
+        "message": "检测到重构点：\n📊 代码指标分析完成\n📊 反模式检测完成\n📊 重构方案已生成\n\n⚠️ 是否执行自动重构？",
+        "validation": {
+          "type": "boolean",
+          "default": false,
+          "required_ack": true
+        }
+      },
+      "description": "人工确认重构方案",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "CodeEngine",
+      "action": "applyTransformations",
+      "params": {
+        "transformations": [
+          "extract_method",
+          "extract_class",
+          "rename_identifiers"
+        ],
+        "preserve_behavior": true
+      },
+      "description": "应用重构变换：提取方法、提取类、重命名标识符",
+      "auto_execute": true,
+      "condition": "user_confirmed === true",
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit",
+        "check_coverage": true
+      },
+      "description": "重构后运行测试套件，确保语义不变",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 15,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "checkCoverage",
+      "params": {
+        "threshold": 80,
+        "mode": "gate",
+        "compare_to_baseline": true
+      },
+      "description": "测试覆盖率检查：确保重构后覆盖率不低于基线水平",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 16,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "refactor",
+        "check_safety": true
+      },
+      "description": "重构质量检查：代码规范、重构完整性、影响范围评估",
+      "auto_execute": true,
+      "condition": "testPassed === true",
+      "on_error": "continue"
+    },
+    {
+      "step": 17,
+      "layer": "capability",
+      "service": "ContractChecker",
+      "action": "checkAPIConsistency",
+      "params": {
+        "scope": "refactored_modules"
+      },
+      "description": "API 契约一致性检查：确认重构未改变公开API签名和行为",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 18,
+      "layer": "capability",
+      "service": "CodeEngine",
+      "action": "cleanup",
+      "params": {
+        "cleanup": [
+          "remove_deadcode",
+          "organize_imports",
+          "format_code"
+        ]
+      },
+      "description": "清理无用代码、组织导入、格式化代码",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 19,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "refactor",
+        "data": {
+          "source": "refactor_workflow"
+        }
+      },
+      "description": "保存重构上下文到记忆（重构点/变换/结果）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 20,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 21,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "代码重构完成：测试通过、代码审查通过"
+      },
+      "description": "通知用户重构完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

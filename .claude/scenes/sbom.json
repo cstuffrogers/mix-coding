@@ -1,0 +1,104 @@
+{
+  "scene_id": "sbom",
+  "workflow": "sbom",
+  "name": "SBOM 和许可证合规",
+  "description": "生成软件物料清单 (SBOM) 和许可证合规报告，检测限制性许可证（GPL/AGPL/SSPL 等）",
+  "trigger_keywords": ["sbom", "许可证", "license", "合规", "依赖分析", "软件物料清单"],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "core",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": { "type": "sbom", "filters": { "type": ["sbom", "license", "compliance", "security", "dependency"] } },
+      "description": "注入 SBOM 相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "SBOMService",
+      "action": "sbom",
+      "params": {},
+      "description": "运行 license-checker + CycloneDX 生成 SBOM",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "core",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": { "checks": ["sbom"] },
+      "description": "SBOM 质量门禁",
+      "auto_execute": true,
+      "condition": "sbomGenerated == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "SBOMService",
+      "action": "autoFix",
+      "params": { "source": "sbom" },
+      "description": "自动修复 SBOM 问题",
+      "auto_execute": true,
+      "condition": "sbomGenerated == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "core",
+      "service": "NotifyService",
+      "action": "send",
+      "params": {
+        "level": "warning",
+        "title": "SBOM 生成失败",
+        "content": "SBOM 和许可证报告生成失败，请检查 npm 环境和网络连接"
+      },
+      "description": "SBOM 生成失败通知",
+      "auto_execute": true,
+      "condition": "sbomGenerated == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "sbom",
+        "data": {
+          "sbomPath": "{{sbomPath}}",
+          "licenseIssuesFound": "{{licenseIssuesFound}}",
+          "restrictiveLicenses": "{{restrictiveLicenses}}",
+          "generated": "{{sbomGenerated}}"
+        }
+      },
+      "description": "保存 SBOM 生成结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理去重记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "core",
+      "service": "NotifyService",
+      "action": "notify",
+      "params": { "message": "SBOM 和许可证合规检查工作流完成" },
+      "description": "通知 SBOM 工作流完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ]
+}

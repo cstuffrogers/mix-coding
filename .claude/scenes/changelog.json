@@ -1,0 +1,114 @@
+{
+  "scene_id": "changelog",
+  "workflow": "changelog",
+  "name": "变更日志生成",
+  "description": "基于 Git 提交历史和 Conventional Commits 规范自动生成或更新 CHANGELOG.md",
+  "trigger_keywords": ["changelog", "变更日志", "更新日志", "release notes", "版本日志"],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "core",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": { "type": "changelog", "filters": { "type": ["changelog", "release", "version", "commit"] } },
+      "description": "注入变更日志相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "ChangelogService",
+      "action": "genChangelog",
+      "params": {},
+      "description": "解析 Git 提交历史，生成 CHANGELOG.md",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "core",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": { "checks": ["changelog"] },
+      "description": "变更日志质量门禁",
+      "auto_execute": true,
+      "condition": "changelogGenerated == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "ChangelogService",
+      "action": "autoFix",
+      "params": { "source": "changelog" },
+      "description": "自动修复变更日志问题",
+      "auto_execute": true,
+      "condition": "changelogGenerated == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "core",
+      "service": "NotifyService",
+      "action": "send",
+      "params": {
+        "level": "warning",
+        "title": "变更日志生成失败",
+        "content": "CHANGELOG.md 生成失败，请检查 Git 仓库状态和提交格式"
+      },
+      "description": "变更日志生成失败通知",
+      "auto_execute": true,
+      "condition": "changelogGenerated == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 5.5,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-release-deck",
+      "params": {},
+      "description": "Huashu deck-exporter: 根据 changelog 高亮生成 HTML deck (可选 PPTX)",
+      "auto_execute": true,
+      "condition": "enh_huashu_release_deck && changelogGenerated == true",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "changelog",
+        "data": {
+          "changelogPath": "{{changelogPath}}",
+          "commitCount": "{{commitCount}}",
+          "generated": "{{changelogGenerated}}"
+        }
+      },
+      "description": "保存变更日志生成结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理去重记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "core",
+      "service": "NotifyService",
+      "action": "notify",
+      "params": { "message": "变更日志生成工作流完成" },
+      "description": "通知变更日志生成完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ]
+}

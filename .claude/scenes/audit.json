@@ -1,0 +1,358 @@
+{
+  "scene_id": "audit",
+  "workflow": "audit",
+  "name": "全面项目健康检查",
+  "description": "一键全量项目审计：安全扫描 + 代码质量 + 依赖审计 + 性能基线 + 覆盖率 + 质量门禁汇总",
+  "trigger_keywords": [
+    "审计",
+    "健康检查",
+    "全面检查",
+    "audit",
+    "health check",
+    "项目体检"
+  ],
+  "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "security",
+            "audit",
+            "quality"
+          ]
+        }
+      },
+      "description": "注入历史审计上下文和安全策略记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "sec-bug-hunt",
+      "params": {
+        "scope": "full",
+        "min_confidence": 0.8,
+        "risk_levels": [
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+          "CRITICAL"
+        ]
+      },
+      "description": "全量安全扫描：XSS、SQL注入、CSRF、硬编码密钥、不安全依赖",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 600
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "full"
+      },
+      "description": "五层代码审查：ESLint → react-doctor → Playwright → AI语义 → 聚合",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "security",
+        "options": {
+          "layers": [
+            "static"
+          ],
+          "rules": [
+            "npm-audit"
+          ]
+        }
+      },
+      "description": "依赖安全审计：npm audit / pip audit / cargo audit",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.2,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "a11y",
+        "options": {
+          "standard": "WCAG2.1",
+          "level": "AA"
+        }
+      },
+      "description": "WCAG 无障碍扫描：img alt/语义化HTML/aria-label 基础检查",
+      "auto_execute": true,
+      "condition": "frontend_involved",
+      "on_error": "continue"
+    },
+    {
+      "step": 3.3,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "i18n",
+        "options": {
+          "checks": ["hardcoded_strings", "missing_translations", "rtl_support"]
+        }
+      },
+      "description": "i18n 国际化审查：中文字符串硬编码检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "performanceProfile",
+      "params": {
+        "mode": "static",
+        "target": "all"
+      },
+      "description": "性能静态分析：识别热点函数、大Bundle、N+1查询模式",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "checkCoverage",
+      "params": {
+        "threshold": 0,
+        "mode": "report"
+      },
+      "description": "获取当前测试覆盖率（仅报告，不设阈值阻断）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "codeScan",
+      "params": {
+        "mode": "full",
+        "depth": "deep"
+      },
+      "description": "代码复杂度扫描：圈复杂度、重复率、文件行数、依赖深度",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6.5,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "codeMetrics",
+      "params": {
+        "thresholds": {
+          "cyclomatic_complexity": 15,
+          "maintainability": 60
+        }
+      },
+      "description": "代码复杂度指标：圈复杂度阈值检查（>15 视为高复杂度）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6.7,
+      "layer": "capability",
+      "service": "DepsService",
+      "action": "checkOutdated",
+      "params": {},
+      "description": "依赖审计：检测过期 npm 包",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "knipCheck",
+      "params": {
+        "mode": "dead_code"
+      },
+      "description": "死代码检测：未使用文件、未引用导出、多余依赖",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "gitLeaks",
+      "params": {
+        "mode": "history"
+      },
+      "description": "Git 历史密钥扫描：API Key、Token、私钥、JWT 泄露检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": [
+          "security",
+          "lint",
+          "dependencies",
+          "performance",
+          "coverage",
+          "complexity",
+          "dead_code",
+          "git_leaks",
+          "a11y",
+          "i18n"
+        ],
+        "mode": "report_only"
+      },
+      "description": "汇总所有检查结果为统一健康报告（仅报告，不阻断）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "generateReport",
+      "params": {
+        "format": "markdown",
+        "destination": "docs/audit-report.md",
+        "sections": [
+          "security",
+          "quality",
+          "dependencies",
+          "performance",
+          "coverage",
+          "complexity",
+          "dead_code",
+          "git_leaks",
+          "a11y",
+          "i18n"
+        ]
+      },
+      "description": "生成全面审计报告：包含各项得分、风险等级、改进建议",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10.5,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-infographic",
+      "params": {
+        "title": "Project Health Audit"
+      },
+      "description": "Huashu infographic: 将审计指标渲染为单页 HTML 信息图（editorial-brutalism）",
+      "auto_execute": true,
+      "condition": "enh_huashu_infographic",
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "report",
+      "params": {
+        "message": "📊 项目健康检查报告已生成\n\n报告位置：docs/audit-report.md\n\n是否根据发现的问题执行自动修复？",
+        "validation": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "description": "展示审计摘要，询问是否自动修复",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "CodeEngine",
+      "action": "autoFix",
+      "params": {
+        "mode": "all",
+        "include": [
+          "security",
+          "lint",
+          "dependencies"
+        ]
+      },
+      "description": "根据审计结果执行自动修复（安全+规范+依赖）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": [
+          "tokens",
+          "api_calls"
+        ]
+      },
+      "description": "审计流程成本报告",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "audit",
+        "data": {
+          "source": "audit_workflow"
+        }
+      },
+      "description": "保存审计结果到多后端记忆（安全发现/质量指标/性能热点）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性，去重过期条目",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 15,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "项目健康检查完成：报告已保存至 docs/audit-report.md"
+      },
+      "description": "通知用户审计完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

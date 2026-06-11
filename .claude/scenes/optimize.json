@@ -1,0 +1,213 @@
+{
+  "scene_id": "optimize",
+  "workflow": "optimize",
+  "name": "性能优化",
+  "description": "基于测量的性能优化，先定位瓶颈再修复（集成CE知识沉淀）",
+  "trigger_keywords": [
+    "优化",
+    "性能",
+    "performance",
+    "慢",
+    "卡顿",
+    "LCP",
+    "CLS",
+    "INP",
+    "Core Web Vitals"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "optimize",
+            "performance",
+            "analysis"
+          ]
+        }
+      },
+      "description": "注入历史上下文和相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listIssues",
+      "params": {
+        "state": "open",
+        "labels": [
+          "performance",
+          "optimization"
+        ],
+        "limit": 5
+      },
+      "description": "使用 GitHub MCP 列出性能相关的 issues",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "performance optimization best practices"
+      },
+      "description": "使用 Context7 MCP 获取性能优化最佳实践",
+      "auto_execute": true,
+      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "select",
+      "params": {
+        "options": [
+          "前端：首屏加载慢（LCP 问题）",
+          "前端：交互卡顿（INP 问题）",
+          "前端：布局抖动（CLS 问题）",
+          "前端：Bundle 体积过大",
+          "后端：API 响应慢",
+          "后端：内存增长",
+          "后端：CPU 飙升",
+          "其他性能问题"
+        ]
+      },
+      "description": "选择性能问题类型，确定测量方向",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "确保优化前测试通过（基线）",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "full"
+      },
+      "description": "识别常见反模式：N+1 查询、无分页、无图片优化、不必要重渲染、大 Bundle",
+      "auto_execute": true,
+      "on_error": "retry"
+    },
+    {
+      "step": 7,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "confirm",
+      "params": {
+        "message": "确认已测量瓶颈（Lighthouse / DevTools / APM），不是假设优化"
+      },
+      "description": "强制测量优先原则：无测量不优化",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runAffected",
+      "params": {},
+      "description": "每次优化后运行受影响测试",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "pr"
+      },
+      "description": "优化后审查：确认行为未变、无新反模式、Bundle 未显著增大",
+      "auto_execute": true,
+      "on_error": "retry"
+    },
+    {
+      "step": 10,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "confirm",
+      "params": {
+        "message": "确认优化后已重新测量，有具体数字对比"
+      },
+      "description": "验证优化效果：必须有 before/after 数字",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "optimize",
+        "source": "auto"
+      },
+      "description": "将性能优化知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "optimize",
+        "data": {
+          "source": "optimize_workflow"
+        }
+      },
+      "description": "记录优化基线数据到项目记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "性能优化完成"
+      },
+      "description": "通知用户优化结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

@@ -1,0 +1,295 @@
+{
+  "scene_id": "new-project",
+  "workflow": "new-project",
+  "name": "从零开始新项目",
+  "description": "从零开始新项目（集成CE方案规划和知识沉淀）",
+  "trigger_keywords": [
+    "从零开始",
+    "新项目",
+    "做一个",
+    "搭建",
+    "创建"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full"
+      },
+      "description": "全量记忆注入（Claude-Mem + agentmemory + NEXO + CodeGraph）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "searchRepositories",
+      "params": {
+        "query": "best practices project architecture 2024",
+        "limit": 5
+      },
+      "description": "使用 GitHub MCP 搜索最佳实践仓库",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "TavilyMCP",
+      "action": "search",
+      "params": {
+        "query": "project best practices architecture 2024",
+        "limit": 10
+      },
+      "description": "使用 Tavily MCP 搜索项目类型最佳实践",
+      "auto_execute": true,
+      "condition": "tavily_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "current project tech stack"
+      },
+      "description": "使用 Context7 MCP 获取相关技术栈文档",
+      "auto_execute": true,
+      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "SupabaseMCP",
+      "action": "getSchema",
+      "params": {
+        "project": "template"
+      },
+      "description": "使用 Supabase MCP 获取数据库模板",
+      "auto_execute": true,
+      "condition": "supabase_mcp_available && database_required",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "StripeMCP",
+      "action": "getPaymentFlow",
+      "params": {
+        "type": "template"
+      },
+      "description": "使用 Stripe MCP 获取支付流程模板",
+      "auto_execute": true,
+      "condition": "stripe_mcp_available && payment_required",
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "ResendMCP",
+      "action": "getEmailTemplate",
+      "params": {
+        "type": "onboarding"
+      },
+      "description": "使用 Resend MCP 获取邮件模板",
+      "auto_execute": true,
+      "condition": "resend_mcp_available && email_required",
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "interactive",
+      "service": "OpenDiggerService",
+      "action": "analyze",
+      "params": {
+        "metric": "openrank",
+        "period": "90d"
+      },
+      "description": "竞品分析（条件触发；repo 由场景引擎从用户输入中提取）",
+      "auto_execute": false,
+      "condition": "user_mentioned_competitor_or_domain",
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-plan",
+      "params": {
+        "detail_level": "high",
+        "risk_analysis": true,
+        "tech_selection": true
+      },
+      "description": "CE Plugin 生成详细项目规划：技术选型、架构设计、任务拆解、时间预估",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-to-prd",
+      "params": {
+        "publish": true,
+        "tracker": "github"
+      },
+      "description": "Matt Pocock /to-prd: 从对话上下文合成 PRD 并发布到项目 Issue Tracker",
+      "auto_execute": true,
+      "condition": "mattpocock_skill_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-to-issues",
+      "params": {
+        "mode": "vertical_slices",
+        "independent": true
+      },
+      "description": "Matt Pocock /to-issues: 将 PRD 拆解为可独立抓取的垂直切片 Issue",
+      "auto_execute": true,
+      "condition": "mattpocock_skill_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "interactive",
+      "service": "PromptService",
+      "action": "askUser",
+      "params": {
+        "prompt": "是否需要使用 Open Design 开发 UI 界面？",
+        "type": "confirm",
+        "default": false
+      },
+      "description": "询问用户是否需要 Open Design AI 设计",
+      "auto_execute": false,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "generateDesign",
+      "params": {},
+      "description": "Open Design AI 生成设计（如涉及前端页面，Stripe/Linear/Vercel 等品牌系统）",
+      "auto_execute": true,
+      "condition": "frontend_involved || user_confirmed_open_design",
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "ContractChecker",
+      "action": "checkAPIConsistency",
+      "params": {},
+      "description": "API 契约一致性检查：从 Open Design 设计稿提取字段/端点，与后端代码交叉验证",
+      "auto_execute": true,
+      "condition": "open_design_executed",
+      "on_error": "continue"
+    },
+    {
+      "step": 15,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "full"
+      },
+      "description": "开发完成后全量审查",
+      "auto_execute": true,
+      "on_error": "retry"
+    },
+    {
+      "step": 16,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "审查通过后运行完整测试套件，确保功能正确",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 17,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "new-project",
+        "source": "auto"
+      },
+      "description": "将新项目创建知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 18,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-git-guardrails",
+      "params": {
+        "hooks": [
+          "push",
+          "reset-hard",
+          "clean",
+          "branch-delete"
+        ]
+      },
+      "description": "Matt Pocock /git-guardrails-claude-code: 配置 PreToolUse Hook 拦截危险 git 命令",
+      "auto_execute": true,
+      "condition": "mattpocock_skill_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 19,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "architecture",
+        "data": {
+          "source": "new_project_workflow"
+        }
+      },
+      "description": "需求分析 + 技术方案设计 + 生成 Phase 执行清单",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 20,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 21,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "项目初始化完成"
+      },
+      "description": "通知用户项目创建结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

@@ -1,0 +1,229 @@
+{
+  "scene_id": "mobile-optimize",
+  "workflow": "mobile-optimize",
+  "name": "移动端性能优化",
+  "description": "测量基线→定位瓶颈→AI分析→自动优化→重新验证：包体积/启动时间/FPS/内存/网络/电池",
+  "trigger_keywords": [
+    "App太慢",
+    "App卡顿",
+    "移动端性能",
+    "包体积优化",
+    "启动优化",
+    "mobile optimize",
+    "mobile performance",
+    "优化App"
+  ],
+  "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["mobile-perf", "optimize", "performance"]
+        }
+      },
+      "description": "注入历史性能基线和优化记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "detectProject",
+      "params": {},
+      "description": "识别平台→确定性能指标标准（RN <2MB / Flutter <5MB / 原生按平台）",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "measureBaseline",
+      "params": {
+        "metrics": ["bundle_size", "cold_start", "warm_start", "fps", "memory_peak", "memory_background"],
+        "mode": "static_first"
+      },
+      "description": "性能基线测量：优先静态（包体积/资源占比），设备可用时追加运行时指标（启动/FPS/内存）",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "analyzeBundle",
+      "params": {
+        "tool": "auto"
+      },
+      "description": "Bundle 分析：RN→bundle-visualizer / Flutter→--analyze-size / 原生→APK Analyzer，大模块定位+代码分割机会",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "analyzeAssets",
+      "params": {},
+      "description": "资源分析：图片未压缩/未WebP/未多分辨率/未懒加载、字体过大、冗余资源",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "analyzeNetwork",
+      "params": {
+        "checks": ["duplicate_requests", "batch_opportunity", "prefetch_missing", "offline_cache_missing", "image_oversize"]
+      },
+      "description": "网络分析：重复请求/未批量合并/无预加载/无离线缓存/图片下载尺寸 > 显示尺寸 2x",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "detectMobileAntipatterns",
+      "params": {},
+      "description": "性能反模式检测：离屏渲染/过度绘制/主线程长任务/匿名render函数/WakeLock未释放",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "AgentRunner",
+      "action": "runAgent",
+      "params": {
+        "agent": "mobile-perf",
+        "focus": ["bundle", "startup", "rendering", "memory", "network", "battery"]
+      },
+      "description": "mobile-perf Agent AI 性能分析：综合测量数据→按收益排序→生成预算违规报告",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "generateOptimizePlan",
+      "params": {
+        "prioritize": "impact"
+      },
+      "description": "生成优化方案：综合 Agent 分析 + 测量数据，按收益排序（图片→WebP > 代码分割 > 懒加载 > 预加载 > 离线缓存）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "executeOptimize",
+      "params": {
+        "auto_fix_only": true
+      },
+      "description": "执行可自动修复的优化：图片WebP转换/多分辨率生成/dead import移除/重复请求合并",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 600
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "remeasure",
+      "params": {},
+      "description": "优化后重新测量所有指标 + 优化前后对比",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": ["bundle_size", "startup_time", "fps", "memory"]
+      },
+      "description": "性能预算门禁：超标项标注 🔴/🟡，生成通俗优化报告",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "mobile-optimize",
+        "source": "auto"
+      },
+      "description": "性能优化知识沉淀",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": ["tokens", "api_calls"]
+      },
+      "description": "性能优化流程成本报告",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "mobile-optimize",
+        "data": {
+          "source": "mobile-optimize_workflow"
+        }
+      },
+      "description": "保存性能基线和优化结果到记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 15,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 16,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "移动端性能优化完成 ⚡ 优化前后对比报告已生成"
+      },
+      "description": "通知优化结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

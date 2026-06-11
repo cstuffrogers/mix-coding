@@ -1,0 +1,155 @@
+{
+  "scene_id": "mobile-e2e",
+  "workflow": "mobile-e2e",
+  "name": "移动端 E2E 测试配置",
+  "description": "自动检测项目框架→选择最佳测试工具→生成配置+示例→CI 集成",
+  "trigger_keywords": [
+    "移动端测试",
+    "E2E测试",
+    "UI自动化",
+    "mobile test",
+    "Detox",
+    "Maestro"
+  ],
+  "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["mobile", "test", "e2e"]
+        }
+      },
+      "description": "注入历史测试配置记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "detectProject",
+      "params": {},
+      "description": "识别框架→选择测试工具：RN/Expo→Detox / Flutter→Patrol / 小程序→miniprogram-automator / 通用→Maestro",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "setupE2EConfig",
+      "params": {
+        "generate_examples": true
+      },
+      "description": "生成测试配置 + 示例用例（登录/主页/核心流程）",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "verifySetup",
+      "params": {},
+      "description": "验证测试环境可用：工具安装→配置语法检查→示例用例试运行",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "generateCIConfig",
+      "params": {
+        "platform": "github_actions"
+      },
+      "description": "生成 CI 配置：GitHub Actions runner + 模拟器启动（后续可扩展 GitLab CI/Jenkins）",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": ["e2e_config", "test_examples", "ci_integration"]
+      },
+      "description": "E2E 配置质量门禁（CI 配置已生成后再检查）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "mobile-e2e",
+        "source": "auto"
+      },
+      "description": "E2E 测试配置知识沉淀",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": ["tokens", "api_calls"]
+      },
+      "description": "E2E 配置流程成本报告",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "mobile-e2e",
+        "data": {
+          "source": "mobile-e2e_workflow"
+        }
+      },
+      "description": "保存测试配置到记忆（框架选择/配置文件路径/CI配置）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "移动端 E2E 测试配置完成 🧪 示例用例已就绪，运行 npx detox test 或 maestro test 开始"
+      },
+      "description": "通知用户 E2E 配置完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

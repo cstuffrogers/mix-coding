@@ -2,61 +2,177 @@
   "scene_id": "review",
   "workflow": "review",
   "name": "代码审查 + 安全审计",
-  "description": "全面代码质量审查 + 自动化安全漏洞扫描（集成CE多Agent深度审查 + anthropic-cybersecurity-skills）",
-  "trigger_keywords": ["审查", "review", "检查代码", "安全审计", "security"],
+  "description": "全面代码质量审查 + 自动化安全漏洞扫描（集成CE多Agent深度审查 + sec-bug-hunt）",
+  "trigger_keywords": [
+    "审查",
+    "review",
+    "检查代码",
+    "安全审计",
+    "security"
+  ],
   "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "review",
+            "quality",
+            "security"
+          ]
+        }
+      },
+      "description": "注入历史审查上下文和已知代码质量问题",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
     {
       "step": 1,
       "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listPullRequests",
+      "params": {
+        "state": "open",
+        "limit": 5
+      },
+      "description": "使用 GitHub MCP 列出待审查的 Pull Requests",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.1,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "code review best practices"
+      },
+      "description": "使用 Context7 MCP 获取代码审查最佳实践",
+      "auto_execute": true,
+      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
       "service": "ReviewEngine",
       "action": "runReview",
-      "params": { "mode": "full" },
+      "params": {
+        "mode": "full"
+      },
       "description": "ESLint → react-doctor → Playwright 视觉 → AI 语义 → 聚合，五层审查",
       "auto_execute": true,
       "on_error": "retry"
     },
     {
-      "step": 2,
+      "step": 2.5,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-expert-review",
+      "params": {},
+      "description": "Huashu 5 维度专家评审 (Layer 6): philosophy/hierarchy/craft/functionality/originality — UI 设计质量评分",
+      "auto_execute": true,
+      "condition": "enh_huashu_expert_review",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
       "layer": "capability",
       "service": "ECC",
       "action": "ce-review",
-      "params": { "scope": "all", "agent_count": 9 },
+      "params": {
+        "scope": "all",
+        "agent_count": 9
+      },
       "description": "CE Plugin 多Agent深度审查：架构、安全、性能、代码规范、可维护性、文档、测试、国际化、最佳实践",
       "auto_execute": true,
       "condition": "plugin_ce_available",
       "on_error": "continue"
     },
     {
-      "step": 3,
+      "step": 4,
       "layer": "capability",
-      "service": "AnthropicSecuritySkill",
-      "action": "anthropic-cybersecurity-skills",
+      "service": "SecuritySkill",
+      "action": "sec-bug-hunt",
       "params": {
         "scope": "current_diffs",
         "min_confidence": 0.85,
         "block_merge_on_critical": true,
-        "risk_levels": ["HIGH", "CRITICAL"]
+        "risk_levels": [
+          "HIGH",
+          "CRITICAL"
+        ]
       },
       "description": "代码安全深度审计：执行高置信度 (>=0.85) 的漏洞扫描，阻断高危漏洞（SQLi、XSS、命令注入等）",
       "auto_execute": true,
-      "condition": "plugin_ce_available && anthropic_skill_available",
-      "on_error": "fail_workflow",
+      "on_error": "continue",
       "timeout": 600,
       "criticality": "BLOCK-MERGE"
     },
     {
-      "step": 4,
+      "step": 4.5,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": [
+          "lint",
+          "typecheck",
+          "security"
+        ],
+        "mode": "strict",
+        "block_merge": true
+      },
+      "description": "质量门禁：汇总五层审查+安全审计结果，关键问题阻断合并",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 5,
       "layer": "capability",
       "service": "ECC",
       "action": "ce-compound",
-      "params": { "type": "review", "source": "auto" },
+      "params": {
+        "type": "review",
+        "source": "auto"
+      },
       "description": "将审查 + 安全审计知识沉淀到项目知识库 CLAUDE.md",
       "auto_execute": true,
       "condition": "plugin_ce_available",
       "on_error": "continue"
     },
     {
-      "step": 5,
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "review",
+        "data": {
+          "source": "review_workflow"
+        }
+      },
+      "description": "保存审查结果到记忆（安全问题/代码质量问题/审查通过项）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
       "layer": "capability",
       "service": "NotificationService",
       "action": "notify",
@@ -68,5 +184,6 @@
       "auto_execute": true,
       "on_error": "continue"
     }
-  ]
+  ],
+  "status": "active"
 }

@@ -1,0 +1,417 @@
+{
+  "scene_id": "bugfix",
+  "workflow": "bugfix",
+  "name": "Bug修复",
+  "description": "端到端一键修复Bug流程（Jira/issue/PR --> issue注释 --> 本地分支 --> 修复 --> 测试 --> 提交 --> PR --> 回归测试 --> 关单）",
+  "trigger_keywords": [
+    "修复bug",
+    "bug修复",
+    "fix bug",
+    "修复",
+    "debug"
+  ],
+  "flow": [
+    {
+      "step": 0,
+      "layer": "capability",
+      "service": "UpdateService",
+      "action": "autoUpdate",
+      "params": {
+        "mode": "pull",
+        "rebase": true
+      },
+      "description": "拉取最新代码，避免合并冲突",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listIssues",
+      "params": {
+        "state": "open",
+        "labels": [
+          "bug"
+        ],
+        "limit": 5
+      },
+      "description": "使用 GitHub MCP 列出最近的 bug issues",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.1,
+      "layer": "capability",
+      "service": "SentryMCP",
+      "action": "listIssues",
+      "params": {
+        "statsPeriod": "7d",
+        "limit": 10
+      },
+      "description": "使用 Sentry MCP 查询最近7天的错误和安全事件",
+      "auto_execute": true,
+      "condition": "sentry_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.2,
+      "layer": "capability",
+      "service": "TavilyMCP",
+      "action": "search",
+      "params": {
+        "query": "同类bug解决方案",
+        "limit": 5
+      },
+      "description": "使用 Tavily MCP 搜索同类bug的解决方案",
+      "auto_execute": true,
+      "condition": "tavily_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.3,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "tech_stack"
+      },
+      "description": "使用 Context7 MCP 获取相关技术文档",
+      "auto_execute": true,
+      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.4,
+      "layer": "capability",
+      "service": "CodeGraphMCP",
+      "action": "analyzeDependencies",
+      "params": {
+        "depth": 3
+      },
+      "description": "使用 CodeGraph MCP 分析受影响代码的依赖关系",
+      "auto_execute": true,
+      "condition": "codegraph_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.5,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-triage",
+      "params": {
+        "categories": [
+          "severity",
+          "scope",
+          "urgency"
+        ]
+      },
+      "description": "Matt Pocock /triage: 对 bug 进行分类（严重度/范围/紧急度），确定修复优先级",
+      "auto_execute": true,
+      "condition": "mattpocock_skill_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "bug",
+            "fix",
+            "security"
+          ]
+        }
+      },
+      "description": "注入历史bug修复上下文和已知问题模式",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "issueQuery",
+      "params": {
+        "type": "bug",
+        "limit": 1
+      },
+      "description": "查询最近1个未完成的bug issue（Jira/issue/PR）",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "IssueProcessor",
+      "action": "issueQuery",
+      "params": {
+        "type": "bug",
+        "limit": 1
+      },
+      "description": "分析issue类型、严重程度、重现步骤、影响范围",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 3.5,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-diagnose",
+      "params": {
+        "phases": [
+          "reproduce",
+          "minimise",
+          "hypothesise",
+          "instrument",
+          "fix",
+          "regression-test"
+        ]
+      },
+      "description": "Matt Pocock /diagnose: 结构化调试——复现→缩小→假设→插桩→修复→回归测试",
+      "auto_execute": true,
+      "condition": "mattpocock_skill_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3.6,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "detectLanguage",
+      "params": {
+        "detect": [
+          "go.mod",
+          "Cargo.toml",
+          "pubspec.yaml",
+          "build.gradle",
+          "CMakeLists.txt"
+        ]
+      },
+      "description": "检测项目语言生态，确定使用哪种构建/测试工具链",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.7,
+      "layer": "capability",
+      "service": "BuildService",
+      "action": "languageBuild",
+      "params": {
+        "mapping": {
+          "go.mod": "go-build",
+          "Cargo.toml": "rust-build",
+          "pubspec.yaml": "flutter-build",
+          "build.gradle": "gradle-build"
+        }
+      },
+      "description": "根据检测到的语言调用对应构建工具，验证非JS项目构建基线",
+      "auto_execute": true,
+      "condition": "non_js_project_detected",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "createBranch",
+      "params": {
+        "branch_type": "fix",
+        "base_branch": "main"
+      },
+      "description": "基于main分支创建fix分支，确保与issue关联",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "CodeEngine",
+      "action": "locate",
+      "params": {
+        "scope": "affected_files"
+      },
+      "description": "定位受影响文件，进行现场调试",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 5.1,
+      "layer": "capability",
+      "service": "ContractChecker",
+      "action": "checkAPIConsistency",
+      "params": {
+        "scope": "affected_endpoints"
+      },
+      "description": "API 契约一致性检查：确保修复不会破坏现有API契约",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "CodeEngine",
+      "action": "fix",
+      "params": {
+        "mode": "semantic",
+        "infer_type": true
+      },
+      "description": "语义修复：自动定位根因、AI生成修复建议，人工确认后执行",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit",
+        "regression": true
+      },
+      "description": "回归测试全量跑通，确保修复无副作用",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 7.1,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "checkCoverage",
+      "params": {
+        "threshold": 80,
+        "mode": "gate"
+      },
+      "description": "测试覆盖率检查：确保修复代码有足够测试覆盖",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7.2,
+      "layer": "capability",
+      "service": "VerifyService",
+      "action": "verify",
+      "params": {
+        "scope": "bugfix",
+        "mode": "targeted",
+        "verify_reproduction": false
+      },
+      "description": "验证修复：确认bug不再复现，原有功能未被破坏",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 180
+    },
+    {
+      "step": 8,
+      "layer": "interactive",
+      "service": "IssueProcessor",
+      "action": "verifyFix",
+      "params": {
+        "message": "请确认Bug修复：\n✅ 根因已确认 \n✅ 修复方案已验证 \n✅ 回归测试通过 \n✅ 覆盖率达标 \n✅ 代码质量检查通过 \n\n是否提交代码？",
+        "validation": {
+          "type": "boolean",
+          "required_ack": true
+        }
+      },
+      "description": "人工双确认：issue comment确认修复完成",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "commitPush",
+      "params": {
+        "message": "fix: bug修复完成",
+        "push_remote": true
+      },
+      "description": "生成符合Conventional Commits标准的提交信息，推送远程fix分支",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "PRGenerator",
+      "action": "createPR",
+      "params": {
+        "auto_assign": true,
+        "auto_label": [
+          "bugfix",
+          "verified"
+        ]
+      },
+      "description": "自动生成合并请求，添加fixes #issue_key标签，分配reviewer",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "regression",
+      "params": {
+        "mode": "pr_check",
+        "cleanup": true
+      },
+      "description": "PR创建后自动运行回归测试（CI/CD 流水线集成）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "IssueProcessor",
+      "action": "closeTicket",
+      "params": {
+        "comment": "✅ Bug已修复并验证通过，关闭issue"
+      },
+      "description": "修复完成后自动关闭Jira/GitHub issue",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 12.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "bugfix",
+        "data": {
+          "source": "bugfix_workflow"
+        }
+      },
+      "description": "保存bug修复过程和根因到记忆（便于后续类似问题快速定位）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 12.6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "Bug修复完成：代码已提交、PR已创建、测试通过"
+      },
+      "description": "通知用户 bug 修复完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

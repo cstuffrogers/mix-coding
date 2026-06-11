@@ -1,0 +1,83 @@
+node_modules/
+dist/
+build/
+.gptscript-cache/
+
+# 环境变量（包含密钥，禁止提交）
+.env
+.env.local
+.env.*.local
+
+# 日志
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+.gemini/
+.kiro/
+.opencode/
+.trae/
+.gptscript-cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 测试
+coverage/
+
+# jvn
+.agents
+.specify
+constitution.md
+reports/
+
+# 项目数据缓存（不提交）
+.codegraph/
+.ruff_cache/
+.pytest_cache/
+.understand-anything/
+
+# Archon 引擎（独立仓库，不提交到本项目）
+.archon/
+Archon-dev/
+
+# 临时文件/大文件
+*.zip
+*.tar.gz
+*.doc
+.huashu-extract/
+.visual-baselines/
+.mcp/
+
+# 预编译工具/二进制（非源码，不提交）
+codegraph-win32-x64/
+onnx/
+tools/dependency-check/
+tools/reviewdog/
+
+# 外部仓库（独立项目，不提交到本仓库）
+open-design/
+open-digger/
+opendigger-cli/
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json
+
+# Runtime state files
+.claude/scheduled_tasks.json
+.claude/scheduled_tasks.lock
+
+# Python cache
+__pycache__/
+
+# 个人参考文档（非项目文档）
+3.md
+AI辅助Web与移动端开发完整问题清单.md
+Claude_Code_全自动驾驶系统_融合版.md
+加入新skill.md
+前后端一致性问题.md

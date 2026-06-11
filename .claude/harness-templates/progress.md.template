@@ -1,0 +1,135 @@
+# {{PROJECT_NAME}} — Progress Log
+
+> 本文件记录所有 Agent 会话的历史，确保跨会话连续性。
+> 基于 Learn Harness Engineering (https://github.com/walkinglabs/learn-harness-engineering) 改编。
+>
+> **规则**: 每个会话结束后必须追加一条记录。这是下一个会话的"记忆"。
+
+---
+
+## Project Info
+
+- **Project**: {{PROJECT_NAME}}
+- **Started**: {{START_DATE}}
+- **Current Version**: {{VERSION}}
+- **Total Sessions**: {{SESSION_COUNT}}
+
+---
+
+## Quick Status
+
+<!-- 每次会话后更新 -->
+
+| Feature | Status | Last Worked On |
+|---------|--------|----------------|
+| {{FEATURE_1}} | {{STATUS}} | {{DATE}} |
+| {{FEATURE_2}} | {{STATUS}} | {{DATE}} |
+
+**Current WIP**: {{CURRENT_FEATURE}}
+**Next Up**: {{NEXT_FEATURE}}
+
+---
+
+## Session History
+
+<!-- 模板：每次会话后复制并填写 -->
+
+### Session {{NUMBER}} — {{DATE}} {{TIME}}
+
+**Feature**: {{FEATURE_NAME}}
+**Scene**: {{/new-project | /feature | /bugfix | /refactor | /design | /review | /hunt | /analyze | /loop | /simplify | /optimize | /polish}}
+**Status**: {{COMPLETED | PARTIAL | BLOCKED | ROLLED_BACK}}
+
+#### What Was Done
+
+- {{具体做了什么}}
+- {{修改了哪些文件}}
+- {{添加了什么功能}}
+
+#### Verification Results
+
+- [ ] Tests pass
+- [ ] Lint clean
+- [ ] Type check passes
+- [ ] ReviewEngine Layer 1-2 pass
+- [ ] Feature verification
+
+#### Issues Encountered
+
+- {{遇到的问题}}
+- {{如何解决的（或是否未解决）}}
+
+#### Decisions Made
+
+- {{架构决策}}
+- {{技术选型}}
+
+#### Handoff Notes
+
+<!-- 如果 feature 未完成，必须填写 -->
+
+**Status**: {{IN_PROGRESS | BLOCKED}}
+**Next Steps**:
+1. {{下一步做什么}}
+2. {{再下一步}}
+
+**Blockers**:
+- {{有什么阻碍}}
+
+**Context for Next Session**:
+{{给下一个会话的上下文提示}}
+
+---
+
+### Session 0 — {{START_DATE}}
+
+**Feature**: Project Initialization
+**Scene**: /new-project
+**Status**: COMPLETED
+
+#### What Was Done
+
+- Project scaffold created
+- Harness files initialized (AGENTS.md, feature_list.json, progress.md, init.sh, DECISIONS.md)
+- Architecture decisions documented in DECISIONS.md
+
+#### Verification Results
+
+- [x] init.sh passes
+- [x] Zero-conflict check passes
+
+#### Decisions Made
+
+- {{初始架构决策}}
+
+---
+
+## Rollback History
+
+<!-- 记录需要回滚的会话，作为反面教材 -->
+
+| Session | Date | Reason | Rollback Command |
+|---------|------|--------|------------------|
+| {{NUMBER}} | {{DATE}} | {{为什么回滚}} | `git reset --hard {{COMMIT}}` |
+
+---
+
+## Metrics
+
+<!-- 可选：追踪效率指标 -->
+
+| Metric | Value |
+|--------|-------|
+| Total Sessions | {{SESSION_COUNT}} |
+| Completed Features | {{COMPLETED_COUNT}} |
+| Rollbacks | {{ROLLBACK_COUNT}} |
+| Average Session Duration | {{AVG_DURATION}} |
+
+---
+
+## Reference
+
+- **Feature List**: [feature_list.json](./feature_list.json)
+- **Agent Guide**: [AGENTS.md](./AGENTS.md)
+- **Architecture**: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Decisions**: [DECISIONS.md](./DECISIONS.md)

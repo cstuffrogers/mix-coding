@@ -1,0 +1,75 @@
+{
+  "version": "1.1.0",
+  "description": "Mix-Coding System Agent/Skill 映射配置",
+  "agent_mapping": {
+    "planner": {
+      "archon_workflow": "feature",
+      "role": "在 feature 工作流中作为规划子步骤"
+    },
+    "architect": {
+      "archon_workflow": "new-project",
+      "role": "在 new-project 工作流中作为架构设计子步骤"
+    },
+    "tdd-guide": {
+      "archon_workflow": "feature",
+      "role": "TDD 测试驱动开发引导"
+    },
+    "code-reviewer": {
+      "archon_workflow": "review",
+      "role": "AI 语义审查增强"
+    },
+    "security-reviewer": {
+      "archon_workflow": "hunt",
+      "role": "安全扫描增强"
+    },
+    "build-error-resolver": {
+      "archon_workflow": "feature, bugfix",
+      "role": "构建/类型错误自动修复"
+    },
+    "e2e-runner": {
+      "archon_workflow": "feature, bugfix",
+      "role": "Playwright E2E 测试"
+    },
+    "refactor-cleaner": {
+      "archon_workflow": "refactor",
+      "role": "死代码清理 + 重构建议"
+    },
+    "doc-updater": {
+      "archon_workflow": "all",
+      "role": "文档自动同步"
+    },
+    "chief-of-staff": {
+      "archon_workflow": "loop",
+      "role": "多Agent编排调度"
+    }
+  },
+  "skill_mapping": {
+    "included": [
+      { "name": "coding-standards", "action": "合并现有" },
+      { "name": "tdd-workflow", "action": "直接引入" },
+      { "name": "security-review", "action": "增强现有" },
+      { "name": "verification-loop", "action": "直接引入" },
+      { "name": "continuous-learning", "action": "核心引入" },
+      { "name": "strategic-compact", "action": "直接引入" },
+      { "name": "frontend-patterns", "action": "增强现有" },
+      { "name": "backend-patterns", "action": "直接引入" },
+      { "name": "e2e-testing", "action": "增强现有" },
+      { "name": "testing-skill", "action": "新增-测试覆盖率分析" },
+      { "name": "dependency-audit-skill", "action": "新增-依赖安全审计" }
+    ]
+  },
+  "command_mapping": {
+    "test-coverage": {
+      "description": "测试覆盖率分析与提升",
+      "workflows": ["feature", "bugfix", "refactor", "optimize", "simplify"]
+    },
+    "dependency-audit": {
+      "description": "依赖安全审计",
+      "workflows": ["review", "new-project"]
+    },
+    "docs-update": {
+      "description": "文档自动更新",
+      "workflows": ["all"]
+    }
+  }
+}

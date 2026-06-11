@@ -1,0 +1,218 @@
+{
+  "scene_id": "rollback",
+  "workflow": "rollback",
+  "name": "快速回滚",
+  "description": "紧急回滚流程：识别目标版本 → 验证回滚安全性 → 执行回滚 → 验证服务恢复",
+  "trigger_keywords": [
+    "回滚",
+    "rollback",
+    "撤销部署",
+    "紧急恢复",
+    "revert"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "rollback",
+            "incident",
+            "release"
+          ]
+        }
+      },
+      "description": "注入历史上下文和相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listReleases",
+      "params": {
+        "limit": 10
+      },
+      "description": "列出最近10个发布版本，确定回滚目标",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "choose",
+      "params": {
+        "message": "⚠️ 紧急回滚 — 请选择要回滚到的版本：",
+        "options": [],
+        "dynamic_options": "recent_releases"
+      },
+      "description": "选择回滚目标版本",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "CodeGraphMCP",
+      "action": "analyzeDependencies",
+      "params": {
+        "depth": 2
+      },
+      "description": "分析当前版本与回滚目标版本之间的差异，评估回滚影响范围",
+      "auto_execute": true,
+      "condition": "codegraph_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "confirm",
+      "params": {
+        "message": "⚠️ 确认回滚\n\n回滚目标：${selected_version}\n影响文件数：${affected_files}\n\n此操作将撤销当前版本的所有变更。\n\n确认执行紧急回滚吗？",
+        "validation": {
+          "type": "boolean",
+          "default": false,
+          "required_ack": true
+        }
+      },
+      "description": "二次确认回滚操作（高风险操作）",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "rollback",
+      "params": {
+        "target": "${selected_version}",
+        "mode": "git_revert",
+        "preserve_data": true
+      },
+      "description": "执行Git回滚到目标版本（保留数据库/用户数据）",
+      "auto_execute": true,
+      "condition": "user_confirmed === true",
+      "on_error": "abort",
+      "criticality": "HIGH-RISK"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "BuildService",
+      "action": "productionBuild",
+      "params": {
+        "optimize": true
+      },
+      "description": "回滚后重新构建",
+      "auto_execute": true,
+      "on_error": "abort",
+      "timeout": 600
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "VerifyService",
+      "action": "verify",
+      "params": {
+        "scope": "rollback",
+        "mode": "health_check",
+        "retry": 5
+      },
+      "description": "强力健康检查：确认回滚后服务正常",
+      "auto_execute": true,
+      "on_error": "retry",
+      "timeout": 300
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "回滚后运行测试验证功能完整",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "commitPush",
+      "params": {
+        "message": "revert: 紧急回滚至 ${selected_version}",
+        "push_remote": true
+      },
+      "description": "提交回滚记录并推送",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "createIssue",
+      "params": {
+        "title": "⚠️ 回滚事件记录",
+        "labels": [
+          "rollback",
+          "incident"
+        ],
+        "body": "版本回滚详情..."
+      },
+      "description": "创建回滚事件记录Issue供事后复盘",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "rollback",
+        "data": {
+          "source": "rollback_workflow"
+        }
+      },
+      "description": "保存回滚事件到记忆（版本/原因/影响）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "level": "error",
+        "title": "⚠️ 紧急回滚已执行",
+        "content": "已回滚至版本 ${selected_version}，服务已恢复。详情见 Issue #${issue_number}"
+      },
+      "description": "紧急通知：回滚已执行",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

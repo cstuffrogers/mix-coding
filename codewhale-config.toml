@@ -1,0 +1,40 @@
+# ==============================================
+# CodeWhale (DeepSeek TUI) 自定义 API 配置
+# ==============================================
+# 将此文件复制到 %USERPROFILE%\.codewhale\config.toml
+# 或运行 codewhale auth set 交互式配置
+
+# ==============================================
+# 方式一：使用代理 / 自定义 API (DeepSeek 兼容)
+# ==============================================
+# 当前项目代理配置
+api_key = "sk-SW1hhMPtJLscHHzI0WJTCr6CB48Xc13qY4lCLzQ7NNmZEjXI"
+base_url = "https://api.supxh.xin"
+default_text_model = "deepseek-v4-pro"
+
+# ==============================================
+# 方式二：切换到其他提供商（见下方列表）
+# ==============================================
+# 运行: codewhale auth set --provider <id>
+#
+# 支持 12 个提供商：
+# deepseek      - DEEPSEEK_API_KEY
+# nvidia-nim    - NVIDIA_API_KEY / NVIDIA_NIM_API_KEY
+# openai        - OPENAI_API_KEY
+# atlascloud    - ATLASCLOUD_API_KEY
+# wanjie-ark    - WANJIE_ARK_API_KEY
+# openrouter    - OPENROUTER_API_KEY
+# novita        - NOVITA_API_KEY
+# fireworks     - FIREWORKS_API_KEY
+# moonshot      - MOONSHOT_API_KEY / KIMI_API_KEY
+# sglang        - SGLANG_API_KEY
+# vllm          - VLLM_API_KEY
+# ollama        - OLLAMA_API_KEY
+
+# ==============================================
+# UI 和会话设置
+# ==============================================
+[ui]
+default_mode = "agent"        # plan | agent | yolo
+approval_mode = "suggest"     # suggest | auto | never
+reasoning_effort = "high"     # off | high | max

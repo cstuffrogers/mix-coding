@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "created": "2026-05-31",
+  "memories": [],
+  "settings": {
+    "max_memories": 1000,
+    "auto_save": true
+  }
+}

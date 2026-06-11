@@ -1,0 +1,146 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${env:GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "tavily-search": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./.mcp/tavily-mcp/build/index.js"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "${env:TAVILY_API_KEY}"
+      }
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {
+        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
+      }
+    },
+    "sentry": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "ts-node",
+        "./.mcp/sentry-mcp/index.ts"
+      ],
+      "env": {
+        "SENTRY_AUTH": "${env:SENTRY_AUTH_TOKEN}"
+      }
+    },
+    "supabase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${env:SUPABASE_ACCESS_TOKEN}"
+      }
+    },
+    "stripe": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@stripe/mcp"
+      ],
+      "env": {
+        "STRIPE_SECRET_KEY": "${env:STRIPE_SECRET_KEY}"
+      }
+    },
+    "resend": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./.mcp/resend-mcp/dist/index.js"
+      ],
+      "env": {
+        "RESEND_API_KEY": "${env:RESEND_API_KEY}"
+      }
+    },
+    "schemaforge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "schemaforge-mcp"
+      ]
+    },
+    "a11y": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "a11y-mcp-server"
+      ]
+    },
+    "mobsf": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mobsf-mcp"
+      ],
+      "env": {
+        "MOBSF_URL": "${env:MOBSF_URL}",
+        "MOBSF_API_KEY": "${env:MOBSF_API_KEY}"
+      }
+    },
+    "maestro": {
+      "type": "stdio",
+      "command": "maestro",
+      "args": ["mcp"],
+      "env": {
+        "MAESTRO_CLI_API_KEY": "${env:MAESTRO_CLI_API_KEY}"
+      }
+    },
+    "detox": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "detox-mcp"
+      ]
+    },
+    "bearer": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@bearer/mcp"
+      ],
+      "env": {
+        "BEARER_API_KEY": "${env:BEARER_API_KEY}"
+      }
+    },
+    "shorebird": {
+      "type": "stdio",
+      "command": "shorebird",
+      "args": ["mcp"],
+      "env": {
+        "SHOREBIRD_TOKEN": "${env:SHOREBIRD_TOKEN}"
+      }
+    }
+  }
+}

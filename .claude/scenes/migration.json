@@ -1,0 +1,120 @@
+{
+  "scene_id": "migration",
+  "workflow": "migration",
+  "name": "数据库迁移审查",
+  "description": "审查数据库迁移文件：检测危险操作（NOT NULL无默认值、DROP、类型变更等），阻断高风险变更",
+  "trigger_keywords": [
+    "迁移审查",
+    "数据库迁移",
+    "migration review",
+    "db migration",
+    "schema审查",
+    "数据库变更"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["migration", "database", "schema", "security"]
+        }
+      },
+      "description": "注入历史迁移审查记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "core",
+      "service": "MigrationService",
+      "action": "migrationReview",
+      "params": {},
+      "description": "扫描迁移文件，运行 db-scalability-guardian 或内置规则",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 3,
+      "layer": "core",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": ["migration"]
+      },
+      "description": "质量门禁：HIGH/CRITICAL 迁移问题阻断",
+      "auto_execute": true,
+      "condition": "migrationHighCount > 0",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "FixService",
+      "action": "autoFix",
+      "params": {
+        "target": "migration",
+        "mode": "safe"
+      },
+      "description": "尝试自动修复可修复的迁移问题（如添加默认值建议）",
+      "auto_execute": true,
+      "condition": "migrationHighCount > 0",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "NotifyService",
+      "action": "send",
+      "params": {
+        "message": "数据库迁移审查完成，详见控制台输出"
+      },
+      "description": "发送审查结果通知",
+      "auto_execute": true,
+      "condition": "migrationHighCount > 0",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "migration",
+        "data": {
+          "findings": "{{migrationFindings}}",
+          "highCount": "{{migrationHighCount}}",
+          "passed": "{{migrationReviewPassed}}"
+        }
+      },
+      "description": "保存迁移审查结果到记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "去重整理记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "NotifyService",
+      "action": "notify",
+      "params": {
+        "message": "数据库迁移审查完成"
+      },
+      "description": "任务完成通知",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ]
+}

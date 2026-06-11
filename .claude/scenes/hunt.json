@@ -1,0 +1,226 @@
+{
+  "scene_id": "hunt",
+  "workflow": "hunt",
+  "name": "安全漏洞审查",
+  "description": "代码安全漏洞扫描与修复（集成CE知识沉淀）",
+  "trigger_keywords": [
+    "安全审查",
+    "漏洞扫描",
+    "安全隐患",
+    "XSS",
+    "注入",
+    "CSRF"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "SentryMCP",
+      "action": "listIssues",
+      "params": {
+        "statsPeriod": "7d",
+        "limit": 10
+      },
+      "description": "使用 Sentry MCP 查询最近7天的错误和安全事件",
+      "auto_execute": true,
+      "condition": "sentry_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.1,
+      "layer": "capability",
+      "service": "TavilyMCP",
+      "action": "search",
+      "params": {
+        "query": "最新安全漏洞 OWASP Top 10 2024 2025",
+        "limit": 10
+      },
+      "description": "使用 Tavily MCP 搜索最新的安全漏洞信息",
+      "auto_execute": true,
+      "condition": "tavily_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.2,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "OWASP security best practices"
+      },
+      "description": "使用 Context7 MCP 获取安全最佳实践文档",
+      "auto_execute": true,
+      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.3,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listIssues",
+      "params": {
+        "state": "all",
+        "labels": [
+          "security",
+          "vulnerability"
+        ],
+        "limit": 10
+      },
+      "description": "使用 GitHub MCP 查询历史安全漏洞 issues",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 1.4,
+      "layer": "capability",
+      "service": "CodeGraphMCP",
+      "action": "analyzeSecurityVulnerabilities",
+      "params": {
+        "depth": 3
+      },
+      "description": "使用 CodeGraph MCP 分析代码安全漏洞和依赖关系",
+      "auto_execute": true,
+      "condition": "codegraph_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "filters": {
+          "type": "security"
+        }
+      },
+      "description": "注入项目安全策略和已知漏洞上下文",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "security",
+        "options": {
+          "layers": [
+            "static"
+          ],
+          "rules": [
+            "eslint-plugin-security",
+            "OWASP-Top-10"
+          ],
+          "autoFix": true
+        }
+      },
+      "description": "安全审查：SQL注入、XSS、CSRF、敏感信息泄露（ESLint --fix 自动修复可修问题）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "security",
+        "options": {
+          "layers": [
+            "static"
+          ],
+          "rules": [
+            "npm-audit"
+          ],
+          "autoFix": true
+        }
+      },
+      "description": "依赖漏洞扫描（npm audit fix 自动修复安全依赖）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "验证修复后无功能回归",
+      "auto_execute": true,
+      "condition": "fixes_applied",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "hunt",
+        "source": "auto"
+      },
+      "description": "将安全审查知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 6.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "security",
+        "data": {
+          "source": "hunt_workflow"
+        }
+      },
+      "description": "保存安全审查结果到记忆（漏洞类型/修复状态/风险等级）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6.6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "send",
+      "params": {
+        "level": "error",
+        "title": "⚠️ 高危漏洞发现",
+        "content": "安全审查发现严重漏洞，详见审查报告"
+      },
+      "description": "发现高危漏洞时即时推送",
+      "auto_execute": true,
+      "condition": "high_severity_found",
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "安全漏洞审查完成，详见审查报告"
+      },
+      "description": "无条件通知：安全审查流程已完成（含漏洞统计与合规状态）",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

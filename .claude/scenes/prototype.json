@@ -1,0 +1,200 @@
+{
+  "scene_id": "prototype",
+  "workflow": "prototype",
+  "name": "快速原型",
+  "description": "快速原型验证：需求访谈 → MVP代码生成 → 本地运行 → 验证报告（在正式feature/new-project之前）",
+  "trigger_keywords": [
+    "原型",
+    "prototype",
+    "验证想法",
+    "PoC",
+    "快速试一下",
+    "概念验证",
+    "MVP"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "prototype",
+            "feature",
+            "design"
+          ]
+        }
+      },
+      "description": "注入历史上下文和相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "input",
+      "params": {
+        "message": "请描述你想要验证的想法或功能：",
+        "validation": {
+          "type": "string",
+          "required": true,
+          "min_length": 10,
+          "max_length": 1000
+        }
+      },
+      "description": "获取用户想要验证的想法描述",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-grill-me",
+      "params": {
+        "mode": "quick",
+        "focus": [
+          "core_value",
+          "minimal_scope",
+          "riskiest_assumption"
+        ]
+      },
+      "description": "Matt Pocock /grill-me: 快速需求访谈，聚焦核心价值和最风险假设",
+      "auto_execute": true,
+      "condition": "mattpocock_skill_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-prototype",
+      "params": {
+        "mode": "mvp",
+        "timebox": "30min",
+        "output": "working_demo"
+      },
+      "description": "Matt Pocock /prototype: 时间盒内生成MVP原型代码",
+      "auto_execute": true,
+      "condition": "mattpocock_skill_available",
+      "on_error": "abort",
+      "timeout": 1800
+    },
+    {
+      "step": 4.5,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-prototype",
+      "params": {
+        "device": "iphone",
+        "screens": ["Home", "Detail", "Profile"],
+        "validate": true
+      },
+      "description": "Huashu 单文件 HTML 原型（fallback / 并行验证）: 设备帧 + 风格 Token + Playwright 点击验证",
+      "auto_execute": true,
+      "condition": "enh_huashu_prototype_fallback",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "BuildService",
+      "action": "build",
+      "params": {
+        "mode": "dev",
+        "fast": true
+      },
+      "description": "快速构建原型",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "VerifyService",
+      "action": "verify",
+      "params": {
+        "scope": "prototype",
+        "mode": "manual",
+        "prompt": "请手动验证原型是否满足你的预期"
+      },
+      "description": "引导用户手动验证原型是否满足预期",
+      "auto_execute": false,
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 7,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "choose",
+      "params": {
+        "message": "原型验证完成，下一步操作？",
+        "options": [
+          {
+            "label": "进入正式开发",
+            "description": "基于原型启动 /feature 或 /new-project 正式开发"
+          },
+          {
+            "label": "归档原型",
+            "description": "保存原型作为技术参考，不继续开发"
+          },
+          {
+            "label": "迭代原型",
+            "description": "根据反馈修改原型，再次验证"
+          },
+          {
+            "label": "丢弃原型",
+            "description": "想法验证失败，丢弃原型代码"
+          }
+        ]
+      },
+      "description": "根据验证结果选择下一步",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "prototype",
+        "data": {
+          "source": "prototype_workflow"
+        }
+      },
+      "description": "将原型验证结果和学到的经验保存到记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "原型验证流程完成"
+      },
+      "description": "通知用户原型流程结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

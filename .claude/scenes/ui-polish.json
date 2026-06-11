@@ -1,0 +1,302 @@
+{
+  "scene_id": "ui-polish",
+  "workflow": "ui-polish",
+  "name": "前端美化",
+  "description": "使用 DaisyUI/Animate.css/Lucide/Playwright 美化前端界面（集成CE知识沉淀）",
+  "trigger_keywords": [
+    "美化",
+    "UI优化",
+    "界面优化",
+    "样式",
+    "polish",
+    "DaisyUI"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "ui",
+            "design",
+            "polish"
+          ]
+        }
+      },
+      "description": "注入历史上下文和相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MemoryMCP",
+      "action": "listMemories",
+      "params": {
+        "limit": 10
+      },
+      "description": "使用 Memory MCP 回忆之前的 UI 优化记录",
+      "auto_execute": true,
+      "condition": "memory_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "analyzeUI",
+      "params": {},
+      "description": "分析当前前端代码：CSS 文件、组件结构、样式一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.5,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "web-design-declare-system",
+      "params": {},
+      "description": "Web Design Engineer: 声明设计系统基准（Palette/Typography/Spacing/Motion/Radius/Shadows），确保后续美化不偏离",
+      "auto_execute": true,
+      "condition": "web_design_engineer_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "installDeps",
+      "params": {},
+      "description": "安装工具链：daisyui、animate.css、lucide-react、@playwright/test",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "checkConsistency",
+      "params": {},
+      "description": "一致性检查：CSS变量使用率、组件覆盖度、硬编码样式数",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "confirm",
+      "params": {
+        "message": "已生成美化方案，请选择主题并确认：\n\n1. DaisyUI（35+专业主题：corporate/garden/light/dark/cupcake）\n2. Animal Island UI（自然、圆润、柔和风格）\n3. Custom（自定义颜色）\n4. Huashu 40 风格库（HTML-native: editorial-brutalism / neo-brutalism / minimal-mono / apple-product / dark-tech-grid / ... 共 20+ 个 web 风格）\n5. Awesome Design MD 品牌（Vercel/Linear/Stripe/Notion/Apple）\n\n请输入数字选择主题：",
+        "theme_selection": true
+      },
+      "description": "生成美化方案，选择主题并人工确认",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 6.5,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "awm-brand-import",
+      "params": {
+        "brand": "${user_selected_brand}"
+      },
+      "description": "Awesome Design MD: 加载品牌 DESIGN.md 并注入 CSS 变量",
+      "auto_execute": true,
+      "condition": "awesome_design_md_available && user_selected_brand",
+      "on_error": "continue"
+    },
+    {
+      "step": 6.7,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "reconcileDesignTokens",
+      "params": {},
+      "description": "检测项目已有设计 Token（DESIGN.md / CSS 变量 / tailwind.config.js brand 颜色 / 字体栈 / 间距尺度 / 圆角 / 阴影 / 动效偏好），提取并记录。与当前选择的主题对比：保留已有品牌色/字体/间距/圆角/阴影，仅用新主题填充缺失项。动效方面：若已有动效声明（motion preferences），跳过 Animate.css 中冲突的动画类。避免覆盖 design 工作流产出的设计系统",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "applyDaisyUI",
+      "params": {},
+      "description": "整合应用主题：在保留已有设计 Token 的前提下，将新主题配色/字体/间距合并到 tailwind.config.js 和 index.css，已有值优先，新值填补空缺",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "applyComponents",
+      "params": {},
+      "description": "扫描 JSX/TSX 文件，将 button/input/select 等替换为 Animal Island UI 组件（仅 animal-island 主题生效）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "addAnimations",
+      "params": {},
+      "description": "集成 Animate.css 动画 + Lucide React 图标替换",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9.5,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "web-design-verify",
+      "params": {},
+      "description": "Web Design Engineer: 设计交付检查（无控制台错误/无破损布局/对比度合格/无AI套路）",
+      "auto_execute": true,
+      "condition": "web_design_engineer_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 9.6,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "impeccable-critique",
+      "params": {
+        "rules": ["anti-patterns", "llm-critique"],
+        "checks": [
+          "no-inter-default",
+          "no-purple-blue-gradient",
+          "no-pure-black-white",
+          "no-cards-nested-in-cards",
+          "spacing-consistency",
+          "typography-scale",
+          "color-contrast",
+          "motion-preference"
+        ]
+      },
+      "description": "Impeccable 设计打磨：运行 27 条反模式规则 + 12 条 LLM 批判规则，修 AI 塑料感（纯黑/纯白/紫色渐变/千篇一律配色等），提升 UI 质感",
+      "auto_execute": true,
+      "condition": "enh_impeccable_audit && impeccable_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 9.65,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-expert-review",
+      "params": {},
+      "description": "Huashu 5 维度专家评审（philosophy/hierarchy/craft/functionality/originality）→ Keep/Quick Wins/Fix 报告，确保美化不破坏设计结构",
+      "auto_execute": true,
+      "condition": "enh_huashu_expert_review",
+      "on_error": "continue"
+    },
+    {
+      "step": 9.7,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "ai-friendly-review",
+      "params": {},
+      "description": "AI-Friendly Web Design: 可访问性审查（语义HTML/ARIA/稳定定位器/表单最佳实践/对比度）",
+      "auto_execute": true,
+      "condition": "ai_friendly_web_design_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "功能测试确保美化无破坏",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "visualRegression",
+      "params": {
+        "viewports": [
+          "desktop",
+          "tablet",
+          "mobile"
+        ]
+      },
+      "description": "Playwright 视觉回归测试（Desktop/Tablet/Mobile）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "ContractChecker",
+      "action": "checkAPIConsistency",
+      "params": {},
+      "description": "API 契约一致性检查：美化后验证前端 API 调用与后端接口无断裂",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "ui-polish",
+        "source": "auto"
+      },
+      "description": "将前端美化知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "ui-polish",
+        "data": {
+          "source": "ui-polish_workflow"
+        }
+      },
+      "description": "保存UI美化配置到记忆（主题/风格/动画）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 15,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 16,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "前端美化完成"
+      },
+      "description": "通知用户美化结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

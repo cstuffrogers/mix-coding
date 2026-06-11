@@ -1,0 +1,163 @@
+#!/bin/bash
+# init.sh — Harness Initialization Script
+# Based on Learn Harness Engineering (https://github.com/walkinglabs/learn-harness-engineering)
+# Adapted for this system's three-layer architecture
+#
+# Purpose: Verify the environment is healthy before the agent starts work.
+# Run this at the beginning of EVERY agent session.
+
+set -euo pipefail
+
+ERR=0
+PROJECT_NAME="{{PROJECT_NAME}}"
+echo "=== Harness Initialization: $PROJECT_NAME ==="
+echo ""
+
+# --- 1. Environment Check ---
+echo "--- 1. Environment Check ---"
+
+# Check Node.js version
+if command -v node &> /dev/null; then
+  NODE_VERSION=$(node --version)
+  echo "✅ Node.js: $NODE_VERSION"
+else
+  echo "❌ Node.js not found"
+  ERR=1
+fi
+
+# Check Git
+git --version > /dev/null 2>&1 && echo "✅ Git: $(git --version)" || { echo "❌ Git not found"; ERR=1; }
+
+# Check Claude Code
+if command -v claude &> /dev/null; then
+  echo "✅ Claude Code CLI: available"
+else
+  echo "⚠️  Claude Code CLI not found (optional but recommended)"
+fi
+
+# --- 2. Dependency Check ---
+echo ""
+echo "--- 2. Dependency Check ---"
+
+if [ -f "package.json" ]; then
+  if [ -d "node_modules" ]; then
+    echo "✅ node_modules exists"
+  else
+    echo "⚠️  node_modules missing, running npm install..."
+    npm install || { echo "❌ npm install failed"; ERR=1; }
+  fi
+else
+  echo "⚠️  No package.json found (not a Node.js project?)"
+fi
+
+# --- 3. Git State Check ---
+echo ""
+echo "--- 3. Git State Check ---"
+
+# Check if we're in a git repo
+if git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "✅ Git repository initialized"
+  
+  # Check for uncommitted changes
+  if git diff --quiet && git diff --staged --quiet; then
+    echo "✅ Working tree clean"
+  else
+    echo "⚠️  Uncommitted changes detected:"
+    git status --short
+    echo ""
+    echo "   Agent should review these changes before starting work."
+    echo "   If these are from a previous agent session, consider committing or reverting."
+  fi
+  
+  # Show current branch
+  BRANCH=$(git branch --show-current)
+  echo "✅ Current branch: $BRANCH"
+else
+  echo "⚠️  Not a git repository"
+fi
+
+# --- 4. Harness Files Check ---
+echo ""
+echo "--- 4. Harness Files Check ---"
+
+for file in "feature_list.json" "progress.md" "AGENTS.md" "DECISIONS.md"; do
+  if [ -f "$file" ]; then
+    echo "✅ $file exists"
+  else
+    echo "⚠️  $file missing (optional but recommended)"
+  fi
+done
+
+# --- 5. Verification Pipeline Check ---
+echo ""
+echo "--- 5. Verification Pipeline Check ---"
+
+# Check if lint passes (if eslint is configured)
+if [ -f "eslint.config.js" ] || [ -f ".eslintrc.json" ]; then
+  echo "Running ESLint..."
+  if npx eslint . --max-warnings=0 2>/dev/null; then
+    echo "✅ ESLint passes"
+  else
+    echo "⚠️  ESLint issues found (agent should fix before declaring done)"
+  fi
+else
+  echo "⚠️  No ESLint config found"
+fi
+
+# Check if tests pass (if test script exists)
+if [ -f "package.json" ]; then
+  if grep -q '"test"' package.json 2>/dev/null; then
+    echo "Running tests..."
+    if npm test 2>/dev/null; then
+      echo "✅ Tests pass"
+    else
+      echo "⚠️  Tests failing (agent must fix before declaring done)"
+    fi
+  else
+    echo "⚠️  No test script in package.json"
+  fi
+fi
+
+# Check TypeScript (if tsconfig exists)
+if [ -f "tsconfig.json" ]; then
+  echo "Running TypeScript check..."
+  if npx tsc --noEmit 2>/dev/null; then
+    echo "✅ TypeScript check passes"
+  else
+    echo "⚠️  TypeScript errors found (agent must fix before declaring done)"
+  fi
+else
+  echo "⚠️  No tsconfig.json found"
+fi
+
+# --- 6. Zero-Conflict Check ---
+echo ""
+echo "--- 6. Zero-Conflict Check ---"
+
+if [ -f "zero-conflict-check.sh" ]; then
+  echo "Running zero-conflict check..."
+  if bash zero-conflict-check.sh 2>/dev/null; then
+    echo "✅ Zero-conflict check passes"
+  else
+    echo "⚠️  Zero-conflict check failed (review architecture compliance)"
+  fi
+else
+  echo "⚠️  zero-conflict-check.sh not found"
+fi
+
+# --- Summary ---
+echo ""
+echo "=== Initialization Summary ==="
+if [ $ERR -eq 0 ]; then
+  echo "✅ Environment is healthy. Agent may proceed."
+  echo ""
+  echo "Next steps:"
+  echo "  1. Read feature_list.json to confirm scope"
+  echo "  2. Read progress.md for context"
+  echo "  3. Work on ONE feature at a time (WIP = 1)"
+  echo "  4. Run verification before declaring done"
+  exit 0
+else
+  echo "❌ Environment issues detected. Please fix before proceeding."
+  exit 1
+fi

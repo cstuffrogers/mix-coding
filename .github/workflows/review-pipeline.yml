@@ -1,0 +1,33 @@
+# .github/workflows/review-pipeline.yml — 修订后调用 archon 工作流
+name: Review Pipeline (archon Orchestrated)
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  archon-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install archon
+        # TODO: Replace with verified archon CLI install command
+        # Archon currently requires building from source or local install
+        # See https://github.com/coleam00/Archon
+        run: npm install -g archon-cli 2>/dev/null || echo "::warning::archon CLI not available via npm, install from source"
+
+      - name: Run comprehensive review
+        run: archon workflow run comprehensive-review --pr ${{ github.event.pull_request.number }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

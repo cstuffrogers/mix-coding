@@ -1,0 +1,104 @@
+{
+  "scene_id": "e2e",
+  "workflow": "e2e",
+  "name": "E2E 测试配置",
+  "description": "使用 MSW + Supertest + Schemathesis 配置端到端测试基础设施（Mock + HTTP 断言 + API fuzz）",
+  "trigger_keywords": ["e2e", "端到端测试", "集成测试", "E2E测试", "API测试", "集成测试配置", "mock", "fuzz"],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "core",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": { "type": "e2e", "filters": { "type": ["e2e", "testing", "integration", "api-testing"] } },
+      "description": "注入 E2E 测试相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "E2EService",
+      "action": "setupE2E",
+      "params": {},
+      "description": "检测 API 端点、生成 MSW + Supertest + Schemathesis 配置",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "core",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": { "checks": ["e2e"] },
+      "description": "E2E 配置质量门禁",
+      "auto_execute": true,
+      "condition": "e2eConfigured == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "E2EService",
+      "action": "autoFix",
+      "params": { "source": "e2e" },
+      "description": "自动修复 E2E 配置问题",
+      "auto_execute": true,
+      "condition": "e2eConfigured == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "core",
+      "service": "NotifyService",
+      "action": "send",
+      "params": {
+        "level": "warning",
+        "title": "E2E 配置失败",
+        "content": "未能生成有效的 E2E 测试配置，请检查项目结构和文件权限"
+      },
+      "description": "E2E 配置失败通知",
+      "auto_execute": true,
+      "condition": "e2eConfigured == false",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "e2e",
+        "data": {
+          "e2eConfigured": "{{e2eConfigured}}",
+          "mswHandlersGenerated": "{{mswHandlersGenerated}}",
+          "apiTestsGenerated": "{{apiTestsGenerated}}",
+          "fuzzTestPassed": "{{fuzzTestPassed}}"
+        }
+      },
+      "description": "保存 E2E 配置结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理去重记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "core",
+      "service": "NotifyService",
+      "action": "notify",
+      "params": { "message": "E2E 测试配置工作流完成" },
+      "description": "通知 E2E 配置完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ]
+}

@@ -1,0 +1,420 @@
+const ACTION_MESSAGES = {
+  memory_inject: '全量记忆已注入，技术栈识别完成',
+  memory_recall: '项目历史架构已回忆',
+  requirement_analysis: '功能清单、技术依赖、风险评估完成',
+  requirement_confirm: '需求分析确认书已输出',
+  technical_design: '技术架构 + 数据流图 + 接口定义完成',
+  write_plan: 'Phase 执行清单已生成',
+  tech_confirm: '技术方案与执行计划已输出',
+  propose_architecture: '架构方案已生成',
+  propose_fix: '修复方案已生成',
+  propose_refactor_plan: '重构方案已生成',
+  propose_design_plan: '设计改版方案已生成',
+  error_context_gather: 'Sentry + Tavily 错误上下文收集完成',
+  root_cause_analysis: '根因分析完成',
+  tdd_development: 'TDD 模式开发完成',
+  feature_development: '新功能开发完成',
+  refactor_execute: '重构执行完成',
+  design_implementation: 'UI 代码修改完成',
+  fix_and_verify: '修复 → 测试 → 截图验证完成',
+  hotfix_execute: '最小化修复完成',
+  quick_verify: '快速验证通过',
+  auto_test_fix: '保存即测试 → 自动修复 → 验证通过',
+  integration_test: '端到端集成测试 + Playwright 截图验证通过',
+  review_chain: '14 Agent 审查链完成（5+4+3+2）',
+  test_review: '测试代码审查通过',
+  doc_review: '文档审查通过',
+  security_review: '安全审查通过（SQL注入/XSS/认证绕过/N+1查询）',
+  auto_design: 'Open Design AI 生成设计稿完成',
+  design_check: '设计约束检查通过',
+  design_analysis: 'Figma 设计稿分析完成 + 风格推荐',
+  design_consistency: '设计一致性检查通过',
+  checkAPIConsistency: 'API 契约一致性检查完成（OpenAPI 管线：redocly lint + 交叉验证 + openapi-typescript）',
+  'check-api-consistency': 'API 契约一致性检查完成（OpenAPI 管线：redocly lint + 交叉验证 + openapi-typescript）',
+  deploy: 'GitHub → Vercel 自动部署完成',
+  deploy_execute: 'GitHub → Vercel 部署完成',
+  emergency_deploy: '紧急部署到生产环境完成',
+  pre_deploy_check: '未提交变更检查 + 测试套件运行通过',
+  build: '生产版本构建成功',
+  smoke_test: '冒烟测试 + Playwright 截图验证通过',
+  post_deploy_verify: '线上截图验证 + 健康检查通过',
+  deploy_confirm: '测试通过报告已输出',
+  opendigger_collect: 'OpenDigger 数据拉取完成',
+  opendigger_analyze: 'OpenDigger 竞品差异分析完成',
+  diff_analysis: '活跃度趋势 + 贡献者分析 + Issue效率 + 技术标签分布分析完成',
+  generate_report: '竞品空白点 + 技术债务信号 + 差异化需求建议已生成',
+  setup_monitor: '持续监控已配置（每月对比竞品）',
+  generate_readme: 'README.md 已生成（含安装/配置/使用示例）',
+  generate_api_docs: 'API 接口文档已生成',
+  generate_architecture_doc: '技术架构文档已生成（Mermaid 图）',
+  generate_changelog: 'CHANGELOG 已从 git 历史生成',
+  doc_gap_analysis: '文档缺口分析完成',
+  project_scaffold: '项目结构已初始化（路由/控制器/服务层/中间件）',
+  schema_design: '数据库 Schema 设计完成',
+  generate_swagger: 'Swagger/OpenAPI 文档已生成',
+  api_requirement_analysis: 'API 端点设计 + 认证中间件 + 权限模型完成',
+  generate_unit_tests: '单元测试已批量生成（正常/边界/异常）',
+  generate_integration_tests: '集成测试已生成',
+  run_and_fix: '全部测试运行 → 失败用例修复 → 全部通过',
+  coverage_report: '覆盖率报告已生成',
+  test_gap_analysis: '测试缺口分析 + 风险排序完成',
+  product_positioning: '产品定位 + /write-plan 执行清单完成',
+  superpowers_brainstorm: '产品方向分析 + MVP 建议完成',
+  notify_on_manual: '已推送手机：需要人工介入',
+  notify_complete: '已推送手机：任务完成通知',
+  notify_deploy_complete: '已推送手机：部署完成通知',
+  escalate_on_failure: '连续修复失败，已推送手机',
+  push_screenshots: '截图已推送到手机',
+  scope_guard: '文件范围限制 + 写入前扫描完成',
+  nightly_mode: 'Unified Engine 切换到 nightly 模式',
+  screenshot_verify: 'Playwright 多视口截图验证完成',
+  doc_site_design: '文档站点设计完成',
+  select: '选项选择完成',
+  confirm: '确认完成',
+
+  // MCP integration actions (executed by Claude Code agent, not CLI)
+  searchRepositories: 'GitHub MCP: 搜索最佳实践仓库完成',
+  search: 'Tavily MCP: 在线搜索完成',
+  getDocumentation: 'Context7 MCP: 技术文档获取完成',
+  getSchema: 'Supabase MCP: 数据库 Schema 获取完成',
+  getPaymentFlow: 'Stripe MCP: 支付流程模板获取完成',
+  getEmailTemplate: 'Resend MCP: 邮件模板获取完成',
+  listIssues: 'GitHub MCP: Issues 列表获取完成',
+  listPullRequests: 'GitHub MCP: Pull Requests 列表获取完成',
+  listMemories: 'Memory MCP: 记忆列表获取完成',
+  analyzeSecurityVulnerabilities: 'CodeGraph MCP: 安全漏洞依赖分析完成',
+  analyzeDependencies: 'CodeGraph MCP: 代码依赖关系分析完成',
+
+  // Project management actions
+  createBranch: 'Git 分支创建完成',
+  commitPush: '代码提交并推送远程分支完成',
+  createPR: 'Pull Request 创建完成',
+  closeTicket: 'Issue 已自动关闭',
+
+  // Bugfix workflow actions
+  issueQuery: 'Bug Issue 查询完成',
+  locate: '受影响代码定位完成',
+  fix: '语义修复执行完成',
+  verifyFix: '修复验证确认完成',
+  regression: '回归测试执行完成',
+
+  // Feature workflow actions
+  analyzeInterface: 'Interface 设计分析完成',
+  applyTemplate: '标准组件模板应用完成',
+  implementLogic: '核心逻辑实现完成',
+  generateTest: '测试用例自动生成完成',
+
+  // Refactor workflow actions
+  codeMetrics: '圈复杂度 & 维护性指标计算完成',
+  detectAntiPatterns: '反模式检测完成（God Object/长方法/重复代码）',
+  generateRefactorPlan: '重构计划生成完成',
+  applyTransformations: '重构变换应用完成（提取方法/提取类/重命名）',
+  cleanup: '死代码清理和组织导入完成',
+
+  // Design workflow actions
+  input: '用户设计输入已记录',
+  generateLowFi: '低保真组件草图生成完成',
+  generateHiFi: '高保真界面设计稿生成完成（Google Material 风格）',
+  analyzeConsistency: '设计一致性检查完成（色彩/字体/间距）',
+  choose: '设计方案选择完成',
+  exportAssets: '设计资源导出完成（SVG/PNG/CSS变量）',
+  persist: '设计方案已持久化到知识库',
+
+  // Analyze workflow actions
+  codeScan: '全量代码扫描完成（圈复杂度/重复率/依赖分析）',
+  securityScan: '安全扫描完成（漏洞检测/敏感信息检查）',
+  performanceProfile: '性能分析完成（热点函数/内存使用模式）',
+  runCI: 'CI 流水线检查完成（ESLint/TypeScript/测试覆盖率）',
+  report: '分析报告展示完成',
+  autoFix: '自动修复已执行',
+  generateReport: '最终分析报告已生成',
+
+  // User interaction actions
+  askUser: '用户交互确认完成',
+
+  // Quality gate & workflow control (referenced by scene JSONs with on_error:abort)
+  checkGate: '质量门禁检查完成：lint/typecheck/security/visual_regression/dependency_audit 全部通过',
+  autoUpdate: '代码已更新到最新版本（git pull --rebase）',
+  checkCoverage: '测试覆盖率门禁检查完成（阈值 ≥80%）',
+  verify: '修复验证确认完成（确认bug不再复现，原有功能未被破坏）',
+
+  // Matt Pocock skills
+  'mp-triage': 'Matt Pocock /triage: Bug 分类完成（严重度/范围/紧急度），修复优先级已确定',
+
+  // Language detection
+  detectLanguage: '项目语言生态检测完成',
+  languageBuild: '语言特定构建验证完成',
+  languageTest: '语言特定测试套件运行完成',
+
+  // Matt Pocock skills (continued)
+  'mp-tdd': 'Matt Pocock /tdd: TDD 模式开发完成（红→绿→重构循环）',
+  'mp-handoff': 'Matt Pocock /handoff: 知识移交完成',
+  'mp-prototype': 'Matt Pocock /prototype: 快速原型生成完成',
+
+  // Dependency management (deps.json)
+  checkOutdated: '过期依赖检查完成（npm outdated）',
+  updateDeps: '依赖安全更新完成（npm update）',
+  checkBreakingChanges: 'Breaking Changes 检查完成（主版本号变更分析）',
+
+  // Release workflow (release.json)
+  generateChangelog: 'CHANGELOG.md 已从 git 历史生成',
+  bumpVersion: '版本号已更新（npm version）',
+  productionBuild: '生产版本构建完成（npm run build）',
+  createTag: 'Git Tag 已创建并推送',
+  createRelease: 'GitHub Release 已创建',
+  releaseDeploy: '部署到生产环境完成',
+
+  // Rollback workflow (rollback.json)
+  listReleases: 'GitHub Releases 列表获取完成',
+  rollback: '回滚操作执行完成（代码已恢复到目标版本）',
+  createIssue: '事后复盘 Issue 已创建',
+
+  // Onboard workflow (onboard.json)
+  checkPrerequisites: '系统前置条件检查完成（Node.js/npm/git）',
+  checkEnvFile: '.env 文件检查完成',
+  generateEnv: '.env 文件已从 .env.example 生成',
+  startDevServer: '开发服务器已启动（npm run dev）',
+
+  // Security skill
+  'sec-bug-hunt': 'Sec Bug Hunt 安全审计完成（高危≥0.85置信度：SQLi/XSS/命令注入等阻断）',
+  'anthropic-cybersecurity-skills': 'Anthropic 安全技能深度审计完成（SQLi/XSS/命令注入检测）',
+
+  // Matt Pocock skills — structured engineering disciplines
+  'mp-diagnose': 'Matt Pocock /diagnose: 结构化调试完成（复现→缩小→假设→插桩→修复→回归测试）',
+  'mp-grill-me': 'Matt Pocock /grill-me: 方案追问完成，需求盲区已消除',
+  'mp-to-prd': 'Matt Pocock /to-prd: 从对话上下文合成 PRD 完成',
+  'mp-to-issues': 'Matt Pocock /to-issues: 垂直切片 Issue 拆分完成',
+  'mp-improve-codebase-architecture': 'Matt Pocock /improve-codebase-architecture: 架构深化机会分析完成',
+  'mp-git-guardrails': 'Matt Pocock /git-guardrails-claude-code: Git 危险命令拦截 Hook 已配置',
+
+  // Web Design skills
+  'web-design-declare-system': 'Web Design Engineer: 设计系统声明完成（Palette/Typography/Spacing/Motion）',
+  'web-design-v0-draft': 'Web Design Engineer: v0 草稿完成（布局骨架 + placeholder）',
+  'web-design-full-build': 'Web Design Engineer: 完整构建完成（组件/状态/动效）',
+  'web-design-verify': 'Web Design Engineer: 设计交付检查完成（无控制台错误/无破损布局/对比度合格）',
+
+  // AI-Friendly Web Design skill
+  'ai-friendly-review': 'AI-Friendly Web Design: 可访问性审查完成（语义HTML/ARIA/稳定定位器/表单最佳实践）',
+  'ai-friendly-fix': 'AI-Friendly Web Design: 可访问性问题修复完成',
+
+  // Awesome Design MD
+  'awm-brand-list': 'Awesome Design MD: 列出可用品牌设计系统完成',
+  'awm-brand-import': 'Awesome Design MD: 品牌设计系统导入完成（颜色/字体/间距/组件已加载到工作流）',
+  'awm-brand-apply': 'Awesome Design MD: 品牌 token 应用到当前项目（CSS 变量已注入）',
+
+  // Design token reconciliation
+  reconcileDesignTokens: '设计 Token 调和完成：已有 Token 保留，新主题填充缺失项',
+
+  // Impeccable design critique
+  'impeccable-critique': 'Impeccable 设计打磨完成（27 条反模式规则 + 12 条 LLM 批判规则）',
+
+  // Monitoring (Upptime)
+  setupMonitor: 'Upptime 监控配置完成：已生成 .upptimerc.yml 和 GitHub Actions 工作流',
+  'setup-monitor': 'Upptime 监控配置完成：已生成 .upptimerc.yml 和 GitHub Actions 工作流',
+  monitoring: 'Upptime 监控配置完成：已生成 .upptimerc.yml 和 GitHub Actions 工作流',
+  monitorSetup: 'Upptime 监控配置完成：已生成 .upptimerc.yml 和 GitHub Actions 工作流',
+
+  // CI/CD (Act + Task)
+  setupCI: 'CI/CD 流水线配置完成：已扫描工作流并生成 Taskfile.yml',
+  'setup-ci': 'CI/CD 流水线配置完成：已扫描工作流并生成 Taskfile.yml',
+  cicd: 'CI/CD 流水线配置完成：已扫描工作流并生成 Taskfile.yml',
+
+  // Backup (Restic)
+  setupBackup: 'Restic 备份配置完成：已生成备份脚本和排除规则',
+  'setup-backup': 'Restic 备份配置完成：已生成备份脚本和排除规则',
+  backup: 'Restic 备份配置完成：已生成备份脚本和排除规则',
+
+  // Incident (Runme)
+  incidentRunbook: 'Incident Runbook 已生成（含健康检查/常见问题/升级路径）',
+  'incident-runbook': 'Incident Runbook 已生成（含健康检查/常见问题/升级路径）',
+  incident: 'Incident Runbook 已生成（含健康检查/常见问题/升级路径）',
+
+  // E2E (MSW + Supertest + Schemathesis)
+  setupE2E: 'E2E 测试配置完成：MSW Mock + Supertest HTTP 断言 + Schemathesis Fuzz',
+  'setup-e2e': 'E2E 测试配置完成：MSW Mock + Supertest HTTP 断言 + Schemathesis Fuzz',
+  e2e: 'E2E 测试配置完成：MSW Mock + Supertest HTTP 断言 + Schemathesis Fuzz',
+
+  // Docker
+  setupDocker: 'Docker 容器化配置完成：Dockerfile + .dockerignore + docker-compose.yml 已生成',
+  'setup-docker': 'Docker 容器化配置完成：Dockerfile + .dockerignore + docker-compose.yml 已生成',
+  docker: 'Docker 容器化配置完成：Dockerfile + .dockerignore + docker-compose.yml 已生成',
+
+  // Changelog
+  genChangelog: '变更日志已生成：基于 Conventional Commits 的 CHANGELOG.md',
+  'gen-changelog': '变更日志已生成：基于 Conventional Commits 的 CHANGELOG.md',
+  'generate-changelog': '变更日志已生成：基于 Conventional Commits 的 CHANGELOG.md',
+  'change-log': '变更日志已生成：基于 Conventional Commits 的 CHANGELOG.md',
+
+  // SBOM
+  sbom: 'SBOM + 许可证合规报告已生成 (sbom.json + license-report.md)',
+  'generate-sbom': 'SBOM + 许可证合规报告已生成 (sbom.json + license-report.md)',
+  'license-check': 'SBOM + 许可证合规报告已生成 (sbom.json + license-report.md)',
+
+  // Logging
+  setupLogging: '日志聚合配置完成：结构化日志 + 轮转（14天）配置已生成',
+  'setup-logging': '日志聚合配置完成：结构化日志 + 轮转（14天）配置已生成',
+  log: '日志聚合配置完成：结构化日志 + 轮转（14天）配置已生成',
+  logging: '日志聚合配置完成：结构化日志 + 轮转（14天）配置已生成',
+
+  // ── Core workflow actions (previously missing, added 2026-06-10) ──
+  // Memory
+  recall: '项目记忆召回完成（6 后端聚合）',
+  remember: '工作流结果已保存到记忆（多后端）',
+  consolidate: '跨后端记忆一致性整理完成',
+
+  // Testing
+  runSuite: '测试套件运行完成',
+  runAffected: '受影响测试运行完成',
+  loadTest: '负载测试完成（Artillery）',
+
+  // Review
+  runReview: '代码审查完成（多 Agent 管线）',
+
+  // Notifications
+  notify: '任务完成通知已推送',
+  send: '通知已发送',
+
+  // UI / Design
+  addAnimations: 'Animate.css 动效已注入 index.css',
+  analyzeUI: '项目 UI 结构分析完成',
+  applyComponents: 'UI 组件替换完成',
+  applyDaisyUI: 'DaisyUI 主题已应用到 tailwind.config.js',
+  checkConsistency: 'UI 一致性检查完成（CSS 变量/硬编码/内联样式）',
+  visualRegression: 'Playwright 视觉回归测试完成',
+  installDeps: 'npm 依赖安装完成',
+  generateDesign: '三方向设计提案已生成（Huashu Advisor）',
+
+  // Huashu integrations
+  'huashu-brand-protocol': 'Huashu 品牌协议完成：5 步资产清单 → brand-spec.md',
+  'huashu-expert-review': 'Huashu 5 维度专家评审完成（philosophy/hierarchy/craft/functionality/originality）',
+  'huashu-infographic': 'Huashu 单页 HTML 信息图已生成',
+  'huashu-prototype': 'Huashu HTML 原型已生成 + Playwright 验证',
+  'huashu-release-animation': 'Huashu 发布动画已生成（MP4/GIF）',
+  'huashu-release-deck': 'Huashu 发布 Deck 已生成（HTML → PPTX）',
+
+  // Code analysis
+  gitLeaks: 'Git 历史密钥扫描完成',
+  knipCheck: '死代码检测完成（knip）',
+
+  // Migration
+  migrationReview: '数据库迁移审查完成（危险操作检测）',
+
+  // Competitive analysis
+  analyze: 'OpenDigger 竞品分析完成',
+
+  // ── Registry aliases (not in scene JSONs, but in ACTION_REGISTRY) ──
+  testCoverage: '测试覆盖率分析完成',
+  'test-coverage': '测试覆盖率分析完成',
+  testUnit: '单元测试运行完成',
+  'test-unit': '单元测试运行完成',
+  docsUpdate: '文档已更新',
+  'docs-update': '文档已更新',
+  apiDocs: 'API 文档已生成',
+  'api-docs': 'API 文档已生成',
+  devDocs: '开发者文档已生成',
+  'dev-docs': '开发者文档已生成',
+  reviewFull: '全面代码审查完成',
+  'review-full': '全面代码审查完成',
+  notifyComplete: '任务完成通知已推送',
+  'notify-complete': '任务完成通知已推送',
+  memoryRecall: '项目记忆召回完成（6 后端聚合）',
+  'memory-recall': '项目记忆召回完成（6 后端聚合）',
+  memoryRemember: '工作流结果已保存到记忆（多后端）',
+  'memory-remember': '工作流结果已保存到记忆（多后端）',
+  run_suite: '测试套件运行完成',
+  run_affected: '受影响测试运行完成',
+  verifyVisual: '视觉验证完成',
+  autoRemember: '工作流上下文已自动保存到记忆',
+  'load-test': '负载测试完成（Artillery）',
+  loadtest: '负载测试完成（Artillery）',
+  'migration-review': '数据库迁移审查完成（危险操作检测）',
+  migrate: '数据库迁移审查完成（危险操作检测）',
+  applyHuashuStyle: 'Huashu 风格已应用到项目',
+  'apply-huashu-style': 'Huashu 风格已应用到项目',
+
+  // ── CamelCase aliases for kebab-case entries ──
+  changelog: 'CHANGELOG 已从 git 历史生成',
+  secBugHunt: 'Sec Bug Hunt 安全审计完成（SQLi/XSS/命令注入等阻断）',
+  webDesignDeclareSystem: '设计系统声明完成（CLI 轻量模式）',
+  aiFriendlyReview: 'AI-Friendly Web Design: 可访问性审查完成',
+  webDesignVerify: 'Web 设计验证完成',
+  huashuBrandProtocol: 'Huashu 品牌协议完成：5 步资产清单 → brand-spec.md',
+  huashuExpertReview: 'Huashu 5 维度专家评审完成',
+  huashuPrototype: 'Huashu HTML 原型已生成 + Playwright 验证',
+  huashuReleaseAnimation: 'Huashu 发布动画已生成（MP4/GIF）',
+  huashuReleaseDeck: 'Huashu 发布 Deck 已生成（HTML → PPTX）',
+  huashuInfographic: 'Huashu 单页 HTML 信息图已生成',
+  awmBrandList: 'Awesome Design MD: 品牌列表已展示',
+  awmBrandImport: 'Awesome Design MD: 品牌设计系统导入完成',
+  awmBrandApply: 'Awesome Design MD: 品牌 token 已应用到项目',
+  mpTriage: 'Matt Pocock /triage: Bug 分类完成',
+  mpDiagnose: 'Matt Pocock /diagnose: 结构化调试完成',
+  mpGrillMe: 'Matt Pocock /grill-me: 方案追问完成',
+  mpTdd: 'Matt Pocock /tdd: TDD 模式开发完成',
+  mpHandoff: 'Matt Pocock /handoff: 知识移交完成',
+  mpToPrd: 'Matt Pocock /to-prd: PRD 合成完成',
+  mpToIssues: 'Matt Pocock /to-issues: Issue 拆分完成',
+  mpGitGuardrails: 'Matt Pocock /git-guardrails: Git 危险命令拦截 Hook 已配置',
+  mpPrototype: 'Matt Pocock /prototype: 快速原型生成完成',
+  mpImproveCodebaseArchitecture: 'Matt Pocock /improve-codebase-architecture: 架构深化分析完成',
+
+  // ── Mobile: Core (MobileService) ──
+  detectProject: '移动端项目类型识别完成（RN/Expo/Flutter/原生iOS/原生Android）',
+  checkTools: '移动端安全工具可用性检测完成（MobSF/mobsfscan/Bearer/DependencyCheck）',
+  autoInstall: '缺失工具安装指引已输出',
+  buildApp: '移动端 release 构建完成（APK/IPA）',
+  scanSource: 'mobsfscan 源码级 SAST 扫描完成（硬编码密钥/不安全存储/弱加密/WebView注入）',
+  scanDependencies: 'DependencyCheck 第三方依赖 CVE 扫描完成',
+  masvsCheck: 'OWASP MASVS 安全标准对照完成',
+  perfBaseline: '性能基线快照已采集（包体积/资源占比/方法数/权限数）',
+  storeCompliance: '应用商店合规清单检查完成（Apple/Google/微信）',
+  mobileGenerateReport: '移动端审计报告已生成（通俗语言 + emoji 指标 + 一键修复清单）',
+  mobileAutoFix: '移动端安全问题自动修复完成（密钥→.env / WebP转换 / minifyEnabled / SSL配置）',
+  measureBaseline: '性能基线测量完成（包体积/启动时间/FPS/内存）',
+  analyzeBundle: 'Bundle 组成分析完成（大模块定位 + 代码分割建议）',
+  analyzeAssets: '资源文件分析完成（图片/字体/冗余资源优化建议）',
+  analyzeNetwork: '网络层分析完成（重复请求/批量合并/预加载/离线缓存）',
+  detectMobileAntipatterns: '移动端性能反模式检测完成（离屏渲染/过度绘制/主线程阻塞/WakeLock）',
+  generateOptimizePlan: '性能优化方案已生成（按收益排序）',
+  executeOptimize: '性能优化执行完成（可自动修复项已应用）',
+  remeasure: '优化后性能重新测量完成（优化前后对比）',
+  runUITest: 'UI 测试运行完成（关键流程截图对比）',
+  aggregateReport: '审查报告聚合完成（去重/严重度排序/修复建议/emoji 指标）',
+
+  // ── Mobile: Agent Runner ──
+  runAgent: 'Agent 分析完成（mobile-security/mobile-reviewer/mobile-perf）',
+
+  // ── Mobile: Release ──
+  releaseChecks: '发布前环境检查完成（证书/签名/隐私标签/测试账号）',
+  mobileBumpVersion: '版本号已更新（package.json/build.gradle/Info.plist/pubspec.yaml）',
+  mobileGenerateChangelog: 'CHANGELOG 已从 Conventional Commits 生成',
+  grayReleaseConfig: '灰度发布策略配置完成（分阶段 rollout + 强制更新 + 版本兼容矩阵）',
+  iosRelease: 'iOS 发布完成: fastlane gym → TestFlight 内部测试',
+  androidRelease: 'Android 发布完成: fastlane gradle → AAB 签名 → Play Internal Testing',
+
+  // ── Mobile: Testing (E2E) ──
+  setupE2EConfig: '移动端 E2E 测试配置已生成（Detox/Maestro/Patrol + 示例用例）',
+  verifySetup: 'E2E 测试环境验证完成（工具安装/配置语法/示例试运行）',
+  generateCIConfig: 'E2E CI 配置已生成（GitHub Actions + 模拟器）',
+
+  // ── Mobile: Onboard ──
+  checkRnDoctor: 'react-native doctor 环境完整性检查完成',
+  initFastlane: 'fastlane match 初始化指引已输出（iOS 证书/Profile）',
+  checkAndroidSDK: 'Android SDK/NDK 路径 + 版本检查完成',
+  setupEnv: '.env 模板已生成（API地址/推送证书/地图Key/第三方服务）',
+  setupEmulator: '模拟器/真机调试配置指引已输出',
+  verifyBuild: '首次构建验证完成（pod install + gradle sync）',
+
+  // ── Mobile: MCP placeholders ──
+  upload: 'MobSF MCP: APK/IPA 已上传至分析平台',
+  mobsfUpload: 'MobSF MCP: APK/IPA 已上传至分析平台',
+  scan: 'MobSF MCP: 静态安全分析完成',
+  mobsfScan: 'MobSF MCP: 静态安全分析完成',
+  bearerScan: 'Bearer MCP: 隐私合规扫描完成（PII泄露/GDPR合规）',
+  shorebirdPatch: 'Shorebird MCP: OTA 热更新资源包已发布',
+  sentryCheckRelease: 'Sentry MCP: 发布后崩溃率监控基线已建立',
+};
+
+export function getActionMessage(action) {
+  return ACTION_MESSAGES[action] || `动作 ${action} 执行完成`;
+}

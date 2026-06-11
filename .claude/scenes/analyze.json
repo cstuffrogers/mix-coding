@@ -1,0 +1,252 @@
+{
+  "scene_id": "analyze",
+  "workflow": "analyze",
+  "name": "代码分析",
+  "description": "深度分析代码质量、性能瓶颈、安全漏洞、可维护性，生成改进建议",
+  "trigger_keywords": [
+    "代码分析",
+    "分析",
+    "静态分析",
+    "代码检查",
+    "代码质量"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "analysis",
+            "quality",
+            "performance"
+          ]
+        }
+      },
+      "description": "注入历史上下文和相关记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "TavilyMCP",
+      "action": "search",
+      "params": {
+        "query": "code quality analysis best practices tools 2024",
+        "limit": 10
+      },
+      "description": "使用 Tavily MCP 搜索代码质量分析最佳实践和工具",
+      "auto_execute": true,
+      "condition": "tavily_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "codeScan",
+      "params": {
+        "mode": "full",
+        "depth": "deep"
+      },
+      "description": "全量代码扫描：圈复杂度、重复率、依赖分析",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "securityScan",
+      "params": {
+        "vulnerabilities": true,
+        "secrets": true
+      },
+      "description": "安全扫描：漏洞检测、敏感信息检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "performanceProfile",
+      "params": {
+        "mode": "static",
+        "target": "all"
+      },
+      "description": "性能分析：热点函数识别、内存使用模式",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runCI",
+      "params": {
+        "check": [
+          "linting",
+          "typing",
+          "coverage"
+        ]
+      },
+      "description": "CI流水线：ESLint、TypeScript、测试覆盖率检查",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "report",
+      "params": {
+        "message": "📊 代码分析报告已生成：\n\n📈 复杂度分析 — 扫描圈复杂度、重复率、依赖关系\n🔒 安全检查 — 漏洞检测、敏感信息扫描\n⚡ 性能分析 — 热点函数识别、内存使用分析\n📋 可维护性 — 测试覆盖率、代码重复率、类型检查\n\n💡 优先级建议：\n1. 紧急（安全漏洞、高危错误）\n2. 高（圈复杂度、重复代码）\n3. 中（性能优化、可测试性）\n4. 低（代码风格、文档）\n\n是否立即执行自动修复？",
+        "validation": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "description": "生成详细分析报告并提示用户选择修复策略",
+      "auto_execute": false,
+      "on_error": "abort"
+    },
+    {
+      "step": 8,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "choose",
+      "params": {
+        "message": "请选择要执行的修复策略：",
+        "options": [
+          {
+            "label": "安全优先",
+            "description": "先解决所有安全漏洞和敏感信息"
+          },
+          {
+            "label": "性能优先",
+            "description": "先优化性能热点和瓶颈"
+          },
+          {
+            "label": "重构优先",
+            "description": "先重构高圈复杂度和重复代码"
+          },
+          {
+            "label": "全量自动修复",
+            "description": "执行所有推荐的自动修复"
+          }
+        ],
+        "validation": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "description": "选择修复执行策略",
+      "auto_execute": false,
+      "on_error": "retry"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "CodeEngine",
+      "action": "autoFix",
+      "params": {
+        "mode": "selective",
+        "include": [
+          "security",
+          "lint",
+          "complexity"
+        ],
+        "exclude": []
+      },
+      "description": "根据选择的策略执行自动修复",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "generateReport",
+      "params": {
+        "format": "markdown",
+        "destination": "docs/analysis-report.md"
+      },
+      "description": "生成最终分析报告并保存到文档目录",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10.5,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-infographic",
+      "params": {
+        "title": "Analysis Report"
+      },
+      "description": "Huashu infographic: 将分析指标渲染为单页 HTML 信息图",
+      "auto_execute": true,
+      "condition": "enh_huashu_infographic",
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": [
+          "tokens",
+          "api_calls",
+          "scan_results_count"
+        ]
+      },
+      "description": "输出本次分析的Token/API调用成本汇总",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "analyze",
+        "data": {
+          "source": "analyze_workflow"
+        }
+      },
+      "description": "保存分析结果到记忆（复杂度/安全/性能）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 14,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "message": "✅ 代码分析完成！\n📊 报告已保存：docs/analysis-report.md\n🔧 自动修复已执行\n\n📋 详细改进建议请查看报告文件"
+      },
+      "description": "通知用户分析完成和修复结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

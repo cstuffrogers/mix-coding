@@ -1,0 +1,57 @@
+# {{PROJECT_NAME}} — Architectural Decisions
+
+> 记录所有架构决策，便于后续 Agent 会话理解设计意图。
+> 基于 ADR (Architecture Decision Records) 实践。
+> 每次做出架构决策时追加一条记录。Agent 在开始新工作前应读取此文件。
+
+---
+
+## ADR-001: {{DECISION_TITLE}}
+
+**Status**: {{ACCEPTED | PROPOSED | DEPRECATED | SUPERSEDED}}
+**Date**: {{DATE}}
+**Decided By**: {{DECIDER}}
+
+### Context
+
+{{为什么需要做这个决策？背景是什么？约束条件有哪些？}}
+
+### Decision
+
+{{我们决定了什么？技术选型是什么？}}
+
+### Alternatives Considered
+
+| Alternative | Pros | Cons | Why Rejected |
+|-------------|------|------|--------------|
+| {{ALT_1}} | {{PROS}} | {{CONS}} | {{REASON}} |
+
+### Consequences
+
+{{这个决策带来了什么影响？正面和负面都要记录。}}
+
+---
+
+<!-- 模板：每次新决策时复制上面的 ADR 块 -->
+
+## Template
+
+```markdown
+## ADR-{{NUMBER}}: {{TITLE}}
+
+**Status**: {{ACCEPTED | PROPOSED | DEPRECATED | SUPERSEDED}}
+**Date**: {{DATE}}
+**Decided By**: {{DECIDER}}
+
+### Context
+
+### Decision
+
+### Alternatives Considered
+
+| Alternative | Pros | Cons | Why Rejected |
+|-------------|------|------|--------------|
+| | | | |
+
+### Consequences
+```

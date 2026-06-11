@@ -1,0 +1,207 @@
+{
+  "scene_id": "mobile-review",
+  "workflow": "mobile-review",
+  "name": "移动端代码审查",
+  "description": "5层移动端代码审查：ESLint+RN规则 → mobsfscan安全 → Detox/Maestro截图 → AI语义+a11y → 聚合报告",
+  "trigger_keywords": [
+    "移动端审查",
+    "RN审查",
+    "Flutter审查",
+    "mobile review",
+    "检查App代码",
+    "App代码质量"
+  ],
+  "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["mobile-review", "mobile-quality", "review"]
+        }
+      },
+      "description": "注入历史审查上下文和已知代码质量问题",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "detectProject",
+      "params": {},
+      "description": "识别平台→选择规则集（RN→@react-native/eslint-config / Flutter→dart analyze+awesome_lints / 原生→各自lint）",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listPullRequests",
+      "params": {
+        "state": "open",
+        "limit": 5
+      },
+      "description": "列出待审查的 PR",
+      "auto_execute": true,
+      "condition": "github_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "lint",
+        "options": {
+          "rules": ["eslint", "typescript"]
+        }
+      },
+      "description": "L1: ESLint + RN/Flutter 规则 — 语法/样式/平台API误用/widget生命周期",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "security",
+        "tool": "mobsfscan"
+      },
+      "description": "L2: mobsfscan 源码安全扫描 — 硬编码密钥/不安全存储/弱加密/无SSL Pinning",
+      "auto_execute": true,
+      "condition": "mobsfscan_available",
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "MobileService",
+      "action": "runUITest",
+      "params": {
+        "flow": "critical_paths",
+        "tool": "auto"
+      },
+      "description": "L3: UI 截图对比 — 自动选择可用工具（Maestro > Detox）→ 关键流程（登录→主页→核心操作）前后对比",
+      "auto_execute": true,
+      "condition": "maestro_mcp_available || detox_mcp_available",
+      "on_error": "continue",
+      "timeout": 600
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "AgentRunner",
+      "action": "runAgent",
+      "params": {
+        "agent": "mobile-reviewer",
+        "focus": ["navigation", "platform_isolation", "memory", "state_management", "mobile_a11y"]
+      },
+      "description": "L4: mobile-reviewer Agent AI 语义审查 — 导航栈/Platform.OS散落/内存泄漏/状态管理/移动端a11y",
+      "auto_execute": true,
+      "on_error": "continue",
+      "timeout": 600
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "aggregateReport",
+      "params": {
+        "layers": ["L1_lint", "L2_security", "L3_ui_screenshots", "L4_ai_review"],
+        "mode": "mobile"
+      },
+      "description": "L5: 聚合报告 — 去重、按严重度排序、修复建议、emoji 指标",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": ["lint", "security", "ui_regression"],
+        "mode": "strict",
+        "block_merge": true
+      },
+      "description": "质量门禁：CRITICAL 问题阻断合并（PR 上下文），WARNING 建议修复（独立审查场景降级为 warning）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "mobile-review",
+        "source": "auto"
+      },
+      "description": "审查知识沉淀到项目知识库",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": ["tokens", "api_calls"]
+      },
+      "description": "代码审查流程成本报告",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "mobile-review",
+        "data": {
+          "source": "mobile-review_workflow"
+        }
+      },
+      "description": "保存审查结果到记忆（安全问题/代码质量/审查通过项）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 12,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "移动端代码审查完成 📱 5层审查管线：ESLint → mobsfscan → UI截图 → AI语义+a11y → 聚合报告"
+      },
+      "description": "通知审查完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

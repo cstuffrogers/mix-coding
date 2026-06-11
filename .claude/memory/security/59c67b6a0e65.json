@@ -1,0 +1,13 @@
+{
+  "id": "59c67b6a0e65",
+  "type": "security",
+  "data": {
+    "vulnerability": "多类型严重漏洞",
+    "file": "E:/dgsq/.env",
+    "severity": "CRITICAL",
+    "description": "6个CRITICAL安全漏洞：API Key泄露、政府平台凭证明文、AI数据外泄至第三方代理、明文密码存储、privileged容器、硬编码AES密钥",
+    "fix": "见 E:/dgsq/docs/audit-report.md 优先修复路线图",
+    "found_at": "2026-06-09T10:30:00+08:00"
+  },
+  "timestamp": "2026-06-09T10:28:20.261Z"
+}

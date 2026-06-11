@@ -1,0 +1,11 @@
+// Maestro E2E 示例 — 登录流程
+appId: com.example.app
+---
+- launchApp
+- assertVisible: "登录"
+- tapOn: "邮箱"
+- inputText: "test@example.com"
+- tapOn: "密码"
+- inputText: "password123"
+- tapOn: "登录"
+- assertVisible: "首页"
