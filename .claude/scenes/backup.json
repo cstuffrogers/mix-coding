@@ -50,7 +50,7 @@
     {
       "step": 5,
       "layer": "core",
-      "service": "NotifyService",
+      "service": "NotificationService",
       "action": "send",
       "params": {
         "level": "warning",
@@ -92,7 +92,7 @@
     {
       "step": 8,
       "layer": "core",
-      "service": "NotifyService",
+      "service": "NotificationService",
       "action": "notify",
       "params": { "message": "备份配置工作流完成" },
       "description": "通知备份配置完成",

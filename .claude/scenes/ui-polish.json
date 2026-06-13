@@ -68,7 +68,7 @@
     {
       "step": 4,
       "layer": "capability",
-      "service": "DesignService",
+      "service": "BuildService",
       "action": "installDeps",
       "params": {},
       "description": "安装工具链：daisyui、animate.css、lucide-react、@playwright/test",

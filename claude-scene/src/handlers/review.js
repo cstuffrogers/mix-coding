@@ -14,7 +14,7 @@ function runDiagnostic(command, targetPath) {
     // execSync throws on non-zero exit — return captured output if available
     if (e.stdout) return e.stdout.toString();
     if (e.stderr) return e.stderr.toString();
-    console.log(chalk.dim(`  ℹ ${command.split(' ')[0]} 执行失败: ${e.message}`));
+    console.log(chalk.dim(`  ℹ ${command.split(' ', 1)[0]} 执行失败: ${e.message}`));
     return '';
   }
 }
@@ -111,39 +111,90 @@ function runA11yCheck(targetPath) {
   console.log(chalk.blue('\n♿ 正在进行无障碍检查 (WCAG 2.1 AA)...'));
   let issueCount = 0;
 
-  // Check: img tags without alt attribute
+  // Phase 1: pa11y-ci against static HTML files (if any)
+  const htmlFiles = safeExec(
+    `find . -name "*.html" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -20 || true`,
+    targetPath,
+    { stdio: 'pipe', timeout: 10000 }
+  ).toString().trim();
+
+  if (htmlFiles) {
+    const urls = htmlFiles.split('\n').filter(Boolean).map(f => {
+      const abs = `${targetPath.replace(/\\/g, '/')}/${f.replace(/^\.\//, '')}`;
+      return `file://${abs}`;
+    });
+
+    if (urls.length > 0) {
+      try {
+        console.log(chalk.dim(`  🔍 pa11y-ci 正在检查 ${urls.length} 个页面...`));
+        const pa11yCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+        const pa11yRaw = safeExec(
+          `${pa11yCmd} pa11y-ci ${urls.join(' ')} 2>&1 || true`,
+          targetPath,
+          { stdio: 'pipe', maxBuffer: 5 * 1024 * 1024, timeout: 120000 }
+        ).toString();
+
+        // Parse pa11y-ci output for error counts
+        const errMatch = pa11yRaw.match(/(\d+)\s+errors?/i);
+        if (errMatch) {
+          issueCount += parseInt(errMatch[1]);
+        }
+        // Count individual WCAG violations
+        const violations = pa11yRaw.split('\n').filter(l =>
+          /error:/i.test(l) || /^\s*•/.test(l)
+        );
+        if (violations.length > 0 && issueCount === 0) {
+          issueCount = violations.length;
+        }
+
+        if (issueCount > 0) {
+          console.log(chalk.yellow(`  ⚠ pa11y-ci: ${issueCount} 个 WCAG 问题`));
+          violations.slice(0, 8).forEach(v => console.log(chalk.dim(`    ${v.trim().slice(0, 140)}`)));
+        } else {
+          console.log(chalk.green('  ✅ pa11y-ci: WCAG 2.1 AA 通过'));
+        }
+        return issueCount;
+      } catch {
+        console.log(chalk.dim('  ℹ pa11y-ci 执行失败，回退到代码级检查'));
+      }
+    }
+  }
+
+  // Phase 2: Code-level checks (JSX/TSX — grep for common a11y issues)
+  console.log(chalk.dim('  ℹ 无 HTML 文件，使用代码级 a11y 检查（grep）'));
+  let grepIssues = 0;
+
   const imgNoAlt = runDiagnostic(
     'grep -rn "<img[^>]*>" --include="*.tsx" --include="*.jsx" --include="*.html" . | grep -v "alt=" || true',
     targetPath
   ).trim();
   if (imgNoAlt) {
     const lines = imgNoAlt.split('\n').filter(Boolean);
-    issueCount += lines.length;
+    grepIssues += lines.length;
     console.log(chalk.yellow(`  ⚠ 发现 ${lines.length} 个 img 标签缺少 alt 属性`));
   }
 
-  // Check: div with onClick (should use semantic button)
   const divOnClick = runDiagnostic(
     'grep -rn "<div[^>]*onClick" --include="*.tsx" --include="*.jsx" . || true',
     targetPath
   ).trim();
   if (divOnClick) {
     const lines = divOnClick.split('\n').filter(Boolean);
-    issueCount += lines.length;
+    grepIssues += lines.length;
     console.log(chalk.yellow(`  ⚠ 发现 ${lines.length} 个 div 使用 onClick（应使用语义化 button）`));
   }
 
-  // Check: empty link text
   const emptyLinks = runDiagnostic(
     'grep -rn "<a[^>]*></a>\\|<a[^>]*/>" --include="*.tsx" --include="*.jsx" . | grep -v "aria-label" || true',
     targetPath
   ).trim();
   if (emptyLinks) {
     const lines = emptyLinks.split('\n').filter(Boolean);
-    issueCount += lines.length;
+    grepIssues += lines.length;
     console.log(chalk.yellow(`  ⚠ 发现 ${lines.length} 个空链接缺少 aria-label`));
   }
 
+  issueCount = grepIssues;
   if (issueCount === 0) {
     console.log(chalk.green('  ✅ 无障碍基础检查通过'));
   } else {

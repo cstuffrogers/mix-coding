@@ -46,7 +46,7 @@ export function handleDocsUpdate(_action, _params, targetPath) {
   const readmePath = join(targetPath, 'README.md');
   if (existsSync(readmePath)) {
     let readme = readFileSync(readmePath, 'utf-8');
-    const date = new Date().toISOString().split('T')[0];
+    const date = new Date().toISOString().split('T', 1)[0];
     if (!readme.includes('Last updated:')) {
       readme += `\n\n---\n\nLast updated: ${date}\n`;
       writeFileSync(readmePath, readme);
@@ -81,7 +81,7 @@ export function handleCheckPrerequisites(_action, params, targetPath, context) {
     },
     jdk: () => {
       const ver = safeExec('java -version 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
-      return { ok: true, detail: ver.split('\n')[0] };
+      return { ok: true, detail: ver.split('\n', 1)[0] };
     },
     xcode: () => {
       safeExec('xcodebuild -version 2>&1', targetPath, { stdio: 'pipe' });
@@ -299,6 +299,37 @@ export function handleAskUser(_action, params, _targetPath, context) {
   return `用户应答: ${answer}`;
 }
 
+// Gate check name → context flag mapping. "security" and "security_scan" are
+// special-cased below (they block on high-severity findings instead of failing).
+const GATE_FLAGS = Object.assign(Object.create(null), {
+  lint: 'lintPassed', typecheck: 'typecheckPassed', test: 'testPassed',
+  coverage: 'coveragePassed', visual_regression: 'visualRegressionPassed',
+  dependency_audit: 'dependencyAuditPassed', dependencies: 'dependencyAuditPassed',
+  performance: 'performancePassed', complexity: 'complexityPassed',
+  dead_code: 'deadCodePassed', git_leaks: 'gitLeaksPassed',
+  a11y: 'a11yPassed', i18n: 'i18nPassed', migration: 'migrationReviewPassed',
+  loadtest: 'loadTestPassed', monitor: 'monitorConfigured', cicd: 'ciConfigured',
+  backup: 'backupConfigured', incident: 'incidentRunbookCreated', e2e: 'e2eConfigured',
+  docker: 'dockerConfigured', changelog: 'changelogGenerated', sbom: 'sbomGenerated',
+  logging: 'loggingConfigured', dead_links: 'deadLinkPassed', build_leaks: 'buildLeakPassed',
+  open_redirect: 'openRedirectPassed', security_headers: 'securityHeadersPassed',
+  recheck: 'recheckPassed', state_audit: 'stateAuditPassed', lighthouse: 'lighthousePassed',
+  log_sanitization: 'logSanitizationPassed', cors_check: 'corsCheckPassed',
+  env_var_leak: 'envVarLeakPassed',
+  postinstall: 'postinstallPassed', socket_scan: 'socketScanPassed',
+  sensitive_file: 'sensitiveFilePassed', tech_debt: 'techDebtPassed',
+  lock_file: 'lockFilePassed', gitignore_check: 'gitignorePassed',
+  deprecated_deps: 'deprecatedDepsPassed',
+  // Mobile
+  privacy: 'privacyPassed', store_compliance: 'storeCompliancePassed',
+  performance_baseline: 'performancePassed', tests_pass: 'testPassed',
+  ui_regression: 'visualRegressionPassed', bundle_size: 'bundleSizePassed',
+  startup_time: 'startupTimePassed', fps: 'fpsPassed', memory: 'memoryPassed',
+  e2e_config: 'e2eConfigPassed', test_examples: 'testExamplesPassed',
+  ci_integration: 'ciConfigured', env_prerequisites: 'envPrerequisitesPassed',
+  build_pass: 'buildPassed', env_template: 'envTemplatePassed',
+});
+
 export function handleCheckGate(_action, params, _targetPath, context) {
   const checks = params?.checks || ['lint', 'typecheck', 'security'];
   console.log(chalk.blue('\n🚦 正在执行质量门禁...'));
@@ -307,180 +338,17 @@ export function handleCheckGate(_action, params, _targetPath, context) {
   const boolPassed = (flag) => context?.[flag] !== false;
   const hasResult = (flag) => context?.[flag] !== undefined;
 
-  const gateChecks = {
-    security: () => {
-      const secResult = context?.securityScanResult || {};
-      (secResult.highSeverityFound ? results.blocked : results.passed)
-        .push(secResult.highSeverityFound ? 'security: 发现高危漏洞' : 'security');
-    },
-    lint: () => {
-      if (!hasResult('lintPassed')) { results.skipped.push('lint'); return; }
-      (boolPassed('lintPassed') ? results.passed : results.failed).push('lint');
-    },
-    typecheck: () => {
-      if (!hasResult('typecheckPassed')) { results.skipped.push('typecheck'); return; }
-      (boolPassed('typecheckPassed') ? results.passed : results.failed).push('typecheck');
-    },
-    test: () => {
-      if (!hasResult('testPassed')) { results.skipped.push('test'); return; }
-      (boolPassed('testPassed') ? results.passed : results.failed).push('test');
-    },
-    coverage: () => {
-      if (!hasResult('coveragePassed')) { results.skipped.push('coverage'); return; }
-      (boolPassed('coveragePassed') ? results.passed : results.failed).push('coverage');
-    },
-    visual_regression: () => {
-      if (!hasResult('visualRegressionPassed')) { results.skipped.push('visual_regression'); return; }
-      (boolPassed('visualRegressionPassed') ? results.passed : results.failed).push('visual_regression');
-    },
-    dependency_audit: () => {
-      if (!hasResult('dependencyAuditPassed')) { results.skipped.push('dependency_audit'); return; }
-      (boolPassed('dependencyAuditPassed') ? results.passed : results.failed).push('dependency_audit');
-    },
-    dependencies: () => {
-      if (!hasResult('dependencyAuditPassed')) { results.skipped.push('dependencies'); return; }
-      (boolPassed('dependencyAuditPassed') ? results.passed : results.failed).push('dependencies');
-    },
-    performance: () => {
-      if (!hasResult('performancePassed')) { results.skipped.push('performance'); return; }
-      (boolPassed('performancePassed') ? results.passed : results.failed).push('performance');
-    },
-    complexity: () => {
-      if (!hasResult('complexityPassed')) { results.skipped.push('complexity'); return; }
-      (boolPassed('complexityPassed') ? results.passed : results.failed).push('complexity');
-    },
-    dead_code: () => {
-      if (!hasResult('deadCodePassed')) { results.skipped.push('dead_code'); return; }
-      (boolPassed('deadCodePassed') ? results.passed : results.failed).push('dead_code');
-    },
-    git_leaks: () => {
-      if (!hasResult('gitLeaksPassed')) { results.skipped.push('git_leaks'); return; }
-      (boolPassed('gitLeaksPassed') ? results.passed : results.failed).push('git_leaks');
-    },
-    a11y: () => {
-      if (!hasResult('a11yPassed')) { results.skipped.push('a11y'); return; }
-      (boolPassed('a11yPassed') ? results.passed : results.failed).push('a11y');
-    },
-    i18n: () => {
-      if (!hasResult('i18nPassed')) { results.skipped.push('i18n'); return; }
-      (boolPassed('i18nPassed') ? results.passed : results.failed).push('i18n');
-    },
-    migration: () => {
-      if (!hasResult('migrationReviewPassed')) { results.skipped.push('migration'); return; }
-      (boolPassed('migrationReviewPassed') ? results.passed : results.failed).push('migration');
-    },
-    loadtest: () => {
-      if (!hasResult('loadTestPassed')) { results.skipped.push('loadtest'); return; }
-      (boolPassed('loadTestPassed') ? results.passed : results.failed).push('loadtest');
-    },
-    monitor: () => {
-      if (!hasResult('monitorConfigured')) { results.skipped.push('monitor'); return; }
-      (boolPassed('monitorConfigured') ? results.passed : results.failed).push('monitor');
-    },
-    cicd: () => {
-      if (!hasResult('ciConfigured')) { results.skipped.push('cicd'); return; }
-      (boolPassed('ciConfigured') ? results.passed : results.failed).push('cicd');
-    },
-    backup: () => {
-      if (!hasResult('backupConfigured')) { results.skipped.push('backup'); return; }
-      (boolPassed('backupConfigured') ? results.passed : results.failed).push('backup');
-    },
-    incident: () => {
-      if (!hasResult('incidentRunbookCreated')) { results.skipped.push('incident'); return; }
-      (boolPassed('incidentRunbookCreated') ? results.passed : results.failed).push('incident');
-    },
-    e2e: () => {
-      if (!hasResult('e2eConfigured')) { results.skipped.push('e2e'); return; }
-      (boolPassed('e2eConfigured') ? results.passed : results.failed).push('e2e');
-    },
-    docker: () => {
-      if (!hasResult('dockerConfigured')) { results.skipped.push('docker'); return; }
-      (boolPassed('dockerConfigured') ? results.passed : results.failed).push('docker');
-    },
-    changelog: () => {
-      if (!hasResult('changelogGenerated')) { results.skipped.push('changelog'); return; }
-      (boolPassed('changelogGenerated') ? results.passed : results.failed).push('changelog');
-    },
-    sbom: () => {
-      if (!hasResult('sbomGenerated')) { results.skipped.push('sbom'); return; }
-      (boolPassed('sbomGenerated') ? results.passed : results.failed).push('sbom');
-    },
-    logging: () => {
-      if (!hasResult('loggingConfigured')) { results.skipped.push('logging'); return; }
-      (boolPassed('loggingConfigured') ? results.passed : results.failed).push('logging');
-    },
-
-    // ── Mobile workflow gate checks ──
-    security_scan: () => {
-      const secResult = context?.securityScanResult || {};
-      (secResult.highSeverityFound ? results.blocked : results.passed)
-        .push(secResult.highSeverityFound ? 'security_scan: 发现高危漏洞' : 'security_scan');
-    },
-    privacy: () => {
-      if (!hasResult('privacyPassed')) { results.skipped.push('privacy'); return; }
-      (boolPassed('privacyPassed') ? results.passed : results.failed).push('privacy');
-    },
-    store_compliance: () => {
-      if (!hasResult('storeCompliancePassed')) { results.skipped.push('store_compliance'); return; }
-      (boolPassed('storeCompliancePassed') ? results.passed : results.failed).push('store_compliance');
-    },
-    performance_baseline: () => {
-      if (!hasResult('performancePassed')) { results.skipped.push('performance_baseline'); return; }
-      (boolPassed('performancePassed') ? results.passed : results.failed).push('performance_baseline');
-    },
-    tests_pass: () => {
-      if (!hasResult('testPassed')) { results.skipped.push('tests_pass'); return; }
-      (boolPassed('testPassed') ? results.passed : results.failed).push('tests_pass');
-    },
-    ui_regression: () => {
-      if (!hasResult('visualRegressionPassed')) { results.skipped.push('ui_regression'); return; }
-      (boolPassed('visualRegressionPassed') ? results.passed : results.failed).push('ui_regression');
-    },
-    bundle_size: () => {
-      if (!hasResult('bundleSizePassed')) { results.skipped.push('bundle_size'); return; }
-      (boolPassed('bundleSizePassed') ? results.passed : results.failed).push('bundle_size');
-    },
-    startup_time: () => {
-      if (!hasResult('startupTimePassed')) { results.skipped.push('startup_time'); return; }
-      (boolPassed('startupTimePassed') ? results.passed : results.failed).push('startup_time');
-    },
-    fps: () => {
-      if (!hasResult('fpsPassed')) { results.skipped.push('fps'); return; }
-      (boolPassed('fpsPassed') ? results.passed : results.failed).push('fps');
-    },
-    memory: () => {
-      if (!hasResult('memoryPassed')) { results.skipped.push('memory'); return; }
-      (boolPassed('memoryPassed') ? results.passed : results.failed).push('memory');
-    },
-    e2e_config: () => {
-      if (!hasResult('e2eConfigPassed')) { results.skipped.push('e2e_config'); return; }
-      (boolPassed('e2eConfigPassed') ? results.passed : results.failed).push('e2e_config');
-    },
-    test_examples: () => {
-      if (!hasResult('testExamplesPassed')) { results.skipped.push('test_examples'); return; }
-      (boolPassed('testExamplesPassed') ? results.passed : results.failed).push('test_examples');
-    },
-    ci_integration: () => {
-      if (!hasResult('ciConfigured')) { results.skipped.push('ci_integration'); return; }
-      (boolPassed('ciConfigured') ? results.passed : results.failed).push('ci_integration');
-    },
-    env_prerequisites: () => {
-      if (!hasResult('envPrerequisitesPassed')) { results.skipped.push('env_prerequisites'); return; }
-      (boolPassed('envPrerequisitesPassed') ? results.passed : results.failed).push('env_prerequisites');
-    },
-    build_pass: () => {
-      if (!hasResult('buildPassed')) { results.skipped.push('build_pass'); return; }
-      (boolPassed('buildPassed') ? results.passed : results.failed).push('build_pass');
-    },
-    env_template: () => {
-      if (!hasResult('envTemplatePassed')) { results.skipped.push('env_template'); return; }
-      (boolPassed('envTemplatePassed') ? results.passed : results.failed).push('env_template');
-    },
-  };
-
   for (const check of checks) {
-    if (gateChecks[check]) { gateChecks[check](); }
-    else { results.unknown.push(check); }
+    if (check === 'security' || check === 'security_scan') {
+      const secResult = context?.securityScanResult || {};
+      (secResult.highSeverityFound ? results.blocked : results.passed)
+        .push(secResult.highSeverityFound ? `${check}: 发现高危漏洞` : check);
+      continue;
+    }
+    const flag = GATE_FLAGS[check];
+    if (!flag) { results.unknown.push(check); continue; }
+    if (!hasResult(flag)) { results.skipped.push(check); continue; }
+    (boolPassed(flag) ? results.passed : results.failed).push(check);
   }
 
   if (results.unknown.length) console.log(chalk.yellow(`  ❓ 未知检查: ${results.unknown.join(', ')}`));

@@ -6,43 +6,47 @@ import { scanDir } from '../lib/scan-dir.js';
 
 // ── Helpers ──
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+
+function detectProjectType(targetPath, hasIos, hasAndroid, hasPodfile) {
+  // Check package.json for RN/Expo/Flutter
+  const packageJson = join(targetPath, 'package.json');
+  if (existsSync(packageJson)) {
+    try {
+      const pkg = JSON.parse(readFileSync(packageJson, 'utf-8'));
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (deps['react-native'] || deps['expo']) return deps['expo'] ? 'expo' : 'rn';
+      if (deps['flutter']) return 'flutter';
+    } catch { /* ignore */ }
+  }
+
+  // Check pubspec.yaml for Flutter
+  const pubspecYaml = join(targetPath, 'pubspec.yaml');
+  if (existsSync(pubspecYaml)) {
+    try {
+      const content = readFileSync(pubspecYaml, 'utf-8');
+      if (content.includes('flutter:')) return 'flutter';
+    } catch { /* ignore */ }
+  }
+
+  // Guess from platform dirs
+  if (hasIos && hasAndroid) return 'rn';
+  if (hasIos) return 'ios-native';
+  if (hasAndroid) return 'android-native';
+  return 'unknown';
+}
+
 function detectMobilePlatform(targetPath) {
   const files = scanDir(targetPath).map(f => basename(f));
   const hasIos = files.includes('ios') || files.some(f => f.endsWith('.xcodeproj') || f.endsWith('.xcworkspace'));
   const hasAndroid = files.includes('android') || files.some(f => f === 'build.gradle' || f === 'build.gradle.kts');
   const hasPodfile = files.includes('Podfile');
-  const packageJson = join(targetPath, 'package.json');
-
-  let projectType = 'unknown';
-  if (existsSync(packageJson)) {
-    try {
-      const pkg = JSON.parse(readFileSync(packageJson, 'utf-8'));
-      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-      if (deps['react-native'] || deps['expo']) projectType = deps['expo'] ? 'expo' : 'rn';
-      if (deps['flutter']) projectType = 'flutter';
-    } catch { /* ignore */ }
-  }
-
-  // Check for native projects
-  if (projectType === 'unknown') {
-    const pubspecYaml = join(targetPath, 'pubspec.yaml');
-    if (existsSync(pubspecYaml)) {
-      try {
-        const content = readFileSync(pubspecYaml, 'utf-8');
-        if (content.includes('flutter:')) projectType = 'flutter';
-      } catch { /* ignore */ }
-    }
-    if (projectType === 'unknown' && hasIos && !hasAndroid) projectType = 'ios-native';
-    if (projectType === 'unknown' && hasAndroid && !hasIos) projectType = 'android-native';
-    if (projectType === 'unknown' && hasIos && hasAndroid) projectType = 'rn'; // best guess
-  }
 
   let platform = 'unknown';
   if (hasIos && hasAndroid) platform = 'both';
   else if (hasIos) platform = 'ios';
   else if (hasAndroid) platform = 'android';
 
+  const projectType = detectProjectType(targetPath, hasIos, hasAndroid, hasPodfile);
   return { projectType, platform, hasIos, hasAndroid, hasPodfile };
 }
 
@@ -88,7 +92,7 @@ export function handleCheckTools(_action, params, _targetPath, context) {
         missing.push(tool);
         available[tool] = false;
       } else {
-        available[tool] = output.trim().split('\n')[0];
+        available[tool] = output.trim().split('\n', 1)[0];
         console.log(chalk.green(`  ✅ ${tool}: ${available[tool]}`));
       }
     } catch {

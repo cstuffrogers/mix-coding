@@ -1,6 +1,6 @@
 # Mix-Coding System — 完整工具清单与使用矩阵
 
-> 生成日期：2026-06-10
+> 生成日期：2026-06-13
 
 ---
 
@@ -9,7 +9,7 @@
 1. [工具全景图](#工具全景图)
 2. [MCP 服务器（13个）与场景使用矩阵](#mcp-服务器13个与场景使用矩阵)
 3. [Claude Skills（37个）与触发场景](#claude-skills37个与触发场景)
-4. [CLI 工具 claude-scene（16模块 + 190+ Action处理器）](#cli-工具-claude-scene16模块--65-action处理器)
+4. [CLI 工具 claude-scene（16模块 + 298 Action处理器）](#cli-工具-claude-scene16模块--65-action处理器)
 5. [35 个场景工作流（Scene JSON + Archon YAML + Command Markdown）](#35-个场景工作流scene-json--archon-yaml--command-markdown)
 6. [89 个 Slash 命令分类](#89-个-slash-命令分类)
 7. [CI/CD 与配置体系](#cicd-与配置体系)
@@ -31,7 +31,7 @@
 │  27核心场景 │ 语言构建/测试(14) │ 审查(9) │ 工作流(8) │ 会话(3) │ 元工具(18)  │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                          claude-scene CLI (Node.js)                           │
-│  list | start | show | fork  ──  190+ Action处理器 ── 16个源模块              │
+│  list | start | show | fork  ──  298 Action处理器 ── 16个源模块              │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │              27 场景定义 (.claude/scenes/*.json) ←→ .archon/workflows/*.yaml │
 ├──────────────────────────────────────────────────────────────────────────────┤
@@ -172,7 +172,7 @@
 
 ---
 
-## CLI 工具 claude-scene（16模块 + 190+ Action处理器）
+## CLI 工具 claude-scene（16模块 + 298 Action处理器）
 
 ### 入口与命令
 
@@ -197,12 +197,16 @@ claude-scene/src/
 ├─ lib/fs-utils.js                 ← 文件系统工具
 ├─ data/action-messages.js         ← 回退消息
 ├─ handlers/
-│   ├─ code-analysis.js            ← 代码扫描/安全扫描/性能分析/度量/反模式/报告
+│   ├─ code-analysis.js            ← 代码扫描/安全扫描/性能分析/度量/反模式/报告/Lighthouse/开放重定向/状态审计/i18n
 │   ├─ memory.js                   ← 记忆召回/保存/整理/列表
-│   └─ testing.js                  ← 测试覆盖/单元测试/套件/受影响/CI/生成
+│   ├─ testing.js                  ← 测试覆盖/单元测试/套件/受影响/CI/生成
+│   ├─ lighthouse.js               ← Lighthouse CI 性能门禁（LCP/CLS/TBT）
+│   ├─ open-redirect.js            ← 开放重定向检测 + express-sec-audit AST 扫描
+│   ├─ state-audit.js              ← Clearible 状态管理审计
+│   └─ i18n.js                     ← i18n 国际化审查（硬编码/RTL）
 ```
 
-### Action 处理器完整清单（190+ 注册键）
+### Action 处理器完整清单（298 注册键）
 
 **交互控制（6个）：**
 `select`, `confirm`, `choose`, `report`, `askUser`, `input`
@@ -213,8 +217,8 @@ claude-scene/src/
 **代码审查（2个）：**
 `runReview`, `reviewFull`
 
-**静态分析（6个）：**
-`codeScan`, `securityScan`, `performanceProfile`, `codeMetrics`, `detectAntiPatterns`, `generateReport`
+**静态分析（10个）：**
+`codeScan`, `securityScan`, `performanceProfile`, `codeMetrics`, `detectAntiPatterns`, `generateReport`, `lighthouseGate`, `openRedirectScan`, `stateAudit`, `i18nAudit`
 
 **设计服务（10个）：**
 `generateDesign`, `generateLowFi`, `generateHiFi`, `analyzeConsistency`, `persist`, `exportAssets`, `verifyVisual`, `analyzeUI`, `checkConsistency`, `generateRefactorPlan`
@@ -304,7 +308,7 @@ claude-scene/src/
 
 ---
 
-#### 3. feature — 新功能开发（14步）
+#### 3. feature — 新功能开发（27步）
 
 | 步骤 | 动作 | 条件 |
 |------|------|------|
@@ -328,7 +332,7 @@ claude-scene/src/
 
 ---
 
-#### 4. review — 代码审查 + 安全审计（13步）
+#### 4. review — 代码审查 + 安全审计（14步）
 
 | 步骤 | 动作 | 条件 | 说明 |
 |------|------|------|------|
@@ -337,8 +341,10 @@ claude-scene/src/
 | 1.1 | Context7MCP.getDocumentation | context7_mcp_available | 审查最佳实践 |
 | 2 | runReview(full) | 总是 | ESLint → react-doctor → Playwright 视觉 → AI 语义 |
 | 2.5 | huashu-expert-review | enh_huashu_expert_review | Huashu 5 维度专家评审 |
+| 2.7 | state-audit | 总是 | 状态管理审计：Context 过度使用/耦合度/循环依赖 |
 | 3 | ce-review(9 Agent) | plugin_ce_available | CE 多Agent深度审查 |
 | 4 | sec-bug-hunt(≥0.85置信度) | 总是 | 安全深度审计（阻断高危） |
+| 4.2 | open-redirect-scan | 总是 | 开放重定向检测：URL 参数注入 |
 | 4.5 | checkGate(strict) | 总是 | 质量门禁：lint + typecheck + security |
 | 5 | ce-compound | plugin_ce_available | 知识沉淀 |
 | 6 | remember | 总是 | 保存审查结果到记忆 |
@@ -357,7 +363,7 @@ claude-scene/src/
 
 ---
 
-#### 6. optimize — 性能优化（12步）
+#### 6. optimize — 性能优化（14步）
 
 核心流程：记忆召回 → performanceProfile → codeMetrics → detectAntiPatterns → 选择优化方向 → implementLogic → runSuite → verifyFix → cleanup → ce-compound → notify
 
@@ -373,7 +379,7 @@ claude-scene/src/
 
 ---
 
-#### 8. hunt — 安全漏洞审查（11步）
+#### 8. hunt — 安全漏洞审查（24步）
 
 | 步骤 | 动作 | 条件 |
 |------|------|------|
@@ -385,15 +391,28 @@ claude-scene/src/
 | 2 | recall(security) | 总是 |
 | 3 | runReview(security, eslint-plugin-security, OWASP) | 总是 |
 | 4 | runReview(security, npm-audit) | 总是 |
+| 4.3 | open-redirect-scan | 总是 |
+| 4.5 | security-headers (seraphim-audit) | 总是 |
+| 4.7 | recheck-cli (ReDoS 扫描) | 总是 |
+| 4.8 | log-sanitization (日志脱敏) | 总是 |
+| 4.9 | cors-check (CORS 配置) | 总是 |
+| 4.10 | postinstall-check (恶意脚本) | 总是 |
+| 4.11 | socket-scan (供应链安全) | 总是 |
+| 4.12 | sensitive-file-check (敏感文件) | 总是 |
+| 4.13 | tech-debt-scan (技术债务) | 总是 |
+| 4.14 | deprecated-deps (废弃依赖) | 总是 |
 | 5 | runSuite | fixes_applied |
 | 6 | ce-compound | plugin_ce_available |
+| 6.5 | remember(security) | 总是 |
+| 6.6 | consolidate | 总是 |
 | 7 | send(高危通知) | high_severity_found |
+| 8 | notify(审查完成) | 总是 |
 
 **MCP启用**：sentry, tavily-search, context7, github, codegraph（Token预算 1800）
 
 ---
 
-#### 9. design — AI 驱动设计（12步）
+#### 9. design — AI 驱动设计（22步）
 
 核心流程：TavilyMCP/Context7MCP → recall → choose(视觉方向) → generateLowFi → askUser(确认) → generateHiFi → analyzeConsistency → exportAssets → persist → verifyVisual → ce-compound → notify
 
@@ -425,7 +444,7 @@ claude-scene/src/
 
 ---
 
-#### 13. mobile-audit — App 安全审计（18步）
+#### 13. mobile-audit — App 安全审计（22步）
 
 核心流程：recall → mobsfscan SAST → MobSF 全量分析 → Bearer PII/GDPR 隐私扫描 → DependencyCheck CVE → OWASP MASVS 合规检查 → mobile-security Agent 审查 → 聚合报告 → remember → consolidate → notify
 
@@ -433,7 +452,7 @@ claude-scene/src/
 
 ---
 
-#### 14. mobile-review — 移动端代码审查（12步）
+#### 14. mobile-review — 移动端代码审查（14步）
 
 核心流程：recall → @react-native/eslint-config → mobsfscan SAST → Detox/Maestro E2E → mobile-reviewer Agent（6 维度） → mobile-ui-review Skill（7 项检查） → 聚合报告 → remember → consolidate → notify
 
@@ -449,7 +468,7 @@ claude-scene/src/
 
 ---
 
-#### 16. mobile-optimize — App 性能优化（12步）
+#### 16. mobile-optimize — App 性能优化（17步）
 
 核心流程：recall → bundle-visualizer 基线 → 启动时间测量 → 网络分析 → mobile-perf Agent 反模式检测 → 自动修复（图片压缩/懒加载/缓存） → 重新测量验证 → remember → consolidate → notify
 
@@ -616,6 +635,29 @@ claude-scene/src/
 | **Open Design** | `open-design/` 本地仓库 | AI 设计生成（129套品牌系统） | design/new-project | 独立应用 |
 | **Impeccable** | `.claude/skills/impeccable/` | AI 设计词汇 + 27 反模式规则 + 12 LLM 批判规则，自动修正 UI 塑料感 | ui-polish/design | Claude Code Skill |
 
+### 质量与安全工具链（18 个工具）
+
+| 工具 | 版本/来源 | 用途 | 使用场景 | 运行时 |
+|------|----------|------|---------|--------|
+| **Lighthouse CI** | npm `@lhci/cli` | Web 性能门禁（LCP/CLS/TBT/缓存/PWA） | audit, release | CLI |
+| **express-sec-audit** | npm `express-sec-audit` | AST 级 JS/TS 安全扫描（SARIF 报告） | hunt, audit, review | CLI |
+| **Clearible** | npm `clearible` | React 组件架构分析（耦合度/循环依赖） | review, audit | CLI |
+| **noleak** | npm `noleak` | 构建产物泄露检测（.env/Source Map/密钥） | audit, release | CLI |
+| **seraphim-audit** | pip `seraphim-audit` | 安全响应头扫描（CSP/HSTS/X-Frame-Options） | hunt, audit | CLI |
+| **lychee** | Rust 二进制 | 死链接检测（Markdown/HTML） | audit | CLI |
+| **pa11y-ci** | npm `pa11y-ci` | WCAG 2.1 AA 无障碍扫描 | review | CLI |
+| **recheck-cli** | npm `recheck-cli` | 正则 ReDoS 灾难性回溯检测 | hunt, audit | CLI |
+| **log-sanitizer** | 内置 grep | 日志脱敏扫描（Token/密码/身份证/手机号/邮箱） | hunt, audit | 内置 |
+| **cors-checker** | 内置 grep | CORS 配置检测（通配符/credentials 泄露） | hunt, audit | 内置 |
+| **env-leak-scanner** | 内置 grep | 前端环境变量泄露（Vite/process.env） | audit | 内置 |
+| **postinstall-checker** | 内置扫描 | node_modules 恶意 install 脚本检测 | hunt, audit | 内置 |
+| **socket.dev** | npx CLI | 供应链安全扫描（拼写欺诈/抗议软件） | hunt, audit | CLI |
+| **sensitive-file-check** | 内置 git | 敏感文件暴露检查（.env/*.pem/*.key） | hunt, audit | 内置 |
+| **tech-debt-scan** | 内置 grep | 技术债务标记扫描（HACK/FIXME/TODO 等） | hunt, audit | 内置 |
+| **lock-file-consistency** | 内置检查 | 包管理器多 lock 文件冲突检测 | audit | 内置 |
+| **gitignore-check** | 内置检查 | .gitignore 最佳实践：8 项必要规则 | audit | 内置 |
+| **deprecated-deps** | npm CLI | 废弃/未维护依赖检测 | hunt, audit | CLI |
+
 ### 移动端工具链
 
 | 工具 | 版本/来源 | 用途 | 使用场景 | 运行时 |
@@ -698,16 +740,16 @@ recall → listMemories → analyzeUI → web-design-declare-system
 | ├─ PR/项目管理 | 7 |
 | ├─ 质量/测试 | 4 |
 | └─ 其他 | 11 |
-| **Scene JSONs** | 18（共 229 步） |
+| **Scene JSONs** | 18（共 238+ 步） |
 | **Archon YAML 工作流** | 12 |
 | **claude-scene 源模块** | 16 |
-| **Action 处理器** | 190+ 注册键 |
+| **Action 处理器** | 298 注册键 |
 | **条件评估器** | 30+ |
 | **CI/CD 文件** | 6 |
 | **规则文件** | 7 |
 | **根级配置** | 10 |
 | **工程模板** | 5 |
-| **前端工具** | 7 |
+| **前端/质量/安全工具** | 10 |
 | **记忆工具** | 7 |
 | **IDE 适配目录** | 4 (.cursor/.gemini/.kiro/.trae) |
 | **插件** | 2 |

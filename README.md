@@ -15,7 +15,8 @@
 - ✅ **5 层代码审查**：ESLint + TypeScript + 安全扫描 + npm audit + AI 语义
 - ✅ **数据库迁移审查**：扫描迁移文件，检测 8 种危险模式（DROP TABLE / NOT NULL 无默认值等），自动阻断高风险变更
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
-- ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计
+- ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计 + 安全响应头扫描 + 构建泄露检测 + 死链检测 + 开放重定向检测 + 状态管理审计 + 正则 ReDoS 扫描 + 日志脱敏 + CORS 检查 + 敏感文件检查 + 供应链安全扫描
+- ✅ **外部工具链**：18 个工具（noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / Lighthouse CI / express-sec-audit / Clearible / log-sanitizer / cors-checker / env-leak-scanner / postinstall-checker / socket.dev / sensitive-file-check / tech-debt-scan / lock-file-consistency / gitignore-check / deprecated-deps）— 自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖
 - ✅ **记忆组件组合**：7 种记忆工具协同工作
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
@@ -78,17 +79,17 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **ui-polish** | 23步 | 前端美化（DaisyUI + Animal Island UI + Animate.css + Playwright + Impeccable 设计打磨 + Huashu 专家评审 + AI-Friendly 审查 + Awesome Design MD 品牌 + 设计一致性保护） | `/polish` |
 | **feature** | 27步 | 新增功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
 | **bugfix** | 28步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
-| **review** | 12步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义 + i18n + 聚合报告） | `/review` |
+| **review** | 14步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义 + 状态管理审计 + 开放重定向 + i18n + 聚合报告） | `/review` |
 | **refactor** | 21步 | 代码重构（代码度量 + 反模式检测 + 增量重构 + 测试验证） | `/refactor` |
 | **optimize** | 14步 | 性能优化（问题选择 → 基线 → 反模式 → 测量确认 → 增量测试） | `/optimize` |
 | **simplify** | 13步 | 代码简化（可读性优先，逐方向简化 + 测试保全） | `/simplify` |
-| **hunt** | 14步 | 安全漏洞扫描与修复（ESLint 安全规则 + npm audit + OWASP） | `/hunt` |
-| **design** | 19步 | AI 驱动设计（Open Design 129 套品牌系统 + Web Design Engineer + Awesome Design MD 品牌 + Impeccable 设计打磨 + Huashu 专家评审 + 交互原型 + 审查） | `/design` |
+| **hunt** | 24步 | 安全漏洞扫描与修复（ESLint 安全规则 + npm audit + OWASP + 开放重定向 + 安全响应头扫描 + 12 项外部工具链 + CE 沉淀） | `/hunt` |
+| **design** | 22步 | AI 驱动设计（Open Design 129 套品牌系统 + Web Design Engineer + Awesome Design MD 品牌 + Impeccable 设计打磨 + Huashu 专家评审 + 交互原型 + 审查） | `/design` |
 | **analyze** | 15步 | 深度代码分析（复杂度 / 安全 / 性能 / CI + 自动修复） | `/analyze` |
 | **loop** | 10步 | 自动迭代循环（无人值守，持续审查→修复→验证） | `/loop` |
 | **new-project** | 21步 | 从零开始新项目（MCP 记忆注入 + Open Design + CE 规划） | `/new-project` |
-| **release** | 19步 | 发布部署（质量门禁 + 版本号 + 构建 + Tag + 健康检查 + 监控） | `/release` |
-| **audit** | 22步 | 全面项目健康检查（安全 + 代码 + 依赖 + 性能 + 覆盖率 + 复杂度 + 死代码 + 密钥扫描 + 门禁 + 信息图） | `/audit` |
+| **release** | 23步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 健康检查 + 监控） | `/release` |
+| **audit** | 39步 | 全面项目健康检查（安全 + 代码 + 依赖 + 性能 + 覆盖率 + 复杂度 + 死代码 + 密钥扫描 + 安全响应头 + 死链 + 构建泄露 + 开放重定向 + 状态管理 + Lighthouse + i18n + 27 项质量门禁 + 信息图） | `/audit` |
 | **prototype** | 11步 | 快速原型验证（需求访谈 + MVP 生成 + 本地运行 + 决策报告） | `/prototype` |
 | **deps** | 14步 | 安全依赖更新（扫描过期 + 逐项更新 + Breaking Changes 检测 + 测试） | `/deps` |
 | **rollback** | 14步 | 紧急回滚（版本选择 + 回滚 + 构建 + 健康检查 + 监控复原） | `/rollback` |
@@ -104,18 +105,18 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **log** | 8步 | 日志配置（winston/pino/log4js + ELK/Fluentd 采集配置） | `/log` |
 | **monitor** | 8步 | 网站监控（Upptime + GitHub Actions + 状态页 + 可用性告警） | `/monitor` |
 | **sbom** | 8步 | 软件物料清单（SBOM 生成 + 许可证合规检测 + GPL/AGPL 阻断） | `/sbom` |
-| **mobile-audit** | 18步 | App 安全审计（MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5 层门禁） | `/mobile-audit` |
-| **mobile-review** | 12步 | 移动端代码审查（ESLint → mobsfscan SAST → UI 截图 → AI 语义+a11y → 聚合报告 + 质量门禁） | `/mobile-review` |
-| **mobile-release** | 16步 | App 发布部署（Fastlane 构建签名 → TestFlight/Play Store → Shorebird OTA → Sentry + 4 层门禁） | `/mobile-release` |
-| **mobile-optimize** | 12步 | App 性能优化（Bundle 分析 + 启动优化 + 网络分析 + 反模式检测 + 自动修复 + 4 层门禁） | `/mobile-optimize` |
-| **mobile-e2e** | 8步 | 移动端 E2E 测试（Detox/Maestro/Patrol 自动检测 + 配置生成 + CI 集成 + 3 层门禁） | `/mobile-e2e` |
-| **mobile-onboard** | 10步 | App 开发环境搭建（平台感知前置条件 + RN Doctor + Fastlane + .env 模板 + 模拟器配置 + 门禁） | `/mobile-onboard` |
+| **mobile-audit** | 22步 | App 安全审计（MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5 层门禁） | `/mobile-audit` |
+| **mobile-review** | 14步 | 移动端代码审查（ESLint → mobsfscan SAST → UI 截图 → AI 语义+a11y → 聚合报告 + 质量门禁） | `/mobile-review` |
+| **mobile-release** | 18步 | App 发布部署（Fastlane 构建签名 → TestFlight/Play Store → Shorebird OTA → Sentry + 4 层门禁） | `/mobile-release` |
+| **mobile-optimize** | 17步 | App 性能优化（Bundle 分析 + 启动优化 + 网络分析 + 反模式检测 + 自动修复 + 4 层门禁） | `/mobile-optimize` |
+| **mobile-e2e** | 11步 | 移动端 E2E 测试（Detox/Maestro/Patrol 自动检测 + 配置生成 + CI 集成 + 3 层门禁） | `/mobile-e2e` |
+| **mobile-onboard** | 16步 | App 开发环境搭建（平台感知前置条件 + RN Doctor + Fastlane + .env 模板 + 模拟器配置 + 门禁） | `/mobile-onboard` |
 
 ---
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **190+ 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 35 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **298 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 35 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|
@@ -126,7 +127,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | `generateDesign` / `analyze` | 设计与竞品分析 | ✅ |
 | `analyzeUI` / `checkConsistency` / `applyDaisyUI` / `applyComponents` / `addAnimations` / `visualRegression` | 前端美化工具链 | ✅ |
 | `check-api-consistency` | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | ✅ |
-| `sec-bug-hunt` / `gitLeaks` / `npm-audit` | 安全扫描 | ✅ |
+| `sec-bug-hunt` / `gitLeaks` / `npm-audit` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `state-audit` / `i18n-audit` | 安全扫描 + 性能 + 架构 + i18n | ✅ |
 | `migration-review` / `load-test` | 迁移审查 / 负载测试 | ✅ |
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | 一键基础设施配置 | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | 事故/变更/SBOM 自动化 | ✅ |
@@ -240,18 +241,77 @@ node src/index.js start hunt --auto --target "E:\your\project"
 ```
 
 **执行步骤：**
+1. MCP 信息收集（Sentry 错误 + Tavily 漏洞搜索 + Context7 文档 + GitHub issues + CodeGraph 代码分析）
 1. `recall` → 注入项目安全策略和已知漏洞上下文
-2. `runReview(security, eslint-plugin-security)` → ESLint 安全扫描
+2. `runReview(security, eslint-plugin-security)` → ESLint 安全扫描（SQL注入/XSS/CSRF）
 3. `runReview(security, npm-audit)` → npm 依赖漏洞扫描
-4. `runSuite` → 验证修复后无功能回归（条件触发）
-5. `ce-compound` → 知识沉淀
-6. `send` → 高危漏洞即时推送（条件触发）
+4. `security-headers` → 安全响应头配置扫描（CSP / HSTS / X-Frame-Options 等）
+4.3. `open-redirect-scan` → 开放重定向检测（location.href/window.open 参数注入 + express-sec-audit AST 扫描）
+4.5. `security-headers` → seraphim-audit 安全响应头深度扫描
+4.7. `recheck-cli` → 正则 ReDoS 灾难性回溯扫描
+4.8. `log-sanitization` → 日志脱敏扫描（Token/密码/身份证/手机号/邮箱泄露）
+4.9. `cors-check` → CORS 配置检测（通配符/credentials 泄露）
+4.10. `postinstall-check` → 恶意 install 脚本检测
+4.11. `socket-scan` → Socket.dev 供应链安全扫描
+4.12. `sensitive-file-check` → 敏感文件暴露检查（.env/*.pem/*.key）
+4.13. `tech-debt-scan` → 技术债务标记扫描
+4.14. `deprecated-deps` → 废弃/未维护依赖检测
+5. `runSuite` → 验证修复后无功能回归（条件触发）
+6. `ce-compound` → 知识沉淀
+6.5. `remember` → 保存安全审查结果到记忆
+7. `send` → 高危漏洞即时推送（条件触发）
+8. `notify` → 审查完成通知
 
 **支持的安全扫描规则：**
-- `eslint-plugin-security` - ESLint 安全规则
+- `eslint-plugin-security` - ESLint 安全规则（SQL注入/XSS/CSRF）
 - `OWASP-Top-10` - OWASP Top 10 安全标准
 - `npm-audit` - npm 依赖漏洞审计
+- `security-headers` - 安全响应头配置扫描（seraphim-audit）
+- `open-redirect-scan` - 开放重定向检测 + express-sec-audit AST 扫描
+- `recheck-cli` - 正则 ReDoS 灾难性回溯扫描
+- `log-sanitization` - 日志脱敏扫描（Token/密码/身份证/手机号/邮箱）
+- `cors-check` - CORS 配置检测
+- `postinstall-check` - 恶意 install 脚本检测
+- `socket-scan` - Socket.dev 供应链安全扫描
+- `sensitive-file-check` - 敏感文件暴露检查
 - `autoFix` - 自动修复可修复的问题
+
+---
+
+## 🛡️ 外部工具链
+
+以下工具已集成到对应工作流中，自动执行，零冲突：
+
+| 工具 | 类型 | 负责工作流 | 功能 | 阻断级别 |
+|------|------|-----------|------|---------|
+| **noleak** | npm CLI | `/release` (step 8.5), `/audit` (step 8.7) | 构建产物泄露检测：Source Map / .env / 密钥 / .git 目录扫描 | BLOCK-RELEASE |
+| **seraphim-audit** | Python CLI | `/hunt` (step 4.5), `/audit` (step 3.5) | 安全响应头扫描：CSP / HSTS / X-Frame-Options / X-Content-Type-Options / Referrer-Policy / Permissions-Policy | — |
+| **lychee** | Rust 二进制 | `/audit` (step 8.5) | 死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 | — |
+| **Lighthouse CI** | npm CLI | `/release` (step 8.6), `/audit` (step 8.8) | 性能门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查 | BLOCK-RELEASE |
+| **express-sec-audit** | npm CLI | `/hunt` (step 4.3), `/audit` (step 3.4), `/review` (step 4.2) | AST 级安全扫描：开放重定向/密钥检测/SARIF 报告 | — |
+| **Clearible** | npm CLI | `/review` (step 2.7), `/audit` (step 6.6) | React 状态管理审计：Context 过度使用/耦合度/循环依赖/多库混用 | — |
+| **pa11y-ci** | npm CLI | `/review` (a11y 增强层) | WCAG 2.1 AA 深度无障碍扫描 | — |
+| **recheck-cli** | npm CLI | `/hunt` (step 4.7), `/audit` (step 3.6) | 正则 ReDoS 灾难性回溯扫描 | — |
+| **log-sanitizer** | 内置 grep | `/hunt` (step 4.8), `/audit` (step 3.7) | 日志脱敏扫描：Token/密码/身份证/手机号/邮箱泄露检测 | — |
+| **cors-checker** | 内置 grep | `/hunt` (step 4.9), `/audit` (step 3.8) | CORS 配置检测：通配符 + credentials 泄露 | — |
+| **env-leak-scanner** | 内置 grep | `/audit` (step 3.9) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
+| **postinstall-checker** | 内置扫描 | `/hunt` (step 4.10), `/audit` (step 3.10) | 恶意 install 脚本检测：curl/wget/eval/base64/反弹 shell | — |
+| **socket.dev** | npx CLI | `/hunt` (step 4.11), `/audit` (step 3.11) | 供应链安全扫描：拼写欺诈/抗议软件/遥测包检测（需 API Key） | — |
+| **sensitive-file-check** | 内置 git | `/hunt` (step 4.12), `/audit` (step 3.12) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
+| **tech-debt-scan** | 内置 grep | `/hunt` (step 4.13), `/audit` (step 3.13) | 技术债务标记扫描：HACK/FIXME/BUG/XXX/WORKAROUND/TODO 分类 | — |
+| **lock-file-consistency** | 内置检查 | `/audit` (step 3.14) | 包管理器一致性：多 lock 文件检测 | — |
+| **gitignore-check** | 内置检查 | `/audit` (step 3.15) | .gitignore 最佳实践检查：8 项必要规则 | — |
+| **deprecated-deps** | npm CLI | `/hunt` (step 4.14), `/audit` (step 3.16) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | — |
+
+### 工具安装
+
+```bash
+# 核心工具（Phase 1）
+npm install -D noleak pa11y-ci recheck-cli @lhci/cli express-sec-audit clearible    # npm 工具
+pip install git+https://github.com/seraphimhub/seraphim-audit.git  # seraphim-audit (Python 零依赖)
+# lychee: 下载 Windows 二进制 → https://github.com/lycheeverse/lychee/releases
+# socket.dev: npx @socketsecurity/cli scan create --json（需 SOCKET_API_KEY）
+```
 
 ---
 
@@ -434,6 +494,7 @@ claude plugins install compound-engineering@anthropic
 | **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 精选品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple） |
 | **MCP服务器** | `claude mcp install github playwright supabase` | AI上下文增强扩展 |
 | **记忆工具** | `git clone https://github.com/claude-mem \`%USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 7种记忆组件组合使用（project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory） |
+| **安全工具链** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli express-sec-audit clearible` + `pip install seraphim-audit` + Socket.dev API Key 配置 | 构建泄露检测 / 安全响应头 / 死链 / 无障碍 / ReDoS / 性能门禁 / AST 安全扫描 / 状态管理审计 / 日志脱敏 / CORS / 敏感文件 / 供应链安全 / 技术债务 |
 | **App Store** | [claude代码商店](https://github.com/topics/claude-app-store) | 更多Claude扩展工具 |
 
 ---

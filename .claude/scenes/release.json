@@ -45,6 +45,16 @@
       "on_error": "abort"
     },
     {
+      "step": 2.5,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "open-redirect-scan",
+      "params": {},
+      "description": "开放重定向检测：发布前检查 URL 跳转安全风险",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 3,
       "layer": "capability",
       "service": "QualityService",
@@ -82,13 +92,23 @@
     {
       "step": 5,
       "layer": "capability",
-      "service": "ProjectService",
+      "service": "DocsService",
       "action": "generateChangelog",
       "params": {
         "format": "conventional_commits",
         "since": "last_release"
       },
       "description": "从Conventional Commits自动生成CHANGELOG",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 5.5,
+      "layer": "capability",
+      "service": "QualityTool",
+      "action": "dead-link-check",
+      "params": {},
+      "description": "死链接检测：文档质量检查，不阻断发布 — lychee",
       "auto_execute": true,
       "on_error": "continue"
     },
@@ -121,7 +141,7 @@
     {
       "step": 7,
       "layer": "capability",
-      "service": "ProjectService",
+      "service": "DocsService",
       "action": "bumpVersion",
       "params": {
         "mode": "semver"
@@ -145,6 +165,32 @@
       "timeout": 600
     },
     {
+      "step": 8.5,
+      "layer": "capability",
+      "service": "SecurityTool",
+      "action": "build-leak-check",
+      "params": {
+        "mode": "ci"
+      },
+      "description": "构建产物泄露检测：Source Map / .env / 密钥 / .git 目录 — noleak 扫描",
+      "auto_execute": true,
+      "on_error": "abort",
+      "criticality": "BLOCK-RELEASE"
+    },
+    {
+      "step": 8.6,
+      "layer": "capability",
+      "service": "QualityTool",
+      "action": "lighthouse-gate",
+      "params": {
+        "mode": "ci"
+      },
+      "description": "性能预算 CI 门禁：LCP/CLS/TBT 断言 + 缓存策略 — Lighthouse CI（阻断发布）",
+      "auto_execute": true,
+      "on_error": "abort",
+      "criticality": "BLOCK-RELEASE"
+    },
+    {
       "step": 9,
       "layer": "capability",
       "service": "VerifyService",
@@ -161,7 +207,7 @@
     {
       "step": 10,
       "layer": "capability",
-      "service": "ProjectService",
+      "service": "DocsService",
       "action": "createTag",
       "params": {
         "format": "v{version}",
@@ -174,7 +220,7 @@
     {
       "step": 11,
       "layer": "capability",
-      "service": "ProjectService",
+      "service": "DocsService",
       "action": "deploy",
       "params": {
         "target": "production",
@@ -204,7 +250,7 @@
     {
       "step": 13,
       "layer": "capability",
-      "service": "GitHubMCP",
+      "service": "GitService",
       "action": "createRelease",
       "params": {
         "body": "changelog_content",

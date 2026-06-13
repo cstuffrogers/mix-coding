@@ -142,6 +142,106 @@
       "on_error": "continue"
     },
     {
+      "step": 4.3,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "open-redirect-scan",
+      "params": {},
+      "description": "开放重定向检测：location.href/window.open 参数注入 + express-sec-audit AST 扫描",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.5,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "security-headers",
+      "params": {},
+      "description": "安全响应头扫描：CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy — seraphim-audit（代码配置扫描）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.7,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "recheck-cli",
+      "params": {},
+      "description": "正则 ReDoS 扫描：灾难性回溯检测 — recheck-cli",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.8,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "log-sanitization",
+      "params": {},
+      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.9,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "cors-check",
+      "params": {},
+      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": "4.10",
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "postinstall-check",
+      "params": {},
+      "description": "恶意 install 脚本检测：node_modules 中 postinstall/preinstall 含 curl/wget/eval/base64/反弹 shell",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.11,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "socket-scan",
+      "params": {},
+      "description": "Socket.dev 供应链安全扫描：拼写欺诈/抗议软件/遥测包检测（需 SOCKET_API_KEY 环境变量）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.12,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "sensitive-file-check",
+      "params": {},
+      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.13,
+      "layer": "capability",
+      "service": "QualitySkill",
+      "action": "tech-debt-scan",
+      "params": {},
+      "description": "技术债务标记扫描：HACK/FIXME/BUG/XXX/WORKAROUND/TODO 分类统计",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.14,
+      "layer": "capability",
+      "service": "DepsService",
+      "action": "deprecated-deps",
+      "params": {},
+      "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 5,
       "layer": "capability",
       "service": "TestEngine",

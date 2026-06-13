@@ -47,7 +47,7 @@ export function generateReleaseAnimation({
       return { file: outFile, stage: stageFile };
     }
   } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 渲染失败（缺少 sharp/playwright 依赖? ${e.message.split('\n')[0]}）`));
+    console.log(chalk.yellow(`  ⚠ 渲染失败（缺少 sharp/playwright 依赖? ${e.message.split('\n', 1)[0]}）`));
   }
 
   console.log(chalk.dim('  → 仅生成 stage HTML，渲染需在装齐 sharp+playwright 后手动执行'));

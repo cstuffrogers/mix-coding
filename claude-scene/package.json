@@ -8,18 +8,31 @@
   "type": "module",
   "dependencies": {
     "chalk": "^5.3.0",
-    "commander": "^11.0.0",
-    "inquirer": "^9.2.0",
-    "ora": "^7.0.0"
+    "commander": "^15.0.0",
+    "inquirer": "^14.0.2",
+    "ora": "^9.4.0"
   },
   "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "^4.2.1",
     "@eslint/js": "^10.0.1",
+    "@lhci/cli": "^0.15.1",
+    "@redocly/cli": "^2.32.2",
     "@vitest/coverage-v8": "^4.1.8",
-    "eslint": "^10.4.1",
+    "artillery": "^2.0.32",
+    "clearible": "^0.1.1",
+    "eslint": "^10.5.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-sonarjs": "^4.0.3",
-    "eslint-plugin-unicorn": "^64.0.0",
-    "knip": "^6.15.0",
+    "eslint-plugin-unicorn": "^65.0.1",
+    "express-sec-audit": "^0.1.4",
+    "knip": "^6.16.1",
+    "license-checker": "^25.0.1",
+    "noleak": "^0.1.2",
+    "openapi-typescript": "^7.13.0",
+    "pa11y-ci": "^4.1.1",
+    "playwright": "^1.60.0",
+    "recheck-cli": "^0.3.1",
+    "runme": "^3.15.0",
     "vitest": "^4.1.8"
   },
   "knip": {
@@ -29,7 +42,20 @@
       "src/lib/enhancements.js"
     ],
     "ignoreDependencies": [
-      "@vitest/coverage-v8"
+      "@vitest/coverage-v8",
+      "@lhci/cli",
+      "clearible",
+      "express-sec-audit",
+      "noleak",
+      "pa11y-ci",
+      "recheck-cli",
+      "@cyclonedx/cyclonedx-npm",
+      "@redocly/cli",
+      "artillery",
+      "license-checker",
+      "openapi-typescript",
+      "playwright",
+      "runme"
     ],
     "ignore": [
       "src/actions.test.js",

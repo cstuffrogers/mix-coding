@@ -35,7 +35,7 @@ import { getActionMessage } from './data/action-messages.js';
 
 // Handler imports (also re-exported for ui-polish.js and other consumers)
 import { handleMemoryRecall, handleMemoryRemember, handleConsolidate, handleListMemories, handleAutoRemember } from './handlers/memory.js';
-import { handleCodeScan, handleSecurityScan, handlePerformanceProfile, handleCodeMetrics, handleDetectAntiPatterns, handleGenerateReport, handleKnipCheck, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecurityVulnerabilities } from './handlers/code-analysis.js';
+import { handleCodeScan, handleSecurityScan, handlePerformanceProfile, handleCodeMetrics, handleDetectAntiPatterns, handleGenerateReport, handleKnipCheck, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecurityVulnerabilities, handleBuildLeakCheck, handleDeadLinkCheck, handleLighthouseGate, handleOpenRedirectScan, handleStateAudit, handleI18nAudit, handleSecurityHeaders, handleRecheckCli, handleLogSanitization, handleCorsCheck, handleEnvVarLeak, handlePostinstallCheck, handleSocketScan, handleSensitiveFileCheck, handleTechDebtScan, handleLockFileConsistency, handleGitignoreCheck, handleDeprecatedDeps } from './handlers/code-analysis.js';
 import { handleTestCoverage, handleTestUnit, handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest, handleLoadTest } from './handlers/testing.js';
 import { handleCreateBranch, handleCommitPush, handleCreatePR, handleAutoUpdate, handleBumpVersion, handleCreateTag, handleDeploy, handleCreateRelease, handleListReleases, handleRollback, handleCreateIssue } from './handlers/git.js';
 import { handleGenerateDesign, handleDesignVariant, handleAnalyzeConsistency, handleExportAssets, handlePersist, handleDesignInput, handleWebDesignDeclareSystem, handleHuashuBrandProtocol, handleHuashuExpertReview, handleHuashuPrototype, handleHuashuReleaseAnimation, handleHuashuReleaseDeck, handleHuashuInfographic, handleAwmBrandList, handleAwmBrandImport, handleAwmBrandApply } from './handlers/design.js';
@@ -258,6 +258,42 @@ export const ACTION_REGISTRY = {
   secBugHunt: handleSecBugHunt,
   'sec-bug-hunt': handleSecBugHunt,
   analyzeSecurityVulnerabilities: handleAnalyzeSecurityVulnerabilities,
+  buildLeakCheck: handleBuildLeakCheck,
+  'build-leak-check': handleBuildLeakCheck,
+  deadLinkCheck: handleDeadLinkCheck,
+  'dead-link-check': handleDeadLinkCheck,
+  lighthouseGate: handleLighthouseGate,
+  'lighthouse-gate': handleLighthouseGate,
+  openRedirectScan: handleOpenRedirectScan,
+  'open-redirect-scan': handleOpenRedirectScan,
+  stateAudit: handleStateAudit,
+  'state-audit': handleStateAudit,
+  i18nAudit: handleI18nAudit,
+  'i18n-audit': handleI18nAudit,
+  securityHeaders: handleSecurityHeaders,
+  'security-headers': handleSecurityHeaders,
+  recheckCli: handleRecheckCli,
+  'recheck-cli': handleRecheckCli,
+  logSanitization: handleLogSanitization,
+  'log-sanitization': handleLogSanitization,
+  corsCheck: handleCorsCheck,
+  'cors-check': handleCorsCheck,
+  envVarLeak: handleEnvVarLeak,
+  'env-var-leak': handleEnvVarLeak,
+  postinstallCheck: handlePostinstallCheck,
+  'postinstall-check': handlePostinstallCheck,
+  socketScan: handleSocketScan,
+  'socket-scan': handleSocketScan,
+  sensitiveFileCheck: handleSensitiveFileCheck,
+  'sensitive-file-check': handleSensitiveFileCheck,
+  techDebtScan: handleTechDebtScan,
+  'tech-debt-scan': handleTechDebtScan,
+  lockFileConsistency: handleLockFileConsistency,
+  'lock-file-consistency': handleLockFileConsistency,
+  gitignoreCheck: handleGitignoreCheck,
+  'gitignore-check': handleGitignoreCheck,
+  deprecatedDeps: handleDeprecatedDeps,
+  'deprecated-deps': handleDeprecatedDeps,
 
   // Design & review tools
   webDesignDeclareSystem: handleWebDesignDeclareSystem,
@@ -381,6 +417,14 @@ export const ACTION_REGISTRY = {
   bearerScan: handleBearerScan,
   shorebirdPatch: handleShorebirdPatch,
   sentryCheckRelease: handleSentryCheckRelease,
+
+  // ── CE Plugin ──
+  'ce-compound': handleCeAction,
+  'ce-plan': handleCeAction,
+  'ce-review': handleCeAction,
+  'ce-debug': handleCeAction,
+  'ce-brainstorm': handleCeAction,
+  'ce-work': handleCeAction,
 };
 
 // ── Dispatch ──

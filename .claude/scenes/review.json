@@ -81,6 +81,16 @@
       "on_error": "continue"
     },
     {
+      "step": 2.7,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "state-audit",
+      "params": {},
+      "description": "状态管理审计：Context 过度使用、组件耦合度、循环依赖检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 3,
       "layer": "capability",
       "service": "ECC",
@@ -113,6 +123,16 @@
       "on_error": "continue",
       "timeout": 600,
       "criticality": "BLOCK-MERGE"
+    },
+    {
+      "step": 4.2,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "open-redirect-scan",
+      "params": {},
+      "description": "开放重定向检测：URL 参数注入、重定向跳转安全风险",
+      "auto_execute": true,
+      "on_error": "continue"
     },
     {
       "step": 4.5,

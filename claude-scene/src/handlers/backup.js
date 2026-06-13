@@ -14,7 +14,7 @@ const SOURCE_DIRS = ['src', 'lib', 'data', 'public', 'config', 'app', 'pages', '
 function checkRestic() {
   try {
     const out = safeExec('restic version 2>&1', process.cwd(), { stdio: 'pipe' }).toString().trim();
-    return { available: true, version: out.split('\n')[0] };
+    return { available: true, version: out.split('\n', 1)[0] };
   } catch { return { available: false, version: '' }; }
 }
 

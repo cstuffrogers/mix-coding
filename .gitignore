@@ -45,7 +45,17 @@ reports/
 .archon/
 Archon-dev/
 
+# 敏感文件（密钥和凭证，禁止提交）
+*.pem
+*.key
+*.pfx
+*.p12
+credentials.json
+service-account*.json
+id_rsa*
+
 # 临时文件/大文件
+
 *.zip
 *.tar.gz
 *.doc

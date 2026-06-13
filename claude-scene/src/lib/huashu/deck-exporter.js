@@ -42,7 +42,7 @@ export function generateReleaseDeck({
       return { html: deckHtml, pptx: pptxFile };
     }
   } catch (e) {
-    console.log(chalk.yellow(`  ⚠ PPTX 导出失败（需 pptxgenjs: npm i pptxgenjs）: ${e.message.split('\n')[0]}`));
+    console.log(chalk.yellow(`  ⚠ PPTX 导出失败（需 pptxgenjs: npm i pptxgenjs）: ${e.message.split('\n', 1)[0]}`));
   }
   return { html: deckHtml, pptx: null, manual: true };
 }

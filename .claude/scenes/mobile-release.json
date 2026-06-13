@@ -162,7 +162,7 @@
     {
       "step": 11,
       "layer": "capability",
-      "service": "GitHubMCP",
+      "service": "GitService",
       "action": "createRelease",
       "params": {
         "body_ref": "changelog_content",

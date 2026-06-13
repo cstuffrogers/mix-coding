@@ -177,10 +177,13 @@ describe('handleCheckGate', () => {
       typecheckPassed: true, dependencyAuditPassed: true,
       performancePassed: true, complexityPassed: true,
       deadCodePassed: true, gitLeaksPassed: true,
+      deadLinkPassed: true, buildLeakPassed: true, i18nPassed: true,
     };
     const result = handleCheckGate('check-gate', {
       checks: ['lint', 'typecheck', 'test', 'coverage', 'dependencies',
-               'performance', 'complexity', 'dead_code', 'git_leaks', 'dependency_audit', 'visual_regression'],
+               'performance', 'complexity', 'dead_code', 'git_leaks',
+               'dependency_audit', 'visual_regression',
+               'dead_links', 'build_leaks', 'i18n'],
     }, '/tmp', ctx);
     expect(result).toContain('通过');
   });

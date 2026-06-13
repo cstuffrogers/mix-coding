@@ -60,7 +60,7 @@ function getVersionLabel(tag) {
 }
 
 function getCurrentDate() {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toISOString().split('T', 1)[0];
 }
 
 function generateChangelog(commits, tag, targetPath) {

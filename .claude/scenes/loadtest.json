@@ -31,7 +31,7 @@
     {
       "step": 2,
       "layer": "capability",
-      "service": "ServerService",
+      "service": "BuildService",
       "action": "startDevServer",
       "params": {
         "mode": "background",
@@ -69,7 +69,7 @@
     {
       "step": 5,
       "layer": "capability",
-      "service": "NotifyService",
+      "service": "NotificationService",
       "action": "send",
       "params": {
         "message": "负载测试失败，请检查性能指标"
@@ -108,7 +108,7 @@
     {
       "step": 8,
       "layer": "capability",
-      "service": "NotifyService",
+      "service": "NotificationService",
       "action": "notify",
       "params": {
         "message": "负载测试完成"

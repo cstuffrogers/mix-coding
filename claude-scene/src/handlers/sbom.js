@@ -56,7 +56,7 @@ function generateManualSBOM(targetPath) {
 function generateLicenseReport(deps) {
   const restrictive = deps.filter((d) => d.restrictive);
   let report = '# License Compliance Report\n\n';
-  report += `Generated: ${new Date().toISOString().split('T')[0]}\n`;
+  report += `Generated: ${new Date().toISOString().split('T', 1)[0]}\n`;
   report += `Total dependencies: ${deps.length}\n`;
 
   if (restrictive.length > 0) {

@@ -175,7 +175,7 @@ function evalClause(expr, ctx) {
   if (lenMatch) {
     const [, key, op, num] = lenMatch;
     const val = ctx[key];
-    const len = Array.isArray(val) ? val.length : (typeof val === 'string' ? val.length : 0);
+    const len = Array.isArray(val) || (typeof val === 'string') ? val.length : 0;
     const n = parseInt(num, 10);
     switch (op) {
       case '>': return len > n;

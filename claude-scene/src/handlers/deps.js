@@ -49,8 +49,8 @@ export function handleCheckBreakingChanges(_action, _params, targetPath) {
     if (result && result !== '{}') {
       const outdated = JSON.parse(result);
       const breaking = Object.entries(outdated).filter(([, info]) => {
-        const current = String(info.current || '0').split('.')[0];
-        const latest = String(info.latest || '0').split('.')[0];
+        const current = String(info.current || '0').split('.', 1)[0];
+        const latest = String(info.latest || '0').split('.', 1)[0];
         return parseInt(latest) > parseInt(current);
       });
       if (breaking.length) {

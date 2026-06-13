@@ -33,7 +33,7 @@
     {
       "step": 2,
       "layer": "capability",
-      "service": "GitHubMCP",
+      "service": "GitService",
       "action": "listReleases",
       "params": {
         "limit": 10
@@ -159,7 +159,7 @@
     {
       "step": 11,
       "layer": "capability",
-      "service": "GitHubMCP",
+      "service": "GitService",
       "action": "createIssue",
       "params": {
         "title": "⚠️ 回滚事件记录",

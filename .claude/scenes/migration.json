@@ -67,7 +67,7 @@
     {
       "step": 5,
       "layer": "capability",
-      "service": "NotifyService",
+      "service": "NotificationService",
       "action": "send",
       "params": {
         "message": "数据库迁移审查完成，详见控制台输出"
@@ -107,7 +107,7 @@
     {
       "step": 8,
       "layer": "capability",
-      "service": "NotifyService",
+      "service": "NotificationService",
       "action": "notify",
       "params": {
         "message": "数据库迁移审查完成"

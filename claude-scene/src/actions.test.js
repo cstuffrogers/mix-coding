@@ -37,6 +37,13 @@ describe('ACTION_REGISTRY', () => {
     const actions = [
       'codeScan', 'securityScan', 'performanceProfile',
       'codeMetrics', 'detectAntiPatterns', 'generateReport',
+      'knipCheck', 'gitLeaks', 'secBugHunt', 'sec-bug-hunt',
+      'analyzeSecurityVulnerabilities', 'buildLeakCheck', 'build-leak-check',
+      'deadLinkCheck', 'dead-link-check',
+      'lighthouseGate', 'lighthouse-gate',
+      'openRedirectScan', 'open-redirect-scan',
+      'stateAudit', 'state-audit',
+      'i18nAudit', 'i18n-audit',
     ];
     for (const a of actions) {
       expect(typeof ACTION_REGISTRY[a]).toBe('function');

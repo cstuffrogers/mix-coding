@@ -104,15 +104,142 @@
     {
       "step": 3.3,
       "layer": "capability",
-      "service": "ReviewEngine",
-      "action": "runReview",
+      "service": "CodeAnalyzer",
+      "action": "i18n-audit",
       "params": {
-        "mode": "i18n",
-        "options": {
-          "checks": ["hardcoded_strings", "missing_translations", "rtl_support"]
-        }
+        "mode": "check"
       },
-      "description": "i18n 国际化审查：中文字符串硬编码检测",
+      "description": "i18n 国际化审查：硬编码中文字符串、RTL布局适配、i18n配置检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.4,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "open-redirect-scan",
+      "params": {},
+      "description": "开放重定向检测：location.href/window.open 参数注入 + express-sec-audit AST 扫描",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.5,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "security-headers",
+      "params": {},
+      "description": "安全响应头扫描：CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy — seraphim-audit（代码配置 + 可选实时 URL 扫描）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.6,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "recheck-cli",
+      "params": {},
+      "description": "正则 ReDoS 扫描：灾难性回溯检测 — recheck-cli",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.7,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "log-sanitization",
+      "params": {},
+      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.8,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "cors-check",
+      "params": {},
+      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.9,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "env-var-leak",
+      "params": {},
+      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / Next.js process.env 前缀检查",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.10,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "postinstall-check",
+      "params": {},
+      "description": "恶意 install 脚本检测：node_modules 中 postinstall/preinstall 含 curl/wget/eval/base64/反弹 shell",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.11,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "socket-scan",
+      "params": {},
+      "description": "Socket.dev 供应链安全扫描：拼写欺诈/抗议软件/遥测包检测（需 SOCKET_API_KEY 环境变量）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.12,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "sensitive-file-check",
+      "params": {},
+      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.13,
+      "layer": "capability",
+      "service": "QualitySkill",
+      "action": "tech-debt-scan",
+      "params": {},
+      "description": "技术债务标记扫描：HACK/FIXME/BUG/XXX/WORKAROUND/TODO 分类统计与严重度分级",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.14,
+      "layer": "capability",
+      "service": "QualitySkill",
+      "action": "lock-file-consistency",
+      "params": {},
+      "description": "包管理器一致性检查：多锁文件共存检测（package-lock/yarn.lock/pnpm-lock/bun.lockb）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.15,
+      "layer": "capability",
+      "service": "QualitySkill",
+      "action": "gitignore-check",
+      "params": {},
+      "description": ".gitignore 最佳实践：node_modules/dist/.env/*.log/coverage/.DS_Store/Thumbs.db/build 缺失检查",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.16,
+      "layer": "capability",
+      "service": "DepsService",
+      "action": "deprecated-deps",
+      "params": {},
+      "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包",
       "auto_execute": true,
       "on_error": "continue"
     },
@@ -171,6 +298,16 @@
       "on_error": "continue"
     },
     {
+      "step": 6.6,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "state-audit",
+      "params": {},
+      "description": "状态管理审计：Context API 过度使用、组件耦合度、循环依赖、多库混用检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 6.7,
       "layer": "capability",
       "service": "DepsService",
@@ -205,6 +342,40 @@
       "on_error": "continue"
     },
     {
+      "step": 8.5,
+      "layer": "capability",
+      "service": "QualityTool",
+      "action": "dead-link-check",
+      "params": {},
+      "description": "死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 — lychee（全目录扫描）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8.7,
+      "layer": "capability",
+      "service": "SecurityTool",
+      "action": "build-leak-check",
+      "params": {
+        "mode": "report"
+      },
+      "description": "构建产物泄露检测：Source Map / .env / 密钥扫描 — noleak（仅报告）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8.8,
+      "layer": "capability",
+      "service": "QualityTool",
+      "action": "lighthouse-gate",
+      "params": {
+        "mode": "report"
+      },
+      "description": "性能预算门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查 — Lighthouse CI（仅报告）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 9,
       "layer": "capability",
       "service": "QualityService",
@@ -219,8 +390,25 @@
           "complexity",
           "dead_code",
           "git_leaks",
+          "dead_links",
+          "build_leaks",
+          "open_redirect",
+          "security_headers",
+          "recheck",
+          "state_audit",
+          "lighthouse",
           "a11y",
-          "i18n"
+          "i18n",
+          "log_sanitization",
+          "cors_check",
+          "env_var_leak",
+          "postinstall",
+          "socket_scan",
+          "sensitive_file",
+          "tech_debt",
+          "lock_file",
+          "gitignore_check",
+          "deprecated_deps"
         ],
         "mode": "report_only"
       },
@@ -245,8 +433,25 @@
           "complexity",
           "dead_code",
           "git_leaks",
+          "dead_links",
+          "build_leaks",
+          "open_redirect",
+          "security_headers",
+          "recheck",
+          "state_audit",
+          "lighthouse",
           "a11y",
-          "i18n"
+          "i18n",
+          "log_sanitization",
+          "cors_check",
+          "env_var_leak",
+          "postinstall",
+          "socket_scan",
+          "sensitive_file",
+          "tech_debt",
+          "lock_file",
+          "gitignore_check",
+          "deprecated_deps"
         ]
       },
       "description": "生成全面审计报告：包含各项得分、风险等级、改进建议",

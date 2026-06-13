@@ -50,7 +50,7 @@
     {
       "step": 5,
       "layer": "core",
-      "service": "NotifyService",
+      "service": "NotificationService",
       "action": "send",
       "params": {
         "level": "warning",
@@ -93,7 +93,7 @@
     {
       "step": 8,
       "layer": "core",
-      "service": "NotifyService",
+      "service": "NotificationService",
       "action": "notify",
       "params": { "message": "SBOM 和许可证合规检查工作流完成" },
       "description": "通知 SBOM 工作流完成",

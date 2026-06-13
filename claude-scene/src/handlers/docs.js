@@ -148,7 +148,7 @@ export function handleChangelog(_action, params, targetPath, context) {
     });
 
     const groups = parseConventionalCommits(commits);
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T', 1)[0];
     const version = params?.version || 'Unreleased';
     let changelog = `# Changelog\n\n## ${version} (${today})\n\n`;
     let hasEntries = false;
@@ -232,7 +232,7 @@ export function handleDevDocs(_action, _params, targetPath, context) {
     const archPath = guardWrite(targetPath, 'docs/architecture.md');
     const content = `# 项目架构
 
-> 自动生成于 ${new Date().toISOString().split('T')[0]}
+> 自动生成于 ${new Date().toISOString().split('T', 1)[0]}
 
 ## 技术栈
 
