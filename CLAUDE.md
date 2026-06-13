@@ -90,7 +90,7 @@ jvn 引入了规范的 spec → design → build 开发流程，由 5 个专业 
 - 自动记忆：无需用户调用，发现重要信息时自动保存到多后端记忆系统（详见 `.claude/rules/memory-auto-save.md`）
 - 竞品分析（OpenDigger）
 - 数据库迁移审查（SchemaForge MCP）+ 无障碍扫描（a11y MCP）
-- 外部安全工具链（15 个工具：noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-leak-scanner / postinstall-checker / socket.dev / sensitive-file-check / tech-debt-scan / lock-file-consistency / gitignore-check / deprecated-deps）— 自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖
+- 外部安全工具链（18 个工具：noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / express-sec-audit / log-sanitizer / cors-checker / env-leak-scanner / postinstall-checker / socket.dev / sensitive-file-check / tech-debt-scan / lock-file-consistency / gitignore-check / deprecated-deps / Lighthouse CI / prototype-pollution）— 自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、性能门禁、原型链污染
 
 ## 工作流执行
 
@@ -283,6 +283,9 @@ jvn 引入了规范的 spec → design → build 开发流程，由 5 个专业 
 | **socket.dev** | npx CLI | `/hunt` (step 4.11), `/audit` (step 3.11) | 供应链安全扫描：拼写欺诈/抗议软件/遥测包/未声明二进制检测（需 `SOCKET_API_KEY` 环境变量） | ✅ |
 | **sensitive-file-check** | 内置 git | `/hunt` (step 4.12), `/audit` (step 3.12) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态 | ✅ |
 | **tech-debt-scan** | 内置 grep | `/hunt` (step 4.13), `/audit` (step 3.13) | 技术债务标记扫描：HACK/FIXME/BUG/XXX/WORKAROUND/TODO 分类与严重度分级 | ✅ |
+| **lock-file-consistency** | 内置检查 | `/audit` (step 3.14) | 包管理器一致性：多 lock 文件检测（package-lock.json + yarn.lock 等共存） | ✅ |
+| **gitignore-check** | 内置检查 | `/audit` (step 3.15) | .gitignore 最佳实践检查：8 项必要规则（node_modules/ .env *.log 等） | ✅ |
+| **deprecated-deps** | npm CLI | `/hunt` (step 4.14), `/audit` (step 3.16) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | ✅ |
 
 ### 工具安装
 

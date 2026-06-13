@@ -188,7 +188,7 @@ claude-scene/src/index.js          ← CLI 入口 (commander)
 
 ```
 claude-scene/src/
-├─ actions.js                      ← 核心：190+ Action 处理器注册表
+├─ actions.js                      ← 核心：298 Action 处理器注册表
 ├─ ui-polish.js                    ← UI 美化专用逻辑
 ├─ lib/conditions.js               ← 条件评估引擎（30+条件）
 ├─ lib/template.js                 ← 模板渲染
