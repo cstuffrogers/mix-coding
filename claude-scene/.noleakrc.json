@@ -1,0 +1,21 @@
+{
+  "rules": {
+    "source-maps": { "severity": "block" },
+    "env-files": { "severity": "block" },
+    "credentials": { "severity": "block" },
+    "git-directory": { "severity": "block" },
+    "entropy-scan": { "severity": "warn" },
+    "large-files": { "severity": "warn", "options": { "maxSize": 1048576 } }
+  },
+  "ignore": [
+    "package-lock.json",
+    "**/test/fixtures/**",
+    "**/tests/fixtures/**",
+    "**/__fixtures__/**",
+    "**/.github/**",
+    "**/infographics/**",
+    "**/*.test.js",
+    "**/*.test.ts"
+  ],
+  "failOn": "block"
+}

@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec, escapeArg } from '../lib/safe-exec.js';
+import GATE_FLAGS from '../data/gate-flags.js';
 
 const CE_DESCRIPTIONS = {
   plan: 'CE Plugin 生成详细实施方案：任务拆解、依赖分析、风险识别、时间预估',
@@ -22,21 +23,25 @@ export function handleSelect(_action, params, _targetPath, context) {
   return '选择完成（无选项）';
 }
 
-export function handleConfirm(_action, params) {
+export function handleConfirm(_action, params, _targetPath, context) {
   console.log(chalk.cyan('\n✅ 确认操作完成'));
   if (params?.message) {
     console.log(chalk.dim(`  确认内容: ${params.message}`));
   }
+  if (context) context.user_confirmed = true;
   return '确认完成';
 }
 
-export function handleInstallDeps(_action, _params, targetPath) {
+export function handleInstallDeps(_action, _params, targetPath, context) {
   console.log(chalk.blue('\n📦 正在安装依赖...'));
   const packagePath = join(targetPath, 'package.json');
   if (existsSync(packagePath)) {
     try {
       safeExec('npm install', targetPath, { stdio: 'inherit' });
-    } catch (e) { console.debug('npm install failed:', e.message); }
+    } catch (e) {
+      console.log(chalk.red(`  ❌ npm install 失败: ${e.message?.slice(0, 200) || '未知错误'}`));
+      if (context) context.install_failed = true;
+    }
   }
   return '依赖安装完成';
 }
@@ -53,96 +58,6 @@ export function handleDocsUpdate(_action, _params, targetPath) {
     }
   }
   return '文档更新完成';
-}
-
-// eslint-disable-next-line sonarjs/cognitive-complexity
-export function handleCheckPrerequisites(_action, params, targetPath, context) {
-  const requestedChecks = params?.checks || ['node', 'npm', 'git'];
-  console.log(chalk.blue('\n🔧 正在检查系统前置条件...'));
-
-  // iOS-only tools — only required when platform is ios or both
-  const iosOnly = new Set(['xcode', 'cocoapods']);
-  const platform = context?.platform || 'unknown';
-  const isIos = platform === 'ios' || platform === 'both';
-  const isAndroid = platform === 'android' || platform === 'both';
-
-  const checkers = {
-    node: () => {
-      const ver = safeExec('node --version 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
-      return { ok: true, detail: ver };
-    },
-    npm: () => {
-      const ver = safeExec('npm --version 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
-      return { ok: true, detail: ver };
-    },
-    git: () => {
-      const ver = safeExec('git --version 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
-      return { ok: true, detail: ver };
-    },
-    jdk: () => {
-      const ver = safeExec('java -version 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
-      return { ok: true, detail: ver.split('\n', 1)[0] };
-    },
-    xcode: () => {
-      safeExec('xcodebuild -version 2>&1', targetPath, { stdio: 'pipe' });
-      return { ok: true, detail: '已安装' };
-    },
-    android_studio: () => {
-      const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
-      if (androidHome && existsSync(androidHome)) {
-        return { ok: true, detail: androidHome };
-      }
-      safeExec('sdkmanager --version 2>&1', targetPath, { stdio: 'pipe' });
-      return { ok: true, detail: 'sdkmanager 可用' };
-    },
-    ruby: () => {
-      const ver = safeExec('ruby --version 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
-      return { ok: true, detail: ver };
-    },
-    cocoapods: () => {
-      const ver = safeExec('pod --version 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
-      return { ok: true, detail: ver };
-    },
-  };
-
-  const results = {};
-  for (const name of requestedChecks) {
-    // Skip iOS-only tools on non-iOS platforms, Android-only on non-Android
-    if (iosOnly.has(name) && !isIos) {
-      console.log(chalk.dim(`  ⏭ ${name}: 跳过（非 iOS 平台）`));
-      continue;
-    }
-    if (name === 'android_studio' && !isAndroid) {
-      console.log(chalk.dim(`  ⏭ ${name}: 跳过（非 Android 平台）`));
-      continue;
-    }
-    // ruby is needed for iOS (CocoaPods) and general tooling — only require on iOS
-    if (name === 'ruby' && !isIos) {
-      console.log(chalk.dim(`  ⏭ ${name}: 跳过（非 iOS 平台）`));
-      continue;
-    }
-    if (checkers[name]) {
-      try {
-        const r = checkers[name]();
-        results[name] = { ok: r.ok, detail: r.detail };
-        console.log(chalk.dim(`  ✅ ${name}: ${r.detail}`));
-      } catch {
-        results[name] = { ok: false, detail: '未安装' };
-        console.log(chalk.yellow(`  ⚠ ${name}: 未安装`));
-      }
-    } else {
-      results[name] = { ok: false, detail: '未知检查项' };
-      console.log(chalk.dim(`  ❓ ${name}: 未知检查项`));
-    }
-  }
-
-  const passed = Object.entries(results).filter(([, v]) => v.ok);
-  const missing = Object.entries(results).filter(([, v]) => !v.ok);
-  console.log(chalk[missing.length === 0 ? 'green' : 'yellow'](
-    `  ${missing.length === 0 ? '✅ 所有前置条件满足' : `⚠ ${missing.length} 项缺失: ${missing.map(([k]) => k).join(', ')}`}`,
-  ));
-  if (context) context.envPrerequisitesPassed = missing.length === 0;
-  return `前置条件检查: ${passed.map(([k]) => k).join(', ') || '无'} 可用`;
 }
 
 export function handleCheckEnvFile(_action, _params, targetPath, context) {
@@ -180,13 +95,16 @@ export function handleGenerateEnv(_action, _params, targetPath) {
   return '.env 已生成';
 }
 
-export function handleStartDevServer(_action, _params, targetPath) {
+export function handleStartDevServer(_action, _params, targetPath, context) {
   console.log(chalk.blue('\n🚀 正在启动开发服务器...'));
   const packagePath = join(targetPath, 'package.json');
   if (existsSync(packagePath)) {
     try {
       safeExec('npm run dev 2>&1 || true', targetPath, { stdio: 'inherit' });
-    } catch (e) { console.debug('npm run dev failed:', e.message); }
+    } catch (e) {
+      console.log(chalk.red(`  ❌ npm run dev 失败: ${e.message?.slice(0, 200) || '未知错误'}`));
+      if (context) context.dev_server_failed = true;
+    }
   }
   return '开发服务器已启动';
 }
@@ -218,27 +136,99 @@ export function handleVerify(_action, _params, targetPath, context) {
   return verified ? '验证通过' : '验证失败';
 }
 
-export function handleSend(_action, params) {
+export function handleSend(_action, params, targetPath) {
   console.log(chalk.blue('\n📤 正在发送通知...'));
-  if (params?.level === 'error') {
-    console.log(chalk.red(`  通知内容: ${params.title}\n  ${params.content}`));
+  const title = params?.title || '通知';
+  const content = params?.content || '';
+  const level = params?.level || 'info';
+
+  const levelColors = { error: chalk.red, warning: chalk.yellow, info: chalk.cyan, success: chalk.green };
+  const colorFn = levelColors[level] || chalk.dim;
+  console.log(colorFn(`  ${title}: ${content}`));
+
+  // Write notification to a log file for audit trail
+  if (targetPath) {
+    try {
+      const { writeFileSync } = require('fs');
+      const notifLog = join(targetPath, '.claude', 'notifications.log');
+      const entry = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${title}: ${content}\n`;
+      writeFileSync(notifLog, entry, { flag: 'a' });
+    } catch { /* non-critical */ }
   }
-  return '通知已发送';
+
+  return `通知已发送: ${title}`;
 }
 
-export function handleNotify(_action, params) {
+export function handleNotify(_action, params, targetPath) {
   console.log(chalk.green('\n✅ 工作流执行完成！'));
-  if (params?.message) {
-    console.log(chalk.green(`  ${params.message}`));
+  const message = params?.message;
+  if (message) {
+    console.log(chalk.green(`  ${message}`));
   }
-  return '任务完成通知已发送';
+
+  // Log completion to audit trail
+  if (targetPath && message) {
+    try {
+      const { writeFileSync } = require('fs');
+      const notifLog = join(targetPath, '.claude', 'notifications.log');
+      writeFileSync(notifLog, `[${new Date().toISOString()}] [COMPLETE] ${message}\n`, { flag: 'a' });
+    } catch { /* non-critical */ }
+  }
+
+  return `任务完成通知已发送`;
 }
 
-export function handleCeAction(action) {
+export function handleCeAction(action, _params, targetPath, context) {
   const ceAction = action.replace('ce-', '');
-  const desc = CE_DESCRIPTIONS[ceAction] || `CE Plugin ${ceAction} 操作`;
-  console.log(chalk.cyan(`\n🧠 CE Plugin - ${desc}`));
-  return `CE ${ceAction} 操作已执行`;
+  const desc = CE_DESCRIPTIONS[ceAction];
+  if (!desc) {
+    console.log(chalk.yellow(`  ⚠ 未知 CE 操作: ${ceAction}`));
+    return `CE ${ceAction}: 未知操作`;
+  }
+
+  const ceConfigPath = join(targetPath, '..', '.claude', 'plugins', 'compound-engineering.json');
+  const ceAvailable = existsSync(ceConfigPath);
+  const inClaudeCode = process.env.CLAUDECODE === '1';
+
+  if (ceAvailable && inClaudeCode) {
+    console.log(chalk.cyan(`\n🧠 CE ${ceAction}: ${desc}`));
+    console.log(chalk.dim('  → CE Plugin 已安装，对话模式中由 Claude Code 调用'));
+  } else if (ceAvailable) {
+    console.log(chalk.yellow(`\n🧠 CE ${ceAction}: ${desc}`));
+    console.log(chalk.dim('  ⚠ CE Plugin 已安装但非对话模式，无法调用'));
+  } else {
+    console.log(chalk.yellow(`\n🧠 CE ${ceAction}: ${desc}`));
+    console.log(chalk.dim('  ⚠ CE Plugin 未安装，操作仅设置上下文标志'));
+  }
+
+  // Set context flags so downstream steps can react
+  if (context) {
+    context[`ce_${ceAction}_executed`] = true;
+    context.ce_plugin_available = ceAvailable;
+
+    switch (ceAction) {
+      case 'brainstorm':
+        context.ce_brainstormed = true;
+        break;
+      case 'plan':
+        context.ce_planned = true;
+        break;
+      case 'review':
+        context.ce_reviewed = true;
+        break;
+      case 'debug':
+        context.ce_debugged = true;
+        break;
+      case 'compound':
+        context.ce_compounded = true;
+        break;
+      case 'work':
+        context.ce_worked = true;
+        break;
+    }
+  }
+
+  return `CE ${ceAction}: ${ceAvailable && inClaudeCode ? 'CE Plugin 就绪（对话模式执行）' : ceAvailable ? 'CE Plugin 已安装但需对话模式' : '上下文已设置（CE Plugin 未安装）'}`;
 }
 
 export function handleAnalyze(_action, params, targetPath, context) {
@@ -284,51 +274,52 @@ export function handleChoose(_action, params, _targetPath, context) {
   return '无可用选项';
 }
 
-export function handleReport(_action, params) {
-  const { message } = params || {};
-  console.log(chalk.cyan('\n📊 ' + (message || '报告已生成')));
-  return '报告已显示';
+export function handleReport(_action, params, targetPath, context) {
+  const message = params?.message || (context?.report_summary || '报告已生成');
+  console.log(chalk.cyan('\n📊 ' + message));
+
+  // Write report summary to file if targetPath exists
+  if (targetPath) {
+    try {
+      const { writeFileSync, existsSync } = require('fs');
+      const reportDir = join(targetPath, '.claude', 'reports');
+      if (!existsSync(reportDir)) {
+        const { mkdirSync } = require('fs');
+        mkdirSync(reportDir, { recursive: true });
+      }
+      const reportPath = join(reportDir, `report-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.md`);
+      const sections = [];
+      if (context) {
+        for (const [key, val] of Object.entries(context)) {
+          if (typeof val !== 'function' && key !== 'targetPath') {
+            sections.push(`- **${key}**: ${typeof val === 'object' ? JSON.stringify(val).slice(0, 200) : val}`);
+          }
+        }
+      }
+      writeFileSync(reportPath, `# 报告\n\n生成时间: ${new Date().toISOString()}\n\n${sections.join('\n')}\n`);
+      console.log(chalk.dim(`  报告已保存: ${reportPath}`));
+    } catch { /* non-critical */ }
+  }
+
+  return '报告已生成';
 }
 
 export function handleAskUser(_action, params, _targetPath, context) {
-  const { prompt, type, default: defVal } = params || {};
-  console.log(chalk.yellow('\n❓ ' + (prompt || '请确认')));
-  const answer = type === 'confirm' ? (defVal !== undefined ? defVal : true) : (defVal || 'yes');
-  if (type === 'confirm' && context) context.user_confirmed = answer;
-  console.log(chalk.dim(`  自动应答: ${answer}`));
+  const prompt = params?.prompt || '请确认';
+  const type = params?.type || 'confirm';
+  const defVal = params?.default;
+  const answer = type === 'confirm' ? (defVal !== undefined ? defVal : true) : (defVal || '');
+
+  console.log(chalk.yellow('\n❓ ' + prompt));
+  console.log(chalk.dim(`  CLI 自动应答 (${type}): ${answer}`));
+
+  if (context) {
+    context.user_confirmed = answer;
+    context[`asked_${params?.key || 'generic'}`] = answer;
+  }
+
   return `用户应答: ${answer}`;
 }
-
-// Gate check name → context flag mapping. "security" and "security_scan" are
-// special-cased below (they block on high-severity findings instead of failing).
-const GATE_FLAGS = Object.assign(Object.create(null), {
-  lint: 'lintPassed', typecheck: 'typecheckPassed', test: 'testPassed',
-  coverage: 'coveragePassed', visual_regression: 'visualRegressionPassed',
-  dependency_audit: 'dependencyAuditPassed', dependencies: 'dependencyAuditPassed',
-  performance: 'performancePassed', complexity: 'complexityPassed',
-  dead_code: 'deadCodePassed', git_leaks: 'gitLeaksPassed',
-  a11y: 'a11yPassed', i18n: 'i18nPassed', migration: 'migrationReviewPassed',
-  loadtest: 'loadTestPassed', monitor: 'monitorConfigured', cicd: 'ciConfigured',
-  backup: 'backupConfigured', incident: 'incidentRunbookCreated', e2e: 'e2eConfigured',
-  docker: 'dockerConfigured', changelog: 'changelogGenerated', sbom: 'sbomGenerated',
-  logging: 'loggingConfigured', dead_links: 'deadLinkPassed', build_leaks: 'buildLeakPassed',
-  open_redirect: 'openRedirectPassed', security_headers: 'securityHeadersPassed',
-  recheck: 'recheckPassed', state_audit: 'stateAuditPassed', lighthouse: 'lighthousePassed',
-  log_sanitization: 'logSanitizationPassed', cors_check: 'corsCheckPassed',
-  env_var_leak: 'envVarLeakPassed',
-  postinstall: 'postinstallPassed', socket_scan: 'socketScanPassed',
-  sensitive_file: 'sensitiveFilePassed', tech_debt: 'techDebtPassed',
-  lock_file: 'lockFilePassed', gitignore_check: 'gitignorePassed',
-  deprecated_deps: 'deprecatedDepsPassed',
-  // Mobile
-  privacy: 'privacyPassed', store_compliance: 'storeCompliancePassed',
-  performance_baseline: 'performancePassed', tests_pass: 'testPassed',
-  ui_regression: 'visualRegressionPassed', bundle_size: 'bundleSizePassed',
-  startup_time: 'startupTimePassed', fps: 'fpsPassed', memory: 'memoryPassed',
-  e2e_config: 'e2eConfigPassed', test_examples: 'testExamplesPassed',
-  ci_integration: 'ciConfigured', env_prerequisites: 'envPrerequisitesPassed',
-  build_pass: 'buildPassed', env_template: 'envTemplatePassed',
-});
 
 export function handleCheckGate(_action, params, _targetPath, context) {
   const checks = params?.checks || ['lint', 'typecheck', 'security'];

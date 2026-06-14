@@ -127,6 +127,12 @@ const REGISTRY = {
       default: true,
       when: () => true,
     },
+    {
+      key: 'architecture_deep_audit',
+      label: '架构深度审计 — 分层合规 + 复杂度热点图',
+      default: false,
+      when: () => true,
+    },
   ],
   analyze: [
     {
@@ -157,23 +163,30 @@ export async function applyEnhancements(sceneId, context, options = {}) {
   });
   if (enhancements.length === 0) return;
 
-  // Auto/non-TTY: take defaults silently
-  if (options.auto || !process.stdout.isTTY) {
+  // Parse --enh flag: comma-separated keys to ADDITIVELY enable beyond defaults
+  const enhanceOverrides = options.enh
+    ? new Set(options.enh.split(',').map(s => s.trim()).filter(Boolean))
+    : new Set();
+
+  // Non-TTY: take defaults + overrides silently (no interactive menu possible)
+  if (!process.stdout.isTTY) {
     for (const e of enhancements) {
-      if (e.default) context[`enh_${e.key}`] = true;
+      if (e.default || enhanceOverrides.has(e.key)) context[`enh_${e.key}`] = true;
     }
-    const selected = enhancements.filter(e => e.default).map(e => e.key);
+    const selected = enhancements.filter(e => e.default || enhanceOverrides.has(e.key)).map(e => e.key);
     if (selected.length > 0) {
-      console.log(chalk.dim(`  ⚙ 自动模式增强已选: ${selected.join(', ')}`));
+      console.log(chalk.dim(`  ⚙ 增强已选（非交互模式）: ${selected.join(', ')}`));
     }
     return;
   }
 
+  // Always show the menu (even in --auto), 3-second timeout falls back to defaults.
+  // --auto only controls step confirmation, not enhancement selection.
   console.log(chalk.cyan('\n📋 本次可选增强（空格切换勾选，回车确认；3 秒无操作 = 默认勾选）：\n'));
   const choices = enhancements.map(e => ({
     name: e.label,
     value: e.key,
-    checked: e.default,
+    checked: e.default || enhanceOverrides.has(e.key),
   }));
 
   const result = await Promise.race([

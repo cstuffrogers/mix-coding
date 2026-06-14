@@ -9,7 +9,9 @@ export function handleBuild(_action, _params, targetPath) {
   if (existsSync(packagePath)) {
     try {
       safeExec('npm run build 2>&1', targetPath, { stdio: 'inherit' });
-    } catch { /* no build script */ }
+    } catch (e) {
+      console.log(chalk.yellow(`  ⚠ 构建失败: ${e.message?.slice(0, 100) || 'build script 不可用'}`));
+    }
   }
   return '构建完成';
 }
@@ -37,12 +39,43 @@ export function handleImplementLogic(_action, params, _targetPath, context) {
   return '核心逻辑实现完成（CLI 轻量模式）';
 }
 
-export function handleCleanup(_action, params, _targetPath, context) {
-  const tasks = params?.cleanup || [];
-  console.log(chalk.blue(`\n🧹 正在清理代码: ${tasks.join(', ')}...`));
+export function handleCleanup(_action, params, targetPath, context) {
+  const tasks = params?.cleanup || ['temp_files', 'build_cache'];
+  console.log(chalk.blue(`\n🧹 正在清理: ${tasks.join(', ')}...`));
+
+  const cleaned = [];
+  for (const task of tasks) {
+    try {
+      if (task === 'temp_files' || task === 'node_modules') {
+        const nmPath = join(targetPath, 'node_modules');
+        if (task === 'node_modules' && existsSync(nmPath)) {
+          const { rmSync } = require('fs');
+          rmSync(nmPath, { recursive: true, force: true });
+          cleaned.push('node_modules');
+        }
+      }
+      if (task === 'build_cache' || task === 'dist') {
+        for (const dir of ['dist', 'build', '.next', '.turbo', '.cache']) {
+          const dirPath = join(targetPath, dir);
+          if (existsSync(dirPath)) {
+            const { rmSync } = require('fs');
+            rmSync(dirPath, { recursive: true, force: true });
+            cleaned.push(dir);
+          }
+        }
+      }
+    } catch (e) {
+      console.log(chalk.dim(`  ⚠ ${task} 清理失败: ${e.message?.slice(0, 80)}`));
+    }
+  }
+
+  if (cleaned.length) {
+    console.log(chalk.green(`  ✅ 已清理: ${cleaned.join(', ')}`));
+  } else {
+    console.log(chalk.dim('  ℹ 无需清理'));
+  }
   if (context) context.cleanup_done = true;
-  console.log(chalk.green('  ✅ 代码清理完成'));
-  return `清理完成: ${tasks.join(', ')}`;
+  return `清理完成: ${cleaned.length ? cleaned.join(', ') : '无需清理'}`;
 }
 
 export function handleAutoFix(_action, params, targetPath, context) {
@@ -157,7 +190,9 @@ export function handleLanguageBuild(_action, _params, targetPath, context) {
   try {
     safeExec(cmd, targetPath, { stdio: 'inherit' });
     console.log(chalk.green('  ✅ 构建完成'));
-  } catch { console.log(chalk.yellow('  ⚠ 构建部分失败')); }
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ 构建部分失败: ${e.message?.slice(0, 100) || '未知错误'}`));
+  }
   return `构建完成 (${lang})`;
 }
 
@@ -177,6 +212,8 @@ export function handleLanguageTest(_action, _params, targetPath, context) {
   try {
     safeExec(cmd, targetPath, { stdio: 'inherit' });
     console.log(chalk.green('  ✅ 测试完成'));
-  } catch { console.log(chalk.yellow('  ⚠ 测试部分失败')); }
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ 测试部分失败: ${e.message?.slice(0, 100) || '未知错误'}`));
+  }
   return `测试完成 (${lang})`;
 }

@@ -63,5 +63,8 @@ export function handleCheckBreakingChanges(_action, _params, targetPath) {
     }
     console.log(chalk.green('  ✅ 无 Breaking Changes'));
     return '无 Breaking Changes';
-  } catch { return 'Breaking Changes 检查完成'; }
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ Breaking Changes 检查失败: ${e.message?.slice(0, 150) || '未知错误'}`));
+    return `Breaking Changes 检查失败: ${e.message?.slice(0, 100)}`;
+  }
 }

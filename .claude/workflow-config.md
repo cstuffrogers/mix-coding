@@ -75,9 +75,14 @@ Claude Code 会自动加载 `.claude/scenes/` 目录中的场景配置。
 2. 生成自定义主题配置
 3. 应用样式
 
-**通用步骤**：
+**通用步骤**（所有主题生效）：
 - 安装并集成 Animate.css：`npm install animate.css`
 - 安装 Lucide React：`npm install lucide-react`
+- **图标升级**：扫描 JSX/TSX，Material Symbols → lucide-react 组件（60+ 映射）
+- **动画注入**：给页面根元素添加入场动画类（fadeIn/fadeInUp/fadeInDown）
+- **微交互**：可点击元素添加 hover:-translate-y-0.5 / hover:shadow-lg / active:scale-[0.98]
+- **Impeccable 打磨**：扫描修复纯黑/纯白、紫色渐变等 AI 塑料感问题
+- **设计验证**：CSS 变量使用率、内联样式、布局检查
 - 运行测试验证
 
 #### 步骤 5：完成报告

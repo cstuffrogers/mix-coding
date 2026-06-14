@@ -45,6 +45,7 @@ program
   .option('--dry-run', '仅显示执行计划，不实际执行')
   .option('-t, --target <path>', '目标项目路径')
   .option('--auto', '自动模式，跳过所有交互式提示，使用默认值')
+  .option('--enh <keys>', '逗号分隔的增强项键名（覆盖默认勾选）')
   .option('--theme <name>', '指定主题（daisyui/animal-island/custom）')
   .action(async (...args) => {
     const { startScene } = await import('./commands/start.js');

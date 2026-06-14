@@ -35,10 +35,16 @@ import { getActionMessage } from './data/action-messages.js';
 
 // Handler imports (also re-exported for ui-polish.js and other consumers)
 import { handleMemoryRecall, handleMemoryRemember, handleConsolidate, handleListMemories, handleAutoRemember } from './handlers/memory.js';
-import { handleCodeScan, handleSecurityScan, handlePerformanceProfile, handleCodeMetrics, handleDetectAntiPatterns, handleGenerateReport, handleKnipCheck, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecurityVulnerabilities, handleBuildLeakCheck, handleDeadLinkCheck, handleLighthouseGate, handleOpenRedirectScan, handleStateAudit, handleI18nAudit, handleSecurityHeaders, handleRecheckCli, handleLogSanitization, handleCorsCheck, handleEnvVarLeak, handlePostinstallCheck, handleSocketScan, handleSensitiveFileCheck, handleTechDebtScan, handleLockFileConsistency, handleGitignoreCheck, handleDeprecatedDeps } from './handlers/code-analysis.js';
+import { handleCodeScan, handlePerformanceProfile, handleCodeMetrics, handleDetectAntiPatterns, handleGenerateReport } from './handlers/code-metrics.js';
+import { handleSecurityScan, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecurityVulnerabilities, handleLogSanitization, handleCorsCheck, handleEnvVarLeak, handleSensitiveFileCheck, handleDeprecatedDeps } from './handlers/security-scanning.js';
+import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan } from './handlers/external-tool-checks.js';
+import { handleLighthouseGate } from './handlers/lighthouse.js';
+import { handleOpenRedirectScan } from './handlers/open-redirect.js';
+import { handleStateAudit } from './handlers/state-audit.js';
+import { handleI18nAudit } from './handlers/i18n.js';
 import { handleTestCoverage, handleTestUnit, handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest, handleLoadTest } from './handlers/testing.js';
 import { handleCreateBranch, handleCommitPush, handleCreatePR, handleAutoUpdate, handleBumpVersion, handleCreateTag, handleDeploy, handleCreateRelease, handleListReleases, handleRollback, handleCreateIssue } from './handlers/git.js';
-import { handleGenerateDesign, handleDesignVariant, handleAnalyzeConsistency, handleExportAssets, handlePersist, handleDesignInput, handleWebDesignDeclareSystem, handleHuashuBrandProtocol, handleHuashuExpertReview, handleHuashuPrototype, handleHuashuReleaseAnimation, handleHuashuReleaseDeck, handleHuashuInfographic, handleAwmBrandList, handleAwmBrandImport, handleAwmBrandApply } from './handlers/design.js';
+import { handleGenerateDesign, handleAnalyzeConsistency, handleExportAssets, handlePersist, handleDesignInput, handleHuashuBrandProtocol, handleHuashuExpertReview, handleHuashuPrototype, handleHuashuReleaseAnimation, handleHuashuReleaseDeck, handleHuashuInfographic, handleAwmBrandList, handleAwmBrandImport } from './handlers/design.js';
 import { handleIssueQuery, handleLocate, handleAnalyzeDependencies, handleFix, handleVerifyFix, handleRegression, handleCloseTicket } from './handlers/issues.js';
 import { handleBuild, handleApplyTemplate, handleImplementLogic, handleCleanup, handleAutoFix, handleGenerateRefactorPlan, handleApplyTransformations, handleAnalyzeInterface, handleDetectLanguage, handleLanguageBuild, handleLanguageTest } from './handlers/quality.js';
 import { handleCheckOutdated, handleUpdateDeps, handleCheckBreakingChanges } from './handlers/deps.js';
@@ -54,13 +60,15 @@ import { handleSetupDocker } from './handlers/docker.js';
 import { handleGenerateChangeLog } from './handlers/changelog.js';
 import { handleSetupSBOM } from './handlers/sbom.js';
 import { handleSetupLogging } from './handlers/logging.js';
-import { handleAnalyzeUI, handleCheckConsistency, handleAddAnimations, handleVisualRegression, handleCheckAPIConsistency, handleApplyDaisyUI, handleApplyComponents, handleWebDesignVerify, handleApplyHuashuStyle, handleReconcileDesignTokens, handleImpeccableCritique } from './handlers/ui-tools.js';
+import { handleAnalyzeUI, handleCheckConsistency, handleAddAnimations, handleVisualRegression, handleCheckAPIConsistency, handleApplyDaisyUI, handleApplyComponents, handleWebDesignVerify, handleApplyHuashuStyle, handleReconcileDesignTokens, handleImpeccableCritique, handleIconUpgrade, handleMicroInteractions } from './handlers/ui-tools.js';
 import {
   handleSelect, handleConfirm, handleChoose, handleReport, handleAskUser, handleCheckGate,
-  handleInstallDeps, handleDocsUpdate, handleCheckPrerequisites, handleCheckEnvFile,
+  handleInstallDeps, handleDocsUpdate, handleCheckEnvFile,
   handleGenerateEnv, handleStartDevServer, handleVerify,
   handleSend, handleNotify, handleCeAction, handleAnalyze,
 } from './handlers/flow-control.js';
+import { handleCheckPrerequisites } from './handlers/prerequisites.js';
+import { handleVerifyHandlers } from './handlers/handler-verify.js';
 
 // Mobile handlers
 import {
@@ -81,9 +89,11 @@ import {
   handleCheckRnDoctor, handleInitFastlane, handleCheckAndroidSDK,
   handleSetupEnv, handleSetupEmulator, handleVerifyBuild,
 } from './handlers/mobile-onboard.js';
+import { handleAislopScan } from './handlers/aislop.js';
+import { handleDepcruiseArchitecture } from './handlers/dependency-cruiser.js';
 
 // Re-export for direct consumers (ui-polish.js)
-export { handleCheckConsistency, handleVisualRegression, handleCheckAPIConsistency, handleAddAnimations, handleAnalyzeUI, handleCeAction };
+export { handleCheckConsistency, handleVisualRegression, handleCheckAPIConsistency, handleAddAnimations, handleAnalyzeUI, handleCeAction, handleIconUpgrade, handleMicroInteractions };
 
 // ── Action registry ──
 
@@ -130,8 +140,6 @@ export const ACTION_REGISTRY = {
   runAffected: handleRunAffected,
   run_affected: handleRunAffected,
   generateDesign: handleGenerateDesign,
-  generateLowFi: handleDesignVariant,
-  generateHiFi: handleDesignVariant,
   analyzeConsistency: handleAnalyzeConsistency,
   persist: handlePersist,
   input: handleDesignInput,
@@ -144,6 +152,8 @@ export const ACTION_REGISTRY = {
   analyzeUI: handleAnalyzeUI,
   checkConsistency: handleCheckConsistency,
   addAnimations: handleAddAnimations,
+  iconUpgrade: handleIconUpgrade,
+  microInteractions: handleMicroInteractions,
   visualRegression: handleVisualRegression,
   build: handleBuild,
   productionBuild: handleBuild,
@@ -168,6 +178,14 @@ export const ACTION_REGISTRY = {
   detectAntiPatterns: handleDetectAntiPatterns,
   generateReport: handleGenerateReport,
   knipCheck: handleKnipCheck,
+  skillspectorScan: handleSkillspectorScan,
+  'skillspector-scan': handleSkillspectorScan,
+  aislopScan: handleAislopScan,
+  'aislop-scan': handleAislopScan,
+  aislopFix: handleAislopScan,
+  'aislop-fix': handleAislopScan,
+  depcruiseArchitecture: handleDepcruiseArchitecture,
+  'depcruise-architecture': handleDepcruiseArchitecture,
   gitLeaks: handleGitLeaks,
   generateChangelog: handleChangelog,
   generateTest: handleGenerateTest,
@@ -280,24 +298,16 @@ export const ACTION_REGISTRY = {
   'cors-check': handleCorsCheck,
   envVarLeak: handleEnvVarLeak,
   'env-var-leak': handleEnvVarLeak,
-  postinstallCheck: handlePostinstallCheck,
-  'postinstall-check': handlePostinstallCheck,
-  socketScan: handleSocketScan,
-  'socket-scan': handleSocketScan,
   sensitiveFileCheck: handleSensitiveFileCheck,
   'sensitive-file-check': handleSensitiveFileCheck,
-  techDebtScan: handleTechDebtScan,
-  'tech-debt-scan': handleTechDebtScan,
-  lockFileConsistency: handleLockFileConsistency,
-  'lock-file-consistency': handleLockFileConsistency,
-  gitignoreCheck: handleGitignoreCheck,
-  'gitignore-check': handleGitignoreCheck,
   deprecatedDeps: handleDeprecatedDeps,
   'deprecated-deps': handleDeprecatedDeps,
 
+  // Meta verification
+  verifyHandlers: handleVerifyHandlers,
+  'verify-handlers': handleVerifyHandlers,
+
   // Design & review tools
-  webDesignDeclareSystem: handleWebDesignDeclareSystem,
-  'web-design-declare-system': handleWebDesignDeclareSystem,
   aiFriendlyReview: handleAiFriendlyReview,
   'ai-friendly-review': handleAiFriendlyReview,
   applyDaisyUI: handleApplyDaisyUI,
@@ -327,40 +337,94 @@ export const ACTION_REGISTRY = {
   'awm-brand-list': handleAwmBrandList,
   awmBrandImport: handleAwmBrandImport,
   'awm-brand-import': handleAwmBrandImport,
-  awmBrandApply: handleAwmBrandApply,
-  'awm-brand-apply': handleAwmBrandApply,
 
-  // MCP actions — require Claude Code agent context (MCP tool calls in conversation)
-  listIssues: (_a, _p) => 'GitHub MCP: Issues 查询完成（CLI 模式下为轻量操作，完整查询需 Claude Code + GitHub MCP）',
-  listPullRequests: (_a, _p) => 'GitHub MCP: Pull Requests 查询完成（CLI 模式下为轻量操作，完整查询需 Claude Code + GitHub MCP）',
-  search: (_a, _p) => 'Tavily MCP: 在线搜索完成（CLI 模式下为轻量操作，完整搜索需 Claude Code + Tavily MCP）',
-  getDocumentation: (_a, _p) => 'Context7 MCP: 文档获取完成（CLI 模式下为轻量操作，完整文档需 Claude Code + Context7 MCP）',
-  getSchema: (_a, _p) => 'Supabase MCP: Schema 获取完成（CLI 模式下为轻量操作，完整查询需 Claude Code + Supabase MCP）',
-  getPaymentFlow: (_a, _p) => 'Stripe MCP: 支付流程获取完成（CLI 模式下为轻量操作，完整查询需 Claude Code + Stripe MCP）',
-  getEmailTemplate: (_a, _p) => 'Resend MCP: 邮件模板获取完成（CLI 模式下为轻量操作，完整查询需 Claude Code + Resend MCP）',
-  searchRepositories: (_a, _p) => 'GitHub MCP: 仓库搜索完成（CLI 模式下为轻量操作，完整搜索需 Claude Code + GitHub MCP）',
+  // MCP actions — available in conversation mode (CLAUDECODE=1), skipped in CLI mode
+  listIssues: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'GitHub MCP: Issues 查询就绪（对话模式 MCP 工具执行）'
+    : 'GitHub MCP: Issues 查询已跳过（需对话模式 + GitHub MCP）',
+  listPullRequests: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'GitHub MCP: Pull Requests 查询就绪（对话模式 MCP 工具执行）'
+    : 'GitHub MCP: Pull Requests 查询已跳过（需对话模式 + GitHub MCP）',
+  search: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'Tavily MCP: 在线搜索就绪（对话模式 MCP 工具执行）'
+    : 'Tavily MCP: 在线搜索已跳过（需对话模式 + Tavily MCP）',
+  getDocumentation: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'Context7 MCP: 文档获取就绪（对话模式 MCP 工具执行）'
+    : 'Context7 MCP: 文档获取已跳过（需对话模式 + Context7 MCP）',
+  getSchema: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'Supabase MCP: Schema 获取就绪（对话模式 MCP 工具执行）'
+    : 'Supabase MCP: Schema 获取已跳过（需对话模式 + Supabase MCP）',
+  getPaymentFlow: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'Stripe MCP: 支付流程获取就绪（对话模式 MCP 工具执行）'
+    : 'Stripe MCP: 支付流程获取已跳过（需对话模式 + Stripe MCP）',
+  getEmailTemplate: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'Resend MCP: 邮件模板获取就绪（对话模式 MCP 工具执行）'
+    : 'Resend MCP: 邮件模板获取已跳过（需对话模式 + Resend MCP）',
+  searchRepositories: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'GitHub MCP: 仓库搜索就绪（对话模式 MCP 工具执行）'
+    : 'GitHub MCP: 仓库搜索已跳过（需对话模式 + GitHub MCP）',
 
-  // Matt Pocock skills — require Claude Code agent context (skill invocation)
-  mpTriage: (_a, _p) => 'mp-triage: TypeScript 问题分诊完成（CLI 模式下为轻量操作，完整分诊需 Claude Code + Matt Pocock skill）',
-  'mp-triage': (_a, _p) => 'mp-triage: TypeScript 问题分诊完成（CLI 模式下为轻量操作，完整分诊需 Claude Code + Matt Pocock skill）',
-  mpDiagnose: (_a, _p) => 'mp-diagnose: TypeScript 诊断完成（CLI 模式下为轻量操作，完整诊断需 Claude Code + Matt Pocock skill）',
-  'mp-diagnose': (_a, _p) => 'mp-diagnose: TypeScript 诊断完成（CLI 模式下为轻量操作，完整诊断需 Claude Code + Matt Pocock skill）',
-  mpGrillMe: (_a, _p) => 'mp-grill-me: 代码审查完成（CLI 模式下为轻量操作，完整审查需 Claude Code + Matt Pocock skill）',
-  'mp-grill-me': (_a, _p) => 'mp-grill-me: 代码审查完成（CLI 模式下为轻量操作，完整审查需 Claude Code + Matt Pocock skill）',
-  mpTdd: (_a, _p) => 'mp-tdd: TDD 工作流完成（CLI 模式下为轻量操作，完整 TDD 需 Claude Code + Matt Pocock skill）',
-  'mp-tdd': (_a, _p) => 'mp-tdd: TDD 工作流完成（CLI 模式下为轻量操作，完整 TDD 需 Claude Code + Matt Pocock skill）',
-  mpHandoff: (_a, _p) => 'mp-handoff: 交接完成（CLI 模式下为轻量操作，完整交接需 Claude Code + Matt Pocock skill）',
-  'mp-handoff': (_a, _p) => 'mp-handoff: 交接完成（CLI 模式下为轻量操作，完整交接需 Claude Code + Matt Pocock skill）',
-  mpToPrd: (_a, _p) => 'mp-to-prd: PRD 生成完成（CLI 模式下为轻量操作，完整 PRD 需 Claude Code + Matt Pocock skill）',
-  'mp-to-prd': (_a, _p) => 'mp-to-prd: PRD 生成完成（CLI 模式下为轻量操作，完整 PRD 需 Claude Code + Matt Pocock skill）',
-  mpToIssues: (_a, _p) => 'mp-to-issues: Issues 生成完成（CLI 模式下为轻量操作，完整创建需 Claude Code + Matt Pocock skill）',
-  'mp-to-issues': (_a, _p) => 'mp-to-issues: Issues 生成完成（CLI 模式下为轻量操作，完整创建需 Claude Code + Matt Pocock skill）',
-  mpGitGuardrails: (_a, _p) => 'mp-git-guardrails: Git 规范检查完成（CLI 模式下为轻量操作，完整检查需 Claude Code + Matt Pocock skill）',
-  'mp-git-guardrails': (_a, _p) => 'mp-git-guardrails: Git 规范检查完成（CLI 模式下为轻量操作，完整检查需 Claude Code + Matt Pocock skill）',
-  mpPrototype: (_a, _p) => 'mp-prototype: 原型生成完成（CLI 模式下为轻量操作，完整体验需 Claude Code + Matt Pocock skill）',
-  'mp-prototype': (_a, _p) => 'mp-prototype: 原型生成完成（CLI 模式下为轻量操作，完整体验需 Claude Code + Matt Pocock skill）',
-  mpImproveCodebaseArchitecture: (_a, _p) => 'mp-improve-codebase-architecture: 架构改进完成（CLI 模式下为轻量操作，完整改进需 Claude Code + Matt Pocock skill）',
-  'mp-improve-codebase-architecture': (_a, _p) => 'mp-improve-codebase-architecture: 架构改进完成（CLI 模式下为轻量操作，完整改进需 Claude Code + Matt Pocock skill）',
+  // Matt Pocock skills — available in conversation mode (CLAUDECODE=1), skipped in CLI mode
+  mpTriage: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-triage: TypeScript 问题分诊就绪（对话模式 Skill 调用）'
+    : 'mp-triage: TypeScript 问题分诊已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-triage': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-triage: TypeScript 问题分诊就绪（对话模式 Skill 调用）'
+    : 'mp-triage: TypeScript 问题分诊已跳过（需对话模式 + Matt Pocock skill）',
+  mpDiagnose: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-diagnose: TypeScript 诊断就绪（对话模式 Skill 调用）'
+    : 'mp-diagnose: TypeScript 诊断已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-diagnose': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-diagnose: TypeScript 诊断就绪（对话模式 Skill 调用）'
+    : 'mp-diagnose: TypeScript 诊断已跳过（需对话模式 + Matt Pocock skill）',
+  mpGrillMe: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-grill-me: 代码审查就绪（对话模式 Skill 调用）'
+    : 'mp-grill-me: 代码审查已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-grill-me': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-grill-me: 代码审查就绪（对话模式 Skill 调用）'
+    : 'mp-grill-me: 代码审查已跳过（需对话模式 + Matt Pocock skill）',
+  mpTdd: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-tdd: TDD 工作流就绪（对话模式 Skill 调用）'
+    : 'mp-tdd: TDD 工作流已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-tdd': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-tdd: TDD 工作流就绪（对话模式 Skill 调用）'
+    : 'mp-tdd: TDD 工作流已跳过（需对话模式 + Matt Pocock skill）',
+  mpHandoff: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-handoff: 交接就绪（对话模式 Skill 调用）'
+    : 'mp-handoff: 交接已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-handoff': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-handoff: 交接就绪（对话模式 Skill 调用）'
+    : 'mp-handoff: 交接已跳过（需对话模式 + Matt Pocock skill）',
+  mpToPrd: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-to-prd: PRD 生成就绪（对话模式 Skill 调用）'
+    : 'mp-to-prd: PRD 生成已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-to-prd': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-to-prd: PRD 生成就绪（对话模式 Skill 调用）'
+    : 'mp-to-prd: PRD 生成已跳过（需对话模式 + Matt Pocock skill）',
+  mpToIssues: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-to-issues: Issues 生成就绪（对话模式 Skill 调用）'
+    : 'mp-to-issues: Issues 生成已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-to-issues': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-to-issues: Issues 生成就绪（对话模式 Skill 调用）'
+    : 'mp-to-issues: Issues 生成已跳过（需对话模式 + Matt Pocock skill）',
+  mpGitGuardrails: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-git-guardrails: Git 规范检查就绪（对话模式 Skill 调用）'
+    : 'mp-git-guardrails: Git 规范检查已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-git-guardrails': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-git-guardrails: Git 规范检查就绪（对话模式 Skill 调用）'
+    : 'mp-git-guardrails: Git 规范检查已跳过（需对话模式 + Matt Pocock skill）',
+  mpPrototype: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-prototype: 原型生成就绪（对话模式 Skill 调用）'
+    : 'mp-prototype: 原型生成已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-prototype': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-prototype: 原型生成就绪（对话模式 Skill 调用）'
+    : 'mp-prototype: 原型生成已跳过（需对话模式 + Matt Pocock skill）',
+  mpImproveCodebaseArchitecture: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-improve-codebase-architecture: 架构改进就绪（对话模式 Skill 调用）'
+    : 'mp-improve-codebase-architecture: 架构改进已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-improve-codebase-architecture': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-improve-codebase-architecture: 架构改进就绪（对话模式 Skill 调用）'
+    : 'mp-improve-codebase-architecture: 架构改进已跳过（需对话模式 + Matt Pocock skill）',
 
   // ── Mobile: Core (MobileService) ──
   detectProject: handleDetectProject,

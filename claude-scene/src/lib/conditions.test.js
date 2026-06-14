@@ -56,9 +56,6 @@ describe('evaluateCondition', () => {
       expect(evaluateCondition(key, { prompt: '修复一个小bug' })).toBe(false);
     });
 
-    it('manual_intervention_required is always false', () => {
-      expect(evaluateCondition('manual_intervention_required', {})).toBe(false);
-    });
   });
 
   describe('compound conditions', () => {

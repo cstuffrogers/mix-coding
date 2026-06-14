@@ -163,33 +163,6 @@
       "timeout": 180
     },
     {
-      "step": 4,
-      "layer": "capability",
-      "service": "DesignService",
-      "action": "analyzeInterface",
-      "params": {
-        "validation_level": "strict"
-      },
-      "description": "分析新功能 interface 设计，检查与现有设计规范一致性",
-      "auto_execute": true,
-      "on_error": "continue",
-      "timeout": 120
-    },
-    {
-      "step": 5,
-      "layer": "capability",
-      "service": "CodeEngine",
-      "action": "applyTemplate",
-      "params": {
-        "template": "feature-component",
-        "preserve_existing": true
-      },
-      "description": "应用标准组件模板，生成xxx.feature.tsx组件骨架代码",
-      "auto_execute": true,
-      "on_error": "abort",
-      "timeout": 90
-    },
-    {
       "step": 5.1,
       "layer": "capability",
       "service": "ContractChecker",
@@ -212,23 +185,6 @@
       "auto_execute": false,
       "condition": "mattpocock_skill_available",
       "on_error": "continue"
-    },
-    {
-      "step": 6,
-      "layer": "capability",
-      "service": "CodeEngine",
-      "action": "implementLogic",
-      "params": {
-        "mode": "full",
-        "preserve_types": [
-          "type",
-          "api"
-        ]
-      },
-      "description": "按设计文档实现核心逻辑，自动合并tsconfig、路由配置",
-      "auto_execute": true,
-      "on_error": "continue",
-      "timeout": 600
     },
     {
       "step": 7,

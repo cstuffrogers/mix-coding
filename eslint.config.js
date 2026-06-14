@@ -13,7 +13,6 @@ export default [
       // Subprojects with their own ESLint configs
       'Archon-dev/',
       'open-digger/',
-      'opendigger-cli/',
       'open-design/',
       'codegraph-win32-x64/',
       '.codegraph/',

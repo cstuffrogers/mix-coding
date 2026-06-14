@@ -33,7 +33,7 @@ describe('ACTION_REGISTRY', () => {
     }
   });
 
-  it('has all code-analysis actions', () => {
+  it('has all code-analysis actions (from split modules)', () => {
     const actions = [
       'codeScan', 'securityScan', 'performanceProfile',
       'codeMetrics', 'detectAntiPatterns', 'generateReport',

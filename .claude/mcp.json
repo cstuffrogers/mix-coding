@@ -1,4 +1,5 @@
 {
+  "_note": "以下 MCP 服务器按需配置 API Key 后启用。schemaforge/a11y/detox 无需 API Key 可直接使用。",
   "mcpServers": {
     "github": {
       "type": "stdio",
@@ -13,16 +14,6 @@
       ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${env:GITHUB_PERSONAL_ACCESS_TOKEN}"
-      }
-    },
-    "tavily-search": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "./.mcp/tavily-mcp/build/index.js"
-      ],
-      "env": {
-        "TAVILY_API_KEY": "${env:TAVILY_API_KEY}"
       }
     },
     "context7": {

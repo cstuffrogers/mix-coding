@@ -1,0 +1,31 @@
+// Gate check name → context flag mapping. "security" and "security_scan" are
+// special-cased in handleCheckGate (they block on high-severity findings instead of failing).
+
+export default Object.assign(Object.create(null), {
+  lint: 'lintPassed', typecheck: 'typecheckPassed', test: 'testPassed',
+  coverage: 'coveragePassed', visual_regression: 'visualRegressionPassed',
+  dependency_audit: 'dependencyAuditPassed', dependencies: 'dependencyAuditPassed',
+  performance: 'performancePassed', complexity: 'complexityPassed',
+  dead_code: 'deadCodePassed', git_leaks: 'gitLeaksPassed',
+  a11y: 'a11yPassed', i18n: 'i18nPassed', migration: 'migrationReviewPassed',
+  loadtest: 'loadTestPassed', monitor: 'monitorConfigured', cicd: 'ciConfigured',
+  backup: 'backupConfigured', incident: 'incidentRunbookCreated', e2e: 'e2eConfigured',
+  docker: 'dockerConfigured', changelog: 'changelogGenerated', sbom: 'sbomGenerated',
+  logging: 'loggingConfigured', dead_links: 'deadLinkPassed', build_leaks: 'buildLeakPassed',
+  open_redirect: 'openRedirectPassed', security_headers: 'securityHeadersPassed',
+  recheck: 'recheckPassed', state_audit: 'stateAuditPassed', lighthouse: 'lighthousePassed',
+  log_sanitization: 'logSanitizationPassed', cors_check: 'corsCheckPassed',
+  env_var_leak: 'envVarLeakPassed',
+  postinstall: 'postinstallPassed', socket_scan: 'socketScanPassed',
+  sensitive_file: 'sensitiveFilePassed', tech_debt: 'techDebtPassed',
+  lock_file: 'lockFilePassed', gitignore_check: 'gitignorePassed',
+  deprecated_deps: 'deprecatedDepsPassed',
+  // Mobile
+  privacy: 'privacyPassed', store_compliance: 'storeCompliancePassed',
+  performance_baseline: 'performancePassed', tests_pass: 'testPassed',
+  ui_regression: 'visualRegressionPassed', bundle_size: 'bundleSizePassed',
+  startup_time: 'startupTimePassed', fps: 'fpsPassed', memory: 'memoryPassed',
+  e2e_config: 'e2eConfigPassed', test_examples: 'testExamplesPassed',
+  ci_integration: 'ciConfigured', env_prerequisites: 'envPrerequisitesPassed',
+  build_pass: 'buildPassed', env_template: 'envTemplatePassed',
+});

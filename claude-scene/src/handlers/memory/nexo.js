@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, basename } from 'path';
 import { NEXO_DIR } from '../../lib/paths.js';
 import { scanDir } from '../../lib/scan-dir.js';
@@ -19,4 +19,15 @@ export function readNexoData() {
     }
     return entries;
   } catch { return []; }
+}
+
+export function writeNexoEvent(type, data) {
+  try {
+    const runtimeDir = join(NEXO_DIR, 'runtime');
+    if (!existsSync(runtimeDir)) mkdirSync(runtimeDir, { recursive: true });
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const file = join(runtimeDir, `${type}_${ts}.json`);
+    writeFileSync(file, JSON.stringify({ type, timestamp: new Date().toISOString(), data }, null, 2), 'utf-8');
+    return file;
+  } catch { return null; }
 }

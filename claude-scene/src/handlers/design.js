@@ -20,6 +20,7 @@ export function handleGenerateDesign(_action, params, targetPath, context) {
   if (context) {
     context.huashu_proposal = proposal;
     context.design_directions = ['A', 'B', 'C'];
+    context.open_design_executed = true;
   }
   // Persist proposal for downstream steps
   try {
@@ -106,30 +107,148 @@ function deriveMetricsFromContext(context = {}) {
   return m;
 }
 
-export function handleDesignVariant(_action, _params, _targetPath, context) {
-  const variant = _action === 'generateHiFi' ? '高保真' : '低保真';
-  console.log(chalk.blue(`\n🎨 正在生成${variant}设计稿...`));
-  if (context) {
-    context.open_design_executed = true;
-    context.design_variant = _action;
-  }
-  console.log(chalk.green(`  ✅ ${variant}设计稿已生成`));
-  return `${variant}设计稿生成完成`;
-}
-
-export function handleAnalyzeConsistency(_action, _params, _targetPath, context) {
+export function handleAnalyzeConsistency(_action, _params, targetPath, context) {
   console.log(chalk.blue('\n📏 正在检查设计一致性...'));
   if (context) context.consistency_checked = true;
+
+  // Quick static check: count CSS variable usage vs hardcoded values
+  try {
+    const { readFileSync, existsSync } = require('fs');
+    const { join } = require('path');
+    const cssPath = join(targetPath, 'src', 'index.css');
+    const globalsPath = join(targetPath, 'src', 'app', 'globals.css');
+    for (const p of [cssPath, globalsPath, join(targetPath, 'styles', 'globals.css')]) {
+      if (existsSync(p)) {
+        const content = readFileSync(p, 'utf-8');
+        const varCount = (content.match(/var\(--[\w-]+\)/g) || []).length;
+        const hexCount = (content.match(/#[0-9a-fA-F]{3,6}/g) || []).length;
+        if (hexCount > varCount) {
+          console.log(chalk.yellow(`  ⚠ ${path.basename(p)}: 硬编码颜色(${hexCount}) > CSS变量(${varCount})，建议提取设计 Token`));
+        } else if (varCount > 0) {
+          console.log(chalk.green(`  ✅ ${path.basename(p)}: ${varCount} CSS 变量引用, ${hexCount} 硬编码值`));
+        }
+      }
+    }
+  } catch { /* non-critical */ }
+
   console.log(chalk.green('  ✅ 设计一致性检查完成'));
   return '设计一致性检查完成';
 }
 
-export function handleExportAssets(_action, _params, targetPath) {
+export function handleExportAssets(_action, _params, targetPath, context) {
   console.log(chalk.blue('\n📦 正在导出设计资源...'));
-  const assetsDir = join(targetPath, 'public', 'assets');
-  ensureDir(assetsDir);
-  console.log(chalk.green(`  ✅ 资源已导出到 ${assetsDir}`));
-  return '设计资源已导出';
+  const designDir = join(targetPath, 'src', 'assets', 'design-system');
+  ensureDir(designDir);
+
+  let exportedCount = 0;
+
+  // 1. Export CSS custom properties (design tokens)
+  const tokensCss = join(designDir, 'tokens.css');
+  let cssContent = '/* Design Tokens — auto-generated */\n:root {\n';
+
+  // Use AWM brand CSS if available (from awm-brand-import step)
+  const brandCss = context?.awm_brand_css;
+  if (brandCss) {
+    writeFileSync(tokensCss, brandCss, 'utf-8');
+    console.log(chalk.green(`  ✓ tokens.css (品牌: ${context.user_selected_brand || 'custom'})`));
+    exportedCount++;
+  } else {
+    // Try open-design Skill output first (.claude/designs/design-baseline.md)
+    const baselinePath = join(targetPath, '.claude', 'designs', 'design-baseline.md');
+    const systemPath = join(targetPath, '.claude', 'designs', 'design-system.md');
+    let tokensFromSkill = null;
+    for (const p of [baselinePath, systemPath]) {
+      if (existsSync(p)) {
+        try {
+          const md = readFileSync(p, 'utf-8');
+          // Extract CSS custom properties from Skill output markdown
+          const cssMatch = md.match(/```css\n([\s\S]*?)```/);
+          if (cssMatch) {
+            tokensFromSkill = cssMatch[1];
+          } else {
+            // Extract individual --prop: value lines
+            const propLines = md.match(/^--[\w-]+:\s*[^;]+;/gm);
+            if (propLines && propLines.length >= 5) {
+              tokensFromSkill = ':root {\n  ' + propLines.join('\n  ') + '\n}\n';
+            }
+          }
+          if (tokensFromSkill) {
+            console.log(chalk.dim(`  ℹ 从 open-design Skill 输出加载 Token (${path.basename(p)})`));
+            break;
+          }
+        } catch { /* unreadable */ }
+      }
+    }
+
+    if (tokensFromSkill) {
+      writeFileSync(tokensCss, tokensFromSkill, 'utf-8');
+      console.log(chalk.green('  ✓ tokens.css (open-design Skill)'));
+      exportedCount++;
+    } else {
+      // Fallback: generate default design tokens
+      const tokens = {
+        '--color-primary': '#3B82F6',
+        '--color-primary-light': '#60A5FA',
+        '--color-primary-dark': '#2563EB',
+        '--color-secondary': '#8B5CF6',
+        '--color-accent': '#F59E0B',
+        '--color-bg': '#F9FAFB',
+        '--color-surface': '#FFFFFF',
+        '--color-text': '#171717',
+        '--color-text-muted': '#6B7280',
+        '--color-border': '#E5E7EB',
+        '--color-success': '#10B981',
+        '--color-warning': '#F59E0B',
+        '--color-error': '#EF4444',
+        '--font-sans': 'system-ui, -apple-system, sans-serif',
+        '--font-mono': 'ui-monospace, monospace',
+        '--radius-sm': '0.25rem',
+        '--radius-md': '0.5rem',
+        '--radius-lg': '0.75rem',
+        '--shadow-sm': '0 1px 2px rgba(0,0,0,0.05)',
+        '--shadow-md': '0 4px 6px rgba(0,0,0,0.1)',
+        '--shadow-lg': '0 10px 15px rgba(0,0,0,0.1)',
+        '--spacing-xs': '0.25rem',
+        '--spacing-sm': '0.5rem',
+        '--spacing-md': '1rem',
+        '--spacing-lg': '1.5rem',
+        '--spacing-xl': '2rem',
+      };
+      for (const [key, value] of Object.entries(tokens)) {
+        cssContent += `  ${key}: ${value};\n`;
+      }
+      cssContent += '}\n';
+      writeFileSync(tokensCss, cssContent, 'utf-8');
+      console.log(chalk.green(`  ✓ tokens.css (${Object.keys(tokens).length} 个默认 Token)`));
+      exportedCount++;
+    }
+  }
+
+  // 2. Export design spec markdown
+  const specFile = join(designDir, 'design-spec.md');
+  const variant = context?.design_variant || context?.design_selected || '未选择';
+  const timestamp = new Date().toISOString().slice(0, 19);
+  writeFileSync(specFile, [
+    '# Design Specification',
+    '',
+    `- **生成时间**: ${timestamp}`,
+    `- **方案**: ${variant}`,
+    `- **风格**: ${context?.huashu_applied_style?.name || '默认'}`,
+    context?.huashu_proposal ? `\n## 设计提案\n\n\`\`\`json\n${JSON.stringify(context.huashu_proposal, null, 2)}\n\`\`\`` : '',
+    '',
+    '## 设计 Token',
+    '',
+    '见 `tokens.css` — 通过 CSS 自定义属性导入：',
+    '',
+    '```css',
+    "@import './tokens.css';",
+    '```',
+  ].join('\n'), 'utf-8');
+  console.log(chalk.green(`  ✓ design-spec.md`));
+  exportedCount++;
+
+  console.log(chalk.green(`  ✅ 设计资源导出完成: ${exportedCount} 个文件 → ${designDir}`));
+  return `设计资源导出完成: ${exportedCount} 个文件`;
 }
 
 export function handlePersist(_action, _params, targetPath, context) {
@@ -151,13 +270,6 @@ export function handleDesignInput(_action, params, _targetPath, context) {
   console.log(chalk.yellow('\n📥 ' + (message || '请输入')));
   if (key && context) context[key] = params?.default || '';
   return '设计输入已接收';
-}
-
-export function handleWebDesignDeclareSystem(_action, _params, _targetPath) {
-  console.log(chalk.blue('\n🎨 正在声明设计系统...'));
-  console.log(chalk.dim('  ℹ CLI 模式下为轻量操作，完整设计系统声明需 Claude Code + web-design skill'));
-  console.log(chalk.green('  ✅ 设计系统已声明'));
-  return '设计系统声明完成（CLI 轻量模式）';
 }
 
 // ── Awesome Design MD handlers ──
@@ -217,20 +329,3 @@ export function handleAwmBrandImport(_action, params, _targetPath, context) {
   return `${info?.name || brand} 设计系统已导入`;
 }
 
-export function handleAwmBrandApply(_action, params, targetPath, context) {
-  const brand = params?.brand || context?.user_selected_brand || context?.awm_brand;
-  const cssVars = context?.awm_brand_css;
-
-  if (!cssVars) {
-    console.log(chalk.yellow('  ⚠ 未加载品牌 CSS 变量，请先执行 awm-brand-import'));
-    return '无可应用的品牌 token';
-  }
-
-  const cssDir = join(targetPath, 'src');
-  ensureDir(cssDir);
-  const cssFile = join(cssDir, 'brand-tokens.css');
-  writeFileSync(cssFile, `/* ${brand} Design Tokens — Awesome Design MD */\n${cssVars}\n`, 'utf-8');
-
-  console.log(chalk.green(`  ✅ 品牌 token 已写入 src/brand-tokens.css`));
-  return `品牌 token 已应用到 ${targetPath}`;
-}

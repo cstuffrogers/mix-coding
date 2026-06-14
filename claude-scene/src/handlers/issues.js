@@ -32,14 +32,28 @@ export function handleFix(_action, _params, _targetPath, context) {
 
 export function handleVerifyFix(_action, _params, targetPath) {
   console.log(chalk.blue('\n✅ 正在验证修复...'));
-  try { safeExec('npx vitest run 2>&1', targetPath, { stdio: 'pipe' }); } catch { /* no test runner */ }
-  return '修复验证完成';
+  try {
+    const result = safeExec('npx vitest run 2>&1', targetPath, { stdio: 'pipe' }).toString();
+    const passed = !result.includes('failed') && !result.includes('FAIL');
+    console.log(passed ? chalk.green('  ✅ 测试通过') : chalk.yellow('  ⚠ 部分测试失败'));
+    return passed ? '修复验证通过' : '修复验证: 测试失败';
+  } catch (e) {
+    console.log(chalk.dim(`  ℹ 无测试运行器可用: ${e.message?.slice(0, 80) || 'vitest 未安装'}`));
+    return '修复验证完成（无测试运行器）';
+  }
 }
 
 export function handleRegression(_action, _params, targetPath) {
   console.log(chalk.blue('\n🔄 正在回归测试...'));
-  try { safeExec('npx vitest run 2>&1', targetPath, { stdio: 'pipe' }); } catch { /* no test runner */ }
-  return '回归测试完成';
+  try {
+    const result = safeExec('npx vitest run 2>&1', targetPath, { stdio: 'pipe' }).toString();
+    const passed = !result.includes('failed') && !result.includes('FAIL');
+    console.log(passed ? chalk.green('  ✅ 回归测试通过') : chalk.yellow('  ⚠ 回归测试发现失败'));
+    return passed ? '回归测试通过' : '回归测试: 失败';
+  } catch (e) {
+    console.log(chalk.dim(`  ℹ 无测试运行器可用: ${e.message?.slice(0, 80) || 'vitest 未安装'}`));
+    return '回归测试完成（无测试运行器）';
+  }
 }
 
 export function handleCloseTicket(_action, _params, _targetPath, context) {

@@ -47,7 +47,15 @@ export function handleCreatePR(_action, params, targetPath) {
     const result = safeExec(`gh pr create --title ${escapeArg(params?.title || 'Auto PR')} --body ${escapeArg(params?.body || 'Auto-generated PR')} 2>&1 || true`, targetPath, { stdio: 'pipe' }).toString().trim();
     console.log(chalk.green(`  ✅ PR 已创建: ${result}`));
     return `PR 已创建: ${result}`;
-  } catch { return 'PR 创建跳过（gh CLI 不可用）'; }
+  } catch (e) {
+    const errMsg = e.stderr ? e.stderr.toString() : e.message;
+    if (errMsg && errMsg.includes('command not found')) {
+      console.log(chalk.yellow('  ⚠ gh CLI 未安装，跳过 PR 创建'));
+      return 'PR 创建跳过（gh CLI 不可用）';
+    }
+    console.log(chalk.red(`  ❌ PR 创建失败: ${errMsg?.slice(0, 200) || '未知错误'}`));
+    return `PR 创建失败: ${errMsg?.slice(0, 100)}`;
+  }
 }
 
 export function handleAutoUpdate(_action, params, targetPath) {

@@ -1,0 +1,53 @@
+{
+  "A": {
+    "logic": "现实参照（获奖站迁移）",
+    "reference": {
+      "name": "Linear",
+      "category": "productivity",
+      "signature": "暗色+精致细节+功能动效"
+    },
+    "style": {
+      "id": "monospace-zine",
+      "name": "终端等宽小报",
+      "temp": "quiet",
+      "fidelity": 90,
+      "fit": "开发者博客/CLI产品/极客社区",
+      "dna": "近白+近黑+终端绿, 全等宽字, 60ch行宽+ASCII装饰",
+      "font": "JetBrains Mono / Geist Mono"
+    },
+    "rationale": "参照 Linear（productivity），稳妥底盘"
+  },
+  "B": {
+    "logic": "40 风格库中性温度",
+    "style": {
+      "id": "dark-tech-grid",
+      "name": "暗色科技grid",
+      "temp": "neutral",
+      "fidelity": 92,
+      "fit": "开发者工具/技术产品/playground",
+      "dna": "近黑+霓虹绿/青/紫, 等宽字+无衬线, 网格点阵背景+终端美学",
+      "font": "JetBrains Mono / Geist Mono"
+    },
+    "rationale": "平衡方向, 与 A 拉差异"
+  },
+  "C": {
+    "logic": "秒数轮盘 + 顶级设计师哲学",
+    "designer": {
+      "name": "Stefan Sagmeister",
+      "philosophy": "叛逆装置",
+      "signature": "手作质感, 反规则排版, 强情绪表达"
+    },
+    "style": {
+      "id": "neo-brutalism",
+      "name": "新粗野主义撞色信息流",
+      "temp": "bold",
+      "fidelity": 95,
+      "fit": "媒体/活动landing/社区榜单",
+      "dna": "电光紫+品红+亮黄高饱和+纯黑, 几何无衬线大标题+衬线正文, 卡片化feed流+2-4px粗黑描边",
+      "font": "Space Grotesk + Fraunces"
+    },
+    "rationale": "Stefan Sagmeister 的 叛逆装置 哲学 + 大胆风格强制注入, 打破默认极简偏差"
+  },
+  "requirement": "",
+  "category": "web"
+}

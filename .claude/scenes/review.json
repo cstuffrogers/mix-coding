@@ -91,6 +91,28 @@
       "on_error": "continue"
     },
     {
+      "step": 2.8,
+      "layer": "capability",
+      "service": "MetaCheckService",
+      "action": "verify-handlers",
+      "params": {},
+      "description": "Handler 功能性验证：扫描 ACTION_REGISTRY + CE dispatch + handler 文件，检测空转桩（MCP/MP/CE/伪桩）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.9,
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描（aislop）：50+ 规则 — 叙事注释、吞异常、死代码、as any 滥用、重复 helper、过多抽象层级",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 3,
       "layer": "capability",
       "service": "ECC",
@@ -135,7 +157,47 @@
       "on_error": "continue"
     },
     {
+      "step": 4.3,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "log-sanitization",
+      "params": {},
+      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.4,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "cors-check",
+      "params": {},
+      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 4.5,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "env-var-leak",
+      "params": {},
+      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / process.env 浏览器端泄露",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.6,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "sensitive-file-check",
+      "params": {},
+      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4.7,
       "layer": "capability",
       "service": "QualityService",
       "action": "checkGate",
@@ -143,7 +205,15 @@
         "checks": [
           "lint",
           "typecheck",
-          "security"
+          "security",
+          "dead_code",
+          "state_audit",
+          "open_redirect",
+          "log_sanitization",
+          "cors_check",
+          "env_leak",
+          "sensitive_file",
+          "aislop"
         ],
         "mode": "strict",
         "block_merge": true

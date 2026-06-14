@@ -72,7 +72,6 @@ tools/reviewdog/
 # 外部仓库（独立项目，不提交到本仓库）
 open-design/
 open-digger/
-opendigger-cli/
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml

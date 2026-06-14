@@ -261,7 +261,7 @@ archon workflow validate <file>               # Validate YAML
 | **Playwright** | Visual/E2E | `npx playwright test` |
 | **Vitest** | Unit tests | `npx vitest run` |
 | **prettier** | Code formatting | `npx prettier --write .` |
-| **opendigger-cli** | Data analysis | `npx opendigger analyze` |
+| **OpenDigger** | Data analysis | `npx opendigger analyze` |
 | **DaisyUI** | Theme system | Tailwind plugin (zero runtime) |
 | **Animate.css** | Animations | CSS import (zero runtime) |
 | **Lucide React** | Icons | React component (tree-shakeable) |
@@ -542,6 +542,6 @@ node src/index.js start new-project --auto
 
 ---
 
-**Version**: v2026.06.03  
+**Version**: v2026.06.14  
 **Maintainer**: Architecture Team  
-**Last Updated**: 2026-06-03
+**Last Updated**: 2026-06-14

@@ -17,6 +17,7 @@
     "@eslint/js": "^10.0.1",
     "@lhci/cli": "^0.15.1",
     "@redocly/cli": "^2.32.2",
+    "@socketsecurity/cli": "^1.1.102",
     "@vitest/coverage-v8": "^4.1.8",
     "artillery": "^2.0.32",
     "clearible": "^0.1.1",
@@ -24,7 +25,6 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-sonarjs": "^4.0.3",
     "eslint-plugin-unicorn": "^65.0.1",
-    "express-sec-audit": "^0.1.4",
     "knip": "^6.16.1",
     "license-checker": "^25.0.1",
     "noleak": "^0.1.2",
@@ -45,7 +45,6 @@
       "@vitest/coverage-v8",
       "@lhci/cli",
       "clearible",
-      "express-sec-audit",
       "noleak",
       "pa11y-ci",
       "recheck-cli",
@@ -55,7 +54,9 @@
       "license-checker",
       "openapi-typescript",
       "playwright",
-      "runme"
+      "runme",
+      "js-yaml",
+      "supermemory"
     ],
     "ignore": [
       "src/actions.test.js",

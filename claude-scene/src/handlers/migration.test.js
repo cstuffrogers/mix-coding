@@ -30,7 +30,7 @@ describe('handleMigrationReview', () => {
     const ctx = {};
     const result = handleMigrationReview('migration-review', {}, '/tmp', ctx);
     expect(result).toContain('无迁移文件');
-    expect(ctx.migrationReviewPassed).toBe(true);
+    expect(ctx.migrationReviewPassed).toBeUndefined();
   });
 
   it('scans migration dirs for SQL files', () => {

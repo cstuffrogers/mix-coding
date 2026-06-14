@@ -45,16 +45,6 @@
       "on_error": "abort"
     },
     {
-      "step": 2.5,
-      "layer": "capability",
-      "service": "SecuritySkill",
-      "action": "open-redirect-scan",
-      "params": {},
-      "description": "开放重定向检测：发布前检查 URL 跳转安全风险",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
       "step": 3,
       "layer": "capability",
       "service": "QualityService",
@@ -99,16 +89,6 @@
         "since": "last_release"
       },
       "description": "从Conventional Commits自动生成CHANGELOG",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
-      "step": 5.5,
-      "layer": "capability",
-      "service": "QualityTool",
-      "action": "dead-link-check",
-      "params": {},
-      "description": "死链接检测：文档质量检查，不阻断发布 — lychee",
       "auto_execute": true,
       "on_error": "continue"
     },

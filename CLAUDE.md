@@ -90,7 +90,7 @@ jvn 引入了规范的 spec → design → build 开发流程，由 5 个专业 
 - 自动记忆：无需用户调用，发现重要信息时自动保存到多后端记忆系统（详见 `.claude/rules/memory-auto-save.md`）
 - 竞品分析（OpenDigger）
 - 数据库迁移审查（SchemaForge MCP）+ 无障碍扫描（a11y MCP）
-- 外部安全工具链（18 个工具：noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / express-sec-audit / log-sanitizer / cors-checker / env-leak-scanner / postinstall-checker / socket.dev / sensitive-file-check / tech-debt-scan / lock-file-consistency / gitignore-check / deprecated-deps / Lighthouse CI / prototype-pollution）— 自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、性能门禁、原型链污染
+- 外部安全工具链（16 个工具：noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— 自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
 
 ## 工作流执行
 
@@ -114,8 +114,8 @@ jvn 引入了规范的 spec → design → build 开发流程，由 5 个专业 
 | **主题选择** | confirm | 交互式选择：DaisyUI（35+主题）/ Animal Island / Custom / Huashu 40 风格库 / Awesome Design MD 品牌（Vercel/Linear/Stripe/Notion/Apple） |
 | **品牌** | awm-brand-import | Awesome Design MD: 加载品牌 DESIGN.md 注入 CSS 变量（条件触发） |
 | **调和** | reconcileDesignTokens | 检测已有设计 Token → 与主题对比 → 已有值优先，新值填补空缺，避免覆盖 design 工作流产出 |
-| **应用** | applyDaisyUI → applyComponents → addAnimations | 整合主题到 tailwind.config.js → 替换组件 → 添加动画和图标 |
-| **审查** | web-design-verify → impeccable-critique → huashu-expert-review → ai-friendly-review | 四层审查：技术交付检查 → AI 塑料感打磨（27 反模式规则） → Huashu 5 维度评审 → 可访问性审查 |
+| **应用** | applyDaisyUI → applyComponents → iconUpgrade → addAnimations → microInteractions | 整合主题 → 替换组件（Animal Island） → 图标升级（Material Symbols→lucide-react，所有主题） → 注入 animate.css 动画类 → 添加 hover/active 微交互 |
+| **审查** | web-design-verify → impeccable-critique → huashu-expert-review → ai-friendly-review | 四层审查：技术交付检查 → AI 塑料感打磨（真实扫描+自动修复） → Huashu 5 维度评审 → 可访问性审查 |
 | **测试** | runSuite → visualRegression | 功能测试 + Playwright 视觉回归（Desktop/Tablet/Mobile） |
 | **契约** | checkAPIConsistency | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） |
 | **沉淀** | ce-compound → remember → consolidate | 知识沉淀 → 保存配置 → 整理记忆 |
@@ -162,7 +162,7 @@ jvn 引入了规范的 spec → design → build 开发流程，由 5 个专业 
 | `/rollback` | `> /rollback` | 14步 | 紧急回滚流程：识别目标版本 → 验证回滚安全性 → 执行回滚 → 验证服务恢复 |
 | `/sbom` | `> /sbom` | 8步 | 生成软件物料清单 (SBOM) 和许可证合规报告，检测限制性许可证（GPL/AGPL/SSPL 等） |
 | `/simplify` | `> /simplify` | 13步 | 简化代码以提高可读性和可维护性，不改变行为（集成CE知识沉淀） |
-| `/ui-polish` | `> /ui-polish <主题> <路径>` | 23步 | 使用 DaisyUI/Animate.css/Lucide/Playwright 美化前端界面（集成CE知识沉淀） |
+| `/ui-polish` | `> /ui-polish <主题> <路径>` | 25步 | 使用 DaisyUI/Animate.css/Lucide/Playwright 美化前端界面（含图标升级+微交互+Impeccable打磨） |
 <!-- AUTO-SYNC:WORKFLOW-TABLE-END -->
 
 > 详细工作流配置见 `.claude/scenes/*.json` 和 `.claude/workflow-config.md`
@@ -274,26 +274,29 @@ jvn 引入了规范的 spec → design → build 开发流程，由 5 个专业 
 | **lychee** | Rust 二进制 | `/audit` (step 8.5) | 死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 | ✅ |
 | **pa11y-ci** | npm CLI | `/audit` (step 3.2), `/review` (a11y 增强层) | WCAG 2.1 AA 无障碍扫描 — HTML 文件时运行 pa11y-ci，JSX/TSX 回退到代码级 grep 检查 | ✅ |
 | **recheck-cli** | npm CLI | `/hunt` (step 4.7), `/audit` (step 3.6) | 正则 ReDoS 灾难性回溯扫描 | ✅ |
-| **express-sec-audit** | npm CLI | `/hunt` (step 4.3), `/audit` (step 3.4) | Express 应用 AST 级安全扫描（与 seraphim-audit 互补） | ✅ |
-| **log-sanitizer** | 内置 grep | `/hunt` (step 4.8), `/audit` (step 3.7) | 日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测 | ✅ |
-| **cors-checker** | 内置 grep | `/hunt` (step 4.9), `/audit` (step 3.8) | CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置 | ✅ |
-| **env-leak-scanner** | 内置 grep | `/hunt` (step 4.9+), `/audit` (step 3.9) | 前端环境变量泄露：Vite import.meta.env 非 VITE_ 前缀 + process.env 浏览器端泄露 | ✅ |
-| **prototype-pollution** | ESLint 规则 | `/audit` (step 1, 2), `/hunt` (step 3) | no-prototype-builtins 原型链污染检测（已内置于 eslint.config.js） | ✅ |
-| **postinstall-checker** | 内置扫描 | `/hunt` (step 4.10), `/audit` (step 3.10) | 恶意 install 脚本检测：node_modules 中 postinstall/preinstall 含 curl/wget/eval/base64/反弹 shell/子进程 | ✅ |
-| **socket.dev** | npx CLI | `/hunt` (step 4.11), `/audit` (step 3.11) | 供应链安全扫描：拼写欺诈/抗议软件/遥测包/未声明二进制检测（需 `SOCKET_API_KEY` 环境变量） | ✅ |
-| **sensitive-file-check** | 内置 git | `/hunt` (step 4.12), `/audit` (step 3.12) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态 | ✅ |
-| **tech-debt-scan** | 内置 grep | `/hunt` (step 4.13), `/audit` (step 3.13) | 技术债务标记扫描：HACK/FIXME/BUG/XXX/WORKAROUND/TODO 分类与严重度分级 | ✅ |
-| **lock-file-consistency** | 内置检查 | `/audit` (step 3.14) | 包管理器一致性：多 lock 文件检测（package-lock.json + yarn.lock 等共存） | ✅ |
-| **gitignore-check** | 内置检查 | `/audit` (step 3.15) | .gitignore 最佳实践检查：8 项必要规则（node_modules/ .env *.log 等） | ✅ |
-| **deprecated-deps** | npm CLI | `/hunt` (step 4.14), `/audit` (step 3.16) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | ✅ |
+
+| **log-sanitizer** | 内置 grep | `/hunt` (step 4.8), `/audit` (step 3.7), `/review` (step 4.3) | 日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测 | ✅ |
+| **cors-checker** | 内置 grep | `/hunt` (step 4.9), `/audit` (step 3.8), `/review` (step 4.4) | CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置 | ✅ |
+| **env-leak-scanner** | 内置 grep | `/hunt` (step 4.10), `/audit` (step 3.9), `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env 非 VITE_ 前缀 + process.env 浏览器端泄露 | ✅ |
+| **prototype-pollution** | ESLint 规则 | `/audit` (step 1, 2), `/hunt` (step 3), `/review` (step 2 lint) | no-prototype-builtins 原型链污染检测（已内置于 eslint.config.js） | ✅ |
+| **sensitive-file-check** | 内置 git | `/hunt` (step 4.12), `/audit` (step 3.12), `/review` (step 4.6) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态 | ✅ |
+| **deprecated-deps** | npm CLI | `/audit` (step 3.16) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | ✅ |
+| **knip** | npx CLI | `/audit` (step 3.17 verifier Pass 7), `/review` (step 2.8 verifier Pass 7) | AST 级死代码/依赖检测：未使用文件/未使用导出/未解析导入/未声明依赖/未使用依赖（11k+ stars） | ✅ |
+| **skillspector** | Python CLI | `/hunt` (step 4.15), `/audit` (step 3.18) | AI 技能安全扫描：扫描 `.claude/skills/` `.claude/commands/` 中的提示注入、数据外泄、权限提升、供应链攻击、恶意代理等 64 种漏洞模式（NVIDIA, 2.5k+ stars） | ✅ |
+| **aislop** | npx CLI | `/review` (step 2.9), `/audit` (step 3.19) | AI 代码气味扫描：50+ 规则检测叙事注释、吞异常、死代码、as any 滥用、重复 helper、过多抽象（子秒级确定性） | ✅ |
+| **dependency-cruiser** | npx CLI | `/audit` (step 3.20) | 依赖架构验证：循环依赖检测、孤儿模块识别、架构分层合规、调用图生成（6.7k+ stars） | ✅ |
+| **Lighthouse CI** | npm CLI | `/release` (step 8.6), `/audit` (step 8.8) | 性能门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查，BLOCK-RELEASE 级别阻断 | ✅ |
 
 ### 工具安装
 
 ```bash
 # 核心工具（Phase 1）
-npm install -D noleak pa11y-ci recheck-cli    # npm 工具
+npm install -D noleak pa11y-ci recheck-cli knip    # npm 工具
 pip install git+https://github.com/seraphimhub/seraphim-audit.git  # seraphim-audit (Python 零依赖)
+pip install git+https://github.com/NVIDIA/skillspector.git       # skillspector (AI 技能安全扫描)
 # lychee: 下载 Windows 二进制 → https://github.com/lycheeverse/lychee/releases
+# aislop: npx aislop (零安装) → https://github.com/scanaislop/aislop
+# dependency-cruiser: npx dependency-cruiser (零安装) → https://github.com/sverweij/dependency-cruiser
 ```
 
 ### 与现有工具的无冲突设计

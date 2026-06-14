@@ -42,6 +42,17 @@ else:
     → Scene 引擎: node src/index.js start <场景ID> --auto [参数]
 ```
 
+**对话模式优先**：以下命令依赖 Claude Code skill/MCP 工具，CLI 子进程无法调用，必须在对话内直接执行：
+
+| 命令 | 依赖工具 | 对话模式执行 |
+|------|---------|-------------|
+| `/design` | web-design-engineer skill (Open Design, 129 品牌系统) | 按 `.claude/commands/design.md` 对话内调用 Skill tool |
+| `/ui-polish` | web-design-engineer + impeccable + ai-friendly-web-design skills | 按 `.claude/commands/ui-polish.md` 对话内 Pre-flight Skill → CLI 机械步骤 → 后置 Skill 审查 |
+| `/new-project` | web-design-engineer skill (前端项目时) | 按 `.claude/commands/new-project.md` 对话内调用 Skill + CLI 执行 |
+| `/review` | review skill (五层审查) | 按 `.claude/commands/review.md` 对话内执行 |
+
+> 这些命令在 Claude Code 会话内执行时，**不路由到 CLI**，Claude 直接读 command 文件在对话内完成。只在非交互模式（--auto / CI）且需要跑非 skill 步骤时才走 CLI。
+
 > **测试验证（2026-06-04）**：从 Claude Code 内通过 `/review` 触发 Archon，
 > 首个节点正常运行（91s），但并行节点僵死 — 确认 [#1067](https://github.com/coleam00/Archon/issues/1067) 问题。
 > Archon 模式必须从独立终端触发。

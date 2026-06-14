@@ -156,9 +156,9 @@
       "required_env_vars": ["SENTRY_AUTH_TOKEN"]
     },
     "opendigger": {
-      "type": "opendigger-cli",
-      "install_command": "npm install -g opendigger-cli",
-      "config_file": ".claude/opendigger.json"
+      "type": "cli",
+      "install_command": "npm install -g open-digger",
+      "config_file": null
     },
     "codegraph": {
       "type": "codegraph",

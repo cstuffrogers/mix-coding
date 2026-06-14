@@ -119,7 +119,7 @@
       "service": "SecuritySkill",
       "action": "open-redirect-scan",
       "params": {},
-      "description": "开放重定向检测：location.href/window.open 参数注入 + express-sec-audit AST 扫描",
+      "description": "开放重定向检测：location.href/window.open 参数注入",
       "auto_execute": true,
       "on_error": "continue"
     },
@@ -174,26 +174,6 @@
       "on_error": "continue"
     },
     {
-      "step": 3.10,
-      "layer": "capability",
-      "service": "SecuritySkill",
-      "action": "postinstall-check",
-      "params": {},
-      "description": "恶意 install 脚本检测：node_modules 中 postinstall/preinstall 含 curl/wget/eval/base64/反弹 shell",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
-      "step": 3.11,
-      "layer": "capability",
-      "service": "SecuritySkill",
-      "action": "socket-scan",
-      "params": {},
-      "description": "Socket.dev 供应链安全扫描：拼写欺诈/抗议软件/遥测包检测（需 SOCKET_API_KEY 环境变量）",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
       "step": 3.12,
       "layer": "capability",
       "service": "SecuritySkill",
@@ -204,42 +184,57 @@
       "on_error": "continue"
     },
     {
-      "step": 3.13,
-      "layer": "capability",
-      "service": "QualitySkill",
-      "action": "tech-debt-scan",
-      "params": {},
-      "description": "技术债务标记扫描：HACK/FIXME/BUG/XXX/WORKAROUND/TODO 分类统计与严重度分级",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
-      "step": 3.14,
-      "layer": "capability",
-      "service": "QualitySkill",
-      "action": "lock-file-consistency",
-      "params": {},
-      "description": "包管理器一致性检查：多锁文件共存检测（package-lock/yarn.lock/pnpm-lock/bun.lockb）",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
-      "step": 3.15,
-      "layer": "capability",
-      "service": "QualitySkill",
-      "action": "gitignore-check",
-      "params": {},
-      "description": ".gitignore 最佳实践：node_modules/dist/.env/*.log/coverage/.DS_Store/Thumbs.db/build 缺失检查",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
       "step": 3.16,
       "layer": "capability",
       "service": "DepsService",
       "action": "deprecated-deps",
       "params": {},
       "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.17,
+      "layer": "capability",
+      "service": "MetaCheckService",
+      "action": "verify-handlers",
+      "params": {},
+      "description": "Handler 功能性验证：扫描 ACTION_REGISTRY + CE dispatch + handler 文件，检测空转桩（MCP/MP/CE/伪桩）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.18,
+      "layer": "capability",
+      "service": "SkillSecurityService",
+      "action": "skillspector-scan",
+      "params": {
+        "targets": [".claude/skills/", ".claude/commands/"],
+        "format": "json"
+      },
+      "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.19,
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描（aislop）：50+ 规则 — 叙事注释、吞异常、死代码、as any 滥用、重复 helper、过多抽象层级",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": "3.20",
+      "layer": "capability",
+      "service": "ArchitectureService",
+      "action": "depcruise-architecture",
+      "params": {},
+      "description": "依赖架构验证（dependency-cruiser）：循环依赖检测、孤儿模块识别、架构分层合规、调用图生成",
       "auto_execute": true,
       "on_error": "continue"
     },
@@ -318,18 +313,6 @@
       "on_error": "continue"
     },
     {
-      "step": 7,
-      "layer": "capability",
-      "service": "CodeAnalyzer",
-      "action": "knipCheck",
-      "params": {
-        "mode": "dead_code"
-      },
-      "description": "死代码检测：未使用文件、未引用导出、多余依赖",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
       "step": 8,
       "layer": "capability",
       "service": "CodeAnalyzer",
@@ -402,13 +385,11 @@
           "log_sanitization",
           "cors_check",
           "env_var_leak",
-          "postinstall",
-          "socket_scan",
           "sensitive_file",
-          "tech_debt",
-          "lock_file",
-          "gitignore_check",
-          "deprecated_deps"
+          "deprecated_deps",
+          "skillspector",
+          "aislop",
+          "depcruise"
         ],
         "mode": "report_only"
       },
@@ -445,13 +426,11 @@
           "log_sanitization",
           "cors_check",
           "env_var_leak",
-          "postinstall",
-          "socket_scan",
           "sensitive_file",
-          "tech_debt",
-          "lock_file",
-          "gitignore_check",
-          "deprecated_deps"
+          "deprecated_deps",
+          "skillspector",
+          "aislop",
+          "depcruise"
         ]
       },
       "description": "生成全面审计报告：包含各项得分、风险等级、改进建议",
@@ -469,6 +448,20 @@
       "description": "Huashu infographic: 将审计指标渲染为单页 HTML 信息图（editorial-brutalism）",
       "auto_execute": true,
       "condition": "enh_huashu_infographic",
+      "on_error": "continue"
+    },
+    {
+      "step": 10.7,
+      "layer": "capability",
+      "service": "CodeAnalyzer",
+      "action": "detectAntiPatterns",
+      "params": {
+        "mode": "deep",
+        "include": ["god_module", "fat_handler", "circular_deps", "layer_violation"]
+      },
+      "description": "架构深度审计：God Module检测 + 分层合规 + 依赖分析 + 复杂度热点图",
+      "auto_execute": true,
+      "condition": "enh_architecture_deep_audit",
       "on_error": "continue"
     },
     {

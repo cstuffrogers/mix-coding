@@ -53,8 +53,6 @@ const SIMPLE_CONDITIONS = {
   user_mentioned_competitor_or_domain: (ctx) =>
     /竞品|对比|领域|市场|同类|竞争对手|分析/i.test(ctx.prompt || ''),
 
-  manual_intervention_required: () => false,
-
   'migrationHighCount > 0': (ctx) => (ctx.migrationHighCount || 0) > 0,
 
   'fix_failed_count >= 3': (ctx) => ctx.fixFailedCount >= 3,
@@ -68,25 +66,18 @@ const SIMPLE_CONDITIONS = {
   high_severity_found: (ctx) =>
     ctx.securityScanResult?.highSeverityFound || false,
 
+  // CE Plugin — check for actual installation file
   plugin_ce_available: () => {
-    return existsSync(join(PROJECT_ROOT, '.claude', 'plugins', 'compound-engineering.json'));
+    const ceConfig = join(PROJECT_ROOT, '.claude', 'plugins', 'compound-engineering.json');
+    return existsSync(ceConfig);
   },
 
-  anthropic_skill_available: () => {
-    return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'sec-bug-hunt'));
-  },
-
-  mattpocock_skill_available: () => {
-    return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'mattpocock', 'skills'));
-  },
-
-  web_design_engineer_available: () => {
-    return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'web-design-engineer', 'SKILL.md'));
-  },
-
-  ai_friendly_web_design_available: () => {
-    return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'ai-friendly-web-design', 'SKILL.md'));
-  },
+  // Claude Code skills — not callable from CLI subprocess.
+  // Detect CLAUDECODE env var: when running inside a Claude Code session,
+  // the Skill tool IS available. When running in a standalone CLI, it's not.
+  mattpocock_skill_available: () => process.env.CLAUDECODE === '1',
+  web_design_engineer_available: () => process.env.CLAUDECODE === '1',
+  ai_friendly_web_design_available: () => process.env.CLAUDECODE === '1',
 
   impeccable_available: () => {
     const homeSkill = join(process.env.HOME || process.env.USERPROFILE || '', '.claude', 'skills', 'impeccable', 'SKILL.md');
@@ -98,15 +89,20 @@ const SIMPLE_CONDITIONS = {
     return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'awesome-design-md', 'SKILL.md'));
   },
 
-  github_mcp_available: () => mcpAvailable('github'),
-  sentry_mcp_available: () => mcpAvailable('sentry'),
-  tavily_mcp_available: () => mcpAvailable('tavily'),
-  context7_mcp_available: () => mcpAvailable('context7'),
-  codegraph_mcp_available: () => mcpAvailable('codegraph'),
-  supabase_mcp_available: () => mcpAvailable('supabase'),
-  stripe_mcp_available: () => mcpAvailable('stripe'),
-  resend_mcp_available: () => mcpAvailable('resend'),
-  memory_mcp_available: () => mcpAvailable('memory'),
+  // MCP tools require Claude Code conversation-level tool calling.
+  // When running inside a Claude Code session (CLAUDECODE=1), MCP tools ARE
+  // available at the conversation level. When running in a standalone CLI, they're not.
+  // In conversation mode, Claude handles MCP steps directly (reads command file and
+  // calls MCP tools). In CLI mode, these steps are skipped to avoid stub 空转.
+  github_mcp_available: () => process.env.CLAUDECODE === '1',
+  sentry_mcp_available: () => process.env.CLAUDECODE === '1',
+  tavily_mcp_available: () => process.env.CLAUDECODE === '1',
+  context7_mcp_available: () => process.env.CLAUDECODE === '1',
+  codegraph_mcp_available: () => process.env.CLAUDECODE === '1',
+  supabase_mcp_available: () => process.env.CLAUDECODE === '1',
+  stripe_mcp_available: () => process.env.CLAUDECODE === '1',
+  resend_mcp_available: () => process.env.CLAUDECODE === '1',
+  memory_mcp_available: () => process.env.CLAUDECODE === '1',
 
   // Mobile platform guards
   mobile_platform: (ctx) => ctx.platform === 'android' || ctx.platform === 'ios' || ctx.platform === 'both',
@@ -114,15 +110,15 @@ const SIMPLE_CONDITIONS = {
   android_platform: (ctx) => ctx.platform === 'android' || ctx.platform === 'both',
 
   // Mobile tool availability
-  mobsf_mcp_available: () => mcpAvailable('mobsf'),
+  mobsf_mcp_available: () => process.env.CLAUDECODE === '1',
   mobsfscan_available: () => {
     try {
       // eslint-disable-next-line sonarjs/no-os-command-from-path -- tool detection, not user-controlled
-      execSync('mobsfscan --version 2>&1', { stdio: 'pipe', timeout: 5000 });
+      execSync('pip show mobsfscan 2>&1', { stdio: 'pipe', timeout: 5000 });
       return true;
     } catch { return false; }
   },
-  bearer_mcp_available: () => mcpAvailable('bearer'),
+  bearer_mcp_available: () => process.env.CLAUDECODE === '1',
   dependencycheck_available: () => {
     try {
       // eslint-disable-next-line sonarjs/no-os-command-from-path -- tool detection, not user-controlled
@@ -140,9 +136,9 @@ const SIMPLE_CONDITIONS = {
       return true;
     } catch { return false; }
   },
-  shorebird_available: () => mcpAvailable('shorebird'),
-  maestro_mcp_available: () => mcpAvailable('maestro'),
-  detox_mcp_available: () => mcpAvailable('detox'),
+  shorebird_available: () => process.env.CLAUDECODE === '1',
+  maestro_mcp_available: () => process.env.CLAUDECODE === '1',
+  detox_mcp_available: () => process.env.CLAUDECODE === '1',
 };
 
 // eslint-disable-next-line sonarjs/cognitive-complexity

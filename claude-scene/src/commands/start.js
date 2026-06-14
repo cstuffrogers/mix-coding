@@ -7,7 +7,7 @@ import ora from 'ora';
 import { evaluateCondition } from '../lib/conditions.js';
 import { resolveParams } from '../lib/template.js';
 import { executeAction } from '../actions.js';
-import { executeUIPolish } from '../ui-polish.js';
+import { executeUIPolish } from '../handlers/ui-polish.js';
 import { applyEnhancements } from '../lib/enhancements.js';
 import { SCENES_DIR, PROJECT_ROOT } from '../lib/paths.js';
 

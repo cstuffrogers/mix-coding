@@ -1,0 +1,2125 @@
+Express Security Audit Report
+Generated at: 2026-06-14T01:16:03.314Z
+
+1. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:350:26
+   Rule: secret-detector (static)
+
+2. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:351:32
+   Rule: secret-detector (static)
+
+3. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:352:22
+   Rule: secret-detector (static)
+
+4. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:353:32
+   Rule: secret-detector (static)
+
+5. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:354:25
+   Rule: secret-detector (static)
+
+6. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:355:30
+   Rule: secret-detector (static)
+
+7. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:356:32
+   Rule: secret-detector (static)
+
+8. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:357:34
+   Rule: secret-detector (static)
+
+9. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:360:24
+   Rule: secret-detector (static)
+
+10. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:361:27
+   Rule: secret-detector (static)
+
+11. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:362:26
+   Rule: secret-detector (static)
+
+12. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:363:29
+   Rule: secret-detector (static)
+
+13. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:364:25
+   Rule: secret-detector (static)
+
+14. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:365:29
+   Rule: secret-detector (static)
+
+15. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:366:21
+   Rule: secret-detector (static)
+
+16. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:367:24
+   Rule: secret-detector (static)
+
+17. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:368:25
+   Rule: secret-detector (static)
+
+18. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:369:28
+   Rule: secret-detector (static)
+
+19. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:370:23
+   Rule: secret-detector (static)
+
+20. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:371:27
+   Rule: secret-detector (static)
+
+21. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:372:26
+   Rule: secret-detector (static)
+
+22. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:373:30
+   Rule: secret-detector (static)
+
+23. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:374:31
+   Rule: secret-detector (static)
+
+24. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:375:35
+   Rule: secret-detector (static)
+
+25. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:376:27
+   Rule: secret-detector (static)
+
+26. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:377:30
+   Rule: secret-detector (static)
+
+27. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:378:45
+   Rule: secret-detector (static)
+
+28. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/actions.js:379:50
+   Rule: secret-detector (static)
+
+29. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/index.js:16:28
+   Rule: secret-detector (static)
+
+30. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/index.js:18:28
+   Rule: secret-detector (static)
+
+31. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/index.js:20:28
+   Rule: secret-detector (static)
+
+32. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/index.js:28:26
+   Rule: secret-detector (static)
+
+33. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/index.js:43:26
+   Rule: secret-detector (static)
+
+34. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/index.js:80:31
+   Rule: secret-detector (static)
+
+35. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/index.js:113:15
+   Rule: secret-detector (static)
+
+36. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/commands/list.js:15:46
+   Rule: secret-detector (static)
+
+37. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/commands/start.js:34:16
+   Rule: secret-detector (static)
+
+38. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/commands/start.js:69:37
+   Rule: secret-detector (static)
+
+39. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/commands/start.js:220:17
+   Rule: secret-detector (static)
+
+40. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:13:24
+   Rule: secret-detector (static)
+
+41. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:23:20
+   Rule: secret-detector (static)
+
+42. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:27:19
+   Rule: secret-detector (static)
+
+43. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:32:23
+   Rule: secret-detector (static)
+
+44. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:33:27
+   Rule: secret-detector (static)
+
+45. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:39:14
+   Rule: secret-detector (static)
+
+46. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:44:17
+   Rule: secret-detector (static)
+
+47. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:45:19
+   Rule: secret-detector (static)
+
+48. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:47:19
+   Rule: secret-detector (static)
+
+49. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:49:29
+   Rule: secret-detector (static)
+
+50. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:52:20
+   Rule: secret-detector (static)
+
+51. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:54:20
+   Rule: secret-detector (static)
+
+52. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:61:23
+   Rule: secret-detector (static)
+
+53. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:70:21
+   Rule: secret-detector (static)
+
+54. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:76:22
+   Rule: secret-detector (static)
+
+55. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:79:13
+   Rule: secret-detector (static)
+
+56. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:80:18
+   Rule: secret-detector (static)
+
+57. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:83:20
+   Rule: secret-detector (static)
+
+58. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:85:34
+   Rule: secret-detector (static)
+
+59. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:86:23
+   Rule: secret-detector (static)
+
+60. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:109:22
+   Rule: secret-detector (static)
+
+61. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:117:16
+   Rule: secret-detector (static)
+
+62. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:124:12
+   Rule: secret-detector (static)
+
+63. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:127:9
+   Rule: secret-detector (static)
+
+64. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:136:13
+   Rule: secret-detector (static)
+
+65. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:137:14
+   Rule: secret-detector (static)
+
+66. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:138:17
+   Rule: secret-detector (static)
+
+67. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:139:10
+   Rule: secret-detector (static)
+
+68. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:142:15
+   Rule: secret-detector (static)
+
+69. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:150:12
+   Rule: secret-detector (static)
+
+70. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:155:17
+   Rule: secret-detector (static)
+
+71. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:156:14
+   Rule: secret-detector (static)
+
+72. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:157:24
+   Rule: secret-detector (static)
+
+73. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:160:21
+   Rule: secret-detector (static)
+
+74. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:162:19
+   Rule: secret-detector (static)
+
+75. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:169:12
+   Rule: secret-detector (static)
+
+76. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:173:22
+   Rule: secret-detector (static)
+
+77. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:176:18
+   Rule: secret-detector (static)
+
+78. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:179:18
+   Rule: secret-detector (static)
+
+79. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:180:36
+   Rule: secret-detector (static)
+
+80. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:183:17
+   Rule: secret-detector (static)
+
+81. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:184:17
+   Rule: secret-detector (static)
+
+82. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:185:15
+   Rule: secret-detector (static)
+
+83. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:186:18
+   Rule: secret-detector (static)
+
+84. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:187:38
+   Rule: secret-detector (static)
+
+85. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:188:23
+   Rule: secret-detector (static)
+
+86. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:191:31
+   Rule: secret-detector (static)
+
+87. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:192:25
+   Rule: secret-detector (static)
+
+88. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:193:27
+   Rule: secret-detector (static)
+
+89. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:194:23
+   Rule: secret-detector (static)
+
+90. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:197:24
+   Rule: secret-detector (static)
+
+91. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:198:21
+   Rule: secret-detector (static)
+
+92. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:201:20
+   Rule: secret-detector (static)
+
+93. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:202:22
+   Rule: secret-detector (static)
+
+94. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:203:21
+   Rule: secret-detector (static)
+
+95. [HIGH] High-entropy string literal assigned to "reconcileDesignTokens" may contain a hardcoded secret.
+   File: src/data/action-messages.js:206:25
+   Rule: secret-detector (static)
+
+96. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:209:25
+   Rule: secret-detector (static)
+
+97. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:212:16
+   Rule: secret-detector (static)
+
+98. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:213:19
+   Rule: secret-detector (static)
+
+99. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:214:14
+   Rule: secret-detector (static)
+
+100. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:215:16
+   Rule: secret-detector (static)
+
+101. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:218:11
+   Rule: secret-detector (static)
+
+102. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:219:14
+   Rule: secret-detector (static)
+
+103. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:220:8
+   Rule: secret-detector (static)
+
+104. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:223:15
+   Rule: secret-detector (static)
+
+105. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:224:18
+   Rule: secret-detector (static)
+
+106. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:225:10
+   Rule: secret-detector (static)
+
+107. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:228:19
+   Rule: secret-detector (static)
+
+108. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:229:22
+   Rule: secret-detector (static)
+
+109. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:230:12
+   Rule: secret-detector (static)
+
+110. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:233:12
+   Rule: secret-detector (static)
+
+111. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:234:15
+   Rule: secret-detector (static)
+
+112. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:235:7
+   Rule: secret-detector (static)
+
+113. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:238:15
+   Rule: secret-detector (static)
+
+114. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:239:18
+   Rule: secret-detector (static)
+
+115. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:240:10
+   Rule: secret-detector (static)
+
+116. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:243:16
+   Rule: secret-detector (static)
+
+117. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:244:19
+   Rule: secret-detector (static)
+
+118. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:245:24
+   Rule: secret-detector (static)
+
+119. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:246:16
+   Rule: secret-detector (static)
+
+120. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:249:8
+   Rule: secret-detector (static)
+
+121. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:250:19
+   Rule: secret-detector (static)
+
+122. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:251:19
+   Rule: secret-detector (static)
+
+123. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:254:16
+   Rule: secret-detector (static)
+
+124. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:255:19
+   Rule: secret-detector (static)
+
+125. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:256:7
+   Rule: secret-detector (static)
+
+126. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:257:11
+   Rule: secret-detector (static)
+
+127. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:281:16
+   Rule: secret-detector (static)
+
+128. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:282:20
+   Rule: secret-detector (static)
+
+129. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:285:18
+   Rule: secret-detector (static)
+
+130. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:288:27
+   Rule: secret-detector (static)
+
+131. [CRITICAL] Hardcoded AWS Secret Access Key detected. Move to environment variables or a secret manager.
+   File: src/data/action-messages.js:289:26
+   Rule: secret-detector (static)
+
+132. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:291:22
+   Rule: secret-detector (static)
+
+133. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:292:30
+   Rule: secret-detector (static)
+
+134. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:293:25
+   Rule: secret-detector (static)
+
+135. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:337:14
+   Rule: secret-detector (static)
+
+136. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:339:20
+   Rule: secret-detector (static)
+
+137. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:341:23
+   Rule: secret-detector (static)
+
+138. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:343:19
+   Rule: secret-detector (static)
+
+139. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:344:26
+   Rule: secret-detector (static)
+
+140. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:345:21
+   Rule: secret-detector (static)
+
+141. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:348:18
+   Rule: secret-detector (static)
+
+142. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:349:17
+   Rule: secret-detector (static)
+
+143. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:351:14
+   Rule: secret-detector (static)
+
+144. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:352:13
+   Rule: secret-detector (static)
+
+145. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:357:19
+   Rule: secret-detector (static)
+
+146. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:359:33
+   Rule: secret-detector (static)
+
+147. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:362:17
+   Rule: secret-detector (static)
+
+148. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:363:14
+   Rule: secret-detector (static)
+
+149. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:365:12
+   Rule: secret-detector (static)
+
+150. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:366:14
+   Rule: secret-detector (static)
+
+151. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:367:20
+   Rule: secret-detector (static)
+
+152. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:369:16
+   Rule: secret-detector (static)
+
+153. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:370:19
+   Rule: secret-detector (static)
+
+154. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:371:24
+   Rule: secret-detector (static)
+
+155. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:372:17
+   Rule: secret-detector (static)
+
+156. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:373:19
+   Rule: secret-detector (static)
+
+157. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:374:17
+   Rule: secret-detector (static)
+
+158. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:375:17
+   Rule: secret-detector (static)
+
+159. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:376:18
+   Rule: secret-detector (static)
+
+160. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:377:28
+   Rule: secret-detector (static)
+
+161. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:382:19
+   Rule: secret-detector (static)
+
+162. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:385:12
+   Rule: secret-detector (static)
+
+163. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:388:17
+   Rule: secret-detector (static)
+
+164. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:389:21
+   Rule: secret-detector (static)
+
+165. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:390:27
+   Rule: secret-detector (static)
+
+166. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:391:21
+   Rule: secret-detector (static)
+
+167. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:392:14
+   Rule: secret-detector (static)
+
+168. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:393:18
+   Rule: secret-detector (static)
+
+169. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:396:18
+   Rule: secret-detector (static)
+
+170. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:397:15
+   Rule: secret-detector (static)
+
+171. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:398:20
+   Rule: secret-detector (static)
+
+172. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:401:17
+   Rule: secret-detector (static)
+
+173. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:402:16
+   Rule: secret-detector (static)
+
+174. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:403:19
+   Rule: secret-detector (static)
+
+175. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:404:12
+   Rule: secret-detector (static)
+
+176. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:406:15
+   Rule: secret-detector (static)
+
+177. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:409:10
+   Rule: secret-detector (static)
+
+178. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:410:15
+   Rule: secret-detector (static)
+
+179. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:413:14
+   Rule: secret-detector (static)
+
+180. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:414:18
+   Rule: secret-detector (static)
+
+181. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/data/action-messages.js:415:22
+   Rule: secret-detector (static)
+
+182. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/code-analysis-utils.js:17:17
+   Rule: file-upload-magic-bytes (static)
+
+183. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/code-analysis-utils.js:91:22
+   Rule: file-upload-magic-bytes (static)
+
+184. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/conditions.js:164:19
+   Rule: file-upload-magic-bytes (static)
+
+185. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/conditions.js:174:19
+   Rule: file-upload-magic-bytes (static)
+
+186. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/conditions.test.js:33:11
+   Rule: secret-detector (static)
+
+187. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:62:13
+   Rule: secret-detector (static)
+
+188. [CRITICAL] Hardcoded AWS Secret Access Key detected. Move to environment variables or a secret manager.
+   File: src/lib/enhancements.js:68:13
+   Rule: secret-detector (static)
+
+189. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:74:13
+   Rule: secret-detector (static)
+
+190. [CRITICAL] Hardcoded AWS Secret Access Key detected. Move to environment variables or a secret manager.
+   File: src/lib/enhancements.js:82:13
+   Rule: secret-detector (static)
+
+191. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:88:13
+   Rule: secret-detector (static)
+
+192. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:96:13
+   Rule: secret-detector (static)
+
+193. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:110:13
+   Rule: secret-detector (static)
+
+194. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:118:13
+   Rule: secret-detector (static)
+
+195. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:126:13
+   Rule: secret-detector (static)
+
+196. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:140:13
+   Rule: secret-detector (static)
+
+197. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:148:13
+   Rule: secret-detector (static)
+
+198. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/enhancements.js:185:25
+   Rule: secret-detector (static)
+
+199. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/sync-docs.js:72:20
+   Rule: file-upload-magic-bytes (static)
+
+200. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/sync-docs.js:155:23
+   Rule: file-upload-magic-bytes (static)
+
+201. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api-consistency.js:10:25
+   Rule: secret-detector (static)
+
+202. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api-consistency.js:15:11
+   Rule: secret-detector (static)
+
+203. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api-consistency.js:34:21
+   Rule: secret-detector (static)
+
+204. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api-consistency.js:57:23
+   Rule: secret-detector (static)
+
+205. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api-consistency.js:69:21
+   Rule: secret-detector (static)
+
+206. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/backup.js:179:6
+   Rule: secret-detector (static)
+
+207. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/backup.test.js:81:61
+   Rule: secret-detector (static)
+
+208. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/changelog.js:116:24
+   Rule: secret-detector (static)
+
+209. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/changelog.test.js:36:25
+   Rule: secret-detector (static)
+
+210. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/changelog.test.js:75:5
+   Rule: secret-detector (static)
+
+211. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/changelog.test.js:77:37
+   Rule: secret-detector (static)
+
+212. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/cicd.js:75:29
+   Rule: secret-detector (static)
+
+213. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/cicd.js:144:6
+   Rule: secret-detector (static)
+
+214. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/code-metrics.js:16:26
+   Rule: file-upload-magic-bytes (static)
+
+215. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/code-metrics.js:17:24
+   Rule: file-upload-magic-bytes (static)
+
+216. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/code-metrics.js:37:26
+   Rule: file-upload-magic-bytes (static)
+
+217. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/code-metrics.js:63:23
+   Rule: file-upload-magic-bytes (static)
+
+218. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/code-metrics.js:131:24
+   Rule: file-upload-magic-bytes (static)
+
+219. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/code-metrics.js:132:25
+   Rule: file-upload-magic-bytes (static)
+
+220. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/deps.js:23:11
+   Rule: secret-detector (static)
+
+221. [MEDIUM] File extension-based filtering detected (originalname.split(".")). Extensions can be spoofed. Enforce magic-byte validation instead.
+   File: src/handlers/deps.js:52:24
+   Rule: file-upload-magic-bytes (static)
+
+222. [MEDIUM] File extension-based filtering detected (originalname.split(".")). Extensions can be spoofed. Enforce magic-byte validation instead.
+   File: src/handlers/deps.js:53:23
+   Rule: file-upload-magic-bytes (static)
+
+223. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/design.js:30:9
+   Rule: secret-detector (static)
+
+224. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/design.js:112:24
+   Rule: secret-detector (static)
+
+225. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/design.js:153:24
+   Rule: secret-detector (static)
+
+226. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/design.js:181:24
+   Rule: secret-detector (static)
+
+227. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/design.js:203:24
+   Rule: secret-detector (static)
+
+228. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/design.js:248:29
+   Rule: secret-detector (static)
+
+229. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/design.js:134:26
+   Rule: file-upload-magic-bytes (static)
+
+230. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/design.js:135:26
+   Rule: file-upload-magic-bytes (static)
+
+231. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/design.js:210:19
+   Rule: file-upload-magic-bytes (static)
+
+232. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/docker.js:32:23
+   Rule: secret-detector (static)
+
+233. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/docker.js:38:11
+   Rule: secret-detector (static)
+
+234. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/docker.js:52:11
+   Rule: secret-detector (static)
+
+235. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/docker.js:66:11
+   Rule: secret-detector (static)
+
+236. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/docker.js:82:9
+   Rule: secret-detector (static)
+
+237. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/docker.js:92:9
+   Rule: secret-detector (static)
+
+238. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/docker.js:214:31
+   Rule: secret-detector (static)
+
+239. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/docker.js:228:6
+   Rule: secret-detector (static)
+
+240. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/docker.js:112:24
+   Rule: file-upload-magic-bytes (static)
+
+241. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/docker.js:121:24
+   Rule: file-upload-magic-bytes (static)
+
+242. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/docker.test.js:42:5
+   Rule: secret-detector (static)
+
+243. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/docs.js:134:33
+   Rule: secret-detector (static)
+
+244. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/docs.js:55:20
+   Rule: file-upload-magic-bytes (static)
+
+245. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/docs.js:118:14
+   Rule: file-upload-magic-bytes (static)
+
+246. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/docs.js:146:20
+   Rule: file-upload-magic-bytes (static)
+
+247. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/e2e.js:54:12
+   Rule: secret-detector (static)
+
+248. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/e2e.js:60:9
+   Rule: secret-detector (static)
+
+249. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/e2e.js:107:11
+   Rule: secret-detector (static)
+
+250. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/e2e.js:122:9
+   Rule: secret-detector (static)
+
+251. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/e2e.js:189:29
+   Rule: secret-detector (static)
+
+252. [MEDIUM] File extension-based filtering detected (originalname.split(".")). Extensions can be spoofed. Enforce magic-byte validation instead.
+   File: src/handlers/e2e.js:17:20
+   Rule: file-upload-magic-bytes (static)
+
+253. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:248:33
+   Rule: secret-detector (static)
+
+254. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:286:26
+   Rule: secret-detector (static)
+
+255. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:294:25
+   Rule: secret-detector (static)
+
+256. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:299:26
+   Rule: secret-detector (static)
+
+257. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:301:11
+   Rule: secret-detector (static)
+
+258. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:339:15
+   Rule: secret-detector (static)
+
+259. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:346:28
+   Rule: secret-detector (static)
+
+260. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:348:13
+   Rule: secret-detector (static)
+
+261. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:352:28
+   Rule: secret-detector (static)
+
+262. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:353:28
+   Rule: secret-detector (static)
+
+263. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/external-tool-checks.js:358:11
+   Rule: secret-detector (static)
+
+264. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/flow-control.js:8:8
+   Rule: secret-detector (static)
+
+265. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/flow-control.js:9:10
+   Rule: secret-detector (static)
+
+266. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/flow-control.js:10:9
+   Rule: secret-detector (static)
+
+267. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/flow-control.js:11:12
+   Rule: secret-detector (static)
+
+268. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/flow-control.js:193:26
+   Rule: secret-detector (static)
+
+269. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/flow-control.js:225:63
+   Rule: secret-detector (static)
+
+270. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/flow-control.js:244:15
+   Rule: secret-detector (static)
+
+271. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/git.js:128:32
+   Rule: secret-detector (static)
+
+272. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/git.js:171:11
+   Rule: secret-detector (static)
+
+273. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:158:19
+   Rule: secret-detector (static)
+
+274. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:159:29
+   Rule: secret-detector (static)
+
+275. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:160:32
+   Rule: secret-detector (static)
+
+276. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:161:25
+   Rule: secret-detector (static)
+
+277. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:162:25
+   Rule: secret-detector (static)
+
+278. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:164:19
+   Rule: secret-detector (static)
+
+279. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:165:17
+   Rule: secret-detector (static)
+
+280. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:166:30
+   Rule: secret-detector (static)
+
+281. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:167:28
+   Rule: secret-detector (static)
+
+282. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:168:22
+   Rule: secret-detector (static)
+
+283. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:170:23
+   Rule: secret-detector (static)
+
+284. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:172:26
+   Rule: secret-detector (static)
+
+285. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:174:22
+   Rule: secret-detector (static)
+
+286. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:175:28
+   Rule: secret-detector (static)
+
+287. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/handler-verify.js:176:21
+   Rule: secret-detector (static)
+
+288. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/handler-verify.js:28:21
+   Rule: file-upload-magic-bytes (static)
+
+289. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/handler-verify.js:30:21
+   Rule: file-upload-magic-bytes (static)
+
+290. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/handler-verify.js:313:24
+   Rule: file-upload-magic-bytes (static)
+
+291. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/handler-verify.js:374:19
+   Rule: file-upload-magic-bytes (static)
+
+292. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/i18n.js:58:29
+   Rule: secret-detector (static)
+
+293. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/i18n.js:81:49
+   Rule: secret-detector (static)
+
+294. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/i18n.js:97:26
+   Rule: secret-detector (static)
+
+295. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/incident.js:158:29
+   Rule: secret-detector (static)
+
+296. [MEDIUM] File extension-based filtering detected (originalname.split(".")). Extensions can be spoofed. Enforce magic-byte validation instead.
+   File: src/handlers/incident.js:23:20
+   Rule: file-upload-magic-bytes (static)
+
+297. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/incident.js:40:24
+   Rule: file-upload-magic-bytes (static)
+
+298. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/incident.js:48:24
+   Rule: file-upload-magic-bytes (static)
+
+299. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/issues.js:7:24
+   Rule: secret-detector (static)
+
+300. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/issues.js:14:24
+   Rule: secret-detector (static)
+
+301. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/issues.js:21:24
+   Rule: secret-detector (static)
+
+302. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/issues.js:28:24
+   Rule: secret-detector (static)
+
+303. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/issues.js:61:24
+   Rule: secret-detector (static)
+
+304. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/issues.js:63:9
+   Rule: secret-detector (static)
+
+305. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/lighthouse.js:7:25
+   Rule: secret-detector (static)
+
+306. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/lighthouse.js:14:26
+   Rule: secret-detector (static)
+
+307. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/lighthouse.js:34:26
+   Rule: secret-detector (static)
+
+308. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/lighthouse.js:63:26
+   Rule: secret-detector (static)
+
+309. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/lighthouse.js:65:11
+   Rule: secret-detector (static)
+
+310. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/lighthouse.js:45:21
+   Rule: file-upload-magic-bytes (static)
+
+311. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/lighthouse.js:46:21
+   Rule: file-upload-magic-bytes (static)
+
+312. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/lighthouse.js:47:22
+   Rule: file-upload-magic-bytes (static)
+
+313. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/logging.js:20:9
+   Rule: secret-detector (static)
+
+314. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/logging.js:50:9
+   Rule: secret-detector (static)
+
+315. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/logging.js:64:9
+   Rule: secret-detector (static)
+
+316. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/logging.js:83:9
+   Rule: secret-detector (static)
+
+317. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/logging.js:156:29
+   Rule: secret-detector (static)
+
+318. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/logging.js:167:6
+   Rule: secret-detector (static)
+
+319. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/logging.test.js:45:37
+   Rule: secret-detector (static)
+
+320. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/logging.test.js:63:37
+   Rule: secret-detector (static)
+
+321. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/memory.js:153:24
+   Rule: secret-detector (static)
+
+322. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/migration.js:14:10
+   Rule: secret-detector (static)
+
+323. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/migration.js:16:10
+   Rule: secret-detector (static)
+
+324. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/migration.js:50:28
+   Rule: secret-detector (static)
+
+325. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/migration.js:104:26
+   Rule: secret-detector (static)
+
+326. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/migration.js:98:26
+   Rule: file-upload-magic-bytes (static)
+
+327. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/migration.js:99:22
+   Rule: file-upload-magic-bytes (static)
+
+328. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/migration.test.js:46:5
+   Rule: secret-detector (static)
+
+329. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/migration.test.js:59:37
+   Rule: secret-detector (static)
+
+330. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/migration.test.js:69:37
+   Rule: secret-detector (static)
+
+331. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:14:11
+   Rule: secret-detector (static)
+
+332. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:18:28
+   Rule: secret-detector (static)
+
+333. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:43:13
+   Rule: secret-detector (static)
+
+334. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:46:11
+   Rule: secret-detector (static)
+
+335. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:49:24
+   Rule: secret-detector (static)
+
+336. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:102:4
+   Rule: secret-detector (static)
+
+337. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:154:8
+   Rule: secret-detector (static)
+
+338. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:156:8
+   Rule: secret-detector (static)
+
+339. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:165:8
+   Rule: secret-detector (static)
+
+340. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-onboard.js:223:26
+   Rule: secret-detector (static)
+
+341. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/mobile-onboard.js:83:23
+   Rule: file-upload-magic-bytes (static)
+
+342. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-release.js:181:24
+   Rule: secret-detector (static)
+
+343. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-release.js:182:24
+   Rule: secret-detector (static)
+
+344. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-release.js:192:24
+   Rule: secret-detector (static)
+
+345. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile-release.js:193:24
+   Rule: secret-detector (static)
+
+346. [MEDIUM] File extension-based filtering detected (originalname.split(".")). Extensions can be spoofed. Enforce magic-byte validation instead.
+   File: src/handlers/mobile-release.js:75:20
+   Rule: file-upload-magic-bytes (static)
+
+347. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/mobile-release.js:95:25
+   Rule: file-upload-magic-bytes (static)
+
+348. [MEDIUM] File extension-based filtering detected (originalname.split(".")). Extensions can be spoofed. Enforce magic-byte validation instead.
+   File: src/handlers/mobile-release.js:98:24
+   Rule: file-upload-magic-bytes (static)
+
+349. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/mobile-testing.js:31:8
+   Rule: secret-detector (static)
+
+350. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/mobile-testing.js:32:8
+   Rule: secret-detector (static)
+
+351. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/monitor.js:47:9
+   Rule: secret-detector (static)
+
+352. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/monitor.js:90:28
+   Rule: secret-detector (static)
+
+353. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/monitor.js:110:29
+   Rule: secret-detector (static)
+
+354. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/monitor.js:128:6
+   Rule: secret-detector (static)
+
+355. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/monitor.js:9:18
+   Rule: file-upload-magic-bytes (static)
+
+356. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/monitor.test.js:61:5
+   Rule: secret-detector (static)
+
+357. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/open-redirect.js:18:23
+   Rule: file-upload-magic-bytes (static)
+
+358. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/open-redirect.js:19:25
+   Rule: file-upload-magic-bytes (static)
+
+359. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/quality.js:27:26
+   Rule: secret-detector (static)
+
+360. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/quality.js:37:24
+   Rule: secret-detector (static)
+
+361. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/quality.js:114:24
+   Rule: secret-detector (static)
+
+362. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/quality.js:123:24
+   Rule: secret-detector (static)
+
+363. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/quality.js:132:24
+   Rule: secret-detector (static)
+
+364. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/quality.js:167:29
+   Rule: secret-detector (static)
+
+365. [LOW] Failed to parse src/handlers/review.js: 'return' outside of function. (333:2)
+   File: src/handlers/review.js
+   Rule: parse-error (static)
+
+366. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/sbom.js:35:13
+   Rule: secret-detector (static)
+
+367. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/sbom.js:111:28
+   Rule: secret-detector (static)
+
+368. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/sbom.js:113:29
+   Rule: secret-detector (static)
+
+369. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/sbom.test.js:73:5
+   Rule: secret-detector (static)
+
+370. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/state-audit.js:58:26
+   Rule: secret-detector (static)
+
+371. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/state-audit.js:60:11
+   Rule: secret-detector (static)
+
+372. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/state-audit.js:16:26
+   Rule: file-upload-magic-bytes (static)
+
+373. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/state-audit.js:17:24
+   Rule: file-upload-magic-bytes (static)
+
+374. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/state-audit.js:18:26
+   Rule: file-upload-magic-bytes (static)
+
+375. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/state-audit.js:19:26
+   Rule: file-upload-magic-bytes (static)
+
+376. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/state-audit.js:20:26
+   Rule: file-upload-magic-bytes (static)
+
+377. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/testing.js:13:15
+   Rule: secret-detector (static)
+
+378. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/testing.js:101:15
+   Rule: secret-detector (static)
+
+379. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/testing.js:176:6
+   Rule: secret-detector (static)
+
+380. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/testing.js:275:11
+   Rule: secret-detector (static)
+
+381. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/testing.test.js:50:5
+   Rule: secret-detector (static)
+
+382. [HIGH] High-entropy string literal assigned to "<input type="password"" may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:25:2
+   Rule: secret-detector (static)
+
+383. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:63:14
+   Rule: secret-detector (static)
+
+384. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:69:14
+   Rule: secret-detector (static)
+
+385. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:73:34
+   Rule: secret-detector (static)
+
+386. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:78:31
+   Rule: secret-detector (static)
+
+387. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:104:32
+   Rule: secret-detector (static)
+
+388. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:106:31
+   Rule: secret-detector (static)
+
+389. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:115:33
+   Rule: secret-detector (static)
+
+390. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:140:32
+   Rule: secret-detector (static)
+
+391. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:142:31
+   Rule: secret-detector (static)
+
+392. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:208:11
+   Rule: secret-detector (static)
+
+393. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:210:25
+   Rule: secret-detector (static)
+
+394. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-polish.js:220:11
+   Rule: secret-detector (static)
+
+395. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-polish.js:161:24
+   Rule: file-upload-magic-bytes (static)
+
+396. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-polish.js:171:26
+   Rule: file-upload-magic-bytes (static)
+
+397. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-polish.js:174:14
+   Rule: file-upload-magic-bytes (static)
+
+398. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-polish.js:175:19
+   Rule: file-upload-magic-bytes (static)
+
+399. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-polish.js:192:28
+   Rule: file-upload-magic-bytes (static)
+
+400. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:220:25
+   Rule: secret-detector (static)
+
+401. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:333:45
+   Rule: secret-detector (static)
+
+402. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:354:13
+   Rule: secret-detector (static)
+
+403. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:374:11
+   Rule: secret-detector (static)
+
+404. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:387:9
+   Rule: secret-detector (static)
+
+405. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:407:24
+   Rule: secret-detector (static)
+
+406. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:416:27
+   Rule: secret-detector (static)
+
+407. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:418:11
+   Rule: secret-detector (static)
+
+408. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:434:24
+   Rule: secret-detector (static)
+
+409. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/ui-tools.js:533:49
+   Rule: secret-detector (static)
+
+410. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-tools.js:26:28
+   Rule: file-upload-magic-bytes (static)
+
+411. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-tools.js:28:36
+   Rule: file-upload-magic-bytes (static)
+
+412. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-tools.js:36:33
+   Rule: file-upload-magic-bytes (static)
+
+413. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-tools.js:118:24
+   Rule: file-upload-magic-bytes (static)
+
+414. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-tools.js:269:30
+   Rule: file-upload-magic-bytes (static)
+
+415. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-tools.js:329:24
+   Rule: file-upload-magic-bytes (static)
+
+416. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/ui-tools.js:469:20
+   Rule: file-upload-magic-bytes (static)
+
+417. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/brand-protocol.js:33:58
+   Rule: secret-detector (static)
+
+418. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/brand-protocol.js:34:77
+   Rule: secret-detector (static)
+
+419. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/brand-protocol.js:35:76
+   Rule: secret-detector (static)
+
+420. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/brand-protocol.js:37:65
+   Rule: secret-detector (static)
+
+421. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/brand-protocol.js:86:26
+   Rule: secret-detector (static)
+
+422. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/brand-protocol.js:90:24
+   Rule: secret-detector (static)
+
+423. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/lib/huashu/brand-protocol.js:95:27
+   Rule: secret-detector (static)
+
+424. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/lib/huashu/deck-exporter.js:28:25
+   Rule: secret-detector (static)
+
+425. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/deck-exporter.js:32:29
+   Rule: secret-detector (static)
+
+426. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/lib/huashu/deck-exporter.js:54:4
+   Rule: secret-detector (static)
+
+427. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/expert-review.js:12:45
+   Rule: secret-detector (static)
+
+428. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/expert-review.js:13:43
+   Rule: secret-detector (static)
+
+429. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/expert-review.js:14:39
+   Rule: secret-detector (static)
+
+430. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/expert-review.js:15:46
+   Rule: secret-detector (static)
+
+431. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/expert-review.js:16:44
+   Rule: secret-detector (static)
+
+432. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/expert-review.js:51:25
+   Rule: secret-detector (static)
+
+433. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/huashu/expert-review.js:25:27
+   Rule: file-upload-magic-bytes (static)
+
+434. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/huashu/expert-review.js:26:19
+   Rule: file-upload-magic-bytes (static)
+
+435. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/huashu/expert-review.js:27:24
+   Rule: file-upload-magic-bytes (static)
+
+436. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/lib/huashu/expert-review.js:29:26
+   Rule: file-upload-magic-bytes (static)
+
+437. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/html-direction-advisor.js:11:61
+   Rule: secret-detector (static)
+
+438. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/html-direction-advisor.js:59:33
+   Rule: secret-detector (static)
+
+439. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/motion-engine.js:26:29
+   Rule: secret-detector (static)
+
+440. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/motion-engine.js:53:24
+   Rule: secret-detector (static)
+
+441. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/prototype-builder.js:37:10
+   Rule: secret-detector (static)
+
+442. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/prototype-builder.js:154:24
+   Rule: secret-detector (static)
+
+443. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/lib/huashu/prototype-builder.js:156:13
+   Rule: secret-detector (static)
+
+444. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/prototype-builder.js:158:29
+   Rule: secret-detector (static)
+
+445. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/prototype-builder.js:180:29
+   Rule: secret-detector (static)
+
+446. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:8:104
+   Rule: secret-detector (static)
+
+447. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:9:104
+   Rule: secret-detector (static)
+
+448. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:10:111
+   Rule: secret-detector (static)
+
+449. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:11:102
+   Rule: secret-detector (static)
+
+450. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:12:99
+   Rule: secret-detector (static)
+
+451. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:13:100
+   Rule: secret-detector (static)
+
+452. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:15:108
+   Rule: secret-detector (static)
+
+453. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:16:100
+   Rule: secret-detector (static)
+
+454. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:17:103
+   Rule: secret-detector (static)
+
+455. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:18:99
+   Rule: secret-detector (static)
+
+456. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:19:80
+   Rule: secret-detector (static)
+
+457. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:19:110
+   Rule: secret-detector (static)
+
+458. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:20:99
+   Rule: secret-detector (static)
+
+459. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:22:96
+   Rule: secret-detector (static)
+
+460. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:23:104
+   Rule: secret-detector (static)
+
+461. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:24:102
+   Rule: secret-detector (static)
+
+462. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:25:101
+   Rule: secret-detector (static)
+
+463. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:26:100
+   Rule: secret-detector (static)
+
+464. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:27:101
+   Rule: secret-detector (static)
+
+465. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:29:95
+   Rule: secret-detector (static)
+
+466. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:30:108
+   Rule: secret-detector (static)
+
+467. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:34:93
+   Rule: secret-detector (static)
+
+468. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:35:102
+   Rule: secret-detector (static)
+
+469. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:36:94
+   Rule: secret-detector (static)
+
+470. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:38:100
+   Rule: secret-detector (static)
+
+471. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:39:93
+   Rule: secret-detector (static)
+
+472. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:40:93
+   Rule: secret-detector (static)
+
+473. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:41:96
+   Rule: secret-detector (static)
+
+474. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:42:98
+   Rule: secret-detector (static)
+
+475. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:43:96
+   Rule: secret-detector (static)
+
+476. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:44:96
+   Rule: secret-detector (static)
+
+477. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:45:96
+   Rule: secret-detector (static)
+
+478. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:46:102
+   Rule: secret-detector (static)
+
+479. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:47:94
+   Rule: secret-detector (static)
+
+480. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:49:104
+   Rule: secret-detector (static)
+
+481. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/lib/huashu/style-library.js:52:103
+   Rule: secret-detector (static)
+
+482. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/api/frontend-detect.js:68:17
+   Rule: file-upload-magic-bytes (static)
+
+483. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api/pipeline.js:21:39
+   Rule: secret-detector (static)
+
+484. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api/pipeline.js:25:37
+   Rule: secret-detector (static)
+
+485. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api/pipeline.js:117:27
+   Rule: secret-detector (static)
+
+486. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/api/pipeline.js:118:24
+   Rule: secret-detector (static)
+
+487. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/api/pipeline.js:140:14
+   Rule: secret-detector (static)
+
+488. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/api/pipeline.js:143:14
+   Rule: secret-detector (static)
+
+489. [MEDIUM] High-entropy template literal may contain a hardcoded secret.
+   File: src/handlers/api/pipeline.js:150:14
+   Rule: secret-detector (static)
+
+490. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/agent.js:7:24
+   Rule: secret-detector (static)
+
+491. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/agent.js:34:24
+   Rule: secret-detector (static)
+
+492. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/agent.js:40:9
+   Rule: secret-detector (static)
+
+493. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/agent.js:45:9
+   Rule: secret-detector (static)
+
+494. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/agent.js:50:9
+   Rule: secret-detector (static)
+
+495. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/agent.js:54:9
+   Rule: secret-detector (static)
+
+496. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/agent.js:58:9
+   Rule: secret-detector (static)
+
+497. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:116:11
+   Rule: secret-detector (static)
+
+498. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:117:15
+   Rule: secret-detector (static)
+
+499. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:118:12
+   Rule: secret-detector (static)
+
+500. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:119:21
+   Rule: secret-detector (static)
+
+501. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:121:13
+   Rule: secret-detector (static)
+
+502. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:136:24
+   Rule: secret-detector (static)
+
+503. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:145:24
+   Rule: secret-detector (static)
+
+504. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:154:24
+   Rule: secret-detector (static)
+
+505. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:226:24
+   Rule: secret-detector (static)
+
+506. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/audit.js:235:24
+   Rule: secret-detector (static)
+
+507. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/optimize.js:35:24
+   Rule: secret-detector (static)
+
+508. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/optimize.js:38:9
+   Rule: secret-detector (static)
+
+509. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/optimize.js:89:24
+   Rule: secret-detector (static)
+
+510. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/optimize.js:98:4
+   Rule: secret-detector (static)
+
+511. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/optimize.js:102:4
+   Rule: secret-detector (static)
+
+512. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/mobile/optimize.js:161:26
+   Rule: secret-detector (static)
+
+513. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/security/config-check.js:63:20
+   Rule: file-upload-magic-bytes (static)
+
+514. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/security/config-check.js:65:26
+   Rule: file-upload-magic-bytes (static)
+
+515. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/security/config-check.js:86:24
+   Rule: file-upload-magic-bytes (static)
+
+516. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/npm-scan.js:61:24
+   Rule: secret-detector (static)
+
+517. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/security/npm-scan.js:25:25
+   Rule: file-upload-magic-bytes (static)
+
+518. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/threat-scan.js:8:24
+   Rule: secret-detector (static)
+
+519. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/threat-scan.js:11:13
+   Rule: secret-detector (static)
+
+520. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/threat-scan.js:90:13
+   Rule: secret-detector (static)
+
+521. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/threat-scan.js:136:25
+   Rule: secret-detector (static)
+
+522. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/threat-scan.js:140:26
+   Rule: secret-detector (static)
+
+523. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/threat-scan.js:141:26
+   Rule: secret-detector (static)
+
+524. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/threat-scan.js:143:11
+   Rule: secret-detector (static)
+
+525. [MEDIUM] High-entropy string literal may contain a hardcoded secret.
+   File: src/handlers/security/threat-scan.js:180:30
+   Rule: secret-detector (static)
+
+526. [MEDIUM] Regex-based file name or extension matching detected. Ensure you also verify magic bytes to prevent spoofing.
+   File: src/handlers/security/threat-scan.js:52:28
+   Rule: file-upload-magic-bytes (static)
+
+527. [LOW] npm audit failed or is unavailable: Command failed: npm audit --json
+npm warn audit 404 Not Found - POST https://registry.npmmirror.com/-/npm/v1/security/advisories/bulk - [NOT_IMPLEMENTED] /-/npm/v1/security/* not implemented yet
+npm error audit endpoint returned an error
+npm error A complete log of this run can be found in: C:\Users\Administrator\AppData\Local\npm-cache\_logs\2026-06-14T01_16_01_185Z-debug-0.log
+
+   Rule: dependency-audit (dependency)
+
+528. [LOW] No express dependency found in package.json. If this project uses Express, ensure express is listed.
+   Rule: config (config)
+
+529. [MEDIUM] NODE_ENV is not set to "production". In production environments, this can lead to security and performance issues.
+   Rule: config (config)
+
+Summary:
+  MEDIUM: 521
+  HIGH: 2
+  CRITICAL: 3
+  LOW: 3

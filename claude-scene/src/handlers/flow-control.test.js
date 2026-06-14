@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  handleSelect, handleConfirm, handleCheckPrerequisites, handleCheckEnvFile,
+  handleSelect, handleConfirm, handleCheckEnvFile,
   handleGenerateEnv, handleVerify, handleNotify, handleChoose, handleAskUser,
   handleCheckGate, handleCeAction,
 } from './flow-control.js';
+import { handleCheckPrerequisites } from './prerequisites.js';
 
 vi.mock('chalk', () => {
   const noop = (s) => s;

@@ -29,7 +29,7 @@ effort: medium
 
 ## 集成位置
 
-- `design` 工作流：step 4.7 提示用户选择品牌（替代或叠加 web-design-declare-system）
+- `design` 工作流：step 4.6 提示用户选择品牌（在 Open Design 对话模式中执行）
 - `ui-polish` 工作流：step 6 主题选择时新增"导入品牌 DESIGN.md"选项
 
 ## 与其他设计 Skill 的关系

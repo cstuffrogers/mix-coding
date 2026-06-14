@@ -1,7 +1,8 @@
-import { existsSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import path from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
+import { scanDir } from '../lib/scan-dir.js';
 
 /**
  * Run a command that may exit non-zero (e.g. linter finding issues).
@@ -271,7 +272,7 @@ export function handleRunReview(_action, params, targetPath, context) {
   console.log(chalk.dim(`  扫描规则: ${rules.join(', ')}`));
   if (autoFix) console.log(chalk.dim('  自动修复: 已启用'));
 
-  const packagePath = join(targetPath, 'package.json');
+  const packagePath = path.join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
     return '代码审查完成（未找到 package.json，跳过）';
   }
@@ -313,18 +314,123 @@ export function handleRunReview(_action, params, targetPath, context) {
 }
 
 export function handleReviewFull(_action, _params, _targetPath) {
-  console.log(chalk.blue('\n🔍 正在进行代码审查...'));
-  return '代码审查完成';
+  const inClaudeCode = process.env.CLAUDECODE === '1';
+
+  if (inClaudeCode) {
+    console.log(chalk.blue('\n🔍 代码审查: skill available'));
+    console.log(chalk.dim('  → 由对话模式调用 review skill 进行跨文件语义审查'));
+    return '代码审查就绪（对话模式 Skill 调用）';
+  }
+
+  console.log(chalk.yellow('\n⏭ 完整语义审查仅在对话模式可用'));
+  console.log(chalk.dim('  → 需 Claude Code + review skill（支持跨文件上下文、反模式识别、架构审查）'));
+  return '代码审查已跳过（需对话模式）';
 }
 
 export function handleVerifyVisual(_action, _params, _targetPath) {
-  console.log(chalk.blue('\n🖼️ 正在进行视觉验证...'));
-  return '视觉验证完成';
+  const inClaudeCode = process.env.CLAUDECODE === '1';
+
+  if (inClaudeCode) {
+    console.log(chalk.blue('\n🖼️ 视觉验证: Playwright available'));
+    console.log(chalk.dim('  → 由对话模式运行 Playwright 视觉回归测试'));
+    return '视觉验证就绪（对话模式 Playwright 执行）';
+  }
+
+  console.log(chalk.yellow('\n⏭ 视觉回归对比仅在对话模式可用'));
+  console.log(chalk.dim('  → 需 Claude Code + Playwright + 浏览器环境'));
+  return '视觉验证已跳过（需对话模式）';
 }
 
-export function handleAiFriendlyReview(_action, _params, _targetPath) {
-  console.log(chalk.blue('\n🤖 正在进行 AI 友好审查...'));
-  console.log(chalk.dim('  ℹ CLI 模式下为轻量审查，完整 AI 友好审查需 Claude Code 对话上下文'));
-  console.log(chalk.green('  ✅ AI 友好审查完成'));
-  return 'AI 友好审查完成（CLI 轻量模式）';
+export function handleAiFriendlyReview(_action, _params, targetPath) {
+  console.log(chalk.blue('\n♿ 正在进行可访问性审查（静态扫描）...'));
+  const issues = [];
+  const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=build';
+
+  // 1. img tags without alt attribute
+  try {
+    const raw = safeExec(
+      `grep -rn "${excludeDirs}" --include="*.jsx" --include="*.tsx" --include="*.html" "<img[^>]*>" . 2>&1 || true`,
+      targetPath,
+      { stdio: 'pipe', timeout: 15000 }
+    ).toString();
+    const lines = raw.split('\n').filter(l => l && !/alt\s*=/.test(l));
+    if (lines.length > 0) {
+      issues.push({ rule: 'img-alt', count: lines.length, desc: '图片缺少 alt 属性' });
+      console.log(chalk.yellow(`  ⚠ img 缺 alt: ${lines.length} 处`));
+    }
+  } catch { /* skip */ }
+
+  // 2. form inputs without associated label
+  try {
+    const inputRaw = safeExec(
+      `grep -rn "${excludeDirs}" --include="*.jsx" --include="*.tsx" "<input[^>]*>" . 2>&1 || true`,
+      targetPath,
+      { stdio: 'pipe', timeout: 15000 }
+    ).toString();
+    const inputLines = inputRaw.split('\n').filter(l => l && !/aria-label|aria-labelledby|id\s*=/.test(l));
+    if (inputLines.length > 0) {
+      // Check for nearby <label> — rough heuristic
+      let unlabeledCount = 0;
+      for (const line of inputLines.slice(0, 50)) {
+        if (!/type\s*=\s*["']hidden["']/.test(line) && !/type\s*=\s*["']submit["']/.test(line)) {
+          unlabeledCount++;
+        }
+      }
+      if (unlabeledCount > 0) {
+        issues.push({ rule: 'input-label', count: unlabeledCount, desc: 'input 可能缺少 label 关联' });
+        console.log(chalk.yellow(`  ⚠ input 缺 label: ~${unlabeledCount} 处`));
+      }
+    }
+  } catch { /* skip */ }
+
+  // 3. html element missing lang attribute
+  try {
+    const htmlFiles = scanDir(targetPath, { filter: f => /\.html$/.test(f) && !f.includes('node_modules') });
+    for (const f of htmlFiles) {
+      try {
+        const content = readFileSync(f, 'utf-8');
+        if (/<html[^>]*>/i.test(content) && !/<html[^>]*lang\s*=/i.test(content)) {
+          issues.push({ rule: 'html-lang', count: 1, desc: `${path.basename(f)}: <html> 缺少 lang 属性` });
+          console.log(chalk.yellow(`  ⚠ ${path.basename(f)}: <html> 缺 lang`));
+        }
+      } catch { /* skip */ }
+    }
+  } catch { /* skip */ }
+
+  // 4. Hardcoded color contrast risk — light text on light bg, or vice versa
+  try {
+    const textRaw = safeExec(
+      `grep -rn "${excludeDirs}" --include="*.jsx" --include="*.tsx" --include="*.css" -E "(text-white|text-gray-[12]00|text-neutral-[12]00)" . 2>&1 || true`,
+      targetPath,
+      { stdio: 'pipe', timeout: 15000 }
+    ).toString();
+    const textLines = textRaw.split('\n').filter(Boolean);
+    if (textLines.length > 0) {
+      issues.push({ rule: 'contrast-risk', count: textLines.length, desc: '浅色文字可能存在对比度不足' });
+      console.log(chalk.yellow(`  ⚠ 潜在对比度问题: ${textLines.length} 处`));
+    }
+  } catch { /* skip */ }
+
+  // 5. onClick on non-interactive elements (div/span without role)
+  try {
+    const clickRaw = safeExec(
+      `grep -rn "${excludeDirs}" --include="*.jsx" --include="*.tsx" -E "<(div|span)[^>]*onClick" . 2>&1 || true`,
+      targetPath,
+      { stdio: 'pipe', timeout: 15000 }
+    ).toString();
+    const clickLines = clickRaw.split('\n').filter(l => l && !/role\s*=/.test(l) && !/tabIndex|tabindex/.test(l));
+    if (clickLines.length > 0) {
+      issues.push({ rule: 'clickable-div', count: clickLines.length, desc: '可点击元素缺少 role/tabIndex' });
+      console.log(chalk.yellow(`  ⚠ 非交互元素有 onClick 但缺 role: ${clickLines.length} 处`));
+    }
+  } catch { /* skip */ }
+
+  const totalIssues = issues.reduce((s, i) => s + i.count, 0);
+  if (totalIssues === 0) {
+    console.log(chalk.green('  ✅ 静态可访问性扫描通过'));
+  } else {
+    console.log(chalk.red(`  ❌ 发现 ${issues.length} 类可访问性问题 (共 ${totalIssues} 处)`));
+    issues.forEach(i => console.log(chalk.dim(`    ${i.rule}: ${i.desc} (${i.count})`)));
+  }
+  return `可访问性审查完成: ${totalIssues} 处问题`;
 }

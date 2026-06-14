@@ -55,17 +55,6 @@
       "on_error": "continue"
     },
     {
-      "step": 3.5,
-      "layer": "capability",
-      "service": "DesignService",
-      "action": "web-design-declare-system",
-      "params": {},
-      "description": "Web Design Engineer: 声明设计系统基准（Palette/Typography/Spacing/Motion/Radius/Shadows），确保后续美化不偏离",
-      "auto_execute": true,
-      "condition": "web_design_engineer_available",
-      "on_error": "continue"
-    },
-    {
       "step": 4,
       "layer": "capability",
       "service": "BuildService",
@@ -137,7 +126,17 @@
       "service": "DesignService",
       "action": "applyComponents",
       "params": {},
-      "description": "扫描 JSX/TSX 文件，将 button/input/select 等替换为 Animal Island UI 组件（仅 animal-island 主题生效）",
+      "description": "扫描 JSX/TSX 文件，将 button/input/select 等替换为 Animal Island UI 组件（animal-island 主题时生效）；其他主题跳过此步骤",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8.5,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "iconUpgrade",
+      "params": {},
+      "description": "图标升级：扫描 JSX/TSX 文件，将 Material Symbols (<span>icon</span>) 替换为 lucide-react 组件（所有主题生效）",
       "auto_execute": true,
       "on_error": "continue"
     },
@@ -147,7 +146,17 @@
       "service": "DesignService",
       "action": "addAnimations",
       "params": {},
-      "description": "集成 Animate.css 动画 + Lucide React 图标替换",
+      "description": "集成 Animate.css 动画：注入 import 语句 + 扫描 JSX/TSX 给页面根元素添加入场动画类（fadeIn/fadeInUp/fadeInDown）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9.2,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "microInteractions",
+      "params": {},
+      "description": "微交互注入：扫描 JSX/TSX 给可点击元素添加 hover:-translate-y-0.5 / hover:shadow-lg / active:scale-[0.98] / transition-all（所有主题生效）",
       "auto_execute": true,
       "on_error": "continue"
     },
@@ -159,7 +168,6 @@
       "params": {},
       "description": "Web Design Engineer: 设计交付检查（无控制台错误/无破损布局/对比度合格/无AI套路）",
       "auto_execute": true,
-      "condition": "web_design_engineer_available",
       "on_error": "continue"
     },
     {
@@ -180,9 +188,8 @@
           "motion-preference"
         ]
       },
-      "description": "Impeccable 设计打磨：运行 27 条反模式规则 + 12 条 LLM 批判规则，修 AI 塑料感（纯黑/纯白/紫色渐变/千篇一律配色等），提升 UI 质感",
+      "description": "Impeccable 设计打磨：扫描修复纯黑/纯白/紫色渐变等 AI 塑料感问题，检测缺失过渡和交互元素",
       "auto_execute": true,
-      "condition": "enh_impeccable_audit && impeccable_available",
       "on_error": "continue"
     },
     {

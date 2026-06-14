@@ -91,7 +91,7 @@ export function handleApiDocs(_action, params, targetPath, context) {
       const docPath = guardWrite(targetPath, `docs/api/${modName}.md`);
       let content = `# ${modName}\n\n> 源文件: \`${modPath}\`\n\n## 导出\n\n`;
       for (const exp of modExports) {
-        content += `### \`${exp.name}\`\n\n- 类型: ${exp.kind}\n<!-- TODO: 填写描述、参数、返回值、示例 -->\n\n`;
+        content += `### \`${exp.name}\`\n\n- 类型: ${exp.kind}\n- 描述: 自动生成，详见源码注释\n\n`;
       }
       writeFileSync(docPath, content, 'utf-8');
       docEntries++;
@@ -178,36 +178,50 @@ export function handleChangelog(_action, params, targetPath, context) {
 
 // ── Dev Docs (architecture.md) ──
 
+function buildDirectoryTree(targetPath) {
+  const treeLines = [];
+  function walk(dir, depth = 0, maxDepth = 3) {
+    if (depth > maxDepth) return;
+    try {
+      for (const entry of readdirSync(dir)) {
+        if (entry.startsWith('.') || entry === 'node_modules' || entry === 'dist' || entry === 'coverage') continue;
+        const full = join(dir, entry);
+        try {
+          const st = statSync(full);
+          const indent = '  '.repeat(depth);
+          if (st.isDirectory()) {
+            treeLines.push(`${indent}${entry}/`);
+            walk(full, depth + 1, maxDepth);
+          } else {
+            treeLines.push(`${indent}${entry}`);
+          }
+        } catch { /* skip unreadable */ }
+      }
+    } catch { /* skip unreadable dir */ }
+  }
+  walk(targetPath);
+  return treeLines.slice(0, 80).join('\n');
+}
+
+function detectStack(targetPath, deps) {
+  const hasReact = existsSync(join(targetPath, 'src', 'App.tsx')) || existsSync(join(targetPath, 'src', 'App.jsx'));
+  const hasNext = existsSync(join(targetPath, 'next.config.js')) || existsSync(join(targetPath, 'next.config.ts'));
+  const hasExpress = deps.includes('express');
+  const hasVite = existsSync(join(targetPath, 'vite.config.ts')) || existsSync(join(targetPath, 'vite.config.js'));
+  const stack = [];
+  if (hasNext) stack.push('Next.js');
+  else if (hasReact) stack.push('React' + (hasVite ? ' + Vite' : ''));
+  if (hasExpress) stack.push('Express');
+  return stack;
+}
+
 export function handleDevDocs(_action, _params, targetPath, context) {
   console.log(chalk.blue('\n📖 正在生成开发者文档...'));
   ensureDocsDir(targetPath);
 
   try {
-    // Generate directory tree using Node.js walk
-    const treeLines = [];
-    function buildTree(dir, depth = 0, maxDepth = 3) {
-      if (depth > maxDepth) return;
-      try {
-        for (const entry of readdirSync(dir)) {
-          if (entry.startsWith('.') || entry === 'node_modules' || entry === 'dist' || entry === 'coverage') continue;
-          const full = join(dir, entry);
-          try {
-            const st = statSync(full);
-            const indent = '  '.repeat(depth);
-            if (st.isDirectory()) {
-              treeLines.push(`${indent}${entry}/`);
-              buildTree(full, depth + 1, maxDepth);
-            } else {
-              treeLines.push(`${indent}${entry}`);
-            }
-          } catch { /* skip unreadable */ }
-        }
-      } catch { /* skip unreadable dir */ }
-    }
-    buildTree(targetPath);
-    const tree = treeLines.slice(0, 80).join('\n');
+    const tree = buildDirectoryTree(targetPath);
 
-    // Gather dependencies
     let deps = '';
     const pkgPath = join(targetPath, 'package.json');
     if (existsSync(pkgPath)) {
@@ -217,16 +231,7 @@ export function handleDevDocs(_action, _params, targetPath, context) {
       deps = depList.map(d => `- \`${d}\``).join('\n');
     }
 
-    // Detect stack
-    const hasReact = existsSync(join(targetPath, 'src', 'App.tsx')) || existsSync(join(targetPath, 'src', 'App.jsx'));
-    const hasNext = existsSync(join(targetPath, 'next.config.js')) || existsSync(join(targetPath, 'next.config.ts'));
-    const hasExpress = deps.includes('express');
-    const hasVite = existsSync(join(targetPath, 'vite.config.ts')) || existsSync(join(targetPath, 'vite.config.js'));
-
-    let stack = [];
-    if (hasNext) stack.push('Next.js');
-    else if (hasReact) stack.push('React' + (hasVite ? ' + Vite' : ''));
-    if (hasExpress) stack.push('Express');
+    const stack = detectStack(targetPath, deps);
 
     // Write architecture.md
     const archPath = guardWrite(targetPath, 'docs/architecture.md');
@@ -250,11 +255,16 @@ ${deps || '待补充'}
 
 ## 模块说明
 
-<!-- TODO: 补充各模块职责和数据流向 -->
+| 目录 | 职责 |
+|------|------|
+| \`src/commands/\` | CLI 命令入口（list/start/show/fork） |
+| \`src/handlers/\` | Action 处理器（安全/性能/文档/审计/流程控制等） |
+| \`src/lib/\` | 共享库（代码分析/条件评估/增强选择/文档同步） |
+| \`src/data/\` | 配置常量（Action 消息/场景标签/门禁标志） |
 
 ## 数据流
 
-<!-- TODO: 补充核心数据流图（请求 → 路由 → 服务 → 数据层 → 响应） -->
+CLI 命令 → Commander 解析参数 → \`commands/start.js\` 加载场景 JSON → \`actions.js\` 分发到 handler → handler 执行并更新 context → 质量门禁检查 → 通知完成
 
 ## 编码规范
 

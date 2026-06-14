@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { readClaudeMemItems, writeClaudeMemItem, readClaudeMemMarkdown, writeClaudeMemMarkdown } from './memory/claude-mem.js';
 import { readAgentmemory, writeAgentmemory, getAgentmemoryStats } from './memory/agentmemory.js';
-import { readNexoData } from './memory/nexo.js';
+import { readNexoData, writeNexoEvent } from './memory/nexo.js';
 import { queryCodeGraph } from './memory/codegraph.js';
 import { loadProjectMemories, loadAllProjectMemories, saveProjectMemory, matchFilter, deduplicateProjectMemories } from './memory/project-memory.js';
 import { recallFromSupermemory, saveToSupermemory, supermemoryStatus, shouldSkipSave } from './memory/supermemory.js';
@@ -80,7 +80,34 @@ export async function handleMemoryRemember(_action, params, _targetPath, context
   const backendCount = smStatus.available ? 6 : 5;
   console.log(chalk.blue(`\n📝 正在保存到记忆（${backendCount} 后端）...`));
   const type = params?.type || 'general';
-  const data = params?.data || params?.content || (context?.recalled_memories?.length ? context.recalled_memories : null) || {};
+  const baseData = params?.data || params?.content || (context?.recalled_memories?.length ? context.recalled_memories : null) || {};
+
+  // Enrich with context findings (same richness as autoRemember)
+  const data = typeof baseData === 'object' && !Array.isArray(baseData)
+    ? {
+        ...baseData,
+        findings: {
+          security: context?.securityScanResult || baseData.findings?.security || {},
+          testPassed: context?.testPassed ?? baseData.findings?.testPassed,
+          fixApplied: context?.fixApplied ?? baseData.findings?.fixApplied,
+          codeMetricsFindings: context?.codeMetricsFindings ?? baseData.findings?.codeMetricsFindings,
+          antiPatternFindings: context?.antiPatternFindings ?? baseData.findings?.antiPatternFindings,
+          consistencyScore: context?.consistencyScore ?? baseData.findings?.consistencyScore,
+          performancePassed: context?.performancePassed,
+          complexityPassed: context?.complexityPassed,
+          gateBlocked: context?.gateBlocked,
+          lintPassed: context?.lintPassed,
+          coveragePassed: context?.coveragePassed,
+          deadLinkPassed: context?.deadLinkPassed,
+          buildLeakPassed: context?.buildLeakPassed,
+          gitLeaksPassed: context?.gitLeaksPassed,
+        },
+        gateSummary: context?.lastGateResult || baseData.gateSummary,
+        completedSteps: context?.completedSteps || baseData.completedSteps || [],
+        prompt: context?.prompt || baseData.prompt || '',
+        workflow: context?._sceneId || baseData.source || baseData.workflow,
+      }
+    : baseData;
   let count = 0;
   let entry;
 
@@ -115,7 +142,15 @@ export async function handleMemoryRemember(_action, params, _targetPath, context
     console.log(chalk.yellow(`  ⚠ agentmemory 写入失败: ${e.message}`));
   }
 
-  console.log(chalk.dim('  🌐 NEXO/CodeGraph: 将在下次代码分析时自动索引'));
+  try {
+    writeNexoEvent(type, data);
+    console.log(chalk.dim(`  🌐 NEXO: ${type}`));
+    count++;
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ NEXO 写入失败: ${e.message}`));
+  }
+
+  console.log(chalk.dim('  📊 CodeGraph: 将在下次代码分析时自动索引'));
 
   // 7th backend: Supermemory (cloud, optional)
   if (smStatus.available && !shouldSkipSave(type, data)) {
@@ -242,6 +277,14 @@ export function handleAutoRemember(_action, _params, _targetPath, context) {
     }
   } catch (e) {
     console.log(chalk.yellow(`  ⚠ agentmemory 写入失败: ${e.message}`));
+  }
+
+  try {
+    writeNexoEvent(workflowType, data);
+    console.log(chalk.dim(`  🌐 NEXO: ${workflowType}`));
+    count++;
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ NEXO 写入失败: ${e.message}`));
   }
 
   console.log(chalk.green(`  ✅ 自动保存到 ${count} 个后端`));

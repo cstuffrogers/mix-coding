@@ -1,0 +1,5 @@
+# Mix-Coding Python 工具依赖
+# pip install -r requirements.txt
+
+# 安全响应头扫描 (CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy)
+git+https://github.com/seraphimhub/seraphim-audit.git

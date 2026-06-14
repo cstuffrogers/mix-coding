@@ -12,18 +12,18 @@
 - ✅ **多轮自动审查与修复**：直到问题清零
 - ✅ **AI 驱动设计**：Open Design，129 套品牌设计系统，零门槛
 - ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 设计打磨（27 条反AI模式规则）
-- ✅ **5 层代码审查**：ESLint + TypeScript + 安全扫描 + npm audit + AI 语义
+- ✅ **5 层代码审查**：ESLint + TypeScript + 安全扫描 + npm audit + AI 语义 + Handler 功能验证（10 Pass 空转桩检测）
 - ✅ **数据库迁移审查**：扫描迁移文件，检测 8 种危险模式（DROP TABLE / NOT NULL 无默认值等），自动阻断高风险变更
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
 - ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计 + 安全响应头扫描 + 构建泄露检测 + 死链检测 + 开放重定向检测 + 状态管理审计 + 正则 ReDoS 扫描 + 日志脱敏 + CORS 检查 + 敏感文件检查 + 供应链安全扫描
-- ✅ **外部工具链**：18 个工具（noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / Lighthouse CI / express-sec-audit / Clearible / log-sanitizer / cors-checker / env-leak-scanner / postinstall-checker / socket.dev / sensitive-file-check / tech-debt-scan / lock-file-consistency / gitignore-check / deprecated-deps）— 自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖
+- ✅ **外部工具链**：16 个工具（noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / Lighthouse CI / Clearible / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser）— 自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全
 - ✅ **记忆组件组合**：7 种记忆工具协同工作
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
 - ✅ **AI/Model 无缝切换**：通过配置文件快速切换 AI 服务提供商，支持 Claude、Gemini、Qwen 等主流模型
 - ✅ **双引擎驱动**：Scene 引擎（默认，会话内执行，上下文连贯）+ Archon 引擎（实验性，独立服务器，并行多任务）
 - ✅ **Karpathy 原则集成**：强制执行 Think Before Coding、Simplicity First 等开发原则
-- ✅ **Compound Engineering Plugin 集成**：AI 规划、深度审查、系统调试、知识沉淀，所有 29 个工作流自动集成
+- ✅ **Compound Engineering Plugin 集成**：AI 规划、深度审查、系统调试、知识沉淀，所有 35 个工作流自动集成
 
 ---
 
@@ -79,17 +79,17 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **ui-polish** | 23步 | 前端美化（DaisyUI + Animal Island UI + Animate.css + Playwright + Impeccable 设计打磨 + Huashu 专家评审 + AI-Friendly 审查 + Awesome Design MD 品牌 + 设计一致性保护） | `/polish` |
 | **feature** | 27步 | 新增功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
 | **bugfix** | 28步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
-| **review** | 14步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义 + 状态管理审计 + 开放重定向 + i18n + 聚合报告） | `/review` |
+| **review** | 15步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义 + 状态管理审计 + 开放重定向 + Handler 功能验证 + i18n + 聚合报告） | `/review` |
 | **refactor** | 21步 | 代码重构（代码度量 + 反模式检测 + 增量重构 + 测试验证） | `/refactor` |
 | **optimize** | 14步 | 性能优化（问题选择 → 基线 → 反模式 → 测量确认 → 增量测试） | `/optimize` |
 | **simplify** | 13步 | 代码简化（可读性优先，逐方向简化 + 测试保全） | `/simplify` |
 | **hunt** | 24步 | 安全漏洞扫描与修复（ESLint 安全规则 + npm audit + OWASP + 开放重定向 + 安全响应头扫描 + 12 项外部工具链 + CE 沉淀） | `/hunt` |
-| **design** | 22步 | AI 驱动设计（Open Design 129 套品牌系统 + Web Design Engineer + Awesome Design MD 品牌 + Impeccable 设计打磨 + Huashu 专家评审 + 交互原型 + 审查） | `/design` |
+| **design** | 22步 | AI 驱动设计（对话模式：web-design-engineer Skill 声明设计系统 + Awesome Design MD 品牌 + Impeccable 设计打磨 + Huashu 专家评审 + 交互原型） | `/design` |
 | **analyze** | 15步 | 深度代码分析（复杂度 / 安全 / 性能 / CI + 自动修复） | `/analyze` |
 | **loop** | 10步 | 自动迭代循环（无人值守，持续审查→修复→验证） | `/loop` |
-| **new-project** | 21步 | 从零开始新项目（MCP 记忆注入 + Open Design + CE 规划） | `/new-project` |
+| **new-project** | 21步 | 从零开始新项目（对话模式：web-design-engineer Skill 设计基准 + CLI 脚手架 + CE 规划） | `/new-project` |
 | **release** | 23步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 健康检查 + 监控） | `/release` |
-| **audit** | 39步 | 全面项目健康检查（安全 + 代码 + 依赖 + 性能 + 覆盖率 + 复杂度 + 死代码 + 密钥扫描 + 安全响应头 + 死链 + 构建泄露 + 开放重定向 + 状态管理 + Lighthouse + i18n + 27 项质量门禁 + 信息图） | `/audit` |
+| **audit** | 40步 | 全面项目健康检查（安全 + 代码 + 依赖 + 性能 + 覆盖率 + 复杂度 + 死代码 + 密钥扫描 + 安全响应头 + 死链 + 构建泄露 + 开放重定向 + 状态管理 + Lighthouse + Handler 功能验证 + i18n + 27 项质量门禁 + 信息图） | `/audit` |
 | **prototype** | 11步 | 快速原型验证（需求访谈 + MVP 生成 + 本地运行 + 决策报告） | `/prototype` |
 | **deps** | 14步 | 安全依赖更新（扫描过期 + 逐项更新 + Breaking Changes 检测 + 测试） | `/deps` |
 | **rollback** | 14步 | 紧急回滚（版本选择 + 回滚 + 构建 + 健康检查 + 监控复原） | `/rollback` |
@@ -116,7 +116,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **298 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 35 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **280+ 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 35 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|
@@ -128,11 +128,12 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | `analyzeUI` / `checkConsistency` / `applyDaisyUI` / `applyComponents` / `addAnimations` / `visualRegression` | 前端美化工具链 | ✅ |
 | `check-api-consistency` | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | ✅ |
 | `sec-bug-hunt` / `gitLeaks` / `npm-audit` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `state-audit` / `i18n-audit` | 安全扫描 + 性能 + 架构 + i18n | ✅ |
+| `verify-handlers` | Handler 功能验证：10 Pass 空转桩检测（内联桩/CE桩/逻辑密度/工具健康/依赖/导入链/场景交叉/静态安全/MCP配置） | ✅ |
 | `migration-review` / `load-test` | 迁移审查 / 负载测试 | ✅ |
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | 一键基础设施配置 | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | 事故/变更/SBOM 自动化 | ✅ |
-| `huashu-*`（8 个） | Huashu 品牌设计系统集成 | ✅ |
-| `awm-brand-*`（3 个） | Awesome Design MD 品牌导入 | ✅ |
+| `huashu-*`（7 个） | Huashu 品牌设计系统集成 | ✅ |
+| `awm-brand-*`（2 个） | Awesome Design MD 品牌导入（list + import） | ✅ |
 | `mp-*`（10 个） | Matt Pocock TypeScript skill 桥接 | ✅ |
 | `ce-*` | Compound Engineering Plugin 集成 | ✅ |
 | `notify` / `send` | 通知与告警 | ✅ |
@@ -246,16 +247,13 @@ node src/index.js start hunt --auto --target "E:\your\project"
 2. `runReview(security, eslint-plugin-security)` → ESLint 安全扫描（SQL注入/XSS/CSRF）
 3. `runReview(security, npm-audit)` → npm 依赖漏洞扫描
 4. `security-headers` → 安全响应头配置扫描（CSP / HSTS / X-Frame-Options 等）
-4.3. `open-redirect-scan` → 开放重定向检测（location.href/window.open 参数注入 + express-sec-audit AST 扫描）
+4.3. `open-redirect-scan` → 开放重定向检测（location.href/window.open 参数注入）
 4.5. `security-headers` → seraphim-audit 安全响应头深度扫描
 4.7. `recheck-cli` → 正则 ReDoS 灾难性回溯扫描
 4.8. `log-sanitization` → 日志脱敏扫描（Token/密码/身份证/手机号/邮箱泄露）
 4.9. `cors-check` → CORS 配置检测（通配符/credentials 泄露）
-4.10. `postinstall-check` → 恶意 install 脚本检测
-4.11. `socket-scan` → Socket.dev 供应链安全扫描
+4.10. `env-var-leak` → 前端环境变量泄露检测
 4.12. `sensitive-file-check` → 敏感文件暴露检查（.env/*.pem/*.key）
-4.13. `tech-debt-scan` → 技术债务标记扫描
-4.14. `deprecated-deps` → 废弃/未维护依赖检测
 5. `runSuite` → 验证修复后无功能回归（条件触发）
 6. `ce-compound` → 知识沉淀
 6.5. `remember` → 保存安全审查结果到记忆
@@ -267,7 +265,7 @@ node src/index.js start hunt --auto --target "E:\your\project"
 - `OWASP-Top-10` - OWASP Top 10 安全标准
 - `npm-audit` - npm 依赖漏洞审计
 - `security-headers` - 安全响应头配置扫描（seraphim-audit）
-- `open-redirect-scan` - 开放重定向检测 + express-sec-audit AST 扫描
+- `open-redirect-scan` - 开放重定向检测
 - `recheck-cli` - 正则 ReDoS 灾难性回溯扫描
 - `log-sanitization` - 日志脱敏扫描（Token/密码/身份证/手机号/邮箱）
 - `cors-check` - CORS 配置检测
@@ -288,29 +286,24 @@ node src/index.js start hunt --auto --target "E:\your\project"
 | **seraphim-audit** | Python CLI | `/hunt` (step 4.5), `/audit` (step 3.5) | 安全响应头扫描：CSP / HSTS / X-Frame-Options / X-Content-Type-Options / Referrer-Policy / Permissions-Policy | — |
 | **lychee** | Rust 二进制 | `/audit` (step 8.5) | 死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 | — |
 | **Lighthouse CI** | npm CLI | `/release` (step 8.6), `/audit` (step 8.8) | 性能门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查 | BLOCK-RELEASE |
-| **express-sec-audit** | npm CLI | `/hunt` (step 4.3), `/audit` (step 3.4), `/review` (step 4.2) | AST 级安全扫描：开放重定向/密钥检测/SARIF 报告 | — |
+
 | **Clearible** | npm CLI | `/review` (step 2.7), `/audit` (step 6.6) | React 状态管理审计：Context 过度使用/耦合度/循环依赖/多库混用 | — |
 | **pa11y-ci** | npm CLI | `/review` (a11y 增强层) | WCAG 2.1 AA 深度无障碍扫描 | — |
 | **recheck-cli** | npm CLI | `/hunt` (step 4.7), `/audit` (step 3.6) | 正则 ReDoS 灾难性回溯扫描 | — |
-| **log-sanitizer** | 内置 grep | `/hunt` (step 4.8), `/audit` (step 3.7) | 日志脱敏扫描：Token/密码/身份证/手机号/邮箱泄露检测 | — |
-| **cors-checker** | 内置 grep | `/hunt` (step 4.9), `/audit` (step 3.8) | CORS 配置检测：通配符 + credentials 泄露 | — |
-| **env-leak-scanner** | 内置 grep | `/audit` (step 3.9) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
-| **postinstall-checker** | 内置扫描 | `/hunt` (step 4.10), `/audit` (step 3.10) | 恶意 install 脚本检测：curl/wget/eval/base64/反弹 shell | — |
-| **socket.dev** | npx CLI | `/hunt` (step 4.11), `/audit` (step 3.11) | 供应链安全扫描：拼写欺诈/抗议软件/遥测包检测（需 API Key） | — |
-| **sensitive-file-check** | 内置 git | `/hunt` (step 4.12), `/audit` (step 3.12) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
-| **tech-debt-scan** | 内置 grep | `/hunt` (step 4.13), `/audit` (step 3.13) | 技术债务标记扫描：HACK/FIXME/BUG/XXX/WORKAROUND/TODO 分类 | — |
-| **lock-file-consistency** | 内置检查 | `/audit` (step 3.14) | 包管理器一致性：多 lock 文件检测 | — |
-| **gitignore-check** | 内置检查 | `/audit` (step 3.15) | .gitignore 最佳实践检查：8 项必要规则 | — |
-| **deprecated-deps** | npm CLI | `/hunt` (step 4.14), `/audit` (step 3.16) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | — |
+| **log-sanitizer** | 内置 grep | `/hunt` (step 4.8), `/audit` (step 3.7), `/review` (step 4.3) | 日志脱敏扫描：Token/密码/身份证/手机号/邮箱泄露检测 | — |
+| **cors-checker** | 内置 grep | `/hunt` (step 4.9), `/audit` (step 3.8), `/review` (step 4.4) | CORS 配置检测：通配符 + credentials 泄露 | — |
+| **env-leak-scanner** | 内置 grep | `/hunt` (step 4.10), `/audit` (step 3.9), `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
+| **sensitive-file-check** | 内置 git | `/hunt` (step 4.12), `/audit` (step 3.12), `/review` (step 4.6) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
+| **deprecated-deps** | npm CLI | `/audit` (step 3.16) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | — |
+| **knip** | npx CLI | `/audit` (verifier Pass 7), `/review` (verifier Pass 7) | AST 级死代码/依赖检测：未使用文件/未使用导出/未解析导入/未声明依赖/未使用依赖（11k+ stars） | — |
 
 ### 工具安装
 
 ```bash
 # 核心工具（Phase 1）
-npm install -D noleak pa11y-ci recheck-cli @lhci/cli express-sec-audit clearible    # npm 工具
+npm install -D noleak pa11y-ci recheck-cli @lhci/cli clearible knip    # npm 工具
 pip install git+https://github.com/seraphimhub/seraphim-audit.git  # seraphim-audit (Python 零依赖)
 # lychee: 下载 Windows 二进制 → https://github.com/lycheeverse/lychee/releases
-# socket.dev: npx @socketsecurity/cli scan create --json（需 SOCKET_API_KEY）
 ```
 
 ---
@@ -494,7 +487,7 @@ claude plugins install compound-engineering@anthropic
 | **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 精选品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple） |
 | **MCP服务器** | `claude mcp install github playwright supabase` | AI上下文增强扩展 |
 | **记忆工具** | `git clone https://github.com/claude-mem \`%USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 7种记忆组件组合使用（project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory） |
-| **安全工具链** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli express-sec-audit clearible` + `pip install seraphim-audit` + Socket.dev API Key 配置 | 构建泄露检测 / 安全响应头 / 死链 / 无障碍 / ReDoS / 性能门禁 / AST 安全扫描 / 状态管理审计 / 日志脱敏 / CORS / 敏感文件 / 供应链安全 / 技术债务 |
+| **安全工具链** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli clearible knip` + `pip install seraphim-audit` + Socket.dev API Key 配置 | 构建泄露检测 / 安全响应头 / 死链 / 无障碍 / ReDoS / 性能门禁 / AST 安全扫描 / 状态管理审计 / AST 死代码检测 / 日志脱敏 / CORS / 敏感文件 / 供应链安全 / 技术债务 |
 | **App Store** | [claude代码商店](https://github.com/topics/claude-app-store) | 更多Claude扩展工具 |
 
 ---
@@ -506,7 +499,7 @@ claude plugins install compound-engineering@anthropic
 | 🔧 完整安装配置指南 | [INSTALL.md](./INSTALL.md) |
 | 完整架构文档 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | 📋 完整工具清单与使用矩阵 | [docs/tools-inventory.md](./docs/tools-inventory.md) |
-| CodeWhale 安装配置 | https://deepseek-tui.com/zh/install |
+| CodeWhale 安装配置 | https://codewhale.net/zh/install |
 | Archon 官方仓库 | [github.com/coleam00/Archon](https://github.com/coleam00/Archon) |
 | Open Design | [github.com/nexu-io/open-design](https://github.com/nexu-io/open-design) |
 | Claude Code SDK | [docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code-sdk/claude-code-headless) |
