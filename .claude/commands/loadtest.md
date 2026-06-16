@@ -1,81 +1,52 @@
 ---
-description: Run load/performance tests with Artillery
+description: Run Artillery load tests: smoke (PR validation) → load (release gates) → stress (capacity planning). 9-step workflow with CI/CD performance gates.
 argument-hint: "[smoke|load|stress]"
 ---
 
-# /loadtest — Load & Performance Testing
+# /loadtest — 负载测试
 
-**Input**: $ARGUMENTS
+9 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → 模式选择 → 执行测试 → 结果评估**
 
----
+## Usage
 
-## Your Mission
-
-Run load tests using Artillery. Defaults to `smoke` mode for quick PR validation.
-
----
-
-## Execution Steps
-
-### Step 1: Detect mode
-
-From `$ARGUMENTS`, default to `smoke`. Valid modes:
-- `smoke` — light test (1-5 VUs, 30s), for PR validation
-- `load` — standard load (50+ VUs, 5min), for release gates
-- `stress` — peak load (100+ VUs, 10min), for capacity planning
-
-### Step 2: Start background server
-
-```bash
-cd <target-project>
-npm start &
-sleep 10
+```text
+/loadtest                         # 默认 smoke 模式
+/loadtest smoke                   # 轻量测试（1-5 VUs, 30s），PR 验证
+/loadtest load                    # 标准负载（50+ VUs, 5min），发布门禁
+/loadtest stress                  # 峰值压力（100+ VUs, 10min），容量规划
 ```
 
-### Step 3: Run load test
+## 执行流程
 
-```bash
-cd e:/auto-coding/claude-scene
+### Phase 0: Pre-flight 准备（对话模式）
 
-node -e "
-const { handleLoadTest } = require('./src/handlers/testing.js');
-const result = handleLoadTest('load-test', { mode: '$ARGUMENTS' || 'smoke' }, process.cwd(), {});
-console.log(result);
-"
-```
+1. **Skill("review-checklist")** (`step 0.3`) — 加载 23 项审查清单，聚焦性能/并发/资源管理项
 
-### Step 4: Evaluate results
+### Phase 1: 上下文收集（对话模式）
 
-- If any scenario fails thresholds → report failure
-- Capture p50/p95/p99 latency metrics
-- Output Artillery report JSON
+2. **GitHub MCP** (`step 1`) — 列出性能相关 issues
 
----
+### Phase 2: 负载测试执行
 
-## Setup
+- **detectMode** (`step 2`) — 从参数解析测试模式（默认 smoke）
+- **startServer** (`step 3`) — 启动后台服务
+- **runLoadTest** (`step 4`) — 运行 Artillery 负载测试
+- **evaluateResults** (`step 5`) — 评估结果：p50/p95/p99 延迟 + 错误率
+- **stopServer** (`step 6`) — 停止后台服务
 
-Create test configs in `tests/load/` directory:
+### Phase 3: 沉淀
 
-```yaml
-# tests/load/smoke.yml
-config:
-  target: 'http://localhost:3000'
-  phases:
-    - duration: 30
-      arrivalRate: 5
-  ensure:
-    p95: 500
-    maxErrorRate: 1
+- **ce-compound** (`step 7`) — 性能数据沉淀
+- **remember** → **consolidate** → **notify**
 
-scenarios:
-  - name: 'Health check'
-    flow:
-      - get:
-          url: '/api/health'
-```
+### 工具链覆盖
 
----
+| 阶段 | 工具 | 类型 |
+|------|------|------|
+| 审查清单 | review-checklist Skill（23 项） | Skill |
+| 上下文 | GitHub MCP | MCP |
+| 测试 | Artillery（smoke/load/stress） | CLI |
 
-## Output
+### CLI 模式回退
 
-Test results shown in console. Failed tests block CI/CD gates via exit code.
+在 CLI 模式（非对话）下，`Skill("review-checklist")` 和 GitHub MCP 步骤自动跳过。负载测试执行和结果评估正常执行。

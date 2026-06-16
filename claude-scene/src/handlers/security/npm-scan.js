@@ -5,7 +5,6 @@ import { readCodeFiles } from '../../lib/code-analysis-utils.js';
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export function handleSecurityScan(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔒 正在安全扫描...'));
   const issues = [];
 
   try {
@@ -14,7 +13,6 @@ export function handleSecurityScan(_action, _params, targetPath, context) {
     const vulns = parsed?.vulnerabilities ? Object.keys(parsed.vulnerabilities).length : 0;
     if (vulns) {
       issues.push(`npm: ${vulns} 漏洞`);
-      console.log(chalk.yellow(`  ⚠ npm 漏洞: ${vulns}`));
     } else {
       console.log(chalk.green('  ✅ npm: 无漏洞'));
     }
@@ -25,9 +23,8 @@ export function handleSecurityScan(_action, _params, targetPath, context) {
       const foundMatch = audit2.match(/(\d+)\s+vulnerabilities/);
       if (foundMatch && parseInt(foundMatch[1]) > 0) {
         issues.push(`npm: ${foundMatch[1]} 漏洞`);
-        console.log(chalk.yellow(`  ⚠ ${foundMatch[0]}`));
       }
-    } catch { console.log(chalk.dim('  ℹ npm audit 不可用')); }
+    } catch { /* fallback */ }
   }
 
   const srcDir = join(targetPath, 'src');
@@ -41,7 +38,6 @@ export function handleSecurityScan(_action, _params, targetPath, context) {
       const matches = file.content.match(regex);
       if (matches) {
         issues.push(`${name}: ${file.path} (${matches.length} 处)`);
-        console.log(chalk.red(`  🔴 ${name} 发现于 ${file.path}`));
       }
     }
   }
@@ -52,13 +48,10 @@ export function handleSecurityScan(_action, _params, targetPath, context) {
     if (issues.length > 0) context.high_severity_found = true;
   }
 
-  if (!issues.length) console.log(chalk.green('  ✅ 未发现安全问题'));
   return `安全扫描完成: ${issues.length ? issues.join('; ') : '无问题'}`;
 }
 
 export function handleAnalyzeSecurityVulnerabilities(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🛡️ 正在分析安全漏洞...'));
-  console.log(chalk.dim('  ℹ CLI 模式下为轻量分析，完整漏洞分析需 Claude Code 对话上下文'));
   const findings = { critical: 0, high: 0, medium: 0, low: 0 };
   try {
     const audit = safeExec('npm audit --json 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
@@ -69,7 +62,7 @@ export function handleAnalyzeSecurityVulnerabilities(_action, _params, targetPat
         const severity = v.severity || 'low';
         if (findings[severity] !== undefined) findings[severity]++;
       }
-    } catch { /* json parse failed */ }
+    } catch { /* JSON parse failed */ }
   } catch { /* npm audit unavailable */ }
   const total = findings.critical + findings.high + findings.medium + findings.low;
   if (total) {
@@ -87,7 +80,6 @@ export function handleAnalyzeSecurityVulnerabilities(_action, _params, targetPat
 }
 
 export function handleDeprecatedDeps(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🪦 正在检测废弃/未维护依赖...'));
   let deprecatedCount = 0;
   const deprecatedPkgs = [];
 
@@ -110,7 +102,7 @@ export function handleDeprecatedDeps(_action, _params, targetPath, context) {
         }
       }
     }
-  } catch { console.log(chalk.dim('  ℹ npm outdated 不可用')); }
+  } catch { /* npm outdated unavailable */ }
 
   if (deprecatedCount > 0) {
     console.log(chalk.yellow(`  ⚠ 发现 ${deprecatedCount} 个废弃依赖`));

@@ -21,7 +21,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["performance", "loadtest", "benchmark"]
+          "type": [
+            "performance",
+            "loadtest",
+            "benchmark"
+          ]
         }
       },
       "description": "注入历史性能测试记忆",
@@ -59,7 +63,9 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": ["loadtest"]
+        "checks": [
+          "loadtest"
+        ]
       },
       "description": "质量门禁：负载测试失败则阻断",
       "auto_execute": true,
@@ -103,6 +109,20 @@
       "params": {},
       "description": "去重整理记忆",
       "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "loadtest",
+        "source": "auto"
+      },
+      "description": "将loadtest知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
       "on_error": "continue"
     },
     {

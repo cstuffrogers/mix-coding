@@ -10,54 +10,28 @@
 
 ---
 
-## 引擎路由（重要）
+## 引擎
 
-**每次执行 `/` 指令前，先按以下规则选择引擎：**
+所有工作流通过 **Scene 引擎** 在 Claude Code 对话内直接执行：
 
 ```
 1. 识别工作流 → 匹配场景ID
-2. 收集参数 → 参数不足时间用户补全
+2. 收集参数 → 参数不足时向用户补全
 3. 检测项目特征 → 组装可选增强菜单（详见 CLAUDE.md 可选增强选择）
 4. 有适用增强 → 弹出菜单让用户勾选（3秒无操作 = 仅默认项勾选）
-5. 选择引擎:
-   if AUTO_CODING_ENGINE == "archon" && 不在 Claude Code 内:
-       → Archon 引擎
-   else:
-       → Scene 引擎（默认）
-```
-
-### 引擎选择详情
-
-```
-if 环境变量 AUTO_CODING_ENGINE == "archon":
-    if 当前运行在 Claude Code 会话内（CLAUDECODE=1）:
-        → 警告用户：Archon 不支持从 Claude Code 内触发（子节点会僵死）
-        → 在独立终端运行: archon workflow run auto-coding-<场景ID> -q "<参数>"
-        → 回退到 Scene 引擎执行
-    else if .archon/workflows/<场景ID>.yaml 存在:
-        → Archon 引擎: bun run cli workflow run auto-coding-<场景ID> -q "<参数>"
-    else:
-        → 告知用户该场景无 Archon YAML，回退到 Scene 引擎
-else:
-    → Scene 引擎: node src/index.js start <场景ID> --auto [参数]
+5. 执行: node src/index.js start <场景ID> --auto [参数]
 ```
 
 **对话模式优先**：以下命令依赖 Claude Code skill/MCP 工具，CLI 子进程无法调用，必须在对话内直接执行：
 
 | 命令 | 依赖工具 | 对话模式执行 |
 |------|---------|-------------|
-| `/design` | web-design-engineer skill (Open Design, 129 品牌系统) | 按 `.claude/commands/design.md` 对话内调用 Skill tool |
+| `/design` | web-design-engineer skill (Open Design, 150 品牌系统) | 按 `.claude/commands/design.md` 对话内调用 Skill tool |
 | `/ui-polish` | web-design-engineer + impeccable + ai-friendly-web-design skills | 按 `.claude/commands/ui-polish.md` 对话内 Pre-flight Skill → CLI 机械步骤 → 后置 Skill 审查 |
 | `/new-project` | web-design-engineer skill (前端项目时) | 按 `.claude/commands/new-project.md` 对话内调用 Skill + CLI 执行 |
 | `/review` | review skill (五层审查) | 按 `.claude/commands/review.md` 对话内执行 |
 
-> 这些命令在 Claude Code 会话内执行时，**不路由到 CLI**，Claude 直接读 command 文件在对话内完成。只在非交互模式（--auto / CI）且需要跑非 skill 步骤时才走 CLI。
-
-> **测试验证（2026-06-04）**：从 Claude Code 内通过 `/review` 触发 Archon，
-> 首个节点正常运行（91s），但并行节点僵死 — 确认 [#1067](https://github.com/coleam00/Archon/issues/1067) 问题。
-> Archon 模式必须从独立终端触发。
-
-**默认引擎**：Scene（未设置环境变量时）
+> 这些命令在 Claude Code 会话内执行时，按 command 文件在对话内完成。
 
 ---
 
@@ -86,25 +60,25 @@ else:
 
 **用户输入以 `/` 开头时，直接按此表匹配，无需做自然语言分析：**
 
-| 指令 | 场景ID | Archon | Scene 命令 | Archon 命令 |
-|------|--------|--------|-----------|------------|
+| 指令 | 场景ID | 执行方式 |
+|------|--------|---------|
 <!-- AUTO-SYNC:COMMAND-TABLE-START -->
-| `/analyze` | `analyze` | ✅ | `node src/index.js start analyze --auto --prompt "<描述>"` | `bun run cli workflow run auto-coding-analyze "<[项目名]>"` |
-| `/audit` | `audit` | ✅ | `node src/index.js start audit --auto` | `bun run cli workflow run auto-coding-audit` |
+| `/analyze` | `analyze` | ❌ | `node src/index.js start analyze --auto --prompt "<描述>"` | — |
+| `/audit` | `audit` | ❌ | `node src/index.js start audit --auto` | — |
 | `/backup` | `backup` | ❌ | `node src/index.js start backup --auto` | — |
-| `/bugfix` | `bugfix` | ✅ | `node src/index.js start bugfix --auto --prompt "<描述>"` | `bun run cli workflow run auto-coding-bugfix "<描述>"` |
+| `/bugfix` | `bugfix` | ❌ | `node src/index.js start bugfix --auto --prompt "<描述>"` | — |
 | `/changelog` | `changelog` | ❌ | `node src/index.js start changelog --auto` | — |
 | `/cicd` | `cicd` | ❌ | `node src/index.js start cicd --auto` | — |
-| `/deps` | `deps` | ✅ | `node src/index.js start deps --auto` | `bun run cli workflow run auto-coding-deps` |
-| `/design` | `design` | ✅ | `node src/index.js start design --auto --prompt "<描述>"` | `bun run cli workflow run auto-coding-design "<描述>"` |
+| `/deps` | `deps` | ❌ | `node src/index.js start deps --auto` | — |
+| `/design` | `design` | ❌ | `node src/index.js start design --auto --prompt "<描述>"` | — |
 | `/docker` | `docker` | ❌ | `node src/index.js start docker --auto` | — |
 | `/e2e` | `e2e` | ❌ | `node src/index.js start e2e --auto` | — |
-| `/feature` | `feature` | ✅ | `node src/index.js start feature --auto --prompt "<描述>"` | `bun run cli workflow run auto-coding-feature "<描述>"` |
-| `/hunt` | `hunt` | ✅ | `node src/index.js start hunt --auto` | `bun run cli workflow run auto-coding-hunt` |
+| `/feature` | `feature` | ❌ | `node src/index.js start feature --auto --prompt "<描述>"` | — |
+| `/hunt` | `hunt` | ❌ | `node src/index.js start hunt --auto` | — |
 | `/incident` | `incident` | ❌ | `node src/index.js start incident --auto` | — |
 | `/loadtest` | `loadtest` | ❌ | `node src/index.js start loadtest --auto` | — |
 | `/log` | `log` | ❌ | `node src/index.js start log --auto` | — |
-| `/loop` | `loop` | ✅ | `node src/index.js start loop --auto` | `bun run cli workflow run auto-coding-loop` |
+| `/loop` | `loop` | ❌ | `node src/index.js start loop --auto` | — |
 | `/migration` | `migration` | ❌ | `node src/index.js start migration --auto` | — |
 | `/mobile-audit` | `mobile-audit` | ❌ | `node src/index.js start mobile-audit --auto` | — |
 | `/mobile-e2e` | `mobile-e2e` | ❌ | `node src/index.js start mobile-e2e --auto` | — |
@@ -113,17 +87,16 @@ else:
 | `/mobile-release` | `mobile-release` | ❌ | `node src/index.js start mobile-release --auto` | — |
 | `/mobile-review` | `mobile-review` | ❌ | `node src/index.js start mobile-review --auto` | — |
 | `/monitor` | `monitor` | ❌ | `node src/index.js start monitor --auto` | — |
-| `/new-project` | `new-project` | ✅ | `node src/index.js start new-project --auto --prompt "<描述>"` | `bun run cli workflow run auto-coding-new-project "<描述>"` |
-| `/onboard` | `onboard` | ✅ | `node src/index.js start onboard --auto` | `bun run cli workflow run auto-coding-onboard` |
-| `/optimize` | `optimize` | ✅ | `node src/index.js start optimize --auto` | `bun run cli workflow run auto-coding-optimize` |
-| `/prototype` | `prototype` | ✅ | `node src/index.js start prototype --auto --prompt "<描述>"` | `bun run cli workflow run auto-coding-prototype "<描述>"` |
-| `/refactor` | `refactor` | ✅ | `node src/index.js start refactor --auto --prompt "<描述>"` | `bun run cli workflow run auto-coding-refactor "<描述>"` |
-| `/release` | `release` | ✅ | `node src/index.js start release --auto` | `bun run cli workflow run auto-coding-release` |
-| `/review` | `review` | ✅ | `node src/index.js start review --auto` | `bun run cli workflow run auto-coding-review` |
-| `/rollback` | `rollback` | ✅ | `node src/index.js start rollback --auto` | `bun run cli workflow run auto-coding-rollback` |
+| `/new-project` | `new-project` | ❌ | `node src/index.js start new-project --auto --prompt "<描述>"` | — |
+| `/onboard` | `onboard` | ❌ | `node src/index.js start onboard --auto` | — |
+| `/optimize` | `optimize` | ❌ | `node src/index.js start optimize --auto` | — |
+| `/refactor` | `refactor` | ❌ | `node src/index.js start refactor --auto --prompt "<描述>"` | — |
+| `/release` | `release` | ❌ | `node src/index.js start release --auto` | — |
+| `/review` | `review` | ❌ | `node src/index.js start review --auto` | — |
+| `/rollback` | `rollback` | ❌ | `node src/index.js start rollback --auto` | — |
 | `/sbom` | `sbom` | ❌ | `node src/index.js start sbom --auto` | — |
-| `/simplify` | `simplify` | ✅ | `node src/index.js start simplify --auto` | `bun run cli workflow run auto-coding-simplify` |
-| `/ui-polish` | `ui-polish` | ✅ | `node src/index.js start ui-polish --auto --theme <主题> --target <路径>` | `bun run cli workflow run auto-coding-ui-polish "<<主题> <路径>>"` |
+| `/simplify` | `simplify` | ❌ | `node src/index.js start simplify --auto` | — |
+| `/ui-polish` | `ui-polish` | ❌ | `node src/index.js start ui-polish --auto --theme <主题> --target <路径>` | — |
 <!-- AUTO-SYNC:COMMAND-TABLE-END -->
 
 ---
@@ -172,10 +145,9 @@ else:
 ### 指令解析规则
 
 1. 用户输入以 `/` 开头时，提取指令名，对照上表找到场景ID
-2. **检查引擎**：检查 `AUTO_CODING_ENGINE` 环境变量，确定使用哪个引擎
-3. 指令后的文本即为参数，按以下规则分配：
-   - `/polish animal-island E:\my-app` → `--theme animal-island --target "E:\my-app"`
-   - `/polish E:\my-app`（只有路径）→ 询问主题 → 再执行
+2. 指令后的文本即为参数，按以下规则分配：
+   - `/ui-polish animal-island E:\my-app` → `--theme animal-island --target "E:\my-app"`
+   - `/ui-polish E:\my-app`（只有路径）→ 询问主题 → 再执行
    - `/bugfix 登录页面报错了` → `--prompt "登录页面报错了"`
    - `/feature 添加用户管理` → `--prompt "添加用户管理"`
    - `/new-project React+TS后台系统` → `--prompt "React+TS后台系统"`
@@ -184,20 +156,16 @@ else:
 ### 指令执行示例
 
 ```
-# Scene 引擎（默认）
-用户: /polish animal-island E:\my-app
-AI: 识别到 /polish 指令，主题=animal-island，路径=E:\my-app
-    → AUTO_CODING_ENGINE 未设置 → Scene 引擎
+用户: /ui-polish animal-island E:\my-app
+AI: 识别到 /ui-polish 指令，主题=animal-island，路径=E:\my-app
     → 执行: node src/index.js start ui-polish --auto --theme animal-island --target "E:\my-app"
 
 用户: /bugfix 登录页面表单验证不生效
 AI: 识别到 /bugfix 指令，问题描述="登录页面表单验证不生效"
-    → AUTO_CODING_ENGINE=archon → Archon 引擎
-    → 执行: bun run cli workflow run auto-coding-bugfix "登录页面表单验证不生效"
+    → 执行: node src/index.js start bugfix --auto --prompt "登录页面表单验证不生效"
 
 用户: /review
 AI: 识别到 /review 指令，无需额外参数
-    → AUTO_CODING_ENGINE 未设置 → Scene 引擎
     → 执行: node src/index.js start review --auto
 ```
 
@@ -205,23 +173,17 @@ AI: 识别到 /review 指令，无需额外参数
 
 ## CLI 工具路径
 
-两种引擎对应不同的 CLI：
+**Scene 引擎**：`claude-scene/`（相对于项目根目录）
 
-**Scene 引擎**：`e:\auto-coding\claude-scene`
 ```bash
 node src/index.js start <场景ID> --auto [选项...]
-```
-
-**Archon 引擎**：`e:\auto-coding\Archon-dev\Archon-dev`
-```bash
-bun run cli workflow run auto-coding-<场景ID> "<描述>"
 ```
 
 ---
 
 ## 自然语言触发（无 `/` 前缀时使用）
 
-当用户输入不以 `/` 开头时，按以下触发词匹配。以下是完整的 35 个工作流：
+当用户输入不以 `/` 开头时，按以下触发词匹配。以下是完整的 34 个工作流：
 
 <!-- AUTO-SYNC:TRIGGER-SECTIONS-START -->
 ### 1. 竞品分析 — `analyze`
@@ -455,7 +417,7 @@ node src/index.js start mobile-audit --auto
 ```
 
 ### 19. 移动端 E2E 测试配置 — `mobile-e2e`
-**触发词**：App测试、移动端E2E、UI自动化测试、mobile e2e、Detox、Maestro
+**触发词**：App测试、移动端E2E、UI自动化测试、mobile e2e、Detox
 **自然语言示例**：
 - "帮我配置 App 的 E2E 测试"
 - "给项目加上 UI 自动化测试"
@@ -565,19 +527,7 @@ node src/index.js start onboard --auto
 node src/index.js start optimize --auto
 ```
 
-### 28. 快速原型 — `prototype`
-**触发词**：原型、prototype、验证想法、PoC、概念验证、MVP、快速试一下
-**自然语言示例**：
-- "帮我做一个快速原型验证想法"
-- "做一个PoC看看可行性"
-- "先做一个MVP试试"
-
-**CLI 命令**：
-```bash
-node src/index.js start prototype --auto --prompt "想法描述"
-```
-
-### 29. 代码重构 — `refactor`
+### 28. 代码重构 — `refactor`
 **触发词**：重构、整理、优化结构、改写、重写、clean code、代码整理
 **自然语言示例**：
 - "这段代码需要重构"
@@ -589,7 +539,7 @@ node src/index.js start prototype --auto --prompt "想法描述"
 node src/index.js start refactor --auto --prompt "重构目标模块"
 ```
 
-### 30. 发布部署 — `release`
+### 29. 发布部署 — `release`
 **触发词**：发布、release、上线、deploy、ship、发版、部署
 **自然语言示例**：
 - "帮我发布一个新版本"
@@ -601,7 +551,7 @@ node src/index.js start refactor --auto --prompt "重构目标模块"
 node src/index.js start release --auto
 ```
 
-### 31. 代码审查 — `review`
+### 30. 代码审查 — `review`
 **触发词**：审查、review、检查代码、代码质量、有没有问题、帮我看看代码、review 一下
 **自然语言示例**：
 - "帮我审查一下代码"
@@ -614,7 +564,7 @@ node src/index.js start release --auto
 node src/index.js start review --auto
 ```
 
-### 32. 紧急回滚 — `rollback`
+### 31. 紧急回滚 — `rollback`
 **触发词**：回滚、rollback、撤销部署、紧急恢复、revert、版本回退
 **自然语言示例**：
 - "线上出问题了，赶紧回滚"
@@ -626,7 +576,7 @@ node src/index.js start review --auto
 node src/index.js start rollback --auto
 ```
 
-### 33. SBOM 许可证合规 — `sbom`
+### 32. SBOM 许可证合规 — `sbom`
 **触发词**：sbom、许可证、license、合规、依赖分析、软件物料清单
 **自然语言示例**：
 - "帮我生成 SBOM"
@@ -638,7 +588,7 @@ node src/index.js start rollback --auto
 node src/index.js start sbom --auto
 ```
 
-### 34. 代码简化 — `simplify`
+### 33. 代码简化 — `simplify`
 **触发词**：简化、精简、减少复杂度、太复杂、简单点、代码简化
 **自然语言示例**：
 - "这段代码太复杂了，简化一下"
@@ -650,7 +600,7 @@ node src/index.js start sbom --auto
 node src/index.js start simplify --auto
 ```
 
-### 35. 前端美化 — `ui-polish`
+### 34. 前端美化 — `ui-polish`
 **触发词**：美化、换主题、改UI、DaisyUI、Animal Island、前端美化、漂亮、配色、改样式、UI改版、换个风格、界面美化
 **自然语言示例**：
 - "帮我把这个项目的前端美化一下"

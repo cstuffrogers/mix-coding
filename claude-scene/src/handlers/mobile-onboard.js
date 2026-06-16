@@ -6,18 +6,14 @@ import { safeExec } from '../lib/safe-exec.js';
 // ── React Native Doctor ──
 
 export function handleCheckRnDoctor(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🩺 正在运行 react-native doctor...'));
 
   const projectType = context?.project_type;
   if (projectType !== 'rn' && projectType !== 'expo') {
-    console.log(chalk.dim('  ⏭ 非 RN/Expo 项目，跳过'));
     return 'react-native doctor 已跳过（非 RN 项目）';
   }
 
   try {
-    const result = safeExec('npx @react-native-community/cli doctor 2>&1 || npx react-native doctor 2>&1 || echo "RN CLI 不可用"', targetPath, { stdio: 'pipe', timeout: 30000 });
-    const output = (result?.stdout || '').toString();
-    console.log(chalk.dim(`  ${output.trim().split('\n').slice(0, 5).join('\n  ')}`));
+    safeExec('npx @react-native-community/cli doctor 2>&1 || npx react-native doctor 2>&1 || echo "RN CLI 不可用"', targetPath, { stdio: 'pipe', timeout: 30000 });
   } catch (e) {
     console.log(chalk.yellow(`  ⚠ react-native doctor 执行失败: ${e.message}`));
   }
@@ -26,43 +22,12 @@ export function handleCheckRnDoctor(_action, _params, targetPath, context) {
   return 'react-native doctor 检查完成';
 }
 
-// ── Fastlane Init ──
-
-export function handleInitFastlane(_action, params, _targetPath, context) {
-  const mode = params?.mode || 'match';
-  console.log(chalk.blue(`\n🚀 正在初始化 fastlane ${mode}...`));
-
-  const platform = context?.platform;
-  if (platform !== 'ios' && platform !== 'both') {
-    console.log(chalk.dim('  ⏭ 非 iOS 项目，跳过 fastlane match'));
-    return 'fastlane 已跳过（非 iOS 项目）';
-  }
-
-  // Check fastlane availability
-  try {
-    safeExec('fastlane --version 2>&1 || echo NOT_FOUND', undefined, { stdio: 'pipe', timeout: 10000 });
-  } catch {
-    console.log(chalk.yellow('  ⚠ fastlane 未安装。安装: gem install fastlane'));
-    return 'fastlane 初始化跳过（工具不可用）';
-  }
-
-  console.log(chalk.dim('  ℹ CLI 模式下为配置指引，完整初始化需 Apple Developer 账号 + Claude Code 上下文'));
-
-  if (context) {
-    context.fastlane_available = true;
-    context.fastlane_mode = mode;
-  }
-  return 'fastlane match 初始化指引已输出';
-}
-
 // ── Android SDK Check ──
 
 export function handleCheckAndroidSDK(_action, _params, _targetPath, context) {
-  console.log(chalk.blue('\n🤖 正在检查 Android SDK/NDK...'));
 
   const platform = context?.platform;
   if (platform !== 'android' && platform !== 'both') {
-    console.log(chalk.dim('  ⏭ 非 Android 项目，跳过'));
     return 'Android SDK 检查已跳过（非 Android 项目）';
   }
 
@@ -71,18 +36,13 @@ export function handleCheckAndroidSDK(_action, _params, _targetPath, context) {
 
   for (const v of envVars) {
     checks[v] = process.env[v] || 'not set';
-    const icon = checks[v] !== 'not set' ? '✅' : '⚠️';
-    console.log(chalk.dim(`  ${icon} ${v}: ${checks[v]}`));
   }
 
-  // Check local.properties
   const localProps = join(_targetPath, 'android', 'local.properties');
   if (existsSync(localProps)) {
     try {
-      const content = readFileSync(localProps, 'utf-8');
-      const sdkMatch = content.match(/sdk\.dir=(.+)/);
-      if (sdkMatch) console.log(chalk.dim(`  ✅ local.properties sdk.dir: ${sdkMatch[1].trim()}`));
-    } catch { /* skip */ }
+      const _content = readFileSync(localProps, 'utf-8');
+  } catch { /* skip */ }
   }
 
   if (context) {
@@ -95,7 +55,6 @@ export function handleCheckAndroidSDK(_action, _params, _targetPath, context) {
 // ── Env Template Generator ──
 
 export function handleSetupEnv(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n📄 正在生成 .env 模板...'));
 
   const template = [
     '# ── API 配置 ──',
@@ -127,7 +86,6 @@ export function handleSetupEnv(_action, _params, targetPath, context) {
   if (!existsSync(envPath)) {
     try {
       writeFileSync(envPath, template);
-      console.log(chalk.green(`  ✅ .env.example 已生成`));
     } catch (e) {
       console.log(chalk.yellow(`  ⚠ 写入失败: ${e.message}`));
     }
@@ -142,7 +100,6 @@ export function handleSetupEnv(_action, _params, targetPath, context) {
 // ── Emulator/Device Setup ──
 
 export function handleSetupEmulator(_action, _params, _targetPath, context) {
-  console.log(chalk.blue('\n📱 模拟器/真机调试配置指引...'));
 
   const platform = context?.platform || 'both';
   const guides = [];
@@ -170,7 +127,6 @@ export function handleSetupEmulator(_action, _params, _targetPath, context) {
   }
 
   for (const g of guides) {
-    console.log(chalk.cyan(`\n  ${g.platform}:`));
     for (const s of g.steps) {
       console.log(chalk.dim(`    📋 ${s}`));
     }
@@ -184,14 +140,12 @@ export function handleSetupEmulator(_action, _params, _targetPath, context) {
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export function handleVerifyBuild(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔨 正在验证首次构建...'));
 
   const platform = context?.platform || 'both';
   const results = [];
 
   // iOS pod install
   if ((platform === 'ios' || platform === 'both') && existsSync(join(targetPath, 'ios', 'Podfile'))) {
-    console.log(chalk.dim('  🍎 执行 pod install...'));
     try {
       safeExec('cd ios && pod install 2>&1 || echo "CocoaPods 不可用"', targetPath, { stdio: 'pipe', timeout: 60000 });
       results.push({ platform: 'ios', step: 'pod install', status: 'ok' });
@@ -204,7 +158,6 @@ export function handleVerifyBuild(_action, _params, targetPath, context) {
   if (platform === 'android' || platform === 'both') {
     const gradlew = join(targetPath, 'android', process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
     if (existsSync(gradlew)) {
-      console.log(chalk.dim('  🤖 执行 gradle sync...'));
       try {
         safeExec(`cd android && ${process.platform === 'win32' ? 'gradlew.bat' : './gradlew'} --no-daemon assembleDebug 2>&1 || echo "Gradle 不可用"`, targetPath, { stdio: 'pipe', timeout: 120000 });
         results.push({ platform: 'android', step: 'gradle assembleDebug', status: 'ok' });
@@ -212,11 +165,6 @@ export function handleVerifyBuild(_action, _params, targetPath, context) {
         results.push({ platform: 'android', step: 'gradle assembleDebug', status: 'skipped' });
       }
     }
-  }
-
-  for (const r of results) {
-    const icon = r.status === 'ok' ? '✅' : '⚠️';
-    console.log(chalk.dim(`  ${icon} [${r.platform}] ${r.step}`));
   }
 
   if (results.length === 0) {

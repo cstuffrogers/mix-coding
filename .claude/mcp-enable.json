@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "description": "archon 工作流场景与 MCP Servers 的动态启用映射表",
+  "description": "工作流场景与 MCP Servers 的动态启用映射表",
   "mcp_mappings": {
     "new-project": {
       "enabled_servers": ["github", "tavily-search", "context7", "supabase", "stripe", "resend"],
@@ -53,9 +53,9 @@
       "rationale": "安全审查需要错误监控、漏洞搜索、文档和代码图谱分析"
     },
     "analyze": {
-      "enabled_servers": ["tavily-search", "opendigger"],
+      "enabled_servers": ["tavily-search"],
       "token_estimate": 700,
-      "rationale": "竞品分析需要搜索服务 + OpenDigger 开源数据分析"
+      "rationale": "竞品分析需要搜索服务"
     },
     "loop": {
       "enabled_servers": ["github", "context7"],
@@ -98,14 +98,14 @@
       "rationale": "移动端全维度审计：MobSF安全+MobSF源码扫描+Bearer隐私+依赖CVE+性能基线+质量门禁"
     },
     "mobile-review": {
-      "enabled_servers": ["github", "codegraph", "memory", "maestro", "detox"],
-      "token_estimate": 1500,
-      "rationale": "移动端5层审查：ESLint+RN规则 → mobsfscan安全 → Detox/Maestro截图 → AI语义+a11y → 聚合"
+      "enabled_servers": ["github", "codegraph", "memory", "detox"],
+      "token_estimate": 1400,
+      "rationale": "移动端5层审查：ESLint+RN规则 → mobsfscan安全 → Detox截图 → AI语义+a11y → 聚合"
     },
     "mobile-release": {
-      "enabled_servers": ["github", "sentry", "shorebird", "memory"],
-      "token_estimate": 1200,
-      "rationale": "移动端发布：fastlane构建签名+iOS TestFlight/Android Play+Shorebird OTA+崩溃监控"
+      "enabled_servers": ["github", "memory"],
+      "token_estimate": 800,
+      "rationale": "移动端发布：证书检查+质量门禁+版本号+CHANGELOG+TestFlight/Google Play"
     },
     "mobile-optimize": {
       "enabled_servers": ["github", "codegraph", "memory"],
@@ -113,14 +113,14 @@
       "rationale": "移动端性能优化：Bundle分析+启动时间+FPS+内存+网络+资产优化+性能预算"
     },
     "mobile-e2e": {
-      "enabled_servers": ["github", "maestro", "detox", "memory"],
-      "token_estimate": 1000,
-      "rationale": "移动端E2E配置：Detox(RN首选)/Maestro(通用跨平台)/miniprogram-automator(小程序)+CI集成"
+      "enabled_servers": ["github", "detox", "memory"],
+      "token_estimate": 900,
+      "rationale": "移动端E2E配置：Detox(RN首选)/miniprogram-automator(小程序)+CI集成"
     },
     "mobile-onboard": {
       "enabled_servers": ["github", "memory"],
       "token_estimate": 400,
-      "rationale": "移动端环境搭建：react-native-doctor+fastlane+Android SDK/Xcode+模拟器配置"
+      "rationale": "移动端环境搭建：react-native-doctor+Android SDK/Xcode+模拟器配置"
     }
   },
   "server_definitions": {
@@ -155,11 +155,6 @@
       "type": "sentry-mcp",
       "required_env_vars": ["SENTRY_AUTH_TOKEN"]
     },
-    "opendigger": {
-      "type": "cli",
-      "install_command": "npm install -g open-digger",
-      "config_file": null
-    },
     "codegraph": {
       "type": "codegraph",
       "install_command": "独立安装 codegraph-win32-x64.zip",
@@ -190,11 +185,6 @@
       "description": "移动端安全框架：全自动 Android/iOS 静态+动态安全分析，REST API",
       "rate_limit": "100/day"
     },
-    "maestro": {
-      "type": "maestro-mcp",
-      "install_command": "curl -Ls \"https://get.maestro.mobile.dev\" | bash",
-      "description": "跨平台移动 UI 自动化（RN/Flutter/原生），YAML 配置零代码，已有 MCP Server"
-    },
     "detox": {
       "type": "detox-mcp",
       "install_command": "npm install -g detox-cli",
@@ -209,12 +199,6 @@
       "type": "toxiproxy-mcp",
       "install_command": "brew install toxiproxy || go install github.com/Shopify/toxiproxy/v2/cmd/toxiproxy@latest",
       "description": "网络故障注入：弱网/超时/丢包场景测试移动端网络弹性"
-    },
-    "shorebird": {
-      "type": "shorebird-mcp",
-      "install_command": "dart pub global activate shorebird_cli",
-      "description": "Flutter/RN OTA 热更新：无需应用商店审核即可推送代码/资源修复"
-    }
   },
   "activation_strategy": {
     "mode": "per-workflow",

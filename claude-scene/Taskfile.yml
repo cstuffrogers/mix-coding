@@ -1,0 +1,7 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - echo "No scripts found in package.json"
+    desc: Default task

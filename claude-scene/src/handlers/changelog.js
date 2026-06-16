@@ -1,6 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 
 function getLatestTag(targetPath) {
@@ -104,16 +103,13 @@ ${body}`;
 function writeChangelog(path, content) {
   try {
     writeFileSync(path, content, 'utf-8');
-    console.log(chalk.green('  ✅ CHANGELOG.md 已生成'));
     return true;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 写入失败: ${e.message}`));
+  } catch {
     return false;
   }
 }
 
 function prependChangelog(path, content) {
-  console.log(chalk.dim('  CHANGELOG.md 已存在，将在顶部追加新内容'));
   try {
     const existing = readFileSync(path, 'utf-8');
     const headerEnd = existing.indexOf('\n## ');
@@ -126,18 +122,23 @@ function prependChangelog(path, content) {
       writeFileSync(path, content, 'utf-8');
     }
     return true;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 追加失败: ${e.message}`));
+  } catch {
     try { writeFileSync(path, content, 'utf-8'); } catch { /* ignore */ }
     return false;
   }
 }
 
 export function handleGenerateChangeLog(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n📝 正在生成变更日志...'));
 
-  if (!existsSync(join(targetPath, '.git'))) {
-    console.log(chalk.yellow('  ⚠ 非 Git 仓库，跳过变更日志生成'));
+  const hasDotGit = existsSync(join(targetPath, '.git'));
+  let isGit = hasDotGit;
+  if (!isGit) {
+    try {
+      safeExec('git rev-parse --git-dir 2>&1', targetPath, { stdio: 'pipe' });
+      isGit = true;
+    } catch { /* not a Git repo */ }
+  }
+  if (!isGit) {
     if (context) {
       context.changelogGenerated = false;
       context.changelogSkipped = true;
@@ -146,13 +147,10 @@ export function handleGenerateChangeLog(_action, _params, targetPath, context) {
   }
 
   const tag = getLatestTag(targetPath);
-  console.log(chalk.dim(tag ? `  最新标签: ${tag}` : '  无标签，将生成完整历史'));
 
   const commits = getCommitsSinceTag(targetPath, tag, true);
-  console.log(chalk.dim(`  找到 ${commits.length} 条提交`));
 
   if (commits.length === 0) {
-    console.log(chalk.yellow('  ⚠ 无提交记录'));
     if (context) {
       context.changelogGenerated = false;
       context.commitCount = 0;
@@ -171,9 +169,6 @@ export function handleGenerateChangeLog(_action, _params, targetPath, context) {
     if (context) context.lastStepFailed = true;
     return '变更日志生成失败';
   }
-
-  const conventionalCount = commits.filter((c) => CONVENTIONAL_RE.test(c)).length;
-  console.log(chalk.dim(`  符合 Conventional Commits: ${conventionalCount}/${commits.length}`));
 
   if (context) {
     context.changelogGenerated = true;

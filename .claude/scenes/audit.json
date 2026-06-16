@@ -13,6 +13,19 @@
   ],
   "flow": [
     {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单，建立审计基准框架",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
       "step": 0.5,
       "layer": "capability",
       "service": "MemoryService",
@@ -85,7 +98,7 @@
       "on_error": "continue"
     },
     {
-      "step": 3.2,
+      "step": 3.02,
       "layer": "capability",
       "service": "ReviewEngine",
       "action": "runReview",
@@ -102,7 +115,7 @@
       "on_error": "continue"
     },
     {
-      "step": 3.3,
+      "step": 3.03,
       "layer": "capability",
       "service": "CodeAnalyzer",
       "action": "i18n-audit",
@@ -114,7 +127,7 @@
       "on_error": "continue"
     },
     {
-      "step": 3.4,
+      "step": 3.04,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "open-redirect-scan",
@@ -124,7 +137,7 @@
       "on_error": "continue"
     },
     {
-      "step": 3.5,
+      "step": 3.05,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "security-headers",
@@ -134,7 +147,7 @@
       "on_error": "continue"
     },
     {
-      "step": 3.6,
+      "step": 3.06,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "recheck-cli",
@@ -144,7 +157,7 @@
       "on_error": "continue"
     },
     {
-      "step": 3.7,
+      "step": 3.07,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "log-sanitization",
@@ -154,7 +167,7 @@
       "on_error": "continue"
     },
     {
-      "step": 3.8,
+      "step": 3.08,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "cors-check",
@@ -164,7 +177,7 @@
       "on_error": "continue"
     },
     {
-      "step": 3.9,
+      "step": 3.09,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "env-var-leak",
@@ -209,7 +222,10 @@
       "service": "SkillSecurityService",
       "action": "skillspector-scan",
       "params": {
-        "targets": [".claude/skills/", ".claude/commands/"],
+        "targets": [
+          ".claude/skills/",
+          ".claude/commands/"
+        ],
         "format": "json"
       },
       "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）",
@@ -229,12 +245,92 @@
       "on_error": "continue"
     },
     {
-      "step": "3.20",
+      "step": 3.195,
+      "layer": "capability",
+      "service": "CodeQualityService",
+      "action": "knip-check",
+      "params": {},
+      "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.21,
       "layer": "capability",
       "service": "ArchitectureService",
       "action": "depcruise-architecture",
       "params": {},
       "description": "依赖架构验证（dependency-cruiser）：循环依赖检测、孤儿模块识别、架构分层合规、调用图生成",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.22,
+      "layer": "capability",
+      "service": "CIService",
+      "action": "actionlint",
+      "params": {},
+      "description": "GitHub Actions 工作流语法检查（actionlint）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.23,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "zizmor",
+      "params": {},
+      "description": "GitHub Actions 安全审计（zizmor）：权限过度/脚本注入/敏感数据暴露",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.24,
+      "layer": "capability",
+      "service": "CodeQualityService",
+      "action": "jscpd",
+      "params": {},
+      "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，min-tokens 50，重复率 > 5% 告警",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.25,
+      "layer": "capability",
+      "service": "BundleSizeService",
+      "action": "size_limit",
+      "params": {},
+      "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出 .size-limit.json 配置的预算",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.26,
+      "layer": "capability",
+      "service": "MutationTestService",
+      "action": "stryker",
+      "params": {},
+      "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.27,
+      "layer": "capability",
+      "service": "SecurityTool",
+      "action": "spectral",
+      "params": {},
+      "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3.28,
+      "layer": "capability",
+      "service": "CodeQualityService",
+      "action": "markdownlint",
+      "params": {},
+      "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）",
       "auto_execute": true,
       "on_error": "continue"
     },
@@ -389,7 +485,15 @@
           "deprecated_deps",
           "skillspector",
           "aislop",
-          "depcruise"
+          "depcruise",
+          "knip",
+          "actionlint",
+          "zizmor",
+          "jscpd",
+          "size_limit",
+          "stryker",
+          "spectral",
+          "markdownlint"
         ],
         "mode": "report_only"
       },
@@ -430,7 +534,11 @@
           "deprecated_deps",
           "skillspector",
           "aislop",
-          "depcruise"
+          "depcruise",
+          "knip",
+          "stryker",
+          "spectral",
+          "markdownlint"
         ]
       },
       "description": "生成全面审计报告：包含各项得分、风险等级、改进建议",
@@ -457,7 +565,12 @@
       "action": "detectAntiPatterns",
       "params": {
         "mode": "deep",
-        "include": ["god_module", "fat_handler", "circular_deps", "layer_violation"]
+        "include": [
+          "god_module",
+          "fat_handler",
+          "circular_deps",
+          "layer_violation"
+        ]
       },
       "description": "架构深度审计：God Module检测 + 分层合规 + 依赖分析 + 复杂度热点图",
       "auto_execute": true,
@@ -511,6 +624,20 @@
       },
       "description": "审计流程成本报告",
       "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 13.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "audit",
+        "source": "auto"
+      },
+      "description": "将审计发现沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
       "on_error": "continue"
     },
     {

@@ -48,7 +48,6 @@ const IOS_ONLY = new Set(['xcode', 'cocoapods']);
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export function handleCheckPrerequisites(_action, params, targetPath, context) {
   const requestedChecks = params?.checks || ['node', 'npm', 'git'];
-  console.log(chalk.blue('\n🔧 正在检查系统前置条件...'));
 
   const platform = context?.platform || 'unknown';
   const isIos = platform === 'ios' || platform === 'both';
@@ -58,35 +57,29 @@ export function handleCheckPrerequisites(_action, params, targetPath, context) {
   const results = {};
   for (const name of requestedChecks) {
     if (IOS_ONLY.has(name) && !isIos) {
-      console.log(chalk.dim(`  ⏭ ${name}: 跳过（非 iOS 平台）`));
       continue;
     }
     if (name === 'android_studio' && !isAndroid) {
-      console.log(chalk.dim(`  ⏭ ${name}: 跳过（非 Android 平台）`));
       continue;
     }
     if (name === 'ruby' && !isIos) {
-      console.log(chalk.dim(`  ⏭ ${name}: 跳过（非 iOS 平台）`));
       continue;
     }
     if (checkers[name]) {
       try {
         const r = checkers[name]();
         results[name] = { ok: r.ok, detail: r.detail };
-        console.log(chalk.dim(`  ✅ ${name}: ${r.detail}`));
       } catch {
         results[name] = { ok: false, detail: '未安装' };
-        console.log(chalk.yellow(`  ⚠ ${name}: 未安装`));
       }
     } else {
       results[name] = { ok: false, detail: '未知检查项' };
-      console.log(chalk.dim(`  ❓ ${name}: 未知检查项`));
     }
   }
 
   const passed = Object.entries(results).filter(([, v]) => v.ok);
   const missing = Object.entries(results).filter(([, v]) => !v.ok);
-  console.log(chalk[missing.length === 0 ? 'green' : 'yellow'](
+  console.error(chalk[missing.length === 0 ? 'green' : 'yellow'](
     `  ${missing.length === 0 ? '✅ 所有前置条件满足' : `⚠ ${missing.length} 项缺失: ${missing.map(([k]) => k).join(', ')}`}`,
   ));
   if (context) context.envPrerequisitesPassed = missing.length === 0;

@@ -1,0 +1,28 @@
+{
+  "selection": "简化深层嵌套（提取 guard clauses）",
+  "id": "c88689834903",
+  "type": "simplify",
+  "data": {
+    "source": "simplify_workflow",
+    "findings": {
+      "security": {},
+      "lintPassed": true
+    },
+    "completedSteps": [
+      0.3,
+      1,
+      2,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      9.5,
+      10
+    ],
+    "prompt": "simplify logging code",
+    "workflow": "simplify"
+  },
+  "timestamp": "2026-06-16T01:07:55.638Z"
+}

@@ -5,7 +5,6 @@
  */
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import chalk from 'chalk';
 
 // Detect brand mentions: capitalized product names, .com domains, well-known brands.
 const KNOWN_BRANDS = [
@@ -83,16 +82,11 @@ export function writeBrandSpec(targetPath, brand, assets = {}) {
 export function runProtocol({ targetPath, requirement = '', context = {} } = {}) {
   const detection = detectBrandMention(requirement);
   if (!detection) {
-    console.log(chalk.dim('  ℹ huashu brand-protocol: 未检测到具体品牌，跳过 5 步流程'));
     return { triggered: false };
   }
-  console.log(chalk.blue(`\n🎯 huashu brand-protocol 触发（检测到品牌: ${detection.brands.join(', ')}）`));
-  console.log(chalk.dim('  执行 5 步硬流程：问 → 搜 → 下载 → grep 色值 → 写 brand-spec.md'));
 
   const brand = detection.brands[0];
   const specFile = writeBrandSpec(targetPath, brand, {});
-  console.log(chalk.green(`  ✅ Step 5: brand-spec.md 模板已生成 → ${specFile}`));
-  console.log(chalk.yellow(`  ⚠ Step 1-4 需在 Claude Code 对话中执行（问用户/WebSearch/下载素材/grep 色值）`));
 
   if (context) {
     context.brand_protocol_triggered = true;

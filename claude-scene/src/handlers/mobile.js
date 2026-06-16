@@ -29,6 +29,4 @@ export {
   handleMobsfUpload,
   handleMobsfScan,
   handleBearerScan,
-  handleShorebirdPatch,
-  handleSentryCheckRelease,
 } from './mobile/agent.js';

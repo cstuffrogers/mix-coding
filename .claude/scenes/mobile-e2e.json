@@ -8,10 +8,22 @@
     "E2E测试",
     "UI自动化",
     "mobile test",
-    "Detox",
-    "Maestro"
+    "Detox"
   ],
   "flow": [
+    {
+      "step": 0.2,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
     {
       "step": 0.5,
       "layer": "capability",
@@ -20,7 +32,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["mobile", "test", "e2e"]
+          "type": [
+            "mobile",
+            "test",
+            "e2e"
+          ]
         }
       },
       "description": "注入历史测试配置记忆",
@@ -33,7 +49,7 @@
       "service": "MobileService",
       "action": "detectProject",
       "params": {},
-      "description": "识别框架→选择测试工具：RN/Expo→Detox / Flutter→Patrol / 小程序→miniprogram-automator / 通用→Maestro",
+      "description": "识别框架→选择测试工具：RN/Expo→Detox / Flutter→Patrol / 小程序→miniprogram-automator / 通用→Detox",
       "auto_execute": true,
       "on_error": "abort"
     },
@@ -74,12 +90,28 @@
       "on_error": "continue"
     },
     {
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
+      "auto_execute": true,
+      "on_error": "continue",
+      "step": 4.1
+    },
+    {
       "step": 5,
       "layer": "capability",
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": ["e2e_config", "test_examples", "ci_integration"]
+        "checks": [
+          "e2e_config",
+          "test_examples",
+          "ci_integration"
+        ]
       },
       "description": "E2E 配置质量门禁（CI 配置已生成后再检查）",
       "auto_execute": true,
@@ -106,7 +138,10 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": ["tokens", "api_calls"]
+        "include": [
+          "tokens",
+          "api_calls"
+        ]
       },
       "description": "E2E 配置流程成本报告",
       "auto_execute": true,
@@ -144,7 +179,7 @@
       "action": "notify",
       "params": {
         "type": "success",
-        "message": "移动端 E2E 测试配置完成 🧪 示例用例已就绪，运行 npx detox test 或 maestro test 开始"
+        "message": "移动端 E2E 测试配置完成 🧪 示例用例已就绪，运行 npx detox test 开始"
       },
       "description": "通知用户 E2E 配置完成",
       "auto_execute": true,

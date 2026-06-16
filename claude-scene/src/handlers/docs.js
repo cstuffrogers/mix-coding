@@ -64,7 +64,6 @@ function scanExports(targetPath, srcDir) {
 }
 
 export function handleApiDocs(_action, params, targetPath, context) {
-  console.log(chalk.blue('\n📚 正在提取 API 文档...'));
   const includeDir = params?.include || 'src';
   ensureDocsDir(targetPath);
   let docEntries = 0;
@@ -72,14 +71,12 @@ export function handleApiDocs(_action, params, targetPath, context) {
   try {
     const srcDir = join(targetPath, includeDir);
     if (!existsSync(srcDir)) {
-      console.log(chalk.dim(`  目录 ${includeDir} 不存在，跳过`));
       return 'API 文档生成完成（无源文件目录）';
     }
 
     const { moduleMap, totalExports } = scanExports(targetPath, srcDir);
 
     if (totalExports === 0) {
-      console.log(chalk.dim('  未发现导出'));
       return 'API 文档生成完成（无可提取内容）';
     }
 
@@ -97,8 +94,6 @@ export function handleApiDocs(_action, params, targetPath, context) {
       docEntries++;
     }
 
-    console.log(chalk.dim(`  已扫描 ${Object.keys(moduleMap).length} 个模块, ${totalExports} 个导出`));
-    console.log(chalk.green(`  ✅ 生成 ${docEntries} 个模块 API 文档到 docs/api/`));
   } catch (e) {
     console.log(chalk.yellow(`  ⚠ API 文档提取失败: ${e.message}`));
   }
@@ -125,22 +120,13 @@ function parseConventionalCommits(messages) {
 // ── Changelog ──
 
 export function handleChangelog(_action, params, targetPath, context) {
-  console.log(chalk.blue('\n📝 正在生成 CHANGELOG...'));
   ensureDocsDir(targetPath);
 
   try {
-    let range = '';
-    try {
-      const latestTag = safeExec('git describe --tags --abbrev=0 2>/dev/null', targetPath, { stdio: 'pipe' }).toString().trim();
-      if (latestTag) { range = `${latestTag}..HEAD`; console.log(chalk.dim(`  范围: ${range}`)); }
-    } catch { /* no tags */ }
-
     const log = safeExec(
-      `git log --oneline --no-decorate ${range || '-50'}`,
+      `git log --oneline --no-decorate -50`,
       targetPath, { stdio: 'pipe' }
     ).toString().trim();
-
-    if (!log) { console.log(chalk.dim('  无提交记录')); return 'CHANGELOG 跳过（无提交）'; }
 
     const commits = log.split('\n').map(line => {
       const match = line.match(/^[a-f0-9]+\s(.+)$/);
@@ -151,27 +137,20 @@ export function handleChangelog(_action, params, targetPath, context) {
     const today = new Date().toISOString().split('T', 1)[0];
     const version = params?.version || 'Unreleased';
     let changelog = `# Changelog\n\n## ${version} (${today})\n\n`;
-    let hasEntries = false;
 
     for (const [type, entries] of Object.entries(groups)) {
-      if (entries.length === 0) continue;
-      hasEntries = true;
       changelog += `## ${CONVENTIONAL_LABELS[type]}\n\n`;
       for (const e of entries) changelog += `- ${e}\n`;
       changelog += '\n';
     }
 
-    if (!hasEntries) { console.log(chalk.dim('  无可分类的提交')); return 'CHANGELOG 跳过（无内容）'; }
-
     const changelogPath = guardWrite(targetPath, 'docs/CHANGELOG.md');
     const existing = existsSync(changelogPath) ? readFileSync(changelogPath, 'utf-8').split('\n').slice(1).join('\n') : '';
     writeFileSync(changelogPath, changelog + existing, 'utf-8');
 
-    console.log(chalk.green(`  ✅ docs/CHANGELOG.md 已更新 (${commits.length} 条提交)`));
     if (context) context.changelogGenerated = true;
     return `CHANGELOG 已生成 (${commits.length} 条提交)`;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ CHANGELOG 生成失败: ${e.message}`));
+  } catch {
     return 'CHANGELOG 生成跳过';
   }
 }
@@ -216,7 +195,6 @@ function detectStack(targetPath, deps) {
 }
 
 export function handleDevDocs(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n📖 正在生成开发者文档...'));
   ensureDocsDir(targetPath);
 
   try {
@@ -233,7 +211,6 @@ export function handleDevDocs(_action, _params, targetPath, context) {
 
     const stack = detectStack(targetPath, deps);
 
-    // Write architecture.md
     const archPath = guardWrite(targetPath, 'docs/architecture.md');
     const content = `# 项目架构
 
@@ -276,11 +253,9 @@ CLI 命令 → Commander 解析参数 → \`commands/start.js\` 加载场景 JSO
 `;
 
     writeFileSync(archPath, content, 'utf-8');
-    console.log(chalk.green('  ✅ docs/architecture.md 已生成'));
     if (context) context.devDocsGenerated = true;
     return '开发者文档已生成';
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 文档生成失败: ${e.message}`));
+  } catch {
     return '开发者文档生成跳过';
   }
 }

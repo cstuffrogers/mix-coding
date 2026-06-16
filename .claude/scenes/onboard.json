@@ -14,6 +14,19 @@
   ],
   "flow": [
     {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
       "step": 1,
       "layer": "capability",
       "service": "MemoryService",
@@ -205,6 +218,20 @@
       "description": "整理跨后端记忆一致性",
       "auto_execute": true,
       "on_error": "continue"
+    },
+    {
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "onboard",
+        "source": "auto"
+      },
+      "description": "将onboard知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue",
+      "step": 13.5
     },
     {
       "step": 14,

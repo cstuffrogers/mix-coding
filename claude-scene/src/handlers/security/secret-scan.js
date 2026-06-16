@@ -3,13 +3,13 @@ import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../../lib/safe-exec.js';
 
-const GHP = 'gh' + 'p_';
-const GHPAT = 'github_' + 'pat_';
-const PRIV = 'PRIVATE KEY' + '-----';
-const AKI = 'AK' + 'IA';
-const APIK = 'api_' + 'key';
-const APIK2 = 'api' + 'key';
-const EYJ = 'ey' + 'J';
+const GHP = 'ghp_';
+const GHPAT = 'github_pat_';
+const PRIV = 'PRIVATE KEY-----';
+const AKI = 'AKIA';
+const APIK = 'api_key';
+const APIK2 = 'apikey';
+const EYJ = 'eyJ';
 
 const SAFE_FILES = new Set([
   '.env.example',
@@ -17,6 +17,8 @@ const SAFE_FILES = new Set([
   'claude-scene/src/handlers/code-analysis.js',
   'claude-scene/src/handlers/security-scanning.js',
   'claude-scene/src/handlers/security/secret-scan.js',
+  'claude-scene/src/handlers/security/threat-scan.js',
+  'claude-scene/src/handlers/security/npm-scan.js',
   'codewhale-config.toml',
   'package-lock.json',
   'claude-scene/package-lock.json',
@@ -38,7 +40,6 @@ const SECRET_SEARCHES = [
 const HASH_RE = /^[0-9a-f]{7,}\s/;
 
 export function handleGitLeaks(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔑 正在扫描 Git 历史密钥...'));
   const findings = [];
 
   try {
@@ -71,10 +72,7 @@ export function handleGitLeaks(_action, _params, targetPath, context) {
           } else {
             findings.push({ name, commits: commitCount });
           }
-          console.log(chalk.red(`  🔴 ${name}: ${commitCount} 个提交`));
-          [...matchedFiles].slice(0, 3).forEach(f =>
-            console.log(chalk.dim(`    ${f}`))
-          );
+          ;
         }
       } catch { /* search failed, skip */ }
     }
@@ -85,12 +83,11 @@ export function handleGitLeaks(_action, _params, targetPath, context) {
     const hasLeaks = findings.length > 0;
     if (context) context.gitLeaksPassed = !hasLeaks;
     return `Git 密钥扫描完成: ${hasLeaks ? findings.map(f => `${f.name}(${f.commits})`).join(', ') : '无泄露'}`;
-  } catch { /* git not available */ }
+  } catch { /* Git not available */ }
   return 'Git 密钥扫描完成（git 不可用）';
 }
 
 export function handleSensitiveFileCheck(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔐 正在检查敏感文件暴露...'));
   const findings = [];
 
   const sensitivePatterns = [

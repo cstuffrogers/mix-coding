@@ -1,6 +1,5 @@
 import { readFileSync, existsSync, writeFileSync } from 'fs';
-import { join, basename } from 'path';
-import chalk from 'chalk';
+import { join } from "path";
 import { loadScenes, generateWorkflowTable, generateCommandTable, generateSkipEnhancementList, generateSceneTable, mergeTriggerSections } from './doc-generators.js';
 
 // ── File syncer ─────────────────────────────────────────────────
@@ -10,7 +9,6 @@ function syncSection(filePath, sectionName, newContent) {
   const endTag = `<!-- AUTO-SYNC:${sectionName}-END -->`;
 
   if (!existsSync(filePath)) {
-    console.log(chalk.yellow(`  ⚠ 文件不存在，跳过: ${filePath}`));
     return false;
   }
 
@@ -25,12 +23,10 @@ function syncSection(filePath, sectionName, newContent) {
   if (sectionRe.test(content)) {
     content = content.replace(sectionRe, replacement);
   } else {
-    console.log(chalk.yellow(`  ⚠ 未找到标记 ${sectionName} in ${basename(filePath)}，跳过`));
     return false;
   }
 
   writeFileSync(filePath, content, 'utf-8');
-  console.log(chalk.green(`  ✅ ${basename(filePath)}:${sectionName}`));
   return true;
 }
 
@@ -40,7 +36,6 @@ function syncTriggerSections(filePath, scenes) {
   const endTag = `<!-- AUTO-SYNC:${sectionName}-END -->`;
 
   if (!existsSync(filePath)) {
-    console.log(chalk.yellow(`  ⚠ 文件不存在，跳过: ${filePath}`));
     return false;
   }
 
@@ -52,7 +47,6 @@ function syncTriggerSections(filePath, scenes) {
 
   const match = sectionRe.exec(content);
   if (!match) {
-    console.log(chalk.yellow(`  ⚠ 未找到标记 ${sectionName} in ${basename(filePath)}，跳过`));
     return false;
   }
 
@@ -61,7 +55,6 @@ function syncTriggerSections(filePath, scenes) {
   content = content.replace(sectionRe, `${startTag}\n${newContent}\n${endTag}`);
 
   writeFileSync(filePath, content, 'utf-8');
-  console.log(chalk.green(`  ✅ ${basename(filePath)}:${sectionName} (保留已有手写内容)`));
   return true;
 }
 
@@ -76,7 +69,6 @@ function updateSceneCounts(filePath, count) {
       content = content.replace(/\d{1,5} 个场景/g, `${count} 个场景`);
       content = content.replace(/（\d{1,5} 个 \.md）/g, `（${count} 个 .md）`);
       writeFileSync(filePath, content, 'utf-8');
-      console.log(chalk.green(`  ✅ ${basename(filePath)}: ${oldCount} → ${count} 个场景`));
     }
   }
 }
@@ -84,18 +76,15 @@ function updateSceneCounts(filePath, count) {
 // ── Main entry ──────────────────────────────────────────────────
 
 export function syncAllDocs(projectRoot) {
-  console.log(chalk.blue('\n📄 正在同步文档...'));
 
   const scenesDir = join(projectRoot, '.claude', 'scenes');
   const archonDir = join(projectRoot, '.archon', 'workflows');
 
   if (!existsSync(scenesDir)) {
-    console.log(chalk.red('  ❌ 未找到 .claude/scenes/ 目录'));
     return;
   }
 
   const scenes = loadScenes(scenesDir);
-  console.log(chalk.dim(`  加载 ${scenes.length} 个场景`));
 
   // 1. CLAUDE.md — workflow table
   syncSection(
@@ -159,5 +148,4 @@ export function syncAllDocs(projectRoot) {
     }
   }
 
-  console.log(chalk.green(`\n✅ 文档同步完成 (${scenes.length} 个场景)`));
 }

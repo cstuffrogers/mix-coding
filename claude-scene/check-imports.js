@@ -34,4 +34,3 @@ for (const f of files) {
     }
   } catch (error) { console.error(f, error.message); }
 }
-console.log('Done.');

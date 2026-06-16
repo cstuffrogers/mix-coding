@@ -1,267 +1,626 @@
 {
   "scene_id": "design",
   "workflow": "design",
-  "name": "设计生成",
-  "description": "一键AI辅助UI设计与交互设计生成流程，覆盖交互原型、视觉设计、组件库检查",
+  "name": "AI 辅助 UI 设计",
+  "description": "一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复，双轮品控+残留修复，53步）",
   "trigger_keywords": [
-    "UI设计",
     "设计",
-    "画图",
-    "画界面",
-    "生成设计",
-    "UI生成"
+    "UI设计",
+    "界面设计",
+    "design system",
+    "设计稿",
+    "原型"
   ],
   "flow": [
     {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "web-design-engineer"
+      },
+      "description": "Pre-flight: 声明设计系统基准（Palette/Typography/Spacing/Motion/Radius/Shadows），加载 150 品牌系统",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
+      "step": 0.35,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "design",
+            "ui",
+            "brand"
+          ]
+        }
+      },
+      "description": "注入历史设计上下文和品牌偏好",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 0.6,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "shape"
+      },
+      "description": "Impeccable shape: 设计发现访谈 → 10 节设计简报（mood/references/color strategy/design direction/bold move），在生成设计前建立品味方向约束",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
       "step": 1,
       "layer": "capability",
-      "service": "TavilyMCP",
-      "action": "search",
+      "service": "DesignEngine",
+      "action": "generateDesign",
       "params": {
-        "query": "latest UI design trends 2025 2026",
-        "limit": 10
+        "category": "web"
       },
-      "description": "使用 Tavily MCP 搜索最新的 UI 设计趋势",
+      "description": "三方向设计提案（huashu direction-advisor）：3 种视觉方向 + 评分矩阵",
       "auto_execute": true,
-      "condition": "tavily_mcp_available",
+      "on_error": "retry"
+    },
+    {
+      "step": 1.4,
+      "layer": "capability",
+      "service": "BrandService",
+      "action": "od-brand-list",
+      "params": {},
+      "description": "Open Design: 扫描 151 个品牌设计系统（按分类分组），存入 context.od_available_brands",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.41,
+      "layer": "interactive",
+      "service": "BrandService",
+      "action": "od-brand-pick",
+      "params": {},
+      "description": "Open Design: 展示 13 个精选品牌（含配色说明），供用户选择 → 存入 user_selected_brand",
+      "auto_execute": false,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.45,
+      "layer": "capability",
+      "service": "BrandService",
+      "action": "od-brand-import",
+      "params": {},
+      "description": "Open Design: 导入选中品牌 tokens.css + DESIGN.md + components.html → context.od_brand_css",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.47,
+      "layer": "capability",
+      "service": "TemplateService",
+      "action": "od-template-list",
+      "params": {},
+      "description": "Open Design: 列出可用设计模板（web原型/PPT/移动端/仪表板等），存入 context.od_available_templates",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.48,
+      "layer": "capability",
+      "service": "TemplateService",
+      "action": "od-template-preview",
+      "params": {},
+      "description": "Open Design: 预览选中模板（example.html 在浏览器中打开，template + references 注入 context 供 Claude 参考）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.49,
+      "layer": "capability",
+      "service": "SkillService",
+      "action": "od-skill-load",
+      "params": {},
+      "description": "Open Design: 加载选中设计 Skill 的 SKILL.md → context.od_skill_content，供 Claude 参考设计规范",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.51,
+      "layer": "capability",
+      "service": "FrameService",
+      "action": "od-frame-list",
+      "params": {},
+      "description": "Open Design: 列出可用设备框架（iPhone/MacBook/iPad/Android/Browser），存入 context.od_available_frames",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.52,
+      "layer": "capability",
+      "service": "FrameService",
+      "action": "od-frame-apply",
+      "params": {},
+      "description": "Open Design: 复制设备框架 HTML 到 .claude/designs/frames/，供设计稿套入展示",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.53,
+      "layer": "capability",
+      "service": "DeckService",
+      "action": "od-deck-list",
+      "params": {},
+      "description": "Open Design: 列出演示文稿模板（deck-framework / kami-deck / live-artifacts），存入 context.od_available_decks",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.54,
+      "layer": "capability",
+      "service": "DeckService",
+      "action": "od-deck-load",
+      "params": {},
+      "description": "Open Design: 加载选中演示文稿模板 → .claude/designs/decks/，供设计汇报使用",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.55,
+      "layer": "capability",
+      "service": "PromptService",
+      "action": "od-prompt-list",
+      "params": {},
+      "description": "Open Design: 列出 AI 图像/视频提示词模板（45 image + 57 video），存入 context.od_available_prompts",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.56,
+      "layer": "capability",
+      "service": "PromptService",
+      "action": "od-prompt-load",
+      "params": {},
+      "description": "Open Design: 加载选中提示词模板 JSON → context.od_prompt_template",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.57,
+      "layer": "capability",
+      "service": "BrandService",
+      "action": "awm-brand-list",
+      "params": {},
+      "description": "Awesome Design MD: 列出可用品牌设计系统（Vercel/Linear/Stripe/Notion/Apple）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.58,
+      "layer": "capability",
+      "service": "BrandService",
+      "action": "awm-brand-import",
+      "params": {},
+      "description": "Awesome Design MD: 导入选中品牌 DESIGN.md → CSS 变量注入",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1.59,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-brand-protocol",
+      "params": {},
+      "description": "Huashu Brand Protocol: 品牌提及检测 → 5 步资产清单 → brand-spec.md",
+      "auto_execute": true,
       "on_error": "continue"
     },
     {
       "step": 2,
       "layer": "capability",
-      "service": "Context7MCP",
-      "action": "getDocumentation",
+      "service": "HuashuService",
+      "action": "huashu-prototype",
       "params": {
-        "topic": "design system best practices"
+        "device": "iphone",
+        "screens": [
+          "Home",
+          "Detail",
+          "Profile"
+        ],
+        "validate": true
       },
-      "description": "使用 Context7 MCP 获取设计系统最佳实践",
+      "description": "Huashu 原型构建：HTML/CSS 原型 + Playwright 自动验证截图",
       "auto_execute": true,
-      "condition": "context7_mcp_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 2.5,
+      "layer": "capability",
+      "service": "DesignEngine",
+      "action": "analyzeConsistency",
+      "params": {},
+      "description": "设计一致性检查：CSS 变量使用率 vs 硬编码值，组件覆盖度",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.7,
+      "layer": "capability",
+      "service": "DesignEngine",
+      "action": "exportAssets",
+      "params": {},
+      "description": "导出设计资源：tokens.css + design-spec.md → src/assets/design-system/",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.71,
+      "layer": "capability",
+      "service": "PolishService",
+      "action": "applyComponents",
+      "params": {},
+      "description": "组件增强：注入主题预设类名（按钮/输入框/卡片阴影圆角 hover 效果）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.72,
+      "layer": "capability",
+      "service": "PolishService",
+      "action": "iconUpgrade",
+      "params": {},
+      "description": "图标升级：Material Symbols/Icons → lucide-react，内联 SVG 统一尺寸",
+      "auto_execute": true,
       "on_error": "continue"
     },
     {
       "step": 3,
       "layer": "capability",
-      "service": "MemoryService",
-      "action": "recall",
-      "params": {
-        "category": "design_requirements",
-        "limit": 3
-      },
-      "description": "回溯最近3条设计相关需求，提取设计要素和风格偏好",
+      "service": "HuashuService",
+      "action": "huashu-expert-review",
+      "params": {},
+      "description": "Huashu 5 维度专家评审: philosophy/hierarchy/craft/functionality/originality — UI 设计质量评分",
       "auto_execute": true,
       "on_error": "continue"
     },
     {
-      "step": 4,
-      "layer": "interactive",
-      "service": "SceneSelector",
-      "action": "input",
+      "step": 3.5,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
       "params": {
-        "message": "🎨 请描述需要设计的界面/组件：",
-        "validation": {
-          "type": "string",
-          "required": true,
-          "min_length": 10,
-          "max_length": 500
-        },
-        "placeholder": "例如：用户登录界面，包含用户名、密码输入框和登录按钮"
+        "skill": "impeccable",
+        "subcommand": "critique"
       },
-      "description": "获取用户设计输入并验证",
-      "auto_execute": false,
+      "description": "Impeccable 设计批判（第一轮）：27 条反 AI 模式规则 + 12 条 LLM 批判规则，在打磨前检测 AI 塑料感，建立问题清单供后续步骤针对性修复",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
       "on_error": "abort"
     },
     {
-      "step": 4.5,
+      "step": 4,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "polish"
+      },
+      "description": "Impeccable 设计打磨：自动修复 AI 塑料感 — 微交互/阴影层级/字体配对/留白节奏",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.05,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "layout"
+      },
+      "description": "Impeccable layout: 间距节奏 + 视觉层级 + 空间重构 — 消除均匀间距、建立呼吸节奏",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.06,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "colorize"
+      },
+      "description": "Impeccable colorize: 策略性色彩注入 — 检测单色调 → 注入品牌配色策略（Restrained/Committed/Full Palette/Drenched）",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.07,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "bolder"
+      },
+      "description": "Impeccable bolder: 安全→大胆 — 放大设计决策影响力，打破 AI 安全默认审美",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.08,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "typeset"
+      },
+      "description": "Impeccable typeset: 排版层次优化 — font-family ≤3、字号阶梯 ≥1.25、正文行长 65-75ch、标题 text-wrap: balance",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.09,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "animate"
+      },
+      "description": "Impeccable animate: purposeful motion — spring physics + reduced-motion 遵循 + exponential easing curves",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.095,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "delight"
+      },
+      "description": "Impeccable delight: 个性化记忆点 — 微交互/动效/细节/惊喜，让设计有灵魂",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.096,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "harden"
+      },
+      "description": "Impeccable harden: 生产就绪 — 加载/空/错误/边缘状态 + i18n 字符串提取 + 表单验证 + 键盘可操作性",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.097,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "distill"
+      },
+      "description": "Impeccable distill: 精简提纯 — 去除冗余元素/装饰/过度层次，保留核心信息层级",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.098,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "clarify"
+      },
+      "description": "Impeccable clarify: UX 文案优化 — 标签/按钮/错误提示/空状态/工具提示，消除「提交」「确定」等 AI 默认措辞，注入产品语调",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.099,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "adapt"
+      },
+      "description": "Impeccable adapt: 响应式设计验证 — 移动端/平板/桌面断点审查 + 触摸目标 24px+ + 视口溢出修复",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.0991,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "optimize"
+      },
+      "description": "Impeccable optimize: CSS/渲染性能诊断 — CLS 布局偏移/未使用 CSS/选择器开销/合成层提升/Font Load 策略",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.0992,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "critique"
+      },
+      "description": "Impeccable 设计批判（第二轮）：验证打磨后的设计改进效果 — 27 条反 AI 模式规则 + 12 条 LLM 批判规则复检，确保品味提升可感知",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.0993,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "polish"
+      },
+      "description": "Impeccable polish（第三轮精准修复）：基于第二轮 critique 残留问题清单，精准修复残留的 AI 塑料感",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.0994,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "bolder"
+      },
+      "description": "Impeccable bolder（第三轮精准修复）：基于残留问题，放大仍显保守的设计决策",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.0995,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "delight"
+      },
+      "description": "Impeccable delight（第三轮精准修复）：注入之前遗漏的个性化记忆点，让人一眼看出「人设计的」",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.0996,
       "layer": "capability",
       "service": "HuashuService",
-      "action": "huashu-brand-protocol",
+      "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu brand-asset-protocol: 检测品牌提及→生成 5 步资产清单→写 brand-spec.md",
+      "description": "Huashu 5 维度专家评审（第二轮）：最终验证 — philosophy/hierarchy/craft/functionality/originality 复评，与第一轮评审对比确认设计质量提升可量化",
       "auto_execute": true,
-      "condition": "enh_huashu_brand_protocol",
       "on_error": "continue"
     },
     {
-      "step": 4.6,
-      "layer": "interactive",
-      "service": "SceneSelector",
-      "action": "awm-brand-list",
+      "step": 4.0997,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
       "params": {
-        "message": "🎨 是否导入品牌设计系统（Awesome Design MD）？\n\n可用品牌：\n1. Vercel — 现代 SaaS 仪表板\n2. Linear — 任务管理/Issue Tracker\n3. Stripe — 金融/支付/Dashboard\n4. Notion — 内容/知识库/协作\n5. Apple — 极简/高端/营销站\n\n输入品牌名（Vercel/Linear/Stripe/Notion/Apple），或输入 skip 跳过："
+        "skill": "ai-friendly-web-design"
       },
-      "description": "Awesome Design MD: 提示用户选择品牌设计系统（可选）",
-      "auto_execute": false,
-      "condition": "awesome_design_md_available",
+      "description": "AI-Friendly Web Design: 可访问性审查 — 色彩对比度/焦点顺序/语义HTML/ARIA标签/键盘导航，打磨完成后验证",
+      "auto_execute": true,
+      "condition": "conversation_mode",
       "on_error": "continue"
     },
     {
-      "step": 4.7,
+      "step": 4.0998,
+      "layer": "a11y",
+      "service": "AccessibilityScanner",
+      "action": "ai-friendly-review",
+      "params": {},
+      "description": "CLI 无障碍扫描: img-alt/input-label/html-lang/contrast-risk/clickable-div 5项检查 — CLI 模式补充",
+      "auto_execute": true,
+      "condition": "!conversation_mode",
+      "on_error": "continue"
+    },
+    {
       "layer": "capability",
-      "service": "DesignService",
-      "action": "awm-brand-import",
+      "service": "AISlopService",
+      "action": "aislop-scan",
       "params": {
-        "brand": "${user_selected_brand}"
+        "mode": "scan"
       },
-      "description": "Awesome Design MD: 加载所选品牌的 DESIGN.md（颜色/字体/间距/组件）",
+      "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
       "auto_execute": true,
-      "condition": "awesome_design_md_available && user_selected_brand",
-      "on_error": "continue"
+      "on_error": "continue",
+      "step": 4.1
     },
     {
       "step": 5,
       "layer": "capability",
-      "service": "ContractChecker",
-      "action": "checkAPIConsistency",
+      "service": "DesignEngine",
+      "action": "persist",
       "params": {},
-      "description": "API 契约一致性检查：从设计稿提取数据字段/端点，与项目后端代码交叉验证",
+      "description": "持久化设计数据：保存设计选择 + 变体到 .claude/designs/current.json",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 5.5,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-infographic",
+      "params": {},
+      "description": "Huashu 信息图：渲染设计系统可视化信息图（HTML）",
       "auto_execute": true,
       "on_error": "continue"
     },
     {
       "step": 6,
       "layer": "capability",
-      "service": "DesignService",
-      "action": "analyzeConsistency",
+      "service": "ECC",
+      "action": "ce-compound",
       "params": {
-        "check": [
-          "color_palette",
-          "typography",
-          "spacing"
-        ]
+        "type": "design",
+        "source": "auto"
       },
-      "description": "检查设计稿与公司设计系统一性，包括色彩、字体、间距",
+      "description": "将设计知识沉淀到项目知识库 CLAUDE.md",
       "auto_execute": true,
+      "condition": "plugin_ce_available",
       "on_error": "continue"
     },
     {
       "step": 7,
-      "layer": "interactive",
-      "service": "SceneSelector",
-      "action": "choose",
-      "params": {
-        "message": "请选择设计方案：",
-        "options": [
-          {
-            "label": "方案 A",
-            "description": "Google Material风格，色彩活泼"
-          },
-          {
-            "label": "方案 B",
-            "description": "Neumorphism风格，柔和阴影"
-          },
-          {
-            "label": "方案 C",
-            "description": "Apple风格，简洁大气"
-          },
-          {
-            "label": "重新生成",
-            "description": "重新生成设计方案"
-          }
-        ],
-        "validation": {
-          "type": "string",
-          "required": true
-        }
-      },
-      "description": "人工选择最佳设计方案",
-      "auto_execute": false,
-      "on_error": "retry"
-    },
-    {
-      "step": 8,
-      "layer": "capability",
-      "service": "DesignService",
-      "action": "exportAssets",
-      "params": {
-        "formats": [
-          "svg",
-          "png@2x",
-          "css_variables"
-        ],
-        "destination": "src/assets/design-system"
-      },
-      "description": "导出SVG/PNG资源文件和CSS变量到设计系统目录",
-      "auto_execute": true,
-      "condition": "design_selected",
-      "on_error": "continue"
-    },
-    {
-      "step": 8.5,
-      "layer": "capability",
-      "service": "DesignService",
-      "action": "ai-friendly-review",
-      "params": {},
-      "description": "AI-Friendly Web Design: 可访问性审查（语义HTML/ARIA/稳定定位器/表单最佳实践/对比度）",
-      "auto_execute": true,
-      "condition": "ai_friendly_web_design_available",
-      "on_error": "continue"
-    },
-    {
-      "step": 8.6,
-      "layer": "capability",
-      "service": "HuashuService",
-      "action": "huashu-expert-review",
-      "params": {},
-      "description": "Huashu 5 维度专家评审（philosophy/hierarchy/craft/functionality/originality）→ Keep/Quick Wins/Fix 报告",
-      "auto_execute": true,
-      "condition": "enh_huashu_expert_review",
-      "on_error": "continue"
-    },
-    {
-      "step": 8.7,
-      "layer": "capability",
-      "service": "DesignService",
-      "action": "impeccable-critique",
-      "params": {
-        "rules": ["anti-patterns", "llm-critique"],
-        "checks": [
-          "no-inter-default",
-          "no-purple-blue-gradient",
-          "no-pure-black-white",
-          "no-cards-nested-in-cards",
-          "spacing-consistency",
-          "typography-scale",
-          "color-contrast",
-          "motion-preference"
-        ]
-      },
-      "description": "Impeccable 设计打磨：运行 27 条反模式规则 + 12 条 LLM 批判规则，在设计落地前修正 AI 塑料感问题",
-      "auto_execute": true,
-      "condition": "enh_impeccable_audit && impeccable_available",
-      "on_error": "continue"
-    },
-    {
-      "step": 9,
-      "layer": "interactive",
-      "service": "SceneSelector",
-      "action": "confirm",
-      "params": {
-        "message": "✅ 设计生成完成！\n📁 已导出设计资源到：src/assets/design-system\n📊 文件格式：SVG/PNG@2x/CSS变量\n\n是否将设计方案添加到设计系统记录？",
-        "validation": {
-          "type": "boolean",
-          "default": true
-        }
-      },
-      "description": "确认是否归档设计方案",
-      "auto_execute": false,
-      "on_error": "abort"
-    },
-    {
-      "step": 10,
-      "layer": "capability",
-      "service": "DesignService",
-      "action": "persist",
-      "params": {
-        "category": "generated_designs"
-      },
-      "description": "将设计记录持久化到知识库",
-      "auto_execute": true,
-      "condition": "user_confirmed === true",
-      "on_error": "continue"
-    },
-    {
-      "step": 11,
       "layer": "capability",
       "service": "MemoryService",
       "action": "remember",
@@ -271,12 +630,12 @@
           "source": "design_workflow"
         }
       },
-      "description": "保存设计生成结果到记忆（风格/方案/资源）",
+      "description": "保存设计结果到记忆（品牌选择/设计偏好/评审分数）",
       "auto_execute": true,
       "on_error": "continue"
     },
     {
-      "step": 12,
+      "step": 7.5,
       "layer": "capability",
       "service": "MemoryService",
       "action": "consolidate",
@@ -286,15 +645,15 @@
       "on_error": "continue"
     },
     {
-      "step": 13,
+      "step": 8,
       "layer": "capability",
       "service": "NotificationService",
       "action": "notify",
       "params": {
-        "type": "success",
-        "message": "设计生成完成：资源已导出、设计已归档"
+        "type": "info",
+        "message": "AI 辅助 UI 设计完成"
       },
-      "description": "通知用户设计生成完成",
+      "description": "通知设计结果",
       "auto_execute": true,
       "on_error": "continue"
     }

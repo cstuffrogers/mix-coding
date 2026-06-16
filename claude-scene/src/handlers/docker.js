@@ -78,7 +78,6 @@ CMD ["java", "-jar", "app.jar"]
 `;
   }
   // fallback Node
-  console.log(chalk.yellow('  ⚠ 未识别项目语言，使用 Node 默认模板'));
   return `FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
@@ -154,10 +153,8 @@ services:
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export function handleSetupDocker(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🐳 正在配置 Docker 容器化...'));
 
   const language = detectLanguage(targetPath);
-  console.log(chalk.dim(`  检测到项目语言: ${language}`));
 
   let dockerConfigured = true;
   const dockerfilePath = join(targetPath, 'Dockerfile');
@@ -165,16 +162,10 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
   const composePath = join(targetPath, 'docker-compose.yml');
 
   // Dockerfile
-  if (existsSync(dockerfilePath)) {
-    console.log(chalk.dim('  Dockerfile 已存在，验证结构...'));
-    const content = readFileSync(dockerfilePath, 'utf-8');
-    if (!content.includes('FROM')) console.log(chalk.yellow('  ⚠ Dockerfile 缺少 FROM 指令'));
-  } else {
+  if (!existsSync(dockerfilePath)) {
     try {
       writeFileSync(dockerfilePath, generateDockerfile(language, targetPath), 'utf-8');
-      console.log(chalk.green('  ✅ Dockerfile 已生成'));
-    } catch (e) {
-      console.log(chalk.yellow(`  ⚠ Dockerfile 生成失败: ${e.message}`));
+    } catch {
       dockerConfigured = false;
     }
   }
@@ -185,7 +176,6 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
   } else {
     try {
       writeFileSync(ignorePath, generateDockerignore(), 'utf-8');
-      console.log(chalk.green('  ✅ .dockerignore 已生成'));
     } catch (e) {
       console.log(chalk.yellow(`  ⚠ .dockerignore 生成失败: ${e.message}`));
     }
@@ -197,7 +187,6 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
   } else {
     try {
       writeFileSync(composePath, generateDockerCompose(targetPath), 'utf-8');
-      console.log(chalk.green('  ✅ docker-compose.yml 已生成'));
     } catch (e) {
       console.log(chalk.yellow(`  ⚠ docker-compose.yml 生成失败: ${e.message}`));
     }
@@ -205,11 +194,9 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
 
   // Docker validation
   try {
-    const dockerVer = safeExec('docker --version 2>&1', targetPath, { stdio: 'pipe' }).toString();
-    console.log(chalk.dim(`  Docker: ${dockerVer.trim()}`));
+    safeExec('docker --version 2>&1', targetPath, { stdio: 'pipe' }).toString();
     try {
       safeExec('docker build --check . 2>&1', targetPath, { stdio: 'pipe' });
-      console.log(chalk.green('  ✅ Dockerfile 语法验证通过'));
     } catch {
       console.log(chalk.yellow('  ⚠ Docker build --check 未通过（可能是首次构建缺少上下文）'));
     }

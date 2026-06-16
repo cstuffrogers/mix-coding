@@ -5,7 +5,6 @@
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import chalk from 'chalk';
 import { scanDir } from '../scan-dir.js';
 
 const DIMENSIONS = [
@@ -48,7 +47,6 @@ function aggregateScores(scoresList) {
 }
 
 export function review({ targetPath, context = {} } = {}) {
-  console.log(chalk.blue('\n🎯 huashu expert-review: 5 维度设计评审'));
 
   const cssFiles = scanDir(targetPath, { filter: f => /\.(css|scss|sass|less)$/.test(f) });
   const htmlFiles = scanDir(targetPath, { filter: f => /\.html?$/.test(f) });
@@ -56,14 +54,12 @@ export function review({ targetPath, context = {} } = {}) {
   const candidates = [...cssFiles, ...htmlFiles, ...componentFiles].slice(0, 50);
 
   if (candidates.length === 0) {
-    console.log(chalk.yellow('  ⚠ 未检测到 UI 文件，跳过评审'));
     return { skipped: true };
   }
 
   const allScores = candidates.map(f => scoreFromHeuristics(f)).filter(Boolean);
   const aggregate = aggregateScores(allScores);
   if (!aggregate) {
-    console.log(chalk.yellow('  ⚠ 无法读取 UI 文件'));
     return { skipped: true };
   }
 
@@ -71,13 +67,9 @@ export function review({ targetPath, context = {} } = {}) {
   const max = DIMENSIONS.length * 10;
   const percent = Math.round((total / max) * 100);
 
-  console.log(chalk.bold('\n  评分:'));
-  for (const d of DIMENSIONS) {
-    const score = aggregate[d.key];
-    const color = score >= 8 ? 'green' : score >= 6 ? 'yellow' : 'red';
-    console.log(chalk[color](`    ${d.name.padEnd(12)} ${score}/10`));
+  for (const _d of DIMENSIONS) {
+    /* aggregate scores used for percentile calculation */
   }
-  console.log(chalk.bold(`\n  总分: ${total}/${max} (${percent}%)\n`));
 
   const keepFixSuggestions = generateSuggestions(aggregate);
   const reportFile = writeReport(targetPath, { aggregate, total, percent, suggestions: keepFixSuggestions, fileCount: candidates.length });

@@ -245,19 +245,8 @@ SUPERMEMORY_API_KEY=sm_your_key_here
 
 ## 🚀 第四层：自动化工具链
 
-### 9. Archon工作流引擎 - 可选 ⭐⭐⭐
-**作用：** YAML编排的工作流引擎，支持循环、条件分支、审批门机制（claude-scene CLI 已满足核心需求）
-
-**安装：**
-```bash
-# YAML工作流定义已内置在项目中
-# 位置: .archon/workflows/ 目录
-```
-
----
-
-### 10. claude-scene CLI工具 - 必装 ⭐⭐⭐⭐⭐
-**作用：** 12个工作流的命令行入口，提供了/polish、/bugfix、/feature等指令
+### 9. claude-scene CLI工具 - 必装 ⭐⭐⭐⭐⭐
+**作用：** 12个工作流的命令行入口，提供了/ui-polish、/bugfix、/feature等指令
 
 **安装：**
 ```bash
@@ -291,7 +280,7 @@ git clone https://github.com/your-project/claude-scene.git
 
 | 指令 | 场景文件 | 用途 |
 |------|---------|------|
-| `/polish` | `ui-polish.json` | 前端美化 |
+| `/ui-polish` | `ui-polish.json` | 前端美化 |
 | `/bugfix` | `bugfix.json` | Bug修复 |
 | `/feature` | `feature.json` | 功能开发 |
 | `/review` | `review.json` | 代码审查 |
@@ -352,9 +341,6 @@ mix-coding/
 │   ├── config/                 # 配置文件
 │   └── plugins/                # 插件配置
 │
-├── .archon/                   # Archon工作流定义
-│   └── workflows/
-│
 ├── claude-scene/              # 12个工作流的命令行CLI实现
 │   ├── src/
 │   │   └── commands/
@@ -365,7 +351,6 @@ mix-coding/
 │
 ├── upgrade.bat                # 安全升级工具（Windows）
 ├── start-claude.bat           # 一键启动Claude Code（推荐）
-├── start-codewhale.bat         # 一键启动CodeWhale
 └── README.md                  # 本文档
 ```
 
@@ -391,8 +376,7 @@ node src/index.js list  # 查看所有场景
 4. **第7-10分钟**：安装Skills（选择性安装）
 5. **第11-15分钟**：安装MCP服务器（按需）
 6. **第16-20分钟**：配置claude-mem和nexo-brain
-7. **第21-25分钟**：设置Archon工作流（可选）
-8. **第26-30分钟**：测试所有工具是否正常工作
+7. **第21-25分钟**：测试所有工具是否正常工作
 
 ---
 
@@ -452,7 +436,6 @@ node src/index.js list  # 查看所有场景
 | CodeGraph | `%APPDATA%\CodeGraph\config.json` |
 | Claude Skills | `%USERPROFILE%\.claude\skills\` |
 | Git | `~/.gitconfig` |
-| Archon | `e:\auto-coding\.archon\` |
 | claude-mem | `%USERPROFILE%\.claude\skills\claude-mem\config\` |
 
 ---
@@ -567,14 +550,13 @@ claude mcp update --all
 感谢所有开源贡献者：
 - [Anthropic](https://anthropic.com/) - Claude AI模型
 - [CodeGraph团队](https://github.com/codegraphai) - 代码结构分析
-- [Archon工作流团队](https://github.com/coleam00) - 动作编排
 - [Compound Engineering](https://github.com/anthropics) - AI能力增强
 - 所有Claude Skills和MCP贡献者
 
 ---
 
 **✨ 安装完成！您现在可以开始使用Mix-Coding系统的12个智能工作流了：**
-- `/polish` - 前端美化
+- `/ui-polish` - 前端美化
 - `/bugfix` - Bug修复
 - `/feature` - 新功能开发
 - `/review` - 代码审查

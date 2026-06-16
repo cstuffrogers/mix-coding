@@ -1,0 +1,21 @@
+{
+  "selection": "",
+  "id": "9b9df46b8e44",
+  "type": "e2e",
+  "data": {
+    "e2eConfigured": "{{e2eConfigured}}",
+    "mswHandlersGenerated": "{{mswHandlersGenerated}}",
+    "apiTestsGenerated": "{{apiTestsGenerated}}",
+    "fuzzTestPassed": "{{fuzzTestPassed}}",
+    "findings": {
+      "security": {}
+    },
+    "completedSteps": [
+      1,
+      2
+    ],
+    "prompt": "",
+    "workflow": "e2e"
+  },
+  "timestamp": "2026-06-16T01:04:19.752Z"
+}

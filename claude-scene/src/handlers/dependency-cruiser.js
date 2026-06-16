@@ -1,4 +1,4 @@
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
@@ -7,7 +7,6 @@ export function handleDepcruiseArchitecture(_action, params, targetPath, context
   const configPath = join(targetPath, '..', '.dependency-cruiser.js');
   const hasConfig = existsSync(configPath);
 
-  console.log(chalk.blue('\n📐 正在验证依赖架构（dependency-cruiser）...'));
   if (hasConfig) {
     console.log(chalk.dim('  → 使用项目 .dependency-cruiser.js 规则'));
   } else {
@@ -17,7 +16,6 @@ export function handleDepcruiseArchitecture(_action, params, targetPath, context
   let violationCount = 0;
   let callGraphPath = null;
 
-  // Step 1: Architecture validation
   try {
     const args = hasConfig
       ? `-c "${configPath}" src -T err`
@@ -39,11 +37,9 @@ export function handleDepcruiseArchitecture(_action, params, targetPath, context
     }
   }
 
-  // Step 2: Generate call graph for archiving
   try {
     const reportsDir = join(targetPath, '.claude', 'reports');
     if (!existsSync(reportsDir)) {
-      const { mkdirSync } = require('fs');
       mkdirSync(reportsDir, { recursive: true });
     }
     callGraphPath = join(reportsDir, `depgraph-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.svg`);
@@ -54,7 +50,6 @@ export function handleDepcruiseArchitecture(_action, params, targetPath, context
     );
   } catch {
     // Call graph generation is optional
-    console.log(chalk.dim('  ℹ 调用图生成跳过（graphviz 不可用）'));
   }
 
   if (context) {

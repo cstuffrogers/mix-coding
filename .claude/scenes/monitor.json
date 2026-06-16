@@ -3,14 +3,31 @@
   "workflow": "monitor",
   "name": "监控配置",
   "description": "使用 Upptime 配置 GitHub Actions 原生网站监控，自动生成配置文件和工作流，并部署状态页面",
-  "trigger_keywords": ["监控", "monitor", "uptime", "状态页", "健康检查配置", "可用性监控"],
+  "trigger_keywords": [
+    "监控",
+    "monitor",
+    "uptime",
+    "状态页",
+    "健康检查配置",
+    "可用性监控"
+  ],
   "flow": [
     {
       "step": 1,
       "layer": "core",
       "service": "MemoryService",
       "action": "recall",
-      "params": { "type": "monitor", "filters": { "type": ["monitor", "uptime", "performance", "health"] } },
+      "params": {
+        "type": "monitor",
+        "filters": {
+          "type": [
+            "monitor",
+            "uptime",
+            "performance",
+            "health"
+          ]
+        }
+      },
       "description": "注入监控相关记忆",
       "auto_execute": true,
       "on_error": "continue"
@@ -30,7 +47,11 @@
       "layer": "core",
       "service": "QualityService",
       "action": "checkGate",
-      "params": { "checks": ["monitor"] },
+      "params": {
+        "checks": [
+          "monitor"
+        ]
+      },
       "description": "监控配置质量门禁",
       "auto_execute": true,
       "condition": "monitorConfigured == false",
@@ -41,7 +62,9 @@
       "layer": "capability",
       "service": "MonitorService",
       "action": "autoFix",
-      "params": { "source": "monitor" },
+      "params": {
+        "source": "monitor"
+      },
       "description": "自动修复监控配置问题",
       "auto_execute": true,
       "condition": "monitorConfigured == false",
@@ -90,11 +113,27 @@
       "on_error": "continue"
     },
     {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "monitor",
+        "source": "auto"
+      },
+      "description": "将monitor知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
       "step": 8,
       "layer": "core",
       "service": "NotificationService",
       "action": "notify",
-      "params": { "message": "Upptime 监控配置工作流完成" },
+      "params": {
+        "message": "Upptime 监控配置工作流完成"
+      },
       "description": "通知监控配置完成",
       "auto_execute": true,
       "on_error": "continue"

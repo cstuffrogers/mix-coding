@@ -10,13 +10,11 @@ This project implements a **three-layer architecture** following the **12-factor
 2. [Capability Layer Services](#capability-layer-services)
 3. [Runtime Layer Tools](#runtime-layer-tools)
 4. [Frontend Design & Polish Toolchain](#frontend-design--polish-toolchain)
-5. [ECC Integration (everything-claude-code)](#ecc-integration-everything-claude-code)
-6. [Workflow System (archon)](#workflow-system-archon)
-7. [Design Principles (12-factor-agents)](#design-principles-12-factor-agents)
-8. [Zero-Conflict Strategy](#zero-conflict-strategy)
-9. [CI/CD Integration](#cicd-integration)
-10. [MCP Dynamic Enablement](#mcp-dynamic-enablement)
-11. [Quick Start](#quick-start)
+5. [Design Principles (12-factor-agents)](#design-principles-12-factor-agents)
+6. [Zero-Conflict Strategy](#zero-conflict-strategy)
+7. [CI/CD Integration](#cicd-integration)
+8. [MCP Dynamic Enablement](#mcp-dynamic-enablement)
+9. [Quick Start](#quick-start)
 
 ---
 
@@ -29,9 +27,7 @@ This project implements a **three-layer architecture** following the **12-factor
 │   ┌────────────────────────────────────────────────────────────┐    │
 │   │  claude-scene CLI · 场景模板(.claude/scenes/) · 进度展示    │    │
 │   │  /new-project  /feature  /bugfix  /refactor  /design  /review│   │
-│   │  /hunt  /analyze  /loop  /simplify  /optimize  /polish      │    │
-│   │  /ecc-plan  /ecc-tdd  /ecc-code-review  /ecc-e2e            │    │
-│   │  /learn  /evolve  (ECC 持续学习 — 命名空间隔离)               │    │
+│   │  /hunt  /analyze  /loop  /simplify  /optimize  /ui-polish      │    │
 │   └────────────────────────────────────────────────────────────┘    │
 │                                                                     │
 │   【设计原则】12-factor-agents #7（环境等价）· #10（日志即事件）        │
@@ -63,7 +59,6 @@ This project implements a **three-layer architecture** following the **12-factor
 │         执行环境 · 模型调用 · 工具集成 · 子进程管理                    │
 │   ┌────────────────────────────────────────────────────────────┐    │
 │   │  Claude Code 核心 · MCP Servers · Hooks · Child Process    │    │
-│   │  archon CLI（工作流编排引擎）← 新增                          │    │
 │   │  CLI Tools (eslint/vitest/playwright/dev-utils/opendigger) │    │
 │   │  Frontend Tools (daisyui/animate.css/lucide-react)         │    │
 │   └────────────────────────────────────────────────────────────┘    │
@@ -79,7 +74,7 @@ This project implements a **three-layer architecture** following the **12-factor
 |------|------|---------|--------|
 | **交互层** | 用户入口、场景选择、确认打断、结果展示 | claude-scene CLI、场景模板、进度展示 | 实际执行逻辑、外部工具调用 |
 | **能力层** | 具体业务能力的实现（无状态业务逻辑；副作用通过运行时层注入） | Memory Service、Review Engine、Test Engine、Design Service、OpenDigger Service、Notification Service | 用户界面、Claude 核心推理 |
-| **运行时层** | 执行环境、模型调用、工具集成 | Claude Code 核心、MCP Servers、Hooks、Child Process、**archon CLI** | 业务逻辑、决策流程 |
+| **运行时层** | 执行环境、模型调用、工具集成 | Claude Code 核心、MCP Servers、Hooks、Child Process | 业务逻辑、决策流程 |
 
 ---
 
@@ -235,24 +230,7 @@ Deploy
 
 ## Runtime Layer Tools
 
-### archon CLI
-
-**Role**: Workflow orchestration engine (YAML-based, complements claude-scene JSON scenes)
-
-**Installation**: Clone the [Archon project](https://github.com/coleam00/Archon) and set up via WSL2 (see Quick Start below)
-
-**Commands**:
-```bash
-archon workflow list                          # List available workflows
-archon workflow run <name> [--pr <num>]      # Execute workflow
-archon workflow validate <file>               # Validate YAML
-```
-
-**Configuration**: `.archon/workflows/*.yaml`
-
-**vs. ESLint/Playwright**: archon is a **tool** in the runtime layer, not a new architectural layer.
-
-### Other Runtime Tools
+### Runtime Tools
 
 | Tool | Purpose | Invocation |
 |------|---------|-----------|
@@ -268,77 +246,6 @@ archon workflow validate <file>               # Validate YAML
 
 ---
 
-## ECC Integration (everything-claude-code)
-
-本系统集成了 [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code)（50k+ Stars），采用**命名空间隔离**策略：
-
-### 集成组件
-
-| ECC 组件 | 本系统映射 | 集成方式 |
-|----------|-----------|---------|
-| planner agent | ecc-plan 场景 | Archon 子节点（feature 工作流） |
-| architect agent | new-project 架构设计 | Archon 子节点增强 |
-| tdd-guide agent | ecc-tdd 场景 | Archon ecc-tdd-enforce 节点 |
-| code-reviewer agent | ecc-code-review 场景 | 5层审查 AI 语义层增强 |
-| security-reviewer (912规则) | ecc-security-scan 场景 | security-hunt 工作流增强 |
-| e2e-runner agent | ecc-e2e 场景 | Playwright E2E 增强 |
-| **持续学习系统** ⭐ | **learn / evolve** | **全新能力 — 本系统最大差异化** |
-
-### 命名空间规则
-
-- 所有 ECC 命令加 `ecc-` 前缀：`/ecc-plan`, `/ecc-tdd`, `/ecc-code-review` 等
-- 持续学习系统不加前缀：`/learn`, `/evolve`（无冲突）
-- 冲突解决：`/code-review`(ECC) → `/ecc-code-review`，`/review`(本系统) 保持
-
-### 持续学习系统
-
-```
-会话结束 → /learn → 提取模式 → .claude/knowledge/learn/
-                                    ↓
-定期执行 → /evolve → 评估成熟度 → 生成 Skill → .claude/skills/evolved/
-```
-
-详见：[ecc/mapping.json](./ecc/mapping.json)
-
----
-
-## Workflow System (archon)
-
-### Node Types
-
-1. **`command`**: Deterministic service call (e.g., `review-full`, `notify-complete`)
-2. **`prompt`**: LLM reasoning with prompt content
-3. **`bash`**: Shell script execution
-4. **`loop`**: Repeat execution with iteration control
-
-### Common Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique node identifier |
-| `command` | string | Node type: `command` / `prompt` / `bash` / `loop` |
-| `description` | string | Human-readable node description |
-| `prompt` | string | Prompt content (for `prompt` nodes) |
-| `arguments` | string | Command arguments (for `command` nodes) |
-| `context` | string | Context mode (e.g., `fresh`) |
-| `depends_on` | string[] | IDs of prerequisite nodes |
-| `condition` | string | Flag in context required to execute |
-
-### Constants Pattern
-
-Use `constants:` section to avoid string literals:
-```yaml
-constants:
-  FRONTEND_INVOLVED: "frontend_involved"
-  COMPETITOR_MENTIONED: "user_mentioned_competitor_or_domain"
-
-nodes:
-  - id: analyze
-    condition: constants.COMPETITOR_MENTIONED
-```
-
----
-
 ## Design Principles (12-factor-agents)
 
 These are **cross-cutting concerns**, not architectural layers.
@@ -346,15 +253,15 @@ These are **cross-cutting concerns**, not architectural layers.
 | Principle | Application |
 |-----------|-------------|
 | **#1 明确接口契约** | Capability APIs (`MemoryService.recall(params)`) have strict TypeScript interfaces |
-| **#2 无共享状态** | Each archon workflow runs in isolated git worktree; nodes communicate via depends_on |
-| **#3 配置与代码分离** | Secrets in `.env`, workflows in YAML, business logic in TS |
+| **#2 无共享状态** | Each workflow runs with isolated context; steps communicate via defined interfaces |
+| **#3 配置与代码分离** | Secrets in `.env`, workflows in JSON, business logic in TS |
 | **#4 并发与弹性** | ReviewEngine 5-layer review can run in parallel (Layers 1-4 independent) |
 | **#5 构建/运行分离** | Knowledge graph built at build time, read-only at runtime |
-| **#6 一次性执行** | archon workflows are idempotent; re-running skips completed steps |
-| **#7 环境等价** | `archon workflow run` behaves identically in local and CI |
+| **#6 一次性执行** | Workflows are idempotent; re-running skips completed steps |
+| **#7 环境等价** | `node src/index.js start <scene>` behaves identically in local and CI |
 | **#8 并发进程** | Multiple CLI subprocesses run in parallel (ESLint + Playwright) |
 | **#9 易处置** | SIGINT cleanly terminates workflow; no state residue |
-| **#10 日志即事件** | archon outputs structured JSON logs for observability |
+| **#10 日志即事件** | CLI outputs structured JSON logs for observability |
 
 ---
 
@@ -386,7 +293,7 @@ The following checks ensure architectural compliance during development:
 2. SQLite file independence
 3. react-doctor dedup configuration
 4. Playwright baseline directory
-5. archon workflows existence (12 expected: new-project, feature, bugfix, refactor, design, review, hunt, analyze, loop, simplify, optimize, ui-polish)
+5. Scene workflows existence (34 expected scenes)
 6. 12-factor principles compliance
 7. Frontend tool absence of runtime conflicts (DaisyUI + Animate.css + Lucide React)
 8. CI permission safety
@@ -406,7 +313,6 @@ Triggers on PR changes to workflows:
 on:
   pull_request:
     paths:
-      - '.archon/workflows/**'
       - '.claude/scenes/**'
       - 'ARCHITECTURE.md'
 ```
@@ -454,16 +360,10 @@ Maps workflows to MCP servers with token budget:
 ### 1. Initialize Project Structure
 ```bash
 mkdir -p .claude/{skills,commands,rules}
-mkdir -p .archon/{workflows,commands}
 mkdir -p .visual-baselines/playwright
 ```
 
-### 2. Initialize archon workflows (optional)
-```bash
-mkdir -p .archon/{workflows,commands}
-```
-
-### 3. Install Frontend Design Tools
+### 2. Install Frontend Design Tools
 ```bash
 # Open Design (AI design generation)
 git clone https://github.com/nexu-io/open-design.git
@@ -477,7 +377,7 @@ npm install -D @playwright/test
 npx playwright install chromium
 ```
 
-### 4. Install Memory Components
+### 3. Install Memory Components
 ```bash
 # Claude-Mem: claude plugins install claude-mem
 # agentmemory: npm install -g agentmemory && agentmemory init
@@ -485,25 +385,25 @@ npx playwright install chromium
 # CodeGraph: npm install -g @codegraph/cli && codegraph index
 ```
 
-### 5. Install Review Components
+### 4. Install Review Components
 ```bash
 npm install -D eslint @playwright/test react-doctor prettier
 # 配置文件：eslint.config.js, playwright.config.ts, react-doctor.config.json
 npx playwright install chromium
 ```
 
-### 6. Configure Environment
+### 5. Configure Environment
 ```bash
 cp .env.example .env
 # Edit .env with your API keys
 ```
 
-### 7. Validate Setup
+### 6. Validate Setup
 ```bash
 python3 .github/workflows/validate_workflows.py  # YAML validation
 ```
 
-### 8. Run Your First Workflow
+### 7. Run Your First Workflow
 ```bash
 node src/index.js start new-project --auto
 # or from Claude Code: input /new-project
@@ -520,7 +420,7 @@ node src/index.js start new-project --auto
 | lean-ctx | Low activity, unverified community | 239 |
 | ouroboros | Experimental, security risk (self-delete incident) | 547 |
 | codebase-memory-mcp | Duplicate of CodeGraph | — |
-| agent-orchestrator | Conflicts with archon architecture | — |
+| agent-orchestrator | Conflicts with scene workflow architecture | — |
 | claude-context | Duplicate of Claude-Mem | — |
 | cc-haha | Based on leaked source code, legal risk | — |
 | GrapesJS | Replaced by Open Design (AI-driven, higher quality) | — |
@@ -530,9 +430,7 @@ node src/index.js start new-project --auto
 
 | File | Purpose |
 |------|---------|
-| `.archon/workflows/*.yaml` | archon workflow definitions |
 | `.claude/mcp-enable.json` | MCP server mapping per workflow |
-| `.archon/timeout-policy.md` | Global timeout/retry defaults |
 | `.env.example` | Environment variables template |
 | `react-doctor.config.json` | ESLint/react-doctor dedup |
 | `playwright.config.ts` | Visual regression config |

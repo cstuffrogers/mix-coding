@@ -21,7 +21,7 @@ function getProjectName() {
       _cachedProjectName = pkg.name || 'mix-coding';
       return _cachedProjectName;
     }
-  } catch {}
+  } catch { /* no package.json */ }
   _cachedProjectName = 'mix-coding';
   return _cachedProjectName;
 }
@@ -175,7 +175,7 @@ export function shouldSkipSave(type, data) {
     if (t < cutoff) _recentSaves.delete(k);
   }
   if (_recentSaves.size > 100) {
-    const sorted = [..._recentSaves.entries()].sort((a, b) => a[1] - b[1]);
+    const sorted = [..._recentSaves].sort((a, b) => a[1] - b[1]);
     for (const [k] of sorted.slice(0, _recentSaves.size - 100)) {
       _recentSaves.delete(k);
     }

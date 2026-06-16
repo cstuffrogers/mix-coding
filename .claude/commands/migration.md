@@ -1,55 +1,52 @@
 ---
-description: Review database migration files for dangerous operations
+description: Review database migration files: detect dangerous operations (DROP/NOT NULL without DEFAULT/type changes). 10-step workflow with CRITICAL/HIGH/MEDIUM severity classification.
 argument-hint: "[path]"
 ---
 
-# /migration — Database Migration Review
+# /migration — 数据库迁移审查
 
-**Input**: $ARGUMENTS
+10 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → 迁移文件识别 → 危险模式检测 → 修复建议**
 
----
+## Usage
 
-## Your Mission
-
-Review database migration files for dangerous SQL patterns that could cause data loss, table locks, or breaking changes.
-
----
-
-## Execution Steps
-
-### Step 1: Identify migration files
-
-Scan common migration directories: `migrations/`, `prisma/`, `drizzle/`, `supabase/migrations/`
-
-### Step 2: Run analysis
-
-```bash
-cd e:/auto-coding/claude-scene
-
-node -e "
-const { handleMigrationReview } = require('./src/handlers/migration.js');
-const result = handleMigrationReview('migration-review', {}, process.cwd(), {});
-console.log(result);
-"
+```text
+/migration                        # 审查当前项目迁移文件
+/migration migrations/            # 审查指定目录
 ```
 
-### Step 3: Review findings
+## 执行流程
 
-- **CRITICAL**: DROP TABLE, TRUNCATE, NOT NULL without DEFAULT — must be fixed before proceeding
-- **HIGH**: DROP COLUMN, type changes — requires review
-- **MEDIUM**: RENAME COLUMN, ADD FOREIGN KEY — document and verify
+### Phase 0: Pre-flight 准备（对话模式）
 
-### Step 4: Apply fixes
+1. **Skill("review-checklist")** (`step 0.3`) — 加载 23 项审查清单，聚焦数据库安全/数据完整性项
 
-For fixable issues, suggest safer alternatives:
-- `ADD COLUMN NOT NULL` → `ADD COLUMN` + `DEFAULT` or split into multiple steps
-- `DROP TABLE` → rename to `_deprecated_<name>` first, then drop after validation period
-- Type changes → use `ALTER COLUMN TYPE ... USING` with explicit cast
+### Phase 1: 上下文收集（对话模式）
 
----
+2. **GitHub MCP** (`step 1`) — 列出数据库迁移相关 issues
+3. **Context7 MCP** (`step 2`) — 获取数据库迁移最佳实践文档
 
-## Output
+### Phase 2: 迁移审查
 
-Results displayed in console. HIGH/CRITICAL findings block CI/CD gates.
+- **identifyFiles** (`step 3`) — 扫描迁移目录（migrations/prisma/drizzle/supabase）
+- **runAnalysis** (`step 4`) — 运行危险模式检测
+  - **CRITICAL**: DROP TABLE / TRUNCATE / NOT NULL without DEFAULT
+  - **HIGH**: DROP COLUMN / 类型变更
+  - **MEDIUM**: RENAME COLUMN / ADD FOREIGN KEY
+- **suggestFixes** (`step 5`) — 为可修复项生成安全替代方案
 
-**Installs**: Optionally uses `db-scalability-guardian` (npm) for enhanced analysis. Falls back to built-in pattern scanning if not installed.
+### Phase 3: 沉淀
+
+- **ce-compound** (`step 6`) — 迁移审查知识沉淀
+- **remember** → **consolidate** → **notify**
+
+### 工具链覆盖
+
+| 阶段 | 工具 | 类型 |
+|------|------|------|
+| 审查清单 | review-checklist Skill（23 项） | Skill |
+| 上下文 | GitHub MCP + Context7 MCP | MCP |
+| 分析 | 内建模式扫描 + db-scalability-guardian（可选） | CLI |
+
+### CLI 模式回退
+
+在 CLI 模式（非对话）下，`Skill("review-checklist")` 和 MCP 步骤自动跳过。迁移文件扫描和危险模式检测正常执行。

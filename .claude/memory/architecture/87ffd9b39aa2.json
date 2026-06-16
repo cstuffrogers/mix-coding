@@ -1,0 +1,50 @@
+{
+  "selection": "",
+  "id": "87ffd9b39aa2",
+  "type": "architecture",
+  "data": {
+    "source": "new_project_workflow",
+    "findings": {
+      "security": {},
+      "lintPassed": true
+    },
+    "completedSteps": [
+      0.5,
+      0.7,
+      1,
+      1.1,
+      1.2,
+      2,
+      2.5,
+      2.6,
+      3,
+      3.55,
+      3.551,
+      3.56,
+      3.57,
+      3.58,
+      3.59,
+      3.61,
+      3.62,
+      3.63,
+      3.64,
+      3.65,
+      3.66,
+      3.7,
+      3.75,
+      3.76,
+      3.77,
+      3.8,
+      4,
+      4.5,
+      4.6,
+      4.7,
+      4.8,
+      5,
+      5.5
+    ],
+    "prompt": "test verification run",
+    "workflow": "new-project"
+  },
+  "timestamp": "2026-06-16T02:32:59.707Z"
+}

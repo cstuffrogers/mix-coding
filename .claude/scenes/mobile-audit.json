@@ -14,6 +14,19 @@
   ],
   "flow": [
     {
+      "step": 0.2,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
       "step": 0.5,
       "layer": "capability",
       "service": "MemoryService",
@@ -21,7 +34,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["mobile-security", "audit", "compliance"]
+          "type": [
+            "mobile-security",
+            "audit",
+            "compliance"
+          ]
         }
       },
       "description": "注入历史审计上下文和安全策略记忆",
@@ -44,7 +61,12 @@
       "service": "MobileService",
       "action": "checkTools",
       "params": {
-        "tools": ["mobsf", "mobsfscan", "bearer", "dependencycheck"]
+        "tools": [
+          "mobsf",
+          "mobsfscan",
+          "bearer",
+          "dependencycheck"
+        ]
       },
       "description": "自动检测工具可用性 + 缺失工具安装指引",
       "auto_execute": true,
@@ -163,7 +185,12 @@
       "service": "MobileService",
       "action": "perfBaseline",
       "params": {
-        "metrics": ["bundle_size", "asset_size", "method_count", "permissions_count"]
+        "metrics": [
+          "bundle_size",
+          "asset_size",
+          "method_count",
+          "permissions_count"
+        ]
       },
       "description": "性能基线快照（静态指标）：包体积/资源占比/方法数/权限数 — 运行时指标（启动/FPS/内存）见 mobile-optimize",
       "auto_execute": true,
@@ -185,7 +212,13 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": ["security", "privacy", "dependencies", "performance", "store_compliance"],
+        "checks": [
+          "security",
+          "privacy",
+          "dependencies",
+          "performance",
+          "store_compliance"
+        ],
         "mode": "strict",
         "block_critical": true
       },
@@ -200,7 +233,11 @@
       "action": "runAgent",
       "params": {
         "agent": "mobile-security",
-        "focus": ["masvs_mapping", "finding_interpretation", "fix_prioritization"]
+        "focus": [
+          "masvs_mapping",
+          "finding_interpretation",
+          "fix_prioritization"
+        ]
       },
       "description": "mobile-security Agent AI 安全审计：综合扫描结果→MASVS 对照→修复优先级排序→为报告提供专家解读",
       "auto_execute": true,
@@ -214,7 +251,13 @@
       "action": "mobileGenerateReport",
       "params": {
         "format": "plain_language",
-        "sections": ["security", "privacy", "dependencies", "performance", "store_compliance"]
+        "sections": [
+          "security",
+          "privacy",
+          "dependencies",
+          "performance",
+          "store_compliance"
+        ]
       },
       "description": "生成通俗审计报告：emoji 指标 + 自然语言 + 一键修复清单",
       "auto_execute": true,
@@ -232,6 +275,18 @@
       "auto_execute": true,
       "on_error": "continue",
       "timeout": 600
+    },
+    {
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
+      "auto_execute": true,
+      "on_error": "continue",
+      "step": 13.1
     },
     {
       "step": 14,
@@ -254,7 +309,10 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": ["tokens", "api_calls"]
+        "include": [
+          "tokens",
+          "api_calls"
+        ]
       },
       "description": "审计流程成本报告",
       "auto_execute": true,

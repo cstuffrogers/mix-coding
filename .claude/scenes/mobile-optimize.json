@@ -15,6 +15,19 @@
   ],
   "flow": [
     {
+      "step": 0.2,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
       "step": 0.5,
       "layer": "capability",
       "service": "MemoryService",
@@ -22,7 +35,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["mobile-perf", "optimize", "performance"]
+          "type": [
+            "mobile-perf",
+            "optimize",
+            "performance"
+          ]
         }
       },
       "description": "注入历史性能基线和优化记忆",
@@ -45,7 +62,14 @@
       "service": "MobileService",
       "action": "measureBaseline",
       "params": {
-        "metrics": ["bundle_size", "cold_start", "warm_start", "fps", "memory_peak", "memory_background"],
+        "metrics": [
+          "bundle_size",
+          "cold_start",
+          "warm_start",
+          "fps",
+          "memory_peak",
+          "memory_background"
+        ],
         "mode": "static_first"
       },
       "description": "性能基线测量：优先静态（包体积/资源占比），设备可用时追加运行时指标（启动/FPS/内存）",
@@ -81,7 +105,13 @@
       "service": "MobileService",
       "action": "analyzeNetwork",
       "params": {
-        "checks": ["duplicate_requests", "batch_opportunity", "prefetch_missing", "offline_cache_missing", "image_oversize"]
+        "checks": [
+          "duplicate_requests",
+          "batch_opportunity",
+          "prefetch_missing",
+          "offline_cache_missing",
+          "image_oversize"
+        ]
       },
       "description": "网络分析：重复请求/未批量合并/无预加载/无离线缓存/图片下载尺寸 > 显示尺寸 2x",
       "auto_execute": true,
@@ -104,12 +134,31 @@
       "action": "runAgent",
       "params": {
         "agent": "mobile-perf",
-        "focus": ["bundle", "startup", "rendering", "memory", "network", "battery"]
+        "focus": [
+          "bundle",
+          "startup",
+          "rendering",
+          "memory",
+          "network",
+          "battery"
+        ]
       },
       "description": "mobile-perf Agent AI 性能分析：综合测量数据→按收益排序→生成预算违规报告",
       "auto_execute": true,
       "on_error": "continue",
       "timeout": 300
+    },
+    {
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
+      "auto_execute": true,
+      "on_error": "continue",
+      "step": 7.1
     },
     {
       "step": 8,
@@ -153,7 +202,12 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": ["bundle_size", "startup_time", "fps", "memory"]
+        "checks": [
+          "bundle_size",
+          "startup_time",
+          "fps",
+          "memory"
+        ]
       },
       "description": "性能预算门禁：超标项标注 🔴/🟡，生成通俗优化报告",
       "auto_execute": true,
@@ -180,7 +234,10 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": ["tokens", "api_calls"]
+        "include": [
+          "tokens",
+          "api_calls"
+        ]
       },
       "description": "性能优化流程成本报告",
       "auto_execute": true,

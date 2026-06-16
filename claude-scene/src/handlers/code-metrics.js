@@ -5,7 +5,6 @@ import { ensureDir } from '../lib/fs-utils.js';
 import { readCodeFiles, stripCommentsAndStrings, detectNestedLoops, getFunctionComplexities, CTRL_FLOW } from '../lib/code-analysis-utils.js';
 
 export function handleCodeScan(_action, _params, targetPath) {
-  console.log(chalk.blue('\n🔍 正在全量代码扫描...'));
   const srcDir = join(targetPath, 'src');
   const stats = { files: 0, lines: 0, functions: 0, classes: 0 };
   const files = readCodeFiles(srcDir);
@@ -17,12 +16,10 @@ export function handleCodeScan(_action, _params, targetPath) {
       stats.classes += (f.content.match(/class\s+\w+/g) || []).length;
     }
   }
-  console.log(chalk.dim(`  📁 ${stats.files} 文件 | 📝 ${stats.lines} 行 | ⚙️ ${stats.functions} 函数 | 🏛️ ${stats.classes} 类`));
   return `代码扫描完成: ${stats.files} 文件, ${stats.lines} 行`;
 }
 
 export function handlePerformanceProfile(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n⚡ 正在性能分析（静态）...'));
   const srcDir = join(targetPath, 'src');
   const findings = [];
   for (const file of readCodeFiles(srcDir)) {
@@ -40,7 +37,7 @@ export function handlePerformanceProfile(_action, _params, targetPath, context) 
     }
   }
   if (findings.length) {
-    findings.forEach(f => console.log(chalk.yellow(`  ⚡ ${f.severity}: ${f.pattern} — ${f.file}`)));
+    for (const f of findings) console.log(chalk.yellow(`  ⚡ ${f.severity}: ${f.pattern} — ${f.file}`));
   } else {
     console.log(chalk.green('  ✅ 未发现明显性能热点'));
   }
@@ -51,7 +48,6 @@ export function handlePerformanceProfile(_action, _params, targetPath, context) 
 
 export function handleCodeMetrics(_action, params, targetPath, context) {
   const thresholds = params?.thresholds || { cyclomatic_complexity: 15, maintainability: 60 };
-  console.log(chalk.blue('\n📐 正在计算代码指标...'));
   const srcDir = join(targetPath, 'src');
   let totalComplexity = 0;
   let fileCount = 0;
@@ -60,7 +56,7 @@ export function handleCodeMetrics(_action, params, targetPath, context) {
   for (const file of readCodeFiles(srcDir)) {
     fileCount++;
     const stripped = stripCommentsAndStrings(file.content);
-    const allMatches = stripped.match(/\b(if|else|for|while|switch|case|catch)\b|\?(?![\?.])/g) || [];
+    const allMatches = stripped.match(/\b(if|else|for|while|switch|case|catch)\b|\?(?![?.])/g) || [];
     const complexity = allMatches.length;
     totalComplexity += complexity;
 
@@ -72,7 +68,6 @@ export function handleCodeMetrics(_action, params, targetPath, context) {
 
   const avgComplexity = fileCount ? (totalComplexity / fileCount).toFixed(1) : 0;
   const maintainability = Math.max(0, Math.min(100, 100 - totalComplexity * 0.5));
-  console.log(chalk.dim(`  平均圈复杂度: ${avgComplexity} | 可维护性: ${maintainability} | 文件: ${fileCount}`));
   if (complexFunctions.length) {
     console.log(chalk.yellow(`  ⚠ ${complexFunctions.length} 个函数超过阈值 (${thresholds.cyclomatic_complexity})`));
     complexFunctions.slice(0, 5).forEach(f => console.log(chalk.dim(`    ${f.name}() @ ${relative(targetPath, f.file)}:${f.line} (${f.complexity})`)));
@@ -85,7 +80,6 @@ export function handleCodeMetrics(_action, params, targetPath, context) {
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export function handleDetectAntiPatterns(_action, params, targetPath, context) {
   const patterns = params?.patterns || ['god_object', 'long_method', 'duplicate_code'];
-  console.log(chalk.blue('\n🕵️ 正在检测反模式...'));
   const srcDir = join(targetPath, 'src');
   const found = { god_object: [], long_method: [], duplicate_code: [] };
 
@@ -167,7 +161,6 @@ export function handleDetectAntiPatterns(_action, params, targetPath, context) {
 
 export function handleGenerateReport(_action, params, targetPath) {
   const destination = params?.destination || 'docs/analysis-report.md';
-  console.log(chalk.blue('\n📝 正在生成分析报告...'));
   const destPath = join(targetPath, destination);
   const reportDir = join(targetPath, 'docs');
   ensureDir(reportDir);
@@ -193,6 +186,5 @@ export function handleGenerateReport(_action, params, targetPath) {
     '4. 低：代码风格统一',
   ].join('\n');
   writeFileSync(destPath, report, 'utf-8');
-  console.log(chalk.green(`  ✅ 报告已保存: ${destination}`));
   return `报告已生成: ${destination}`;
 }

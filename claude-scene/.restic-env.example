@@ -1,0 +1,18 @@
+# Restic backup configuration for claude-scene
+# Copy to .restic-env and fill in your values:
+#   cp .restic-env.example .restic-env
+
+# Repository location (local path, s3, sftp, etc.)
+# RESTIC_REPOSITORY=/mnt/backups/claude-scene
+# RESTIC_REPOSITORY=s3:s3.amazonaws.com/my-bucket/claude-scene
+RESTIC_REPOSITORY=
+
+# Repository password (generate with: openssl rand -base64 32)
+RESTIC_PASSWORD=
+
+# Optional: AWS credentials for S3 backends
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+
+# Optional: SFTP credentials
+# RESTIC_REPOSITORY=sftp:user@host:/backups/claude-scene

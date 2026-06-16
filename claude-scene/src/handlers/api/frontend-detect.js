@@ -87,7 +87,7 @@ function extractCallsFromFile(f, calls) {
   const isApiRouteFile = /\/(?:app|pages)\/api\//.test(normalizedPath);
   if (!isApiRouteFile) {
     for (const m of content.matchAll(/\/api\/[\w/-]+/g)) {
-      if (!calls.some(c => c.path.includes(m[0]))) {
+      if (calls.every(c => !c.path.includes(m[0]))) {
         calls.push({ method: 'GET', path: m[0], bodyFields: [] });
       }
     }

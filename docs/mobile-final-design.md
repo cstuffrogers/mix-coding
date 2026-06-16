@@ -12,8 +12,8 @@
 | 2 | Skill 数量 | 2 个（mobile-ui-review / mobile-sec-guide） | 1 个（mobile-ui-review），OWASP MASVS 改为 rules 文件 | -1 Skill |
 | 3 | MCP 新增 | 7 个 | 5 个（砍 spectral + promptfoo） | -2 MCP |
 | 4 | 新 Rules | 1 个（mobile-coding.md） | 2 个（+ mobile-security-rules.md，OWASP MASVS 对照） | +1 Rules |
-| 5 | mobile-audit 步骤 | 22 步 | 18 步（合并相邻分析步骤） | -4 |
-| 6 | mobile-review 步骤 | 15 步 | 12 步（复用 5 层管线模式） | -3 |
+| 5 | mobile-audit 步骤 | 22 步 | 17 步（合并相邻分析步骤 + 砍 ECC） | -5 |
+| 6 | mobile-review 步骤 | 15 步 | 11 步（复用 5 层管线模式 + 砍 ECC） | -4 |
 | 7 | mobile-optimize 步骤 | 14 步 | 13 步（追加网络分析、合并测量优化） | -1 |
 | 8 | mobile-review a11y | 无 | L4 AI 审查追加 TalkBack/VoiceOver/焦点/对比度 | +1 维度 |
 | 9 | 修改文件 | 4 个 | 3 个（不修改 ARCHITECTURE.md） | -1 |
@@ -111,9 +111,9 @@ miniprogram-automator   微信小程序专属，不涉及 Web
 │   └── mobile-ui-review/
 │       └── SKILL.md              # 移动端 UI 审查（安全区域/刘海/键盘/手势）
 ├── scenes/
-│   ├── mobile-audit.json         # 移动端全维度审计（~18 steps）
-│   ├── mobile-review.json        # 移动端代码审查（~12 steps，5 层管线）
-│   ├── mobile-release.json       # 移动端发布流程（~16 steps）
+│   ├── mobile-audit.json         # 移动端全维度审计（~17 steps）
+│   ├── mobile-review.json        # 移动端代码审查（~11 steps，5 层管线）
+│   ├── mobile-release.json       # 移动端发布流程（~15 steps）
 │   ├── mobile-optimize.json      # 移动端性能优化（~12 steps）
 │   ├── mobile-e2e.json           # 移动端 E2E 测试配置（~8 steps）
 │   └── mobile-onboard.json       # 移动端环境搭建（~10 steps）
@@ -146,7 +146,7 @@ miniprogram-automator   微信小程序专属，不涉及 Web
 
 ## 四、6 个工作流设计（最终版）
 
-### 4.1 `/mobile-audit` — 移动端全维度审计（18 步）
+### 4.1 `/mobile-audit` — 移动端全维度审计（17 步）
 
 ```
 Step 0.5   MemoryService.recall           → 注入历史审计记忆
@@ -163,16 +163,15 @@ Step 10    MobileService.perfBaseline      → 包体积/启动时间/内存/FPS
 Step 11    MobileService.storeCompliance   → 应用商店合规清单（Apple/Google/微信）
 Step 12    QualityService.checkGate        → 质量门禁（阻断 CRITICAL/HIGH）
 Step 13    MobileService.generateReport    → 生成通俗审计报告
-Step 14    ECC.ce-compound                 → 安全审计知识沉淀
-Step 15    MemoryService.remember          → 保存审计结果
-Step 16    MemoryService.consolidate       → 整理跨后端记忆
-Step 17    CostService.report              → 成本报告
-Step 18    NotificationService.notify      → 通知审计完成
+Step 14    MemoryService.remember          → 保存审计结果
+Step 15    MemoryService.consolidate       → 整理跨后端记忆
+Step 16    CostService.report              → 成本报告
+Step 17    NotificationService.notify      → 通知审计完成
 ```
 
-**步骤优化**：原 22 步 → 18 步。合并了"合规清单 + 代码质量 → storeCompliance"，工具检测+安装从 3 步合并为 2 步。
+**步骤优化**：原 22 步 → 17 步。合并了"合规清单 + 代码质量 → storeCompliance"，工具检测+安装从 3 步合并为 2 步。
 
-### 4.2 `/mobile-review` — 移动端代码审查（12 步）
+### 4.2 `/mobile-review` — 移动端代码审查（11 步）
 
 ```
 Step 0.5   MemoryService.recall           → 注入历史审查记忆
@@ -184,15 +183,14 @@ Step 5     L3: Detox/Maestro screenshots   → UI 截图对比（关键流程）
 Step 6     L4: mobile-reviewer Agent       → AI 语义审查（导航栈/Platform.OS/内存泄漏/移动端a11y）
 Step 7     L5: 聚合报告                     → 去重/排序/修复建议
 Step 8     QualityService.checkGate        → 门禁（CRITICAL 阻断）
-Step 9     ECC.ce-compound                 → 审查知识沉淀
-Step 10    MemoryService.remember          → 保存审查结果
-Step 11    MemoryService.consolidate       → 整理记忆
-Step 12    NotificationService.notify      → 通知审查完成
+Step 9     MemoryService.remember          → 保存审查结果
+Step 10    MemoryService.consolidate       → 整理记忆
+Step 11    NotificationService.notify      → 通知审查完成
 ```
 
-**步骤优化**：原 15 步 → 12 步。5 层审查管线合并为 5 个连续步骤，去掉 Context7 查阅（移动端审查不需要查文档）。
+**步骤优化**：原 15 步 → 11 步。5 层审查管线合并为 5 个连续步骤，去掉 Context7 查阅（移动端审查不需要查文档）。
 
-### 4.3 `/mobile-release` — 移动端发布流程（16 步）
+### 4.3 `/mobile-release` — 移动端发布流程（15 步）
 
 ```
 Step 0.5   MemoryService.recall           → 注入历史发布记忆
@@ -207,13 +205,12 @@ Step 8     MobileService.versionCompat     → 版本兼容矩阵检查
 Step 9     MobileService.grayRelease       → 灰度比例配置
 Step 10    SentryMCP.checkCrashRate        → 发布后崩溃率监控
 Step 11    CostService.report              → 成本报告
-Step 12    ECC.ce-compound                 → 发布知识沉淀
-Step 13    MemoryService.remember          → 保存发布记录
-Step 14    MemoryService.consolidate       → 整理记忆
-Step 15    NotificationService.notify      → 通知发布状态
+Step 12    MemoryService.remember          → 保存发布记录
+Step 13    MemoryService.consolidate       → 整理记忆
+Step 14    NotificationService.notify      → 通知发布状态
 ```
 
-**步骤优化**：原 19 步 → 16 步。合并构建+签名为一个 fastlane action，去掉 Huashu release-deck/animation（移动端不需要 PPT 动画）。
+**步骤优化**：原 19 步 → 15 步。合并构建+签名为一个 fastlane action，去掉 Huashu release-deck/animation（移动端不需要 PPT 动画）。
 
 ### 4.4 `/mobile-optimize` — 移动端性能优化（13 步）
 
@@ -475,10 +472,10 @@ Phase 2: Agents & Skill (4 files)
 Phase 3: Scene Workflows (6 files)
   → mobile-onboard.json (10 steps, 最简单)
   → mobile-e2e.json (8 steps)
-  → mobile-review.json (12 steps)
+  → mobile-review.json (11 steps)
   → mobile-optimize.json (12 steps)
-  → mobile-audit.json (18 steps)
-  → mobile-release.json (16 steps)
+  → mobile-audit.json (17 steps)
+  → mobile-release.json (15 steps)
 
 Phase 4: Commands (6 files)
   → 6 个 command .md 文件

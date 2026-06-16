@@ -3,7 +3,6 @@ import chalk from 'chalk';
 import { readCodeFiles, stripCommentsAndStrings } from '../lib/code-analysis-utils.js';
 
 export function handleOpenRedirectScan(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔀 正在检测开放重定向风险...'));
   const findings = [];
 
   // Targeted open redirect pattern scan
@@ -29,10 +28,9 @@ export function handleOpenRedirectScan(_action, _params, targetPath, context) {
   }
 
   if (findings.length > 0) {
-    console.log(chalk.yellow(`  ⚠ 发现 ${findings.length} 处潜在开放重定向`));
-    findings.slice(0, 5).forEach(f =>
-      console.log(chalk.dim(`    ${f.pattern} @ ${f.file} (${f.count} 处)`))
-    );
+    findings.slice(0, 5).forEach(f => {
+      console.log(chalk.yellow(`  ⚠ ${f.file}: ${f.pattern} (${f.count} 处)`));
+    });
   } else {
     console.log(chalk.green('  ✅ 未发现明显开放重定向风险'));
   }

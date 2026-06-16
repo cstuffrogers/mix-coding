@@ -8,9 +8,9 @@ Claude Code 会自动加载 `.claude/scenes/` 目录中的场景配置。
 
 ### 1. UI 美化工作流 (ui-polish)
 
-**触发词**: "美化", "UI优化", "界面优化", "样式", "polish", "/polish"
+**触发词**: "美化", "UI优化", "界面优化", "样式", "polish", "/ui-polish"
 
-**命令**: `/polish [目标路径]`
+**命令**: `/ui-polish [目标路径]`
 
 **执行流程**:
 
@@ -107,15 +107,26 @@ Claude Code 会自动加载 `.claude/scenes/` 目录中的场景配置。
 | optimize | "优化" | 性能优化 |
 | release | "发布" | 发布部署：门禁→构建→Tag→发布 |
 | audit | "审计" | 全面项目健康检查 |
-| prototype | "原型" | 快速原型验证 |
 | deps | "更新依赖" | 安全依赖更新 |
 | rollback | "回滚" | 紧急回滚恢复 |
 | onboard | "环境搭建" | 开发者入职环境配置 |
-| monitor | "监控" | Upptime 网站监控（.upptimerc.yml + GitHub Actions） |
-| cicd | "CI/CD" | Act + Task CI/CD 流水线（本地验证 + Taskfile.yml） |
-| backup | "备份" | Restic 加密备份（脚本 + 排除规则 + 环境变量） |
-| incident | "事故" | Runme 事故响应 Runbook（健康检查/常见问题/升级路径） |
-| e2e | "E2E测试" | E2E 测试基础设施（MSW Mock + Supertest + Schemathesis Fuzz） |
+| migration | "迁移审查" | 数据库迁移审查 |
+| loadtest | "负载测试" | Artillery 负载测试 |
+| changelog | "变更日志" | 自动生成 CHANGELOG |
+| cicd | "CI/CD" | Act + Task CI/CD 流水线 |
+| backup | "备份" | Restic 加密备份 |
+| docker | "容器化" | Docker 容器化配置 |
+| incident | "事故" | Runme 事故响应 Runbook |
+| e2e | "E2E测试" | E2E 测试基础设施 |
+| log | "日志" | 日志配置与聚合 |
+| monitor | "监控" | Upptime 网站监控 |
+| sbom | "SBOM" | 软件物料清单 |
+| mobile-audit | "App安全" | App 安全审计 |
+| mobile-review | "App审查" | 移动端代码审查 |
+| mobile-release | "发布App" | App 发布部署 |
+| mobile-optimize | "优化App" | App 性能优化 |
+| mobile-e2e | "App测试" | 移动端 E2E 测试 |
+| mobile-onboard | "App环境" | App 开发环境搭建 |
 
 ## 执行原则
 

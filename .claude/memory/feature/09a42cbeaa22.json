@@ -1,0 +1,42 @@
+{
+  "selection": "",
+  "id": "09a42cbeaa22",
+  "type": "feature",
+  "data": {
+    "source": "feature_workflow",
+    "findings": {
+      "security": {},
+      "testPassed": true,
+      "lintPassed": true,
+      "coveragePassed": false
+    },
+    "completedSteps": [
+      0,
+      0.3,
+      0.5,
+      1,
+      1.1,
+      1.2,
+      2,
+      2.3,
+      2.5,
+      3,
+      3.5,
+      3.6,
+      4,
+      4.5,
+      4.6,
+      4.7,
+      4.8,
+      5,
+      5.3,
+      5.5,
+      7,
+      7.5,
+      8
+    ],
+    "prompt": "test feature logging",
+    "workflow": "feature"
+  },
+  "timestamp": "2026-06-16T01:15:51.940Z"
+}

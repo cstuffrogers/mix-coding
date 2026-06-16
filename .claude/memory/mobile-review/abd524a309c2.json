@@ -1,0 +1,31 @@
+{
+  "selection": "",
+  "id": "abd524a309c2",
+  "type": "mobile-review",
+  "data": {
+    "source": "mobile-review_workflow",
+    "findings": {
+      "security": {},
+      "lintPassed": true
+    },
+    "completedSteps": [
+      0.2,
+      0.5,
+      1,
+      2,
+      3,
+      4,
+      5,
+      5.5,
+      6,
+      7,
+      7.5,
+      8,
+      9,
+      10
+    ],
+    "prompt": "",
+    "workflow": "mobile-review"
+  },
+  "timestamp": "2026-06-16T01:16:47.528Z"
+}

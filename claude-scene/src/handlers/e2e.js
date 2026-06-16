@@ -154,10 +154,8 @@ function generateMswMocks(targetPath, endpoints) {
     if (!existsSync(mocksDir)) mkdirSync(mocksDir, { recursive: true });
     writeFileSync(join(mocksDir, 'handlers.js'), generateMswHandlers(endpoints), 'utf-8');
     writeFileSync(join(mocksDir, 'server.js'), generateMswServer(), 'utf-8');
-    console.log(chalk.green('  ✅ src/mocks/handlers.js + server.js 已生成'));
     return true;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ MSW 生成失败: ${e.message}`));
+  } catch {
     return false;
   }
 }
@@ -167,26 +165,20 @@ function generateIntegrationTests(targetPath, endpoints, specPath) {
     const testDir = join(targetPath, 'tests', 'integration');
     if (!existsSync(testDir)) mkdirSync(testDir, { recursive: true });
     writeFileSync(join(testDir, 'api.test.js'), generateApiTest(endpoints, specPath), 'utf-8');
-    console.log(chalk.green('  ✅ tests/integration/api.test.js 已生成'));
     return true;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 集成测试生成失败: ${e.message}`));
+  } catch {
     return false;
   }
 }
 
 function runSchemathesisFuzz(targetPath, specPath) {
   try {
-    console.log(chalk.dim('  运行 Schemathesis API fuzz...'));
     const result = safeExec(`npx schemathesis run "${specPath}" --checks all --max-examples 50 2>&1 || true`, targetPath, { stdio: 'pipe' }).toString();
     if (result.includes('FAILED')) {
-      console.log(chalk.yellow('  ⚠ Schemathesis fuzz 发现潜在问题'));
       return false;
     }
-    console.log(chalk.green('  ✅ Schemathesis fuzz 通过'));
     return true;
   } catch {
-    console.log(chalk.yellow('  ⚠ Schemathesis 未可用（需 Python 3.8+），跳过 fuzz'));
     return false;
   }
 }
@@ -199,7 +191,6 @@ function logE2eSetupInfo(endpoints, specPath, deps) {
 }
 
 export function handleSetupE2E(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🧪 正在配置 E2E 测试基础设施...'));
 
   const endpoints = scanApiEndpoints(targetPath);
   const specPath = findOpenApiSpec(targetPath);

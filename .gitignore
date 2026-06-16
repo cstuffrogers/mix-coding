@@ -13,14 +13,7 @@ build/
 npm-debug.log*
 
 # IDE
-.vscode/
 .idea/
-.cursor/
-.gemini/
-.kiro/
-.opencode/
-.trae/
-.gptscript-cache/
 
 # OS
 .DS_Store
@@ -40,10 +33,6 @@ reports/
 .ruff_cache/
 .pytest_cache/
 .understand-anything/
-
-# Archon 引擎（独立仓库，不提交到本项目）
-.archon/
-Archon-dev/
 
 # 敏感文件（密钥和凭证，禁止提交）
 *.pem
@@ -65,13 +54,9 @@ id_rsa*
 
 # 预编译工具/二进制（非源码，不提交）
 codegraph-win32-x64/
-onnx/
-tools/dependency-check/
-tools/reviewdog/
 
 # 外部仓库（独立项目，不提交到本仓库）
 open-design/
-open-digger/
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml

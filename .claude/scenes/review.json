@@ -2,7 +2,7 @@
   "scene_id": "review",
   "workflow": "review",
   "name": "代码审查 + 安全审计",
-  "description": "全面代码质量审查 + 自动化安全漏洞扫描（集成CE多Agent深度审查 + sec-bug-hunt）",
+  "description": "全面代码质量审查 + 自动化安全漏洞扫描（集成CE多Agent深度审查 + sec-bug-hunt + 8项工具链）",
   "trigger_keywords": [
     "审查",
     "review",
@@ -11,6 +11,19 @@
     "security"
   ],
   "flow": [
+    {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "预加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
     {
       "step": 0.5,
       "layer": "capability",
@@ -65,9 +78,19 @@
       "params": {
         "mode": "full"
       },
-      "description": "ESLint → react-doctor → Playwright 视觉 → AI 语义 → 聚合，五层审查",
+      "description": "ESLint → TypeScript → npm audit 静态分析，五层审查引擎核心",
       "auto_execute": true,
       "on_error": "retry"
+    },
+    {
+      "step": 2.3,
+      "layer": "capability",
+      "service": "AccessibilityService",
+      "action": "ai-friendly-review",
+      "params": {},
+      "description": "无障碍静态扫描：img-alt / input-label / html-lang / contrast-risk / clickable-div — 5 项检查",
+      "auto_execute": true,
+      "on_error": "continue"
     },
     {
       "step": 2.5,
@@ -75,9 +98,29 @@
       "service": "HuashuService",
       "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu 5 维度专家评审 (Layer 6): philosophy/hierarchy/craft/functionality/originality — UI 设计质量评分",
+      "description": "Huashu 5 维度专家评审: philosophy/hierarchy/craft/functionality/originality — UI 设计质量评分",
       "auto_execute": true,
       "condition": "enh_huashu_expert_review",
+      "on_error": "continue"
+    },
+    {
+      "step": 2.6,
+      "layer": "capability",
+      "service": "CodeQualityService",
+      "action": "knip-check",
+      "params": {},
+      "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.65,
+      "layer": "capability",
+      "service": "ArchitectureService",
+      "action": "depcruise-architecture",
+      "params": {},
+      "description": "Dependency-cruiser 架构验证：循环依赖检测 / 孤儿模块 / 分层合规",
+      "auto_execute": true,
       "on_error": "continue"
     },
     {
@@ -113,6 +156,56 @@
       "on_error": "continue"
     },
     {
+      "step": 2.95,
+      "layer": "capability",
+      "service": "CodeQualityService",
+      "action": "jscpd",
+      "params": {},
+      "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，重复率 > 5% 告警",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.96,
+      "layer": "capability",
+      "service": "BundleSizeService",
+      "action": "size_limit",
+      "params": {},
+      "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出预算",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.97,
+      "layer": "capability",
+      "service": "MutationTestService",
+      "action": "stryker",
+      "params": {},
+      "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.98,
+      "layer": "capability",
+      "service": "SecurityTool",
+      "action": "spectral",
+      "params": {},
+      "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.99,
+      "layer": "capability",
+      "service": "CodeQualityService",
+      "action": "markdownlint",
+      "params": {},
+      "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 3,
       "layer": "capability",
       "service": "ECC",
@@ -124,6 +217,33 @@
       "description": "CE Plugin 多Agent深度审查：架构、安全、性能、代码规范、可维护性、文档、测试、国际化、最佳实践",
       "auto_execute": true,
       "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
+      "step": 3.2,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review"
+      },
+      "description": "Matt Pocock 双轴审查：标准轴（编码规范）+ 规范轴（原始 issue/PRD 对照）",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
+      "step": 3.5,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "critique"
+      },
+      "description": "Impeccable 设计批判：27 条反 AI 模式规则 + 12 条 LLM 批判规则，检测 AI 塑料感",
+      "auto_execute": true,
+      "condition": "impeccable_available && conversation_mode",
       "on_error": "continue"
     },
     {
@@ -145,6 +265,16 @@
       "on_error": "continue",
       "timeout": 600,
       "criticality": "BLOCK-MERGE"
+    },
+    {
+      "step": 4.1,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "recheck-cli",
+      "params": {},
+      "description": "ReDoS 正则灾难性回溯扫描：检测 exponential backtracking 漏洞",
+      "auto_execute": true,
+      "on_error": "continue"
     },
     {
       "step": 4.2,
@@ -206,21 +336,40 @@
           "lint",
           "typecheck",
           "security",
+          "a11y",
+          "knip",
+          "dependency_cruiser",
           "dead_code",
+          "recheck",
           "state_audit",
           "open_redirect",
           "log_sanitization",
           "cors_check",
-          "env_leak",
+          "env_var_leak",
           "sensitive_file",
-          "aislop"
+          "aislop",
+          "jscpd",
+          "size_limit",
+          "stryker",
+          "spectral",
+          "markdownlint"
         ],
         "mode": "strict",
         "block_merge": true
       },
-      "description": "质量门禁：汇总五层审查+安全审计结果，关键问题阻断合并",
+      "description": "质量门禁：汇总五层审查+安全审计+工具链结果（20 项检查），关键问题阻断合并",
       "auto_execute": true,
       "on_error": "abort"
+    },
+    {
+      "step": 4.8,
+      "layer": "capability",
+      "service": "ReportService",
+      "action": "generateReviewReport",
+      "params": {},
+      "description": "生成结构化审查报告（.claude/reviews/review-report-<timestamp>.md）+ 审查指标信息图",
+      "auto_execute": true,
+      "on_error": "continue"
     },
     {
       "step": 5,

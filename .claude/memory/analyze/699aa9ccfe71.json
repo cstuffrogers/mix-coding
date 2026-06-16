@@ -1,0 +1,36 @@
+{
+  "selection": "安全优先",
+  "id": "699aa9ccfe71",
+  "type": "analyze",
+  "data": {
+    "source": "analyze_workflow",
+    "findings": {
+      "security": {
+        "highSeverityFound": false
+      },
+      "fixApplied": true,
+      "performancePassed": false,
+      "lintPassed": false,
+      "coveragePassed": false
+    },
+    "completedSteps": [
+      0.3,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      6.5,
+      7,
+      8,
+      9,
+      10,
+      10.5,
+      11
+    ],
+    "prompt": "claude-scene",
+    "workflow": "analyze"
+  },
+  "timestamp": "2026-06-16T01:05:34.412Z"
+}

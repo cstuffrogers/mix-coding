@@ -5,12 +5,10 @@ import { readCodeFiles } from '../lib/code-analysis-utils.js';
 
 export function handleI18nAudit(_action, params, targetPath, context) {
   const mode = params?.mode || 'check';
-  console.log(chalk.blue(`\n🌐 正在检查国际化 (i18n) — ${mode === 'rtl' ? 'RTL布局 + 文本溢出' : '硬编码字符串 + RTL'}...`));
 
   const srcDir = join(targetPath, 'src');
   const findings = [];
 
-  // Check 1: Hardcoded Chinese strings in source
   const chineseRe = /['"`][^'"`]*[一-鿿][^'"`]*['"`]/g;
   let hardcodedChinese = 0;
   for (const file of readCodeFiles(srcDir)) {
@@ -28,15 +26,13 @@ export function handleI18nAudit(_action, params, targetPath, context) {
   }
 
   if (hardcodedChinese > 0) {
-    console.log(chalk.yellow(`  ⚠ 发现 ${hardcodedChinese} 处硬编码中文字符串`));
-    findings.filter(f => f.issue === '硬编码中文').slice(0, 5).forEach(f =>
-      console.log(chalk.dim(`    ${f.file} (${f.count} 处)`))
-    );
+    findings.filter(f => f.issue === '硬编码中文').slice(0, 5).forEach(f => {
+      console.log(chalk.yellow(`  ⚠ ${f.file}: 硬编码中文 ${f.count} 处`));
+    });
   } else {
     console.log(chalk.green('  ✅ 未发现硬编码中文字符串'));
   }
 
-  // Check 2: Detect i18n configuration
   const i18nConfigs = ['i18n.js', 'i18n.ts', 'i18next.js', 'react-i18next.js', 'next-i18next.config.js'];
   let hasI18nConfig = false;
   for (const cfg of i18nConfigs) {
@@ -58,7 +54,6 @@ export function handleI18nAudit(_action, params, targetPath, context) {
     console.log(chalk.yellow('  ⚠ 未检测到 i18n 配置，建议接入 react-i18next / vue-i18n'));
   }
 
-  // Check 3: RTL layout readiness
   const rtlIssues = [];
   for (const file of readCodeFiles(srcDir)) {
     if (/\.css$|\.scss$|\.less$/.test(file.path)) {
@@ -84,10 +79,9 @@ export function handleI18nAudit(_action, params, targetPath, context) {
   }
 
   if (rtlIssues.length > 0) {
-    console.log(chalk.yellow(`  ⚠ 发现 ${rtlIssues.length} 处 RTL 适配问题`));
-    rtlIssues.slice(0, 5).forEach(f =>
-      console.log(chalk.dim(`    ${f.issue} @ ${f.file}`))
-    );
+    rtlIssues.slice(0, 5).forEach(f => {
+      console.log(chalk.yellow(`  ⚠ ${f.file}: ${f.issue}`));
+    });
   } else {
     console.log(chalk.green('  ✅ RTL 布局适配检查通过'));
   }

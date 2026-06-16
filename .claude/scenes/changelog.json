@@ -3,14 +3,30 @@
   "workflow": "changelog",
   "name": "变更日志生成",
   "description": "基于 Git 提交历史和 Conventional Commits 规范自动生成或更新 CHANGELOG.md",
-  "trigger_keywords": ["changelog", "变更日志", "更新日志", "release notes", "版本日志"],
+  "trigger_keywords": [
+    "changelog",
+    "变更日志",
+    "更新日志",
+    "release notes",
+    "版本日志"
+  ],
   "flow": [
     {
       "step": 1,
       "layer": "core",
       "service": "MemoryService",
       "action": "recall",
-      "params": { "type": "changelog", "filters": { "type": ["changelog", "release", "version", "commit"] } },
+      "params": {
+        "type": "changelog",
+        "filters": {
+          "type": [
+            "changelog",
+            "release",
+            "version",
+            "commit"
+          ]
+        }
+      },
       "description": "注入变更日志相关记忆",
       "auto_execute": true,
       "on_error": "continue"
@@ -30,7 +46,11 @@
       "layer": "core",
       "service": "QualityService",
       "action": "checkGate",
-      "params": { "checks": ["changelog"] },
+      "params": {
+        "checks": [
+          "changelog"
+        ]
+      },
       "description": "变更日志质量门禁",
       "auto_execute": true,
       "condition": "changelogGenerated == false",
@@ -41,7 +61,9 @@
       "layer": "capability",
       "service": "ChangelogService",
       "action": "autoFix",
-      "params": { "source": "changelog" },
+      "params": {
+        "source": "changelog"
+      },
       "description": "自动修复变更日志问题",
       "auto_execute": true,
       "condition": "changelogGenerated == false",
@@ -101,11 +123,27 @@
       "on_error": "continue"
     },
     {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "changelog",
+        "source": "auto"
+      },
+      "description": "将changelog知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
       "step": 8,
       "layer": "core",
       "service": "NotificationService",
       "action": "notify",
-      "params": { "message": "变更日志生成工作流完成" },
+      "params": {
+        "message": "变更日志生成工作流完成"
+      },
       "description": "通知变更日志生成完成",
       "auto_execute": true,
       "on_error": "continue"

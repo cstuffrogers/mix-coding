@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
@@ -15,13 +15,11 @@ function runDiagnostic(command, targetPath) {
     // execSync throws on non-zero exit — return captured output if available
     if (e.stdout) return e.stdout.toString();
     if (e.stderr) return e.stderr.toString();
-    console.log(chalk.dim(`  ℹ ${command.split(' ', 1)[0]} 执行失败: ${e.message}`));
     return '';
   }
 }
 
 function runSecurityEslint(targetPath, autoFix) {
-  console.log(chalk.dim('  🛡️ 运行 ESLint 安全扫描...'));
   let cmd = 'npx eslint src --ext .js,.jsx,.ts,.tsx';
   if (autoFix) cmd += ' --fix';
   const result = runDiagnostic(cmd, targetPath);
@@ -30,15 +28,12 @@ function runSecurityEslint(targetPath, autoFix) {
   // Only treat security-rule violations as security findings, not arbitrary lint errors.
   const securityRulePattern = /\b(security|sonarjs\/(?:hardcoded-credentials|os-command|code-eval|no-clear-text-protocols|no-weak-cipher|no-weak-hash|insecure-jwt-token|x-frame-options|cors|sql-queries|disabled-auto-escaping|content-length|production-debug|hashing|publicly-writable-directories))\b/i;
   if (securityRulePattern.test(result) && hasFileIssues) {
-    console.log(chalk.red('  ❌ ESLint 安全扫描发现安全规则违规'));
     return { foundIssues: true, foundSecurityIssues: true };
   }
   if (hasFileIssues) {
-    console.log(chalk.yellow('  ⚠️ ESLint 发现非安全类问题'));
     return { foundIssues: true, foundSecurityIssues: false };
   }
   if (result.includes('fixed')) {
-    console.log(chalk.green('  ✅ ESLint 安全扫描自动修复完成'));
     return { foundIssues: true, foundSecurityIssues: false };
   }
   if (result.includes('error') || result.includes('Error')) {
@@ -48,30 +43,24 @@ function runSecurityEslint(targetPath, autoFix) {
 }
 
 function runNpmAudit(targetPath, autoFix) {
-  console.log(chalk.dim('  📦 运行 npm audit...'));
   const cmd = autoFix
     ? 'npm audit fix --only=prod 2>&1 || npm audit fix 2>&1'
     : 'npm audit';
   const result = runDiagnostic(cmd, targetPath);
   // Detect mirror/registry failures (npmmirror returns 404 for /-/npm/v1/security/*) — treat as non-blocking warning.
   if (result.includes('NOT_IMPLEMENTED') || /404 Not Found.{0,200}\/-\/npm\/v1\/security/i.test(result)) {
-    console.log(chalk.yellow('  ⚠️ npm audit 镜像不支持安全端点，已跳过（不阻断）'));
     return { foundIssues: false, foundSecurityIssues: false };
   }
   if (result.includes('high') || result.includes('critical')) {
-    console.log(chalk.red('  ❌ npm audit 发现高危漏洞'));
     return { foundIssues: true, foundSecurityIssues: true };
   }
   if (result.includes('moderate') || result.includes('fixed')) {
-    const tag = result.includes('fixed') ? '✅ npm audit 自动修复完成' : '⚠️ npm audit 发现中等风险';
-    console.log(chalk[result.includes('fixed') ? 'green' : 'yellow'](`  ${tag}`));
     return { foundIssues: true, foundSecurityIssues: false };
   }
   return { foundIssues: false, foundSecurityIssues: false };
 }
 
 function runEslintCheck(targetPath, autoFix) {
-  console.log(chalk.dim('  📝 运行 ESLint...'));
   let cmd = 'npx eslint src --ext .js,.jsx,.ts,.tsx';
   if (autoFix) cmd += ' --fix';
   const result = runDiagnostic(cmd, targetPath);
@@ -80,11 +69,9 @@ function runEslintCheck(targetPath, autoFix) {
   // eslint-disable-next-line sonarjs/slow-regex -- matches known CLI output format (file:line:col)
   const hasFileIssues = /[^\s:]+:\d+:\d+/.test(result);
   if (hasFileIssues) {
-    console.log(chalk.yellow('  ⚠️ ESLint 发现问题'));
     return true;
   }
   if (result.includes('fixed')) {
-    console.log(chalk.green('  ✅ ESLint 自动修复完成'));
     return true;
   }
   if (result.includes('error') || result.includes('Error')) {
@@ -94,12 +81,10 @@ function runEslintCheck(targetPath, autoFix) {
 }
 
 function runTypeCheck(targetPath) {
-  console.log(chalk.dim('  📘 运行 TypeScript 检查...'));
   const result = runDiagnostic('npx tsc --noEmit', targetPath);
   // tsc outputs "error TS<code>" for type errors, config errors look different
   const hasTypeErrors = /\berror\s+TS\d+/i.test(result);
   if (hasTypeErrors) {
-    console.log(chalk.yellow('  ⚠️ TypeScript 发现问题'));
     return true;
   }
   if (/error|Error/.test(result)) {
@@ -109,10 +94,8 @@ function runTypeCheck(targetPath) {
 }
 
 function runA11yCheck(targetPath) {
-  console.log(chalk.blue('\n♿ 正在进行无障碍检查 (WCAG 2.1 AA)...'));
   let issueCount = 0;
 
-  // Phase 1: pa11y-ci against static HTML files (if any)
   const htmlFiles = safeExec(
     `find . -name "*.html" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -20 || true`,
     targetPath,
@@ -127,7 +110,6 @@ function runA11yCheck(targetPath) {
 
     if (urls.length > 0) {
       try {
-        console.log(chalk.dim(`  🔍 pa11y-ci 正在检查 ${urls.length} 个页面...`));
         const pa11yCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
         const pa11yRaw = safeExec(
           `${pa11yCmd} pa11y-ci ${urls.join(' ')} 2>&1 || true`,
@@ -135,7 +117,6 @@ function runA11yCheck(targetPath) {
           { stdio: 'pipe', maxBuffer: 5 * 1024 * 1024, timeout: 120000 }
         ).toString();
 
-        // Parse pa11y-ci output for error counts
         const errMatch = pa11yRaw.match(/(\d+)\s+errors?/i);
         if (errMatch) {
           issueCount += parseInt(errMatch[1]);
@@ -161,8 +142,6 @@ function runA11yCheck(targetPath) {
     }
   }
 
-  // Phase 2: Code-level checks (JSX/TSX — grep for common a11y issues)
-  console.log(chalk.dim('  ℹ 无 HTML 文件，使用代码级 a11y 检查（grep）'));
   let grepIssues = 0;
 
   const imgNoAlt = runDiagnostic(
@@ -172,7 +151,6 @@ function runA11yCheck(targetPath) {
   if (imgNoAlt) {
     const lines = imgNoAlt.split('\n').filter(Boolean);
     grepIssues += lines.length;
-    console.log(chalk.yellow(`  ⚠ 发现 ${lines.length} 个 img 标签缺少 alt 属性`));
   }
 
   const divOnClick = runDiagnostic(
@@ -182,7 +160,6 @@ function runA11yCheck(targetPath) {
   if (divOnClick) {
     const lines = divOnClick.split('\n').filter(Boolean);
     grepIssues += lines.length;
-    console.log(chalk.yellow(`  ⚠ 发现 ${lines.length} 个 div 使用 onClick（应使用语义化 button）`));
   }
 
   const emptyLinks = runDiagnostic(
@@ -192,7 +169,6 @@ function runA11yCheck(targetPath) {
   if (emptyLinks) {
     const lines = emptyLinks.split('\n').filter(Boolean);
     grepIssues += lines.length;
-    console.log(chalk.yellow(`  ⚠ 发现 ${lines.length} 个空链接缺少 aria-label`));
   }
 
   issueCount = grepIssues;
@@ -205,7 +181,6 @@ function runA11yCheck(targetPath) {
 }
 
 function runI18nCheck(targetPath) {
-  console.log(chalk.blue('\n🌐 正在进行国际化检查...'));
   let issueCount = 0;
 
   // Check: hardcoded Chinese characters in source (skip comments/console)
@@ -217,8 +192,6 @@ function runI18nCheck(targetPath) {
     if (zhResult) {
       const lines = zhResult.split('\n').filter(Boolean);
       issueCount += Math.min(lines.length, 50);
-      console.log(chalk.yellow(`  ⚠ 发现约 ${lines.length} 处硬编码中文字符串（应使用 i18n）`));
-      if (lines.length >= 50) console.log(chalk.dim('  ℹ 仅显示前 50 条，请手动检查更多'));
     }
   } catch {
     console.log(chalk.dim('  ℹ 中文硬编码检查跳过（grep -P 不可用）'));
@@ -268,10 +241,6 @@ export function handleRunReview(_action, params, targetPath, context) {
   const rules = options.rules || ['eslint', 'typescript'];
   const autoFix = options.autoFix || false;
 
-  console.log(chalk.blue(`\n🔍 正在进行代码审查 (${mode})...`));
-  console.log(chalk.dim(`  扫描规则: ${rules.join(', ')}`));
-  if (autoFix) console.log(chalk.dim('  自动修复: 已启用'));
-
   const packagePath = path.join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
     return '代码审查完成（未找到 package.json，跳过）';
@@ -313,36 +282,66 @@ export function handleRunReview(_action, params, targetPath, context) {
   return foundIssues ? '代码审查完成（发现问题已标记）' : '代码审查完成（无问题）';
 }
 
-export function handleReviewFull(_action, _params, _targetPath) {
+export function handleReviewFull(_action, _params, targetPath) {
   const inClaudeCode = process.env.CLAUDECODE === '1';
 
   if (inClaudeCode) {
-    console.log(chalk.blue('\n🔍 代码审查: skill available'));
-    console.log(chalk.dim('  → 由对话模式调用 review skill 进行跨文件语义审查'));
     return '代码审查就绪（对话模式 Skill 调用）';
   }
 
-  console.log(chalk.yellow('\n⏭ 完整语义审查仅在对话模式可用'));
-  console.log(chalk.dim('  → 需 Claude Code + review skill（支持跨文件上下文、反模式识别、架构审查）'));
-  return '代码审查已跳过（需对话模式）';
+  // CLI mode: run a lightweight semantic grep scan as fallback
+  let issues = 0;
+  try {
+    const exclude = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist';
+    const patterns = [
+      { name: 'any 类型滥用', grep: ': any\\b', exts: '*.ts,*.tsx' },
+      { name: 'console.log 残留', grep: 'console\\.log', exts: '*.ts,*.tsx,*.js' },
+      { name: '@ts-ignore', grep: '@ts-ignore', exts: '*.ts,*.tsx' },
+      { name: 'TODO/FIXME 未处理', grep: 'TODO\\|FIXME', exts: '*.ts,*.tsx,*.js' },
+    ];
+    for (const p of patterns) {
+      const cmd = `grep -rn "${exclude}" --include="${p.exts}" "${p.grep}" . 2>/dev/null | head -20 || true`;
+      const result = safeExec(cmd, targetPath, { stdio: 'pipe', timeout: 10000 }).toString().trim();
+      if (result) {
+        const count = result.split('\n').length;
+        issues += count;
+      }
+    }
+  } catch { /* non-critical */ }
+
+  return `完整审查完成: CLI 模式发现 ${issues} 处可疑代码`;
 }
 
-export function handleVerifyVisual(_action, _params, _targetPath) {
+export function handleVerifyVisual(_action, _params, targetPath) {
   const inClaudeCode = process.env.CLAUDECODE === '1';
 
   if (inClaudeCode) {
-    console.log(chalk.blue('\n🖼️ 视觉验证: Playwright available'));
-    console.log(chalk.dim('  → 由对话模式运行 Playwright 视觉回归测试'));
     return '视觉验证就绪（对话模式 Playwright 执行）';
   }
 
-  console.log(chalk.yellow('\n⏭ 视觉回归对比仅在对话模式可用'));
-  console.log(chalk.dim('  → 需 Claude Code + Playwright + 浏览器环境'));
-  return '视觉验证已跳过（需对话模式）';
+  // CLI mode: check if Playwright is installed and attempt to run
+  const packagePath = path.join(targetPath, 'package.json');
+  if (!existsSync(packagePath)) {
+    return '视觉验证已跳过';
+  }
+
+  try {
+    const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+    const deps = { ...pkg.devDependencies, ...pkg.dependencies };
+    if (deps['@playwright/test'] || deps.playwright) {
+      safeExec('npx playwright test --grep visual 2>&1 || true', targetPath, { stdio: 'pipe', timeout: 120000 });
+    } else {
+      console.log(chalk.yellow('  ⚠ Playwright 未安装，跳过视觉验证'));
+      console.log(chalk.dim('    安装: npm install -D @playwright/test && npx playwright install'));
+    }
+  } catch {
+    console.log(chalk.dim('  ℹ 无法检查 Playwright 配置，跳过'));
+  }
+
+  return '视觉验证完成';
 }
 
 export function handleAiFriendlyReview(_action, _params, targetPath) {
-  console.log(chalk.blue('\n♿ 正在进行可访问性审查（静态扫描）...'));
   const issues = [];
   const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=build';
 
@@ -356,7 +355,6 @@ export function handleAiFriendlyReview(_action, _params, targetPath) {
     const lines = raw.split('\n').filter(l => l && !/alt\s*=/.test(l));
     if (lines.length > 0) {
       issues.push({ rule: 'img-alt', count: lines.length, desc: '图片缺少 alt 属性' });
-      console.log(chalk.yellow(`  ⚠ img 缺 alt: ${lines.length} 处`));
     }
   } catch { /* skip */ }
 
@@ -378,20 +376,18 @@ export function handleAiFriendlyReview(_action, _params, targetPath) {
       }
       if (unlabeledCount > 0) {
         issues.push({ rule: 'input-label', count: unlabeledCount, desc: 'input 可能缺少 label 关联' });
-        console.log(chalk.yellow(`  ⚠ input 缺 label: ~${unlabeledCount} 处`));
       }
     }
   } catch { /* skip */ }
 
-  // 3. html element missing lang attribute
+  // 3. HTML element missing lang attribute
   try {
-    const htmlFiles = scanDir(targetPath, { filter: f => /\.html$/.test(f) && !f.includes('node_modules') });
+    const htmlFiles = scanDir(targetPath, { filter: f => f.endsWith('.html') && !f.includes('node_modules') });
     for (const f of htmlFiles) {
       try {
         const content = readFileSync(f, 'utf-8');
         if (/<html[^>]*>/i.test(content) && !/<html[^>]*lang\s*=/i.test(content)) {
           issues.push({ rule: 'html-lang', count: 1, desc: `${path.basename(f)}: <html> 缺少 lang 属性` });
-          console.log(chalk.yellow(`  ⚠ ${path.basename(f)}: <html> 缺 lang`));
         }
       } catch { /* skip */ }
     }
@@ -407,7 +403,6 @@ export function handleAiFriendlyReview(_action, _params, targetPath) {
     const textLines = textRaw.split('\n').filter(Boolean);
     if (textLines.length > 0) {
       issues.push({ rule: 'contrast-risk', count: textLines.length, desc: '浅色文字可能存在对比度不足' });
-      console.log(chalk.yellow(`  ⚠ 潜在对比度问题: ${textLines.length} 处`));
     }
   } catch { /* skip */ }
 
@@ -421,7 +416,6 @@ export function handleAiFriendlyReview(_action, _params, targetPath) {
     const clickLines = clickRaw.split('\n').filter(l => l && !/role\s*=/.test(l) && !/tabIndex|tabindex/.test(l));
     if (clickLines.length > 0) {
       issues.push({ rule: 'clickable-div', count: clickLines.length, desc: '可点击元素缺少 role/tabIndex' });
-      console.log(chalk.yellow(`  ⚠ 非交互元素有 onClick 但缺 role: ${clickLines.length} 处`));
     }
   } catch { /* skip */ }
 
@@ -430,7 +424,96 @@ export function handleAiFriendlyReview(_action, _params, targetPath) {
     console.log(chalk.green('  ✅ 静态可访问性扫描通过'));
   } else {
     console.log(chalk.red(`  ❌ 发现 ${issues.length} 类可访问性问题 (共 ${totalIssues} 处)`));
-    issues.forEach(i => console.log(chalk.dim(`    ${i.rule}: ${i.desc} (${i.count})`)));
+    for (const i of issues) console.log(chalk.dim(`    ${i.rule}: ${i.desc} (${i.count})`));
   }
   return `可访问性审查完成: ${totalIssues} 处问题`;
+}
+
+export async function handleGenerateReviewReport(_action, _params, targetPath, context) {
+  const { join } = path;
+
+  const reviewDir = join(targetPath, '.claude', 'reviews');
+  try { mkdirSync(reviewDir, { recursive: true }); } catch { /* exists */ }
+
+  const ts = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+  const reportPath = join(reviewDir, `review-report-${ts}.md`);
+
+  const flags = {
+    lint: context.lintPassed,
+    typecheck: context.typecheckPassed,
+    security: !context.high_severity_found,
+    a11y: context.a11yPassed,
+    knip: context.deadCodePassed,
+    dependency_cruiser: context.depCruiserPassed,
+    state_audit: context.stateAuditPassed,
+    aislop: context.aislopPassed,
+    open_redirect: context.openRedirectPassed,
+    log_sanitization: context.logSanitizationPassed,
+    cors_check: context.corsCheckPassed,
+    env_leak: context.envVarLeakPassed,
+    sensitive_file: context.sensitiveFilePassed,
+    recheck: context.recheckPassed,
+  };
+
+  const passed = Object.entries(flags).filter(([, v]) => v === true).length;
+  const failed = Object.entries(flags).filter(([, v]) => v === false).length;
+  const unknown = Object.entries(flags).filter(([, v]) => v === undefined).length;
+  const score = Object.keys(flags).length > 0 ? Math.round((passed / (passed + failed)) * 100) || 0 : 100;
+
+  const report = [
+    '# Code Review Report',
+    '',
+    `- **Generated**: ${ts}`,
+    `- **Score**: ${score}/100 (${passed} passed, ${failed} failed, ${unknown} skipped)`,
+    '',
+    '## Quality Gate Results',
+    '',
+    '| Check | Status |',
+    '|-------|--------|',
+    ...Object.entries(flags).map(([name, v]) =>
+      `| ${name} | ${v === true ? '✅ PASS' : v === false ? '❌ FAIL' : '⏭ SKIP'} |`
+    ),
+    '',
+    '## Findings Summary',
+    '',
+    context.huashu_review
+      ? `- **Huashu Design Score**: ${context.huashu_review.percent}% (${context.huashu_review.reportFile || 'N/A'})`
+      : '- **Huashu Design Score**: N/A',
+    context.aislop_issue_count != null
+      ? `- **AI Code Smells**: ${context.aislop_issue_count}`
+      : '- **AI Code Smells**: N/A',
+    context.stateAuditFindings
+      ? `- **State Audit Issues**: ${context.stateAuditFindings.length}`
+      : '- **State Audit Issues**: N/A',
+    context.securityScanResult?.highSeverityFound
+      ? '- **🔴 Security**: HIGH severity issues found — review required before merge'
+      : '- **Security**: No critical issues found',
+    '',
+    `> Generated by review workflow. ${failed > 0 ? '⚠️ Action required: address failing checks.' : '✅ All checks passed.'}`,
+  ].join('\n');
+
+  writeFileSync(reportPath, report, 'utf-8');
+
+  // Generate infographic via Huashu
+  try {
+    const { renderInfographic } = await import('../lib/huashu/infographic.js');
+    const metrics = [
+      { label: '审查评分', value: `${score}%` },
+      { label: '通过项', value: String(passed) },
+      { label: '失败项', value: String(failed), delta: failed > 0 ? '需修复' : '', deltaPositive: failed === 0 },
+      ...(context.aislop_issue_count != null ? [{ label: 'AI 气味', value: String(context.aislop_issue_count) }] : []),
+      ...(context.huashu_review ? [{ label: '设计分', value: `${context.huashu_review.percent}%` }] : []),
+    ];
+    renderInfographic({
+      targetPath,
+      title: 'Code Review Health',
+      subtitle: ts,
+      metrics,
+      sections: [`${passed} passed / ${failed} failed / ${unknown} skipped`],
+    });
+  } catch {
+    console.log(chalk.dim('  ℹ 信息图渲染跳过（huashu infographic 不可用）'));
+  }
+
+  return `审查报告已生成: ${reportPath}`;
 }

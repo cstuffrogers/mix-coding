@@ -72,12 +72,10 @@ ${taskEntries.join('\n\n')}
 function scanAndValidateWorkflows(targetPath, actAvailable) {
   const workflowsDir = join(targetPath, '.github', 'workflows');
   if (!existsSync(workflowsDir)) {
-    console.log(chalk.yellow('  ⚠ .github/workflows/ 目录不存在'));
     return { found: 0, valid: 0 };
   }
 
   const entries = readdirSync(workflowsDir).filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
-  console.log(chalk.dim(`  发现 ${entries.length} 个工作流文件`));
 
   let valid = 0;
   for (const entry of entries) {
@@ -85,9 +83,8 @@ function scanAndValidateWorkflows(targetPath, actAvailable) {
     const result = validateWorkflow(wfPath, actAvailable, targetPath);
     if (result.valid) {
       valid++;
-      console.log(chalk.green(`    ✅ ${entry}`));
     } else {
-      console.log(chalk.yellow(`    ⚠ ${entry}: ${result.error}`));
+      console.error(chalk.yellow(`    ⚠ ${entry}: ${result.error}`));
     }
   }
   return { found: entries.length, valid };
@@ -98,7 +95,6 @@ function ensureTaskfile(targetPath, taskAvailable) {
   const exists = existsSync(taskfilePath) || existsSync(join(targetPath, 'Taskfile.yaml'));
 
   if (exists) {
-    console.log(chalk.dim('  Taskfile.yml 已存在，跳过'));
     if (taskAvailable) {
       try {
         safeExec('task --list 2>&1', targetPath, { stdio: 'pipe' });
@@ -110,21 +106,16 @@ function ensureTaskfile(targetPath, taskAvailable) {
 
   try {
     writeFileSync(taskfilePath, generateTaskfile(targetPath), 'utf-8');
-    console.log(chalk.green('  ✅ Taskfile.yml 已生成'));
     return true;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 生成 Taskfile 失败: ${e.message}`));
+  } catch {
     return false;
   }
 }
 
 export function handleSetupCI(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔧 正在配置 CI/CD...'));
 
   const actAvailable = checkActAvailable();
   const taskAvailable = checkTaskAvailable();
-  console.log(chalk.dim(`  Act: ${actAvailable ? '可用' : '未安装'}`));
-  console.log(chalk.dim(`  Task: ${taskAvailable ? '可用' : '未安装'}`));
 
   const { found, valid } = scanAndValidateWorkflows(targetPath, actAvailable);
   const taskfileGenerated = ensureTaskfile(targetPath, taskAvailable);

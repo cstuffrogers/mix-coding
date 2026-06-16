@@ -1,0 +1,26 @@
+{
+  "selection": "",
+  "id": "8a0acc8c1f9f",
+  "type": "mobile-e2e",
+  "data": {
+    "source": "mobile-e2e_workflow",
+    "findings": {
+      "security": {}
+    },
+    "completedSteps": [
+      0.2,
+      0.5,
+      1,
+      2,
+      3,
+      4,
+      4.1,
+      5,
+      6,
+      7
+    ],
+    "prompt": "",
+    "workflow": "mobile-e2e"
+  },
+  "timestamp": "2026-06-16T01:15:29.966Z"
+}

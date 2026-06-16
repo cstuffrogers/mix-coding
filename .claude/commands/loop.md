@@ -1,75 +1,55 @@
 ---
-description: Start an iterative optimization loop with analyze → plan → implement → verify → repeat cycles.
+description: Start an iterative optimization loop: Skill review → analyze → plan → implement → verify → repeat cycles.
 argument-hint: "[迭代次数]"
 ---
 
-# /loop - Iterative Optimization Loop
+# /loop — 自动迭代优化
 
-Start an iterative optimization loop: analyze the problem, plan a fix, implement it, verify the result, and repeat until satisfied.
+12 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → 分析 → 方案 → 实现 → 验证 → 循环**
 
 ## Usage
 
 ```text
-/loop                # Run 3 iterations (default)
-/loop 5              # Run 5 iterations
-/loop "fix lint"  5  # Run 5 iterations focused on lint issues
+/loop                             # 默认 3 轮迭代
+/loop 5                           # 5 轮迭代
+/loop "fix lint" 5                # 5 轮聚焦 lint 修复
 ```
 
-## Workflow
+## 执行流程
 
-### Phase 1: Analyze
+### Phase 0: Pre-flight 准备（对话模式）
 
-1. Read `$ARGUMENTS` for the task description and iteration count
-2. Use `Grep`, `Glob`, and `Read` to understand the current state
-3. Identify the problems to fix or improvements to make
-4. Score current quality (0-10) as a baseline
+1. **Skill("review-checklist")** (`step 0.3`) — 加载 23 项审查清单，建立迭代评估基准
+2. **recall** (`step 0.5`) — 注入历史迭代记录
 
-### Phase 2: Plan
+### Phase 1: 上下文收集（对话模式）
 
-1. Create a plan for this iteration:
-   - What to change
-   - Expected impact
-   - How to verify
-2. Write the plan to `.claude/plan/loop-plan.md`
+3. **GitHub MCP** (`step 2`) — 列出待修复 issues
+4. **Context7 MCP** (`step 3`) — 获取相关技术文档
 
-### Phase 3: Implement
+### Phase 2: 迭代循环
 
-Execute the plan:
-- Make the changes using `Edit` or `Write`
-- Keep each iteration focused on ONE area at a time
-- Commit changes after each iteration: `git add -A && git commit -m "loop: iteration N - [what changed]"`
+每轮迭代：
+- **analyze** — 分析当前状态、识别问题
+- **plan** — 制定本轮方案（.claude/plan/loop-plan.md）
+- **implement** — 执行修改
+- **verify** — 运行测试、lint、对比基线评分
 
-### Phase 4: Verify
+### Phase 3: 退出 + 沉淀
 
-After implementing:
-1. Run relevant tests to verify changes didn't break anything
-2. Run linters and formatters to check quality
-3. Score current quality and compare to baseline
-4. If score improved: continue to next iteration
-5. If score didn't improve or max iterations reached: stop
+- **generateReport** (`step 6`) — 生成迭代报告（轮次/评分变化/修改文件）
+- **ce-compound** (`step 6`) — 迭代知识沉淀
+- **remember** → **consolidate** → **notify**
 
-### Phase 5: Report
+### 工具链覆盖
 
-```
-Loop Report
-===========
-Iterations completed: N / M
-Baseline score: X.X
-Final score: Y.Y
-Improvement: +Z.Z
+| 阶段 | 工具 | 类型 |
+|------|------|------|
+| 审查清单 | review-checklist Skill（23 项） | Skill |
+| 上下文 | GitHub MCP + Context7 MCP | MCP |
+| 分析 | codeMetrics + performanceProfile + detectAntiPatterns | CLI |
+| 验证 | runSuite + lint | CLI |
 
-Changes made:
-1. Iteration 1: [description] — score: X.X → Y.Y
-2. Iteration 2: [description] — score: Y.Y → Z.Z
-...
+### CLI 模式回退
 
-Files modified: N
-Commits: N
-```
-
-## Safety Rules
-
-- Do NOT make destructive changes without creating a `git stash` first
-- Run tests after each iteration before proceeding
-- If two consecutive iterations show no improvement, stop and report
-- Maximum 10 iterations regardless of user input (safety cap)
+在 CLI 模式（非对话）下，`Skill("review-checklist")` 和 MCP 步骤自动跳过。分析和迭代步骤正常执行。

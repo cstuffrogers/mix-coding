@@ -36,7 +36,7 @@ function getAllSceneIds() {
     return Object.keys(SCENE_META);
   }
 }
-// eslint-disable-next-line sonarjs/cognitive-complexity
+ 
 export async function listScenes(options) {
   const ids = getAllSceneIds();
   const sceneList = ids.map(id => {
@@ -45,16 +45,7 @@ export async function listScenes(options) {
     return { id, scene, meta };
   }).filter(s => s.scene !== null);
 
-  console.log(chalk.bold.cyan(`\n📋 可用场景（${sceneList.length} 个）`));
-  console.log('');
-
-  for (const { id, scene, meta } of sceneList) {
-    const stepCount = scene.flow ? scene.flow.length : scene.steps ? scene.steps.length : 0;
-    const name = scene.name || id;
-    const desc = meta.description || scene.description || '';
-    console.log(`  ${meta.icon}  ${chalk.bold(id.padEnd(20))} ${chalk.dim(name)}`);
-    if (desc) console.log(`      ${chalk.dim(desc)}`);
-    if (stepCount > 0) console.log(`      ${chalk.dim(`${stepCount} 个步骤`)}`);
+  for (const { scene } of sceneList) {
 
     if (options.verbose) {
       if (scene.trigger_keywords && scene.trigger_keywords.length > 0) {
@@ -64,9 +55,6 @@ export async function listScenes(options) {
         console.log(`      ${chalk.gray('工作流:')} ${scene.workflow}`);
       }
     }
-    console.log('');
   }
 
-  console.log(chalk.gray(`使用 ${chalk.white('claude-scene show <scene_id>')} 查看详情`));
-  console.log(chalk.gray(`使用 ${chalk.white('claude-scene start <scene_id>')} 启动场景`));
 }

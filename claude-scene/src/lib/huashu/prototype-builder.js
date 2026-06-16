@@ -5,7 +5,6 @@
  */
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import chalk from 'chalk';
 import { safeExec } from '../safe-exec.js';
 import { getStyle } from './style-library.js';
 
@@ -66,8 +65,6 @@ export function buildPrototype({
   const file = join(outDir, `${slug}-${Date.now()}.html`);
   writeFileSync(file, html, 'utf8');
 
-  console.log(chalk.green(`  ✅ huashu prototype 生成: ${file}`));
-  console.log(chalk.dim(`     device=${frame.name} | style=${style ? style.name : styleId} | screens=${screens.length}`));
   return { file, frame, style: style?.id || styleId, screens };
 }
 
@@ -151,11 +148,9 @@ function escapeHtml(s) {
  * Returns { passed: boolean, output: string }.
  */
 export function validateWithPlaywright(targetPath, prototypeFile) {
-  console.log(chalk.dim('  尝试 Playwright 验证原型可点击...'));
   try {
     safeExec(`npx playwright --version 2>&1`, targetPath, { stdio: 'pipe' });
   } catch {
-    console.log(chalk.yellow('  ⚠ Playwright 未安装，跳过自动验证'));
     return { passed: null, reason: 'no-playwright' };
   }
   const testFile = join(targetPath, '.claude', 'prototypes', `validate-${Date.now()}.spec.js`);
@@ -174,10 +169,8 @@ test('prototype loads and navigates', async ({ page }) => {
   writeFileSync(testFile, testContent, 'utf8');
   try {
     safeExec(`npx playwright test ${testFile} 2>&1`, targetPath, { stdio: 'pipe' });
-    console.log(chalk.green('  ✅ Playwright 验证通过'));
     return { passed: true };
   } catch (e) {
-    console.log(chalk.yellow('  ⚠ Playwright 验证失败（可能是浏览器未装）'));
     return { passed: false, reason: e.message || 'playwright-failed' };
   }
 }

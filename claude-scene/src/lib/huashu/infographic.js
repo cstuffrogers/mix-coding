@@ -4,7 +4,6 @@
  */
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import chalk from 'chalk';
 
 export function renderInfographic({
   targetPath,
@@ -19,7 +18,6 @@ export function renderInfographic({
 
   const html = buildHtml({ title, subtitle, metrics, sections });
   writeFileSync(file, html, 'utf8');
-  console.log(chalk.green(`  ✅ huashu infographic 生成: ${file}`));
   return { file };
 }
 

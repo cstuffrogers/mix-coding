@@ -1,0 +1,38 @@
+{
+  "selection": "",
+  "id": "a43bdad556f5",
+  "type": "security",
+  "data": {
+    "source": "hunt_workflow",
+    "findings": {
+      "security": {
+        "highSeverityFound": false,
+        "vulnerabilityCount": 0
+      }
+    },
+    "completedSteps": [
+      0.3,
+      1,
+      1.1,
+      1.2,
+      1.3,
+      1.4,
+      2,
+      3,
+      4,
+      4.1,
+      4.3,
+      4.5,
+      4.7,
+      4.8,
+      4.9,
+      4.11,
+      4.12,
+      4.15,
+      6
+    ],
+    "prompt": "",
+    "workflow": "hunt"
+  },
+  "timestamp": "2026-06-16T00:05:48.161Z"
+}

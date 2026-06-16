@@ -5,13 +5,11 @@ name: Workflow Health Check
 on:
   pull_request:
     paths:
-      - '.archon/workflows/**'
       - '.github/workflows/validate_workflows.py'
       - '.github/workflows/test_validate_workflows.py'
   push:
     branches: [main]
     paths:
-      - '.archon/workflows/**'
       - '.github/workflows/validate_workflows.py'
       - '.github/workflows/test_validate_workflows.py'
 
@@ -34,12 +32,3 @@ jobs:
 
       - name: Validate all workflows
         run: python .github/workflows/run_validator_tests.py
-
-      - name: Print Workflow Summary
-        run: |
-          echo "## Workflow Summary" >> $GITHUB_STEP_SUMMARY
-          for wf in .archon/workflows/*.yaml; do
-            name=$(basename "$wf" .yaml)
-            nodes=$(grep -c "^  - id:" "$wf")
-            echo "- $name.yaml: $nodes nodes" >> $GITHUB_STEP_SUMMARY
-          done

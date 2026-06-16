@@ -9,11 +9,6 @@ function sanitizePath(p) {
   return p.replace(/["$`]/g, '');
 }
 
-/**
- * Escape a value for safe interpolation into a shell command.
- * Wraps in single quotes, escaping any embedded single quotes.
- * Use for any user-controlled value interpolated into a command string.
- */
 export function escapeArg(value) {
   return `'${String(value).replace(/'/g, "'\\''")}'`;
 }
@@ -21,7 +16,7 @@ export function escapeArg(value) {
 /**
  * Execute a shell command in a given working directory with path sanitization.
  *
- * @param {string} command - The shell command to run (cd is automatically prepended)
+ * @param {string} command - The shell command to run (CD is automatically prepended)
  * @param {string} cwd - Working directory (will be sanitized)
  * @param {object} [options] - Passed through to execSync (stdio, etc.)
  * @returns {string|undefined} stdout as string (pipe mode) or undefined (inherit mode)

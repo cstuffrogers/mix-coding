@@ -1,10 +1,9 @@
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 
 export function handleBuild(_action, _params, targetPath) {
-  console.log(chalk.blue('\n🔨 正在构建项目...'));
   const packagePath = join(targetPath, 'package.json');
   if (existsSync(packagePath)) {
     try {
@@ -18,30 +17,22 @@ export function handleBuild(_action, _params, targetPath) {
 
 export function handleApplyTemplate(_action, params, targetPath) {
   const template = params?.template || 'component';
-  console.log(chalk.blue(`\n📄 正在应用模板: ${template}`));
   const templatesDir = join(targetPath, '.claude', 'harness-templates');
   if (existsSync(templatesDir)) {
-    const files = readdirSync(templatesDir).filter(f => f.endsWith('.js') || f.endsWith('.ts') || f.endsWith('.tsx'));
-    console.log(chalk.dim(`  可用模板: ${files.join(', ') || '无'}`));
+    const _files = readdirSync(templatesDir).filter(f => f.endsWith('.js') || f.endsWith('.ts') || f.endsWith('.tsx'));
   } else {
     console.log(chalk.dim('  无模板目录，模板应用需 Claude Code 对话上下文'));
   }
   return `模板 ${template} 已应用（CLI 轻量模式）`;
 }
 
-export function handleImplementLogic(_action, params, _targetPath, context) {
-  const mode = params?.mode || 'full';
-  console.log(chalk.blue(`\n⚙️ 正在实现核心逻辑（模式: ${mode}）...`));
-  const preserve = params?.preserve_types || [];
-  if (preserve.length) console.log(chalk.dim(`  保留类型: ${preserve.join(', ')}`));
-  console.log(chalk.dim('  ℹ CLI 模式下为核心逻辑占位，完整实现需 Claude Code 对话上下文'));
+export function handleImplementLogic(_action, _params, _targetPath, context) {
   if (context) context.logic_implemented = true;
   return '核心逻辑实现完成（CLI 轻量模式）';
 }
 
 export function handleCleanup(_action, params, targetPath, context) {
   const tasks = params?.cleanup || ['temp_files', 'build_cache'];
-  console.log(chalk.blue(`\n🧹 正在清理: ${tasks.join(', ')}...`));
 
   const cleaned = [];
   for (const task of tasks) {
@@ -49,7 +40,6 @@ export function handleCleanup(_action, params, targetPath, context) {
       if (task === 'temp_files' || task === 'node_modules') {
         const nmPath = join(targetPath, 'node_modules');
         if (task === 'node_modules' && existsSync(nmPath)) {
-          const { rmSync } = require('fs');
           rmSync(nmPath, { recursive: true, force: true });
           cleaned.push('node_modules');
         }
@@ -58,7 +48,6 @@ export function handleCleanup(_action, params, targetPath, context) {
         for (const dir of ['dist', 'build', '.next', '.turbo', '.cache']) {
           const dirPath = join(targetPath, dir);
           if (existsSync(dirPath)) {
-            const { rmSync } = require('fs');
             rmSync(dirPath, { recursive: true, force: true });
             cleaned.push(dir);
           }
@@ -80,7 +69,6 @@ export function handleCleanup(_action, params, targetPath, context) {
 
 export function handleAutoFix(_action, params, targetPath, context) {
   const include = params?.include || ['lint', 'security'];
-  console.log(chalk.blue('\n🔧 正在自动修复...'));
   const fixed = [];
 
   if (include.includes('lint') || include.includes('complexity')) {
@@ -100,43 +88,27 @@ export function handleAutoFix(_action, params, targetPath, context) {
     } catch { /* npm audit not available */ }
   }
 
-  if (fixed.length) {
-    console.log(chalk.green(`  ✅ 已修复: ${fixed.join(', ')}`));
-    if (context) context.fixApplied = true;
-  }
-  if (!fixed.length) console.log(chalk.dim('  ℹ 无需修复'));
+  if (fixed.length && context) context.fixApplied = true;
   return fixed.length ? `自动修复完成: ${fixed.join(', ')}` : '无需修复';
 }
 
-export function handleGenerateRefactorPlan(_action, params, _targetPath, context) {
-  const mode = params?.mode || 'detailed';
-  console.log(chalk.blue(`\n📐 正在生成重构计划（模式: ${mode}）...`));
-  console.log(chalk.dim('  ℹ CLI 模式下为轻量计划，完整重构分析需 Claude Code + 静态分析数据'));
+export function handleGenerateRefactorPlan(_action, _params, _targetPath, context) {
   if (context) context.refactor_plan_generated = true;
-  console.log(chalk.green('  ✅ 重构计划已生成'));
   return '重构计划已生成（CLI 轻量模式）';
 }
 
 export function handleApplyTransformations(_action, params, _targetPath, context) {
   const transformations = params?.transformations || [];
-  console.log(chalk.blue(`\n🔧 正在应用重构变换: ${transformations.join(', ')}...`));
-  console.log(chalk.dim('  ℹ CLI 模式下为轻量变换，完整重构需 Claude Code 对话上下文'));
   if (context) context.transformations_applied = true;
-  console.log(chalk.green('  ✅ 重构变换已应用'));
   return `重构变换已应用（CLI 轻量模式）: ${transformations.join(', ')}`;
 }
 
-export function handleAnalyzeInterface(_action, params, _targetPath, context) {
-  const level = params?.validation_level || 'strict';
-  console.log(chalk.blue(`\n🔬 正在分析接口设计（级别: ${level}）...`));
-  console.log(chalk.dim('  ℹ CLI 模式下为轻量分析，完整接口验证需 Claude Code + API Contract Check'));
+export function handleAnalyzeInterface(_action, _params, _targetPath, context) {
   if (context) context.interface_analyzed = true;
-  console.log(chalk.green('  ✅ 接口分析完成'));
   return '接口设计分析完成（CLI 轻量模式）';
 }
 
 export function handleDetectLanguage(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔍 正在检测项目语言...'));
   const indicators = [
     { lang: 'JavaScript/TypeScript', file: 'package.json' },
     { lang: 'Python', file: 'requirements.txt' },
@@ -164,7 +136,6 @@ export function handleDetectLanguage(_action, _params, targetPath, context) {
   if (detected.length) {
     console.log(chalk.green(`  ✅ 检测到: ${detected.join(', ')}`));
   } else {
-    console.log(chalk.yellow('  ⚠ 未识别项目语言，默认使用 Node.js'));
     detected.push('JavaScript/TypeScript');
   }
   if (context) {
@@ -176,7 +147,6 @@ export function handleDetectLanguage(_action, _params, targetPath, context) {
 
 export function handleLanguageBuild(_action, _params, targetPath, context) {
   const lang = context?.detectedLanguage || 'JavaScript/TypeScript';
-  console.log(chalk.blue(`\n🔨 正在构建 (${lang})...`));
   const buildCommands = {
     'JavaScript/TypeScript': 'npm run build 2>&1',
     'Python': 'python -m build 2>&1',
@@ -189,7 +159,6 @@ export function handleLanguageBuild(_action, _params, targetPath, context) {
   const cmd = buildCommands[lang] || 'npm run build 2>&1';
   try {
     safeExec(cmd, targetPath, { stdio: 'inherit' });
-    console.log(chalk.green('  ✅ 构建完成'));
   } catch (e) {
     console.log(chalk.yellow(`  ⚠ 构建部分失败: ${e.message?.slice(0, 100) || '未知错误'}`));
   }
@@ -198,7 +167,6 @@ export function handleLanguageBuild(_action, _params, targetPath, context) {
 
 export function handleLanguageTest(_action, _params, targetPath, context) {
   const lang = context?.detectedLanguage || 'JavaScript/TypeScript';
-  console.log(chalk.blue(`\n🧪 正在运行测试 (${lang})...`));
   const testCommands = {
     'JavaScript/TypeScript': 'npm test 2>&1',
     'Python': 'python -m pytest 2>&1',
@@ -211,7 +179,6 @@ export function handleLanguageTest(_action, _params, targetPath, context) {
   const cmd = testCommands[lang] || 'npm test 2>&1';
   try {
     safeExec(cmd, targetPath, { stdio: 'inherit' });
-    console.log(chalk.green('  ✅ 测试完成'));
   } catch (e) {
     console.log(chalk.yellow(`  ⚠ 测试部分失败: ${e.message?.slice(0, 100) || '未知错误'}`));
   }

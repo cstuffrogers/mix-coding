@@ -3,14 +3,36 @@
   "workflow": "cicd",
   "name": "CI/CD 流水线配置",
   "description": "使用 Act + Task 配置本地 CI/CD 流水线，验证 GitHub Actions 工作流，生成 Taskfile.yml 任务运行器",
-  "trigger_keywords": ["CI", "CD", "cicd", "ci/cd", "pipeline", "流水线", "workflow", "自动构建", "部署流水线", "GitHub Actions"],
+  "trigger_keywords": [
+    "CI",
+    "CD",
+    "cicd",
+    "ci/cd",
+    "pipeline",
+    "流水线",
+    "workflow",
+    "自动构建",
+    "部署流水线",
+    "GitHub Actions"
+  ],
   "flow": [
     {
       "step": 1,
       "layer": "core",
       "service": "MemoryService",
       "action": "recall",
-      "params": { "type": "cicd", "filters": { "type": ["ci", "cd", "workflow", "deployment", "pipeline"] } },
+      "params": {
+        "type": "cicd",
+        "filters": {
+          "type": [
+            "ci",
+            "cd",
+            "workflow",
+            "deployment",
+            "pipeline"
+          ]
+        }
+      },
       "description": "注入 CI/CD 相关记忆",
       "auto_execute": true,
       "on_error": "continue"
@@ -26,11 +48,37 @@
       "on_error": "continue"
     },
     {
+      "step": 2.3,
+      "layer": "capability",
+      "service": "CIService",
+      "action": "actionlint",
+      "params": {},
+      "description": "actionlint: GitHub Actions 工作流语法检查（3k+ stars）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.4,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "zizmor",
+      "params": {},
+      "description": "zizmor: GitHub Actions 安全审计 — 权限过度/脚本注入/敏感数据暴露（2.5k+ stars）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 3,
       "layer": "core",
       "service": "QualityService",
       "action": "checkGate",
-      "params": { "checks": ["cicd"] },
+      "params": {
+        "checks": [
+          "cicd",
+          "actionlint",
+          "zizmor"
+        ]
+      },
       "description": "CI/CD 质量门禁",
       "auto_execute": true,
       "condition": "ciConfigured == false",
@@ -41,7 +89,9 @@
       "layer": "capability",
       "service": "CIService",
       "action": "autoFix",
-      "params": { "source": "cicd" },
+      "params": {
+        "source": "cicd"
+      },
       "description": "自动修复 CI/CD 配置问题",
       "auto_execute": true,
       "condition": "ciConfigured == false",
@@ -92,11 +142,27 @@
       "on_error": "continue"
     },
     {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "cicd",
+        "source": "auto"
+      },
+      "description": "将cicd知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
       "step": 8,
       "layer": "core",
       "service": "NotificationService",
       "action": "notify",
-      "params": { "message": "CI/CD 流水线配置工作流完成" },
+      "params": {
+        "message": "CI/CD 流水线配置工作流完成"
+      },
       "description": "通知 CI/CD 配置完成",
       "auto_execute": true,
       "on_error": "continue"

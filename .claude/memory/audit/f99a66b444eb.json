@@ -1,0 +1,80 @@
+{
+  "selection": "",
+  "id": "f99a66b444eb",
+  "type": "audit",
+  "data": {
+    "source": "audit_workflow",
+    "findings": {
+      "security": {
+        "highSeverityFound": true,
+        "findings": [
+          {
+            "type": "命令注入: exec/spawn 包含变量",
+            "severity": "critical",
+            "count": 4,
+            "files": [
+              "E:\\auto-coding\\claude-scene\\src\\handlers\\design.js"
+            ]
+          }
+        ]
+      },
+      "fixApplied": true,
+      "codeMetricsFindings": 7,
+      "performancePassed": false,
+      "complexityPassed": false,
+      "gateBlocked": true,
+      "lintPassed": true,
+      "coveragePassed": false,
+      "deadLinkPassed": true,
+      "gitLeaksPassed": true
+    },
+    "completedSteps": [
+      0.3,
+      0.5,
+      1,
+      2,
+      3,
+      3.03,
+      3.04,
+      3.05,
+      3.06,
+      3.07,
+      3.08,
+      3.09,
+      3.12,
+      3.16,
+      3.17,
+      3.18,
+      3.19,
+      3.195,
+      3.21,
+      3.22,
+      3.23,
+      3.24,
+      3.25,
+      3.26,
+      3.27,
+      3.28,
+      4,
+      5,
+      6,
+      6.5,
+      6.6,
+      6.7,
+      8,
+      8.5,
+      8.7,
+      8.8,
+      9,
+      10,
+      10.5,
+      11,
+      12,
+      13,
+      13.5
+    ],
+    "prompt": "",
+    "workflow": "audit"
+  },
+  "timestamp": "2026-06-16T14:05:52.967Z"
+}

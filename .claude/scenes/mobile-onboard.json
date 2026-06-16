@@ -14,6 +14,19 @@
   ],
   "flow": [
     {
+      "step": 0.2,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
       "step": 0.5,
       "layer": "capability",
       "service": "MemoryService",
@@ -21,7 +34,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["mobile", "onboard", "environment"]
+          "type": [
+            "mobile",
+            "onboard",
+            "environment"
+          ]
         }
       },
       "description": "注入历史环境配置记忆",
@@ -44,7 +61,14 @@
       "service": "MobileService",
       "action": "checkPrerequisites",
       "params": {
-        "checks": ["node", "jdk", "xcode", "android_studio", "ruby", "cocoapods"]
+        "checks": [
+          "node",
+          "jdk",
+          "xcode",
+          "android_studio",
+          "ruby",
+          "cocoapods"
+        ]
       },
       "description": "检测前置依赖：Xcode/Android Studio/Node.js/JDK/Ruby/CocoaPods 版本",
       "auto_execute": true,
@@ -77,19 +101,6 @@
       "step": 5,
       "layer": "capability",
       "service": "MobileService",
-      "action": "initFastlane",
-      "params": {
-        "mode": "match"
-      },
-      "description": "fastlane match 初始化 iOS 证书/Profile（条件：iOS 项目 + fastlane 可用）",
-      "auto_execute": true,
-      "condition": "ios_platform && fastlane_available",
-      "on_error": "continue"
-    },
-    {
-      "step": 6,
-      "layer": "capability",
-      "service": "MobileService",
       "action": "checkAndroidSDK",
       "params": {},
       "description": "Android SDK/NDK 路径+版本检查（条件：Android 项目）",
@@ -98,7 +109,7 @@
       "on_error": "continue"
     },
     {
-      "step": 7,
+      "step": 6,
       "layer": "capability",
       "service": "MobileService",
       "action": "setupEnv",
@@ -108,7 +119,7 @@
       "on_error": "continue"
     },
     {
-      "step": 8,
+      "step": 7,
       "layer": "capability",
       "service": "MobileService",
       "action": "setupEmulator",
@@ -118,7 +129,7 @@
       "on_error": "continue"
     },
     {
-      "step": 9,
+      "step": 8,
       "layer": "capability",
       "service": "MobileService",
       "action": "verifyBuild",
@@ -129,12 +140,16 @@
       "timeout": 600
     },
     {
-      "step": 10,
+      "step": 9,
       "layer": "capability",
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": ["env_prerequisites", "build_pass", "env_template"],
+        "checks": [
+          "env_prerequisites",
+          "build_pass",
+          "env_template"
+        ],
         "mode": "relaxed"
       },
       "description": "环境搭建质量门禁：检查依赖安装+构建通过+.env模板",
@@ -142,7 +157,7 @@
       "on_error": "continue"
     },
     {
-      "step": 11,
+      "step": 10,
       "layer": "capability",
       "service": "ECC",
       "action": "ce-compound",
@@ -156,20 +171,23 @@
       "on_error": "continue"
     },
     {
-      "step": 12,
+      "step": 11,
       "layer": "capability",
       "service": "CostService",
       "action": "report",
       "params": {
         "format": "summary",
-        "include": ["tokens", "api_calls"]
+        "include": [
+          "tokens",
+          "api_calls"
+        ]
       },
       "description": "环境搭建流程成本报告",
       "auto_execute": true,
       "on_error": "continue"
     },
     {
-      "step": 13,
+      "step": 12,
       "layer": "capability",
       "service": "MemoryService",
       "action": "remember",
@@ -184,7 +202,7 @@
       "on_error": "continue"
     },
     {
-      "step": 14,
+      "step": 13,
       "layer": "capability",
       "service": "MemoryService",
       "action": "consolidate",
@@ -194,7 +212,7 @@
       "on_error": "continue"
     },
     {
-      "step": 15,
+      "step": 14,
       "layer": "capability",
       "service": "NotificationService",
       "action": "notify",

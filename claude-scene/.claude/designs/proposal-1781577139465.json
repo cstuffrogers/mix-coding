@@ -1,0 +1,152 @@
+{
+  "A": {
+    "logic": "现实参照（获奖站迁移）",
+    "reference": {
+      "name": "Linear",
+      "category": "productivity",
+      "signature": "暗色+精致细节+功能动效"
+    },
+    "style": {
+      "id": "editorial-magazine",
+      "name": "高端杂志编辑设计",
+      "temp": "quiet",
+      "fidelity": 89,
+      "fit": "出版/文化/艺术机构",
+      "dna": "米白+暗色+1点缀, 衬线+装饰字, 多栏复杂排版+图说",
+      "font": "Playfair / DM Serif",
+      "cssTokens": {
+        "palette": {
+          "primary": "#2D1B0E",
+          "secondary": "#F5EDE0",
+          "accent": "#C9A96E",
+          "background": "#FBF7F0",
+          "text": "#2D1B0E",
+          "muted": "#8B7355",
+          "border": "#E0D5C5"
+        },
+        "typography": {
+          "family": "Playfair Display, DM Serif Display, serif",
+          "mono": "monospace",
+          "headingWeight": "700",
+          "bodySize": "1.0625rem",
+          "lineHeight": "1.7"
+        },
+        "spacing": {
+          "section": "6rem",
+          "gap": "2.5rem",
+          "pageWidth": "1100px"
+        },
+        "radius": {
+          "default": "0",
+          "card": "2px",
+          "button": "0"
+        },
+        "shadows": {
+          "default": "none",
+          "card": "none",
+          "button": "none"
+        }
+      }
+    },
+    "rationale": "参照 Linear（productivity），稳妥底盘"
+  },
+  "B": {
+    "logic": "40 风格库中性温度",
+    "style": {
+      "id": "editorial-serif",
+      "name": "杂志衬线优雅排版",
+      "temp": "neutral",
+      "fidelity": 95,
+      "fit": "文章/出版/精品品牌",
+      "dna": "米白+深咖+衬线, 大标题+drop cap, 双栏排版+图文交错",
+      "font": "Playfair Display / Fraunces",
+      "cssTokens": {
+        "palette": {
+          "primary": "#8B4513",
+          "secondary": "#D4A574",
+          "accent": "#C41E3A",
+          "background": "#FDF8F2",
+          "text": "#3C2415",
+          "muted": "#8B7355",
+          "border": "#D4C4B0"
+        },
+        "typography": {
+          "family": "Playfair Display, Fraunces, serif",
+          "mono": "monospace",
+          "headingWeight": "700",
+          "bodySize": "1.125rem",
+          "lineHeight": "1.7"
+        },
+        "spacing": {
+          "section": "5rem",
+          "gap": "2.5rem",
+          "pageWidth": "720px"
+        },
+        "radius": {
+          "default": "2px",
+          "card": "4px",
+          "button": "2px"
+        },
+        "shadows": {
+          "default": "none",
+          "card": "0 2px 8px rgba(139,69,19,0.06)",
+          "button": "none"
+        }
+      }
+    },
+    "rationale": "平衡方向, 与 A 拉差异"
+  },
+  "C": {
+    "logic": "秒数轮盘 + 顶级设计师哲学",
+    "designer": {
+      "name": "Dieter Rams (Braun)",
+      "philosophy": "少, 但更好",
+      "signature": "功能优先, 中性色, 几何精确"
+    },
+    "style": {
+      "id": "bold-big-type",
+      "name": "巨型字黑白时装大字报",
+      "temp": "bold",
+      "fidelity": 88,
+      "fit": "时装/品牌发布/创意作品集",
+      "dna": "纯黑白+1点缀色, 衬线巨号+紧字距, 1-2列大字报式排版",
+      "font": "Fraunces / Playfair Display",
+      "cssTokens": {
+        "palette": {
+          "primary": "#000000",
+          "secondary": "#FFFFFF",
+          "accent": "#D4A853",
+          "background": "#FFFFFF",
+          "text": "#000000",
+          "muted": "#888888",
+          "border": "#000000"
+        },
+        "typography": {
+          "family": "Fraunces, Playfair Display, serif",
+          "mono": "monospace",
+          "headingWeight": "900",
+          "bodySize": "1.125rem",
+          "lineHeight": "1.4"
+        },
+        "spacing": {
+          "section": "8rem",
+          "gap": "3rem",
+          "pageWidth": "900px"
+        },
+        "radius": {
+          "default": "0",
+          "card": "0",
+          "button": "0"
+        },
+        "shadows": {
+          "default": "none",
+          "card": "none",
+          "button": "none"
+        }
+      }
+    },
+    "rationale": "Dieter Rams (Braun) 的 少, 但更好 哲学 + 大胆风格强制注入, 打破默认极简偏差"
+  },
+  "requirement": "test verification run",
+  "category": "web"
+}

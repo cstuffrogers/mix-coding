@@ -32,8 +32,8 @@ describe('handleRunSuite', () => {
     mockExistsSync.mockReturnValue(false);
     const ctx = {};
     const result = handleRunSuite('run-suite', { mode: 'unit' }, '/tmp', ctx);
-    expect(result).toContain('全部通过');
-    expect(ctx.testPassed).toBe(true);
+    expect(result).toContain('未找到 package.json');
+    expect(ctx.testPassed).toBe(null);
   });
 
   it('sets testPassed=false when test output contains "failed"', () => {
@@ -110,8 +110,8 @@ describe('handleRunAffected', () => {
     mockExistsSync.mockReturnValue(false);
     const ctx = {};
     const result = handleRunAffected('run-affected', {}, '/tmp', ctx);
-    expect(result).toContain('全部通过');
-    expect(ctx.affectedTestsPassed).toBe(true);
+    expect(result).toContain('部分失败');
+    expect(ctx.affectedTestsPassed).toBe(null);
   });
 
   it('sets false when tests fail', () => {

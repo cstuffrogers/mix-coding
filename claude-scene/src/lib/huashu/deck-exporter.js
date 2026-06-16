@@ -25,11 +25,8 @@ export function generateReleaseDeck({
 
   const deckHtml = join(outDir, `release-${Date.now()}.html`);
   writeFileSync(deckHtml, buildDeckHtml({ title, version, highlights }), 'utf8');
-  console.log(chalk.blue(`\n📊 huashu deck-exporter: HTML deck 已生成`));
-  console.log(chalk.dim(`  HTML: ${deckHtml}`));
 
   if (!isAvailable(projectRoot)) {
-    console.log(chalk.yellow('  ⚠ html2pptx.js 不在 assets/huashu/, PPTX 导出跳过'));
     return { html: deckHtml, pptx: null };
   }
 
@@ -38,7 +35,6 @@ export function generateReleaseDeck({
     const script = join(projectRoot, HUASHU_PPTX_SCRIPT);
     safeExec(`node "${script}" --input "${deckHtml}" --output "${pptxFile}" 2>&1`, projectRoot, { stdio: 'pipe' });
     if (existsSync(pptxFile)) {
-      console.log(chalk.green(`  ✅ PPTX 导出: ${pptxFile}`));
       return { html: deckHtml, pptx: pptxFile };
     }
   } catch (e) {

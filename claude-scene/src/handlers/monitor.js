@@ -63,17 +63,13 @@ jobs:
 function ensureUpptimeConfig(targetPath, gitInfo, homepage) {
   const configPath = join(targetPath, '.upptimerc.yml');
   if (existsSync(configPath)) {
-    console.log(chalk.dim('  .upptimerc.yml 已存在，验证配置...'));
     const content = readFileSync(configPath, 'utf-8');
     const hasOwner = /owner:\s*\S+/i.test(content);
     const hasSites = /sites:/i.test(content);
-    if (!hasOwner) console.log(chalk.yellow('  ⚠ 缺少 owner 字段'));
-    if (!hasSites) console.log(chalk.yellow('  ⚠ 缺少 sites 字段'));
     return { path: configPath, ok: hasOwner && hasSites };
   }
   const config = generateUpptimeConfig(gitInfo.owner, gitInfo.repo, homepage);
   writeFileSync(configPath, config, 'utf-8');
-  console.log(chalk.green('  ✅ .upptimerc.yml 已生成'));
   return { path: configPath, ok: true };
 }
 
@@ -81,26 +77,29 @@ function ensureUpptimeWorkflow(targetPath) {
   const workflowsDir = join(targetPath, '.github', 'workflows');
   const workflowPath = join(workflowsDir, 'upptime.yml');
   if (existsSync(workflowPath)) {
-    console.log(chalk.dim('  upptime.yml 已存在，跳过'));
     return { path: workflowPath, ok: true };
   }
   try {
     if (!existsSync(workflowsDir)) mkdirSync(workflowsDir, { recursive: true });
     writeFileSync(workflowPath, generateWorkflowYml(), 'utf-8');
-    console.log(chalk.green('  ✅ .github/workflows/upptime.yml 已生成'));
     return { path: workflowPath, ok: true };
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 生成工作流失败: ${e.message}`));
+  } catch {
     return { path: workflowPath, ok: false };
   }
 }
 
 export function handleSetupMonitor(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n📊 正在配置 Upptime 监控...'));
 
-  const isGit = existsSync(join(targetPath, '.git'));
+  const hasDotGit = existsSync(join(targetPath, '.git'));
+  let isGit = hasDotGit;
   if (!isGit) {
-    console.log(chalk.yellow('  ⚠ 非 Git 仓库，Upptime 需 GitHub Actions 环境'));
+    // .Git can be a file (worktree/submodule) or may be missed; fall back to Git rev-parse
+    try {
+      safeExec('git rev-parse --git-dir 2>&1', targetPath, { stdio: 'pipe' });
+      isGit = true;
+    } catch { /* not a Git repo */ }
+  }
+  if (!isGit) {
     if (context) context.monitorConfigured = false;
     return 'Upptime 配置跳过（非 Git 仓库）';
   }

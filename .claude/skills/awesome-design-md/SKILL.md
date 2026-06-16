@@ -1,10 +1,7 @@
 ---
 name: awesome-design-md
-description: 5 个精选品牌设计系统集合（Vercel/Linear/Stripe/Notion/Apple），DESIGN.md 格式直接复用
-when-to-use: When user wants to build UI matching a specific brand's visual style
+description: 5 个精选品牌设计系统集合（Vercel/Linear/Stripe/Notion/Apple），DESIGN.md 格式直接复用。When user wants to build UI matching a specific brand's visual style.
 user-invocable: true
-paths: ["**/*.html", "**/*.css", "**/*.tsx", "**/*.jsx", "**/*.vue"]
-effort: medium
 ---
 
 # Awesome Design MD

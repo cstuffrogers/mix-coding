@@ -68,7 +68,7 @@ function detectCeStub() {
   if (!fnMatch) return { isStub: false, ceActions: [], details: '未找到 handleCeAction' };
 
   const braceIdx = src.indexOf('{', fnMatch.index + fnMatch[0].length - 1);
-  if (braceIdx < 0) return { isStub: false, ceActions: [], details: '无法解析函数体' };
+  if (braceIdx === -1) return { isStub: false, ceActions: [], details: '无法解析函数体' };
 
   const body = extractFunctionBody(src, braceIdx);
   const hasContextCheck = /context/.test(body);
@@ -88,7 +88,7 @@ function detectCeStub() {
 // Uses next-function-boundary extraction (avoids brace matching).
 // ═══════════════════════════════════════════════════
 
-const MEANINGFUL_LINE = /\b(readFileSync|writeFileSync|existsSync|mkdirSync|readdirSync|statSync|appendFileSync|writeSync|rmSync)\b|safeExec\b|\bexecSync\b|\bspawn\b|\bfetch\b|\.(map|filter|reduce|forEach|find|sort|some|every|flatMap)\s*\(|\bfor\s*\(|\bwhile\s*\(|\bif\s*\(|\btry\s*\{|await\s+\w+\(|import\s*\(|\bnew\s+\w+|JSON\.(parse|stringify)\b|\.(match|replace|split|join)\s*\(|\breturn\s+[^'\"`\d]|Object\.(keys|values|entries|assign)\s*\(|\bprocess\.(chdir|cwd|env\.)|\brequire\s*\(|return\s+\w+\s*\(/;
+const MEANINGFUL_LINE = /\b(readFileSync|writeFileSync|existsSync|mkdirSync|readdirSync|statSync|appendFileSync|writeSync|rmSync)\b|safeExec\b|\bexecSync\b|\bspawn\b|\bfetch\b|\.(map|filter|reduce|forEach|find|sort|some|every|flatMap)\s*\(|\bfor\s*\(|\bwhile\s*\(|\bif\s*\(|\btry\s*\{|await\s+\w+\(|import\s*\(|\bnew\s+\w+|JSON\.(parse|stringify)\b|\.(match|replace|split|join)\s*\(|\breturn\s+[^'"`\d]|Object\.(keys|values|entries|assign)\s*\(|\bprocess\.(chdir|cwd|env\.)|\brequire\s*\(|return\s+\w+\s*\(/;
 
 function isTrivialLine(line) {
   const s = line.trim();
@@ -130,7 +130,7 @@ function detectPseudoStubs() {
       totalFuncs++;
 
       const braceIdx = src.indexOf('{', m.index + m[0].length);
-      if (braceIdx < 0) continue;
+      if (braceIdx === -1) continue;
 
       const body = extractFunctionBody(src, braceIdx);
       const lines = body.split('\n');
@@ -172,7 +172,6 @@ const TOOL_CHECKS = {
   // ── Mobile (需要额外运行时: Java/Ruby) ──
   mobsfscan: { check: 'pip show mobsfscan 2>&1 || echo NOT_FOUND', type: 'mobile', optional: true },
   dependencycheck: { check: 'npx dependency-check --version 2>&1 || echo NOT_FOUND', type: 'mobile', optional: true },
-  fastlane: { check: 'gem list fastlane 2>/dev/null || echo NOT_FOUND', type: 'mobile', optional: true },
 };
 
 function detectToolHealth() {
@@ -184,7 +183,7 @@ function detectToolHealth() {
         if (optional) results.optional_missing.push({ name, type });
         else results.missing.push({ name, type });
       } else {
-        results.available.push({ name, type, version: result.trim().split('\n')[0].slice(0, 60) });
+        results.available.push({ name, type, version: result.trim().split('\n', 1)[0].slice(0, 60) });
       }
     } catch {
       if (optional) results.optional_missing.push({ name, type });
@@ -221,7 +220,7 @@ function detectDepHealth(targetPath) {
 // ═══════════════════════════════════════════════════
 // Pass 6: CE plugin availability
 // ═══════════════════════════════════════════════════
-function checkCePlugin(targetPath) {
+function checkCePlugin(_targetPath) {
   // CE plugin lives at project root .claude/, not necessarily at targetPath
   return existsSync(join(PROJECT_ROOT, '.claude', 'plugins', 'compound-engineering.json'));
 }
@@ -230,7 +229,7 @@ function checkCePlugin(targetPath) {
 // Pass 7: knip — AST-level dead code + import resolution
 // Falls back to regex import check if knip unavailable
 // ═══════════════════════════════════════════════════
-function detectImportIssues(targetPath) {
+function detectImportIssues(_targetPath) {
   // Always run knip from claude-scene/ which has proper knip config
   const knipRoot = join(SRC_DIR, '..');
   try {
@@ -300,7 +299,6 @@ function detectImportIssuesFallback() {
 // ACTION_REGISTRY or is a ce-* prefixed action
 // ═══════════════════════════════════════════════════
 function detectOrphanActions() {
-  // Build ACTION_REGISTRY key set from actions.js source
   const actionsPath = join(SRC_DIR, 'actions.js');
   const src = readOrNull(actionsPath);
   if (!src) return { orphans: [], sceneCount: 0, summary: 'actions.js 不可读' };
@@ -319,7 +317,7 @@ function detectOrphanActions() {
   }
 
   // Also include ce-* prefix (handled by dispatch bypass)
-  const ceActions = ['ce-compound', 'ce-plan', 'ce-review', 'ce-debug', 'ce-brainstorm', 'ce-work'];
+  const ceActions = new Set(['ce-compound', 'ce-plan', 'ce-review', 'ce-debug', 'ce-brainstorm', 'ce-work']);
 
   const scenesDir = join(PROJECT_ROOT, '.claude', 'scenes');
   if (!existsSync(scenesDir)) return { orphans: [], sceneCount: 0, summary: 'scenes 目录不存在' };
@@ -337,7 +335,7 @@ function detectOrphanActions() {
         const action = step.action;
         if (!action) continue;
         if (registryKeys.has(action)) continue;
-        if (action.startsWith('ce-') && ceActions.includes(action)) continue;
+        if (action.startsWith('ce-') && ceActions.has(action)) continue;
         orphans.push({ scene: scene.scene_id || f, step: step.step, action });
       }
     } catch { /* corrupt JSON, skip */ }
@@ -356,7 +354,6 @@ function detectHandlerCrashes() {
   const src = readOrNull(actionsPath);
   if (!src) return { crashes: [], summary: 'actions.js 不可读' };
 
-  // Build a mapping of handler→module-file from imports
   const handlerToModule = new Map();
   const importRe = /import\s*\{([^}]+)\}\s*from\s*'([^']+)'/g;
   let m;
@@ -380,13 +377,13 @@ function detectHandlerCrashes() {
   const testedHandlers = new Set();
 
   // Skip handlers already covered by Pass 3 (pseudo-stub detection)
-  const pseudoStubs = ['handleReviewFull', 'handleVerifyVisual', 'handleAiFriendlyReview'];
+  const pseudoStubs = new Set(['handleReviewFull', 'handleVerifyVisual', 'handleAiFriendlyReview']);
 
   while ((em = entryRe.exec(block)) !== null) {
     const handlerName = em[2];
     if (!handlerToModule.has(handlerName)) continue; // inline stub
     if (testedHandlers.has(handlerName)) continue;
-    if (pseudoStubs.includes(handlerName)) continue; // covered by Pass 3
+    if (pseudoStubs.has(handlerName)) continue; // covered by Pass 3
     testedHandlers.add(handlerName);
 
     const modPath = handlerToModule.get(handlerName);
@@ -432,7 +429,7 @@ function detectHandlerCrashes() {
 // ═══════════════════════════════════════════════════
 // Pass 10: MCP config validation
 // ═══════════════════════════════════════════════════
-function detectMcpIssues(targetPath) {
+function detectMcpIssues(_targetPath) {
   const mcpPath = join(PROJECT_ROOT, '.claude', 'mcp.json');
   if (!existsSync(mcpPath)) return { errors: [], warnings: [], infos: [], summary: 'mcp.json 不存在', total: 0, okCount: 0, ok: true };
 
@@ -469,12 +466,12 @@ function detectMcpIssues(targetPath) {
         }
       }
 
-      // Command existence check — warning only (docker might not be running, etc.)
-      if (!cfg.args || !cfg.args.some(a => typeof a === 'string' && a.startsWith('./'))) {
+      // Command existence check — warning only (Docker might not be running, etc.)
+      if (!cfg.args || cfg.args.every(a => !(typeof a === 'string' && a.startsWith('./')))) {
         try {
           safeExec(`${cfg.command} --version 2>&1 || echo PATH_MISSING`, SRC_DIR, { stdio: 'pipe', timeout: 10000 });
         } catch {
-          // npx/docker/gem commands may fail for env reasons — warning not error
+          // npx/Docker/gem commands may fail for env reasons — warning not error
           serverWarnings.push(`命令 '${cfg.command}' 不可用（可能未安装或未运行）`);
         }
       }
@@ -482,7 +479,7 @@ function detectMcpIssues(targetPath) {
 
     // Env var checks — informational only (API keys are optional)
     if (cfg.env) {
-      for (const [envKey, envVal] of Object.entries(cfg.env)) {
+      for (const envVal of Object.values(cfg.env)) {
         const envName = typeof envVal === 'string' ? envVal.replace(/^\$\{env:/, '').replace(/\}$/, '') : '';
         if (envName && !process.env[envName]) {
           serverInfos.push(`环境变量未设置: ${envName} (API Key 未配置)`);
@@ -512,7 +509,6 @@ function detectMcpIssues(targetPath) {
 // Main export
 // ═══════════════════════════════════════════════════
 export function handleVerifyHandlers(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔍 正在进行全面功能 + 工具 + 配置检查 (10 道)...'));
 
   // ── Passes 1-3: Handler stubs ──
   const { mcp, mp, rawCount } = detectInlineStubs();
@@ -550,11 +546,8 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
   const missCount = toolHealth.missing.length;
   const optMissCount = toolHealth.optional_missing.length;
 
-  const statusIcon = missCount > 0 ? '⚠' : '✅';
-  const statusFn = missCount > 0 ? chalk.yellow : chalk.green;
-  console.log(statusFn(`  ${statusIcon} Pass 4 — 外部工具: ${availCount}/${requiredTools} 必需${optMissCount ? ` (${optMissCount} 可选未安装)` : ''}`));
   if (missCount) {
-    console.log(chalk.dim(`     缺失: ${toolHealth.missing.map(t => t.name).join(', ')}`));
+    console.error(chalk.dim(`     缺失: ${toolHealth.missing.map(t => t.name).join(', ')}`));
   }
   if (optMissCount) {
     console.log(chalk.dim(`     可选缺失: ${toolHealth.optional_missing.map(t => t.name).join(', ')}`));
@@ -596,8 +589,8 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
     console.log(chalk.green('  ✅ Pass 7 — 导入链: 全部有效'));
   } else {
     if (importIssues.missing && importIssues.missing.length) {
-      console.log(chalk.red(`  🔴 Pass 7 — 缺失文件: ${importIssues.missing.length}`));
-      for (const i of importIssues.missing) console.log(chalk.dim(`     ${i.file}: ${i.imported}`));
+      console.error(chalk.red(`  🔴 Pass 7 — 缺失文件: ${importIssues.missing.length}`));
+      for (const i of importIssues.missing) console.error(chalk.dim(`     ${i.file}: ${i.imported}`));
     }
     if (importIssues.broken && importIssues.broken.length) {
       console.log(chalk.red(`  🔴 Pass 7 — 导出断裂: ${importIssues.broken.length}`));
@@ -610,11 +603,9 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
   if (orphanOk) {
     console.log(chalk.green(`  ✅ Pass 8 — 场景引用: ${sceneCount} 场景全部有效`));
   } else if (orphans.length) {
-    console.log(chalk.red(`  🔴 Pass 8 — 悬空引用: ${orphans.length} 个 (${sceneCount} 场景)`));
     for (const o of orphans.slice(0, 8)) {
       console.log(chalk.dim(`     ${o.scene}:${o.step} → ${o.action} (不存在)`));
     }
-    if (orphans.length > 8) console.log(chalk.dim(`     ... 还有 ${orphans.length - 8} 个`));
   }
 
   // ── Pass 9: handler smoke test ──
@@ -622,11 +613,9 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
   if (smoke.ok) {
     console.log(chalk.green(`  ✅ Pass 9 — Handler 冒烟: ${smoke.tested} 个全部通过`));
   } else if (smoke.crashes.length) {
-    console.log(chalk.red(`  🔴 Pass 9 — Handler 崩溃: ${smoke.crashes.length}/${smoke.tested}`));
     for (const c of smoke.crashes.slice(0, 5)) {
-      console.log(chalk.dim(`     ${c.handler} @ ${c.file}: ${c.error}`));
+      console.error(chalk.dim(`     ${c.handler} @ ${c.file}: ${c.error}`));
     }
-    if (smoke.crashes.length > 5) console.log(chalk.dim(`     ... 还有 ${smoke.crashes.length - 5} 个`));
   }
 
   // ── Pass 10: MCP config ──
@@ -634,8 +623,6 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
   if (mcpConfig.total === 0) {
     console.log(chalk.dim(`  ⏭ Pass 10 — MCP 配置: ${mcpConfig.summary || '无配置'}`));
   } else if (mcpConfig.ok) {
-    const infoNote = mcpConfig.infos.length ? ` (${mcpConfig.infos.length} 个 API Key 未配置)` : '';
-    console.log(chalk.green(`  ✅ Pass 10 — MCP 配置: ${mcpConfig.total} 服务器正常${infoNote}`));
     if (mcpConfig.infos.length) {
       for (const s of mcpConfig.infos) console.log(chalk.dim(`     ℹ ${s.server}: ${s.issues.join('; ')}`));
     }
@@ -644,10 +631,6 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
     if (mcpConfig.errors.length) parts.push(`${mcpConfig.errors.length} 错误`);
     if (mcpConfig.warnings.length) parts.push(`${mcpConfig.warnings.length} 警告`);
     if (mcpConfig.infos.length) parts.push(`${mcpConfig.infos.length} 信息`);
-    console.log(chalk.yellow(`  ⚠ Pass 10 — MCP 配置: ${parts.join(', ')} (${mcpConfig.okCount || 0}/${mcpConfig.total} 正常)`));
-    for (const s of mcpConfig.errors) console.log(chalk.red(`     🔴 ${s.server}: ${s.issues.join('; ')}`));
-    for (const s of mcpConfig.warnings) console.log(chalk.yellow(`     🟡 ${s.server}: ${s.issues.join('; ')}`));
-    for (const s of mcpConfig.infos) console.log(chalk.dim(`     ℹ ${s.server}: ${s.issues.join('; ')}`));
   }
 
   // ── Summary ──
@@ -667,16 +650,6 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
   const mcpIssueCount = mcpConfig.issueCount || 0;
 
   const totalIssues = handlerStubs + missCount + criticalDeps + (ceAvailable ? 0 : 1) + importBroken + unusedDepsCount + orphanCount + crashCount + mcpIssueCount;
-
-  console.log(chalk.blue('\n📊 10 道检查汇总:'));
-  console.log(chalk[handlerStubs ? 'yellow' : 'green'](`  P1-P3  Handler 空转: ${handlerStubs}`));
-  console.log(chalk[missCount ? 'yellow' : 'green'](`  P4     工具缺失: ${missCount}/${requiredTools} 必需${optMissCount ? ` (${optMissCount} 可选未安装)` : ''}`));
-  console.log(chalk[criticalDeps ? 'red' : warnDeps ? 'yellow' : 'green'](`  P5     依赖健康: ${criticalDeps}严重 ${warnDeps}警告`));
-  console.log(chalk[ceAvailable ? 'green' : 'yellow'](`  P6     CE Plugin: ${ceAvailable ? '已安装' : '未安装'}`));
-  console.log(chalk[importBroken ? 'red' : 'green'](`  P7     ${importIssues.knip ? 'knip' : '导入链'}: ${importBroken ? importBroken + ' 问题' : '全部有效'}${unusedFilesCount ? ` (${unusedFilesCount}死文件)` : ''}${unusedDepsCount ? ` (${unusedDepsCount}未用依赖)` : ''}`));
-  console.log(chalk[orphanCount ? 'red' : 'green'](`  P8     场景引用: ${orphanCount ? orphanCount + ' 悬空' : `${sceneCount} 场景正常`}`));
-  console.log(chalk[crashCount ? 'red' : 'green'](`  P9     冒烟测试: ${crashCount ? crashCount + ' 崩溃' : '全部通过'}`));
-  console.log(chalk[mcpIssueCount ? 'yellow' : 'green'](`  P10    MCP 配置: ${mcpIssueCount ? mcpIssueCount + ' 问题' : '全部正常'}${mcpConfig.infos?.length ? ` (${mcpConfig.infos.length} API Key 未配置)` : ''}`));
 
   if (totalIssues === 0) {
     console.log(chalk.green('\n  🎉 全部 10 道检查通过！'));

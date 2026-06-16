@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
-const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'build', '.git']);
+const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'build', '.git', 'coverage']);
 
 export function scanDir(rootDir, { filter, onError } = {}) {
   const results = [];

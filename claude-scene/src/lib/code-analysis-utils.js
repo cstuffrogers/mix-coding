@@ -30,7 +30,7 @@ export function stripCommentsAndStrings(code) {
     .replace(/'[^']*'/g, '""')           // single-quoted strings
     .replace(/"[^"]*"/g, '""')           // double-quoted strings
     .replace(/`[^`]*`/g, (m) => preserveNewlines(m, '""')) // template literals
-    .replace(/\/(?:[^\/\\\n\r]|\\.)+\/[gimsuy]*\b/g, ' '); // regex literals
+    .replace(/\/(?:[^/\\\n\r]|\\.)+\/[gimsuy]*\b/g, ' '); // regex literals
   /* eslint-enable sonarjs/slow-regex */
 }
 
@@ -88,7 +88,7 @@ export function getFunctionComplexities(code, threshold) {
     seen.add(posKey);
 
     const body = stripped.slice(openBrace + 1, closeBrace);
-    const branches = (body.match(/\b(if|else|for|while|switch|case|catch)\b|\?(?![\?.])/g) || []).length;
+    const branches = (body.match(/\b(if|else|for|while|switch|case|catch)\b|\?(?![?.])/g) || []).length;
 
     if (branches > threshold) {
       const lineNum = stripped.slice(0, m.index).split('\n').length;

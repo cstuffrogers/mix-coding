@@ -3,14 +3,33 @@
   "workflow": "e2e",
   "name": "E2E 测试配置",
   "description": "使用 MSW + Supertest + Schemathesis 配置端到端测试基础设施（Mock + HTTP 断言 + API fuzz）",
-  "trigger_keywords": ["e2e", "端到端测试", "集成测试", "E2E测试", "API测试", "集成测试配置", "mock", "fuzz"],
+  "trigger_keywords": [
+    "e2e",
+    "端到端测试",
+    "集成测试",
+    "E2E测试",
+    "API测试",
+    "集成测试配置",
+    "mock",
+    "fuzz"
+  ],
   "flow": [
     {
       "step": 1,
       "layer": "core",
       "service": "MemoryService",
       "action": "recall",
-      "params": { "type": "e2e", "filters": { "type": ["e2e", "testing", "integration", "api-testing"] } },
+      "params": {
+        "type": "e2e",
+        "filters": {
+          "type": [
+            "e2e",
+            "testing",
+            "integration",
+            "api-testing"
+          ]
+        }
+      },
       "description": "注入 E2E 测试相关记忆",
       "auto_execute": true,
       "on_error": "continue"
@@ -30,7 +49,11 @@
       "layer": "core",
       "service": "QualityService",
       "action": "checkGate",
-      "params": { "checks": ["e2e"] },
+      "params": {
+        "checks": [
+          "e2e"
+        ]
+      },
       "description": "E2E 配置质量门禁",
       "auto_execute": true,
       "condition": "e2eConfigured == false",
@@ -41,7 +64,9 @@
       "layer": "capability",
       "service": "E2EService",
       "action": "autoFix",
-      "params": { "source": "e2e" },
+      "params": {
+        "source": "e2e"
+      },
       "description": "自动修复 E2E 配置问题",
       "auto_execute": true,
       "condition": "e2eConfigured == false",
@@ -91,11 +116,27 @@
       "on_error": "continue"
     },
     {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "e2e",
+        "source": "auto"
+      },
+      "description": "将e2e知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
       "step": 8,
       "layer": "core",
       "service": "NotificationService",
       "action": "notify",
-      "params": { "message": "E2E 测试配置工作流完成" },
+      "params": {
+        "message": "E2E 测试配置工作流完成"
+      },
       "description": "通知 E2E 配置完成",
       "auto_execute": true,
       "on_error": "continue"

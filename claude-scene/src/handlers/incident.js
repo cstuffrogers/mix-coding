@@ -149,7 +149,6 @@ Re-run \`/incident\` after adding new API routes. Runbooks will be regenerated.
 }
 
 export function handleIncidentRunbook(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n📋 正在生成 Incident Runbook...'));
 
   const runme = checkRunme(targetPath);
   if (runme.available) {
@@ -160,7 +159,6 @@ export function handleIncidentRunbook(_action, _params, targetPath, context) {
 
   const endpoints = scanEndpoints(targetPath);
   const port = detectPort(targetPath);
-  console.log(chalk.dim(`  检测到 ${endpoints.length} 个 API 端点，默认端口 ${port}`));
 
   const incidentsDir = join(targetPath, 'incidents');
   let runbookCount = 0;
@@ -169,7 +167,6 @@ export function handleIncidentRunbook(_action, _params, targetPath, context) {
     if (!existsSync(incidentsDir)) mkdirSync(incidentsDir, { recursive: true });
 
     if (endpoints.length === 0) {
-      console.log(chalk.yellow('  ⚠ 未检测到 API 端点，生成通用 runbook'));
       const genericPath = join(incidentsDir, 'GENERIC.md');
       const genericEp = { dir: 'unknown', file: 'GENERIC.md' };
       writeFileSync(genericPath, generateRunbook(genericEp, port), 'utf-8');
@@ -181,14 +178,11 @@ export function handleIncidentRunbook(_action, _params, targetPath, context) {
         writeFileSync(runbookPath, generateRunbook(ep, port), 'utf-8');
         runbookCount++;
       }
-      console.log(chalk.green(`  ✅ ${runbookCount} 个 runbook 已生成`));
     }
 
     const readmePath = join(incidentsDir, 'README.md');
     writeFileSync(readmePath, generateReadme(endpoints, targetPath), 'utf-8');
-    console.log(chalk.green('  ✅ incidents/README.md 已生成'));
-  } catch (e) {
-    console.log(chalk.red(`  ❌ 生成失败: ${e.message}`));
+  } catch {
     if (context) {
       context.incidentRunbookCreated = false;
       context.lastStepFailed = true;

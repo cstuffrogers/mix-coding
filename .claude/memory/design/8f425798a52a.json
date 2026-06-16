@@ -1,0 +1,48 @@
+{
+  "selection": "",
+  "id": "8f425798a52a",
+  "type": "design",
+  "data": {
+    "source": "design_workflow",
+    "findings": {
+      "security": {}
+    },
+    "completedSteps": [
+      0.3,
+      0.35,
+      0.5,
+      1,
+      1.4,
+      1.41,
+      1.45,
+      1.47,
+      1.48,
+      1.49,
+      1.51,
+      1.52,
+      1.53,
+      1.54,
+      1.55,
+      1.56,
+      1.5,
+      1.6,
+      1.7,
+      2,
+      2.5,
+      2.7,
+      2.71,
+      2.72,
+      3,
+      3.3,
+      3.5,
+      4,
+      4.1,
+      5,
+      5.5,
+      6
+    ],
+    "prompt": "test verification run",
+    "workflow": "design"
+  },
+  "timestamp": "2026-06-16T02:30:42.397Z"
+}

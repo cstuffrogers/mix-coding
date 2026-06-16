@@ -1,0 +1,20 @@
+{
+  "selection": "",
+  "id": "22b9b7b8ee38",
+  "type": "migration",
+  "data": {
+    "findings": {
+      "security": {}
+    },
+    "highCount": "{{migrationHighCount}}",
+    "passed": "{{migrationReviewPassed}}",
+    "completedSteps": [
+      0.3,
+      1,
+      2
+    ],
+    "prompt": "",
+    "workflow": "migration"
+  },
+  "timestamp": "2026-06-16T01:04:32.138Z"
+}

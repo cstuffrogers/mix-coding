@@ -10,7 +10,7 @@
 2. [MCP 服务器（13个）与场景使用矩阵](#mcp-服务器13个与场景使用矩阵)
 3. [Claude Skills（37个）与触发场景](#claude-skills37个与触发场景)
 4. [CLI 工具 claude-scene（16模块 + 280+ Action处理器）](#cli-工具-claude-scene16模块--280-action处理器)
-5. [35 个场景工作流（Scene JSON + Archon YAML + Command Markdown）](#35-个场景工作流scene-json--archon-yaml--command-markdown)
+5. [34 个场景工作流（Scene JSON + Command Markdown）](#35-个场景工作流scene-json--command-markdown)
 6. [89 个 Slash 命令分类](#89-个-slash-命令分类)
 7. [CI/CD 与配置体系](#cicd-与配置体系)
 8. [前端美化工具链](#前端美化工具链)
@@ -23,9 +23,9 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                          AI 终端入口（4个 IDE 适配）                            │
-│   Claude Code  │  Cursor (.cursor/)  │  Gemini (.gemini/)  │  Kiro (.kiro/)  │
-│   主入口       │  codegraph MCP      │  codegraph MCP      │  codegraph MCP  │
+│                          AI 终端入口（2个 IDE 适配）                            │
+│   Claude Code  │  Gemini (.gemini/)                                           │
+│   主入口       │  codegraph MCP                                               │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                          89 个 Slash 命令 (.claude/commands/)                  │
 │  27核心场景 │ 语言构建/测试(14) │ 审查(9) │ 工作流(8) │ 会话(3) │ 元工具(18)  │
@@ -33,7 +33,7 @@
 │                          claude-scene CLI (Node.js)                           │
 │  list | start | show | fork  ──  280+ Action处理器 ── 16个源模块              │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│              27 场景定义 (.claude/scenes/*.json) ←→ .archon/workflows/*.yaml │
+│                       27 场景定义 (.claude/scenes/*.json)                       │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                          能力层 — 6 大服务                                     │
 │  Memory  │  Design  │  Review  │  Test  │  OpenDigger  │  Notification       │
@@ -116,7 +116,7 @@
 | **gpt-taste** | 有 | GSAP 动效/AIDA 结构/Bento 网格/大间距排版 | 前端设计类任务 |
 | **ui-polish** | 有 | DaisyUI/主题/动画/图标集成 | ui-polish 场景 |
 | **ui-visual-trigger** | 有 | 视觉回归测试/截图/基线管理 | ui-polish 场景 |
-| **api-contract-check** | 有 | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | feature/design/new-project 等 6 个场景 |
+| **api-contract-check** | 有 | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | feature/design/new-project 等 34 个场景 |
 | **ua-context** | 有 | 前端审查的用户代理上下文感知 | review 场景 |
 
 ### 移动端 Skills（1个）
@@ -253,9 +253,9 @@ claude-scene/src/
 
 ---
 
-## 35 个场景工作流（Scene JSON + Archon YAML + Command Markdown）
+## 34 个场景工作流（Scene JSON + Command Markdown）
 
-> 每个场景有三层定义：`.claude/scenes/<id>.json`（数据结构）→ `.archon/workflows/<id>.yaml`（编排引擎）→ `.claude/commands/<id>.md`（用户命令）
+> 每个场景有两层定义：`.claude/scenes/<id>.json`（数据结构）→ `.claude/commands/<id>.md`（用户命令）
 
 ### 场景详情
 
@@ -550,7 +550,7 @@ claude-scene/src/
 
 ### 配置/基础设施命令（10个）
 
-`/hookify`, `/hookify-configure`, `/hookify-help`, `/hookify-list`, `/harness-audit`, `/model-route`, `/setup-pm`, `/ecc-guide`, `/update-codemaps`, `/update-docs`
+`/hookify`, `/hookify-configure`, `/hookify-help`, `/hookify-list`, `/harness-audit`, `/model-route`, `/setup-pm`, `/update-codemaps`, `/update-docs`
 
 ### PR/项目管理命令（7个）
 
@@ -572,9 +572,9 @@ claude-scene/src/
 
 | 文件 | 触发条件 | 用途 |
 |------|---------|------|
-| `project-health-check.yml` | PR 修改 `.archon/workflows/**` / `.claude/scenes/**` / `ARCHITECTURE.md` | 项目架构健康检查 |
+| `project-health-check.yml` | PR 修改 `.claude/scenes/**` / `ARCHITECTURE.md` | 项目架构健康检查 |
 | `review-pipeline.yml` | PR 事件 | 代码审查管线（调用 `node src/index.js start review --auto`） |
-| `validate_workflows.py` | 手动/CI | YAML 工作流 schema 验证 |
+| `validate_workflows.py` | 手动/CI | Scene JSON 工作流 schema 验证 |
 | `validate_workflows.js` | 手动/CI | JavaScript 版本验证 |
 | `test_validate_workflows.py` | 手动/CI | 验证器测试 |
 | `run_validator_tests.py` | 手动/CI | 验证器测试运行器 |
@@ -600,9 +600,8 @@ claude-scene/src/
 | `tailwind.config.js` | Tailwind + DaisyUI：5主题（light/dark/cupcake/corporate/synthwave） |
 | `react-doctor.config.json` | react-doctor：忽略 no-missing-use-effect-deps, no-rules-of-hooks |
 | `.prettierrc` | Prettier：semi/单引号/es5尾逗号/100宽度/2缩进 |
-| `.env` | API Keys：Anthropic/GitHub/Tavily/Sentry/Supabase/Stripe/Resend/DeepSeek |
+| `.env` | API Keys：Anthropic/GitHub/Tavily/Sentry/Supabase/Stripe/Resend |
 | `.env.example` | 环境变量模板 |
-| `codewhale-config.toml` | CodeWhale TUI 配置 |
 
 ### 权限配置
 
@@ -633,7 +632,7 @@ claude-scene/src/
 | **Lucide React** | npm `lucide-react` | 2000+ SVG 图标 | ui-polish | 运行时 React |
 | **Tailwind CSS** | npm `tailwindcss` | 实用优先 CSS 框架 | 全局 | 构建时 |
 | **Playwright** | npm `@playwright/test` | 浏览器 E2E/视觉回归测试 | ui-polish/全局 | 测试时 |
-| **Open Design** | `open-design/` 本地仓库 | AI 设计生成（129套品牌系统） | design/new-project | 独立应用 |
+| **Open Design** | `open-design/` 本地仓库 | AI 设计生成（150套品牌系统 + 111模板 + 137 Skill + 6设备框 + 3文稿 + 102提示词） | design/new-project/ui-polish | 独立应用 |
 | **Impeccable** | `.claude/skills/impeccable/` | AI 设计词汇 + 27 反模式规则 + 12 LLM 批判规则，自动修正 UI 塑料感 | ui-polish/design | Claude Code Skill |
 
 ### 质量与安全工具链（14 个工具）
@@ -742,7 +741,6 @@ recall → listMemories → analyzeUI → web-design-declare-system
 | ├─ 质量/测试 | 4 |
 | └─ 其他 | 11 |
 | **Scene JSONs** | 18（共 238+ 步） |
-| **Archon YAML 工作流** | 12 |
 | **claude-scene 源模块** | 16 |
 | **Action 处理器** | 280+ 注册键 |
 | **条件评估器** | 30+ |
@@ -752,7 +750,6 @@ recall → listMemories → analyzeUI → web-design-declare-system
 | **工程模板** | 5 |
 | **前端/质量/安全工具** | 10 |
 | **记忆工具** | 7 |
-| **IDE 适配目录** | 4 (.cursor/.gemini/.kiro/.trae) |
 | **插件** | 2 |
 | **MCP 动态映射（场景×服务器）** | 18 条 |
 | **Token 预算范围** | 400-2200 |
@@ -769,7 +766,7 @@ recall → listMemories → analyzeUI → web-design-declare-system
 | 某个 Skill 在哪里触发？ | [Claude Skills](#claude-skills37个与触发场景) |
 | 某个 Slash 命令的源码？ | `.claude/commands/<命令名>.md` + `.claude/scenes/<场景id>.json` |
 | 某个 Action 处理器代码？ | `claude-scene/src/actions.js` 搜索函数名 |
-| 如何添加新场景？ | 创建 `.claude/scenes/<id>.json` + `.archon/workflows/<id>.yaml` + `.claude/commands/<cmd>.md` |
+| 如何添加新场景？ | 创建 `.claude/scenes/<id>.json` + `.claude/commands/<cmd>.md` |
 | 完整架构？ | `ARCHITECTURE.md` |
 | 安装配置？ | `INSTALL.md` |
 | 快速入门？ | `README.md` |

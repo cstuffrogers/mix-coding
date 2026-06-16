@@ -1,0 +1,38 @@
+{
+  "selection": "",
+  "id": "1862fed2c9ce",
+  "type": "refactor",
+  "data": {
+    "source": "refactor_workflow",
+    "findings": {
+      "security": {},
+      "codeMetricsFindings": 7,
+      "antiPatternFindings": 77,
+      "complexityPassed": false,
+      "coveragePassed": false
+    },
+    "completedSteps": [
+      0,
+      0.3,
+      0.5,
+      1,
+      1.1,
+      2,
+      2.5,
+      3,
+      3.5,
+      4,
+      4.5,
+      6,
+      6.5,
+      6.6,
+      7.5,
+      7.6,
+      8,
+      8.5
+    ],
+    "prompt": "test refactor logging",
+    "workflow": "refactor"
+  },
+  "timestamp": "2026-06-16T01:15:25.254Z"
+}

@@ -3,14 +3,32 @@
   "workflow": "log",
   "name": "日志聚合配置",
   "description": "检测项目日志库（winston/pino/log4js），自动生成结构化日志配置，检测 ELK/Fluentd 并生成采集配置",
-  "trigger_keywords": ["日志", "log", "logging", "日志配置", "ELK", "winston", "pino"],
+  "trigger_keywords": [
+    "日志",
+    "log",
+    "logging",
+    "日志配置",
+    "ELK",
+    "winston",
+    "pino"
+  ],
   "flow": [
     {
       "step": 1,
       "layer": "core",
       "service": "MemoryService",
       "action": "recall",
-      "params": { "type": "logging", "filters": { "type": ["logging", "log", "observability", "monitoring"] } },
+      "params": {
+        "type": "logging",
+        "filters": {
+          "type": [
+            "logging",
+            "log",
+            "observability",
+            "monitoring"
+          ]
+        }
+      },
       "description": "注入日志相关记忆",
       "auto_execute": true,
       "on_error": "continue"
@@ -30,7 +48,11 @@
       "layer": "core",
       "service": "QualityService",
       "action": "checkGate",
-      "params": { "checks": ["logging"] },
+      "params": {
+        "checks": [
+          "logging"
+        ]
+      },
       "description": "日志配置质量门禁",
       "auto_execute": true,
       "condition": "loggingConfigured == false",
@@ -41,7 +63,9 @@
       "layer": "capability",
       "service": "LoggingService",
       "action": "autoFix",
-      "params": { "source": "logging" },
+      "params": {
+        "source": "logging"
+      },
       "description": "自动修复日志配置问题",
       "auto_execute": true,
       "condition": "loggingConfigured == false",
@@ -90,11 +114,27 @@
       "on_error": "continue"
     },
     {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "log",
+        "source": "auto"
+      },
+      "description": "将log知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
       "step": 8,
       "layer": "core",
       "service": "NotificationService",
       "action": "notify",
-      "params": { "message": "日志聚合配置工作流完成" },
+      "params": {
+        "message": "日志聚合配置工作流完成"
+      },
       "description": "通知日志配置完成",
       "auto_execute": true,
       "on_error": "continue"

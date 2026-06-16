@@ -1,10 +1,7 @@
 ---
 name: web-design-engineer
-description: Web design system specification — oklch colors, anti-cliché blocklist, v0 draft workflow
-when-to-use: When building or polishing web UI, landing pages, dashboards, or design systems
+description: Web design system specification — oklch colors, anti-cliché blocklist, v0 draft workflow. Use when building or polishing web UI, landing pages, dashboards, or design systems.
 user-invocable: true
-paths: ["**/*.html", "**/*.css", "**/*.scss", "**/*.tsx", "**/*.jsx", "**/*.vue", "**/tailwind.config.*"]
-effort: medium
 ---
 
 # Web Design Engineer

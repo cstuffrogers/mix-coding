@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, appendFileSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora from 'ora';
@@ -22,6 +22,26 @@ const THEME_NAMES = {
   'animal-island': 'Animal Island UI',
   custom: 'Custom',
 };
+
+// ── Execution logging ──
+
+let LOG_PATH = null;
+let LOG_SUMMARY = { total: 0, pass: 0, fail: 0, skip: 0, noop: 0, warn: 0 };
+
+function initLog(sceneId) {
+  const ts = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+  const logDir = join(PROJECT_ROOT, '.claude', 'logs');
+  mkdirSync(logDir, { recursive: true });
+  LOG_PATH = join(logDir, `workflow-${sceneId}-${ts}.log`);
+  LOG_SUMMARY = { total: 0, pass: 0, fail: 0, skip: 0, noop: 0, warn: 0 };
+  const header = JSON.stringify({ event: 'start', scene: sceneId, time: new Date().toISOString() });
+  appendFileSync(LOG_PATH, header + '\n');
+}
+
+function appendLog(entry) {
+  if (!LOG_PATH) return;
+  appendFileSync(LOG_PATH, JSON.stringify(entry) + '\n');
+}
 
 // ── Helpers extracted from runStep ──
 
@@ -178,15 +198,30 @@ function applyPostStepContext(step, context, sceneId) {
   }
 }
 
+function printSummary(sceneId) {
+  console.log(chalk.dim(`\n${'─'.repeat(40)}`));
+  const { total, pass, fail, skip, noop, warn } = LOG_SUMMARY;
+  const failIcon = fail > 0 ? chalk.red(`  ✗ fail: ${fail}`) : chalk.green('  ✗ fail: 0');
+  const warnIcon = warn > 0 ? chalk.yellow(`  ⚡ warn: ${warn}`) : chalk.green('  ⚡ warn: 0');
+  const noopIcon = noop > 0 ? chalk.yellow(`  ⚠ noop: ${noop}`) : chalk.green('  ⚠ noop: 0');
+  console.log(chalk.cyan(`  Scene: ${sceneId}  `) + chalk.green(`✓ pass: ${pass}  `) + failIcon + warnIcon + chalk.gray(`  ⏭ skip: ${skip}  `) + noopIcon);
+  if (fail > 0 || noop > 0 || warn > 0) {
+    console.log(chalk.dim(`  日志: ${LOG_PATH}`));
+  }
+  console.log(chalk.dim(`${'─'.repeat(40)}\n`));
+}
+
 async function handleStepError(step, context, sceneId, resolvedParams) {
   if (!context.lastStepFailed || !step.on_error) return;
 
   if (step.on_error === 'abort') {
     console.log(chalk.red(`\n✖ Step ${step.step} 失败（on_error=abort），工作流中止`));
+    printSummary(sceneId);
     process.exit(1);
   }
   if (step.on_error === 'fail_workflow') {
     console.log(chalk.red(`\n✖ Step ${step.step} 失败（on_error=fail_workflow），安全阻断，工作流中止`));
+    printSummary(sceneId);
     process.exit(1);
   }
   if (step.on_error === 'retry') {
@@ -199,6 +234,7 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
     if (context.lastStepFailed) {
       context.fixFailedCount = (context.fixFailedCount || 0) + 1;
       console.log(chalk.red(`\n✖ Step ${step.step} 重试 3 次后仍失败（on_error=retry），工作流中止`));
+      printSummary(sceneId);
       process.exit(1);
     }
   }
@@ -243,6 +279,8 @@ async function runStep(sceneId, step, context, options) {
 
   if (step.condition && !evaluateCondition(step.condition, context)) {
     console.log(chalk.gray(`  ⏭ 跳过 Step ${stepNum}: ${step.description || step.action}（条件不满足）`));
+    LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
+    appendLog({ step: stepNum, action: step.action, status: 'skip', reason: 'condition', time: new Date().toISOString() });
     return;
   }
 
@@ -263,6 +301,8 @@ async function runStep(sceneId, step, context, options) {
         context.user_confirmed = answers.proceed;
         if (!answers.proceed) {
           console.log(chalk.yellow(`  ⏭ 用户跳过 Step ${stepNum}`));
+          LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
+          appendLog({ step: stepNum, action: step.action, status: 'skip', reason: 'user', time: new Date().toISOString() });
           return;
         }
       } else {
@@ -278,7 +318,34 @@ async function runStep(sceneId, step, context, options) {
   const resolvedParams = resolveParams(step.params, context);
   context.lastStepFailed = false;
 
+  const stepStart = Date.now();
   const result = await dispatchAction(sceneId, step.action, resolvedParams, context);
+  const duration = Date.now() - stepStart;
+
+  // Auto-detect failure from result string when handler forgot to set lastStepFailed.
+  // Only flags unambiguous failures, not partial/expected ones.
+  if (!context.lastStepFailed && typeof result === 'string') {
+    const isFailure = /(失败|阻断|abort|FAIL)/i.test(result) &&
+                      !/(部分|跳过|继续|非致命|fallback|降级|通知已发送|已保存|已记录|已?通知)/i.test(result);
+    if (isFailure) context.lastStepFailed = true;
+  }
+
+  // Auto-detect no-op steps: tool unavailable / nothing to check / config missing
+  const resultStr = typeof result === 'string' ? result : '';
+  const isNoop = !context.lastStepFailed &&
+    /(不可用|无.*[目录配置文件]|未安装|未找到|not found|not available|已?跳过|no .*found)/i.test(resultStr);
+
+  // Auto-detect warn: passes but result indicates non-zero issues (aislop findings, vulnerabilities, etc.)
+  const isWarn = !context.lastStepFailed && !isNoop &&
+    /[1-9]\d*\s*((个|处|类).{0,30}?(问题|漏洞|警告|气味|发现|重复)|failed|failures?)/i.test(resultStr);
+
+  LOG_SUMMARY.total++;
+  const stepStatus = context.lastStepFailed ? 'fail' : (isNoop ? 'noop' : (isWarn ? 'warn' : 'pass'));
+  if (context.lastStepFailed) LOG_SUMMARY.fail++;
+  else if (isNoop) LOG_SUMMARY.noop++;
+  else if (isWarn) LOG_SUMMARY.warn++;
+  else LOG_SUMMARY.pass++;
+  appendLog({ step: stepNum, action: step.action, status: stepStatus, duration_ms: duration, result: resultStr.slice(0, 200), time: new Date().toISOString() });
 
   spinner.succeed(chalk.green(result));
 
@@ -319,6 +386,7 @@ export async function startScene(sceneId, options) {
   await resolveTargetPath(options, context);
 
   context._sceneId = sceneId;
+  initLog(sceneId);
   await applyEnhancements(sceneId, context, options);
 
   if (options.theme) {
@@ -351,5 +419,8 @@ export async function startScene(sceneId, options) {
   if (!options.dryRun) {
     context._sceneId = sceneId;
     await executeAction(sceneId, 'autoRemember', {}, context, context.targetPath || PROJECT_ROOT);
+
+    // Print execution summary
+    printSummary(sceneId);
   }
 }

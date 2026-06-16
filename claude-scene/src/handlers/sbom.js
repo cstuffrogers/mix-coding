@@ -81,11 +81,9 @@ function generateLicenseReport(deps) {
 }
 
 export function handleSetupSBOM(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n📋 正在生成 SBOM 和许可证合规报告...'));
 
   const pkgPath = join(targetPath, 'package.json');
   if (!existsSync(pkgPath)) {
-    console.log(chalk.yellow('  ⚠ 非 npm 项目，跳过 SBOM 生成'));
     if (context) {
       context.sbomGenerated = false;
       context.sbomSkipped = true;
@@ -96,11 +94,9 @@ export function handleSetupSBOM(_action, _params, targetPath, context) {
   let dependencies = [];
 
   // License check
-  console.log(chalk.dim('  运行 license-checker...'));
   const rawLicenses = runLicenseChecker(targetPath);
   if (rawLicenses) {
     dependencies = parseLicenses(rawLicenses);
-    console.log(chalk.dim(`  扫描到 ${dependencies.length} 个依赖`));
   } else {
     console.log(chalk.yellow('  ⚠ license-checker 执行失败'));
   }
@@ -110,12 +106,10 @@ export function handleSetupSBOM(_action, _params, targetPath, context) {
   if (sbomPath) {
     console.log(chalk.green('  ✅ CycloneDX SBOM 已生成 (sbom.json)'));
   } else {
-    console.log(chalk.yellow('  ⚠ CycloneDX 不可用，生成手动 SBOM'));
     try {
       const manualSbom = generateManualSBOM(targetPath);
       sbomPath = join(targetPath, 'sbom.json');
       writeFileSync(sbomPath, JSON.stringify(manualSbom, null, 2), 'utf-8');
-      console.log(chalk.green('  ✅ 手动 SBOM 已生成 (sbom.json)'));
     } catch (e) {
       console.log(chalk.yellow(`  ⚠ 手动 SBOM 生成失败: ${e.message}`));
     }
@@ -127,7 +121,6 @@ export function handleSetupSBOM(_action, _params, targetPath, context) {
     const reportPath = join(targetPath, 'license-report.md');
     try {
       writeFileSync(reportPath, report, 'utf-8');
-      console.log(chalk.green('  ✅ license-report.md 已生成'));
     } catch (e) {
       console.log(chalk.yellow(`  ⚠ 许可证报告生成失败: ${e.message}`));
     }

@@ -1,7 +1,8 @@
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
+import { scanDir } from '../lib/scan-dir.js';
 
 function _resolvePythonTool(toolName, moduleName) {
   // Windows: look for the .exe in user Python Scripts (forward-slashed for shell compat)
@@ -16,7 +17,6 @@ function _resolvePythonTool(toolName, moduleName) {
 }
 
 export function handleKnipCheck(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🧹 正在检测死代码（knip）...'));
   try {
     const result = safeExec('npx knip --reporter json 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
     try {
@@ -32,24 +32,16 @@ export function handleKnipCheck(_action, _params, targetPath, context) {
       }
       const total = fileCount + depCount + exportCount;
       if (total > 0) {
-        console.log(chalk.yellow(`  ⚠ 死代码: ${fileCount} 文件, ${depCount} 依赖, ${exportCount} 未使用导出`));
-        if (fileCount > 0) {
-          const fileNames = issues.flatMap(i => (i.files || []).map(f => f.name)).slice(0, 5);
-          fileNames.forEach(f => console.log(chalk.dim(`    📄 ${f}`)));
-        }
         if (context) context.deadCodePassed = false;
         return `死代码检测完成: ${total} 项`;
       }
-      console.log(chalk.green('  ✅ 未发现死代码'));
       if (context) context.deadCodePassed = true;
       return '死代码检测完成: 无死代码';
     } catch {
       if (result.includes('✂️') || result.includes('excellent') || result.includes('congratulations')) {
-        console.log(chalk.green('  ✅ 未发现死代码'));
         if (context) context.deadCodePassed = true;
         return '死代码检测完成: 无死代码';
       }
-      console.log(chalk.dim('  ℹ knip 输出无法解析'));
       return '死代码检测完成（结果解析失败）';
     }
   } catch (e) {
@@ -95,14 +87,12 @@ function _parseNoleakOutput(raw) {
 }
 
 export function handleBuildLeakCheck(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔐 正在检查构建产物泄露...'));
   const buildDirs = ['dist', 'build', 'out', '.next', 'coverage', 'public'];
   const hasArtifacts = buildDirs.some(d => {
     try { return existsSync(join(targetPath, d)); } catch { return false; }
   });
 
   if (!hasArtifacts) {
-    console.log(chalk.dim('  ℹ 无构建产物目录，跳过 noleak 扫描'));
     // Don't set buildLeakPassed — let gate report as skipped (tool didn't run)
     return '构建泄露检查完成: 无构建产物，已跳过';
   }
@@ -128,7 +118,6 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
 
     if (leaks.length > 0) {
       passed = false;
-      leaks.forEach(l => console.log(chalk.red(`  🔴 ${l}`)));
     } else {
       console.log(chalk.green('  ✅ noleak 扫描完成，未发现泄露'));
     }
@@ -141,7 +130,6 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
 }
 
 export function handleDeadLinkCheck(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔗 正在检测死链接...'));
   let brokenCount = 0;
   const brokenUrls = [];
 
@@ -167,10 +155,8 @@ export function handleDeadLinkCheck(_action, _params, targetPath, context) {
     }
 
     if (brokenCount > 0) {
-      console.log(chalk.yellow(`  ⚠ 发现 ${brokenCount} 个死链接`));
       brokenUrls.slice(0, 10).forEach(u => {
-        const trimmed = u.length > 120 ? u.slice(0, 120) + '...' : u;
-        console.log(chalk.dim(`    ${trimmed}`));
+        console.log(chalk.yellow(`    🔗 ${u.length > 120 ? u.slice(0, 120) + '...' : u}`));
       });
     } else {
       console.log(chalk.green('  ✅ 未发现死链接'));
@@ -184,7 +170,6 @@ export function handleDeadLinkCheck(_action, _params, targetPath, context) {
 }
 
 export function handleSecurityHeaders(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🛡️ 正在扫描安全响应头配置...'));
   const findings = [];
   let passed = true;
 
@@ -208,23 +193,19 @@ export function handleSecurityHeaders(_action, _params, targetPath, context) {
       ).toString().trim();
       if (!result) {
         findings.push(`${check.name}: 未配置`);
-        console.log(chalk.yellow(`  ⚠ ${check.name}: 未找到配置`));
       } else {
         console.log(chalk.dim(`  ✓ ${check.name}: 已配置`));
       }
     } catch {
       findings.push(`${check.name}: 检查失败`);
-      console.log(chalk.dim(`  ℹ ${check.name}: 检查超时`));
     }
   }
 
-  // Phase 2: Live scan (optional)
   _runLiveHeaderScan(targetPath, findings);
 
   const missingCount = findings.filter(f => f.includes('未配置')).length;
   if (missingCount > 0) {
     passed = false;
-    console.log(chalk.yellow(`  ⚠ ${missingCount}/6 安全响应头未配置`));
   } else if (findings.length === 0) {
     console.log(chalk.green('  ✅ 安全响应头配置完整'));
   }
@@ -237,7 +218,6 @@ function _runLiveHeaderScan(targetPath, findings) {
   const liveUrl = process.env.SERAPHIM_AUDIT_URL;
   if (!liveUrl) return;
 
-  console.log(chalk.dim(`  🔍 正在对 ${liveUrl} 进行实时扫描...`));
   try {
     const seraphimCmd = _resolvePythonTool('seraphim-audit', 'seraphim_audit');
     const liveRaw = safeExec(
@@ -252,7 +232,6 @@ function _runLiveHeaderScan(targetPath, findings) {
       if (Array.isArray(headerIssues) && headerIssues.length > 0) {
         headerIssues.forEach(h => {
           findings.push(`[Live] ${h.header || h.name}: ${h.issue || h.severity}`);
-          console.log(chalk.red(`  🔴 [Live] ${h.header || h.name}: ${h.issue || h.severity}`));
         });
       }
     } catch {
@@ -268,7 +247,6 @@ function _runLiveHeaderScan(targetPath, findings) {
 }
 
 export function handleRecheckCli(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔁 正在扫描正则 ReDoS 漏洞...'));
   let issueCount = 0;
 
   try {
@@ -288,7 +266,6 @@ export function handleRecheckCli(_action, _params, targetPath, context) {
       lines.slice(0, 10).forEach(l => console.log(chalk.dim(`    ${l.trim().slice(0, 150)}`)));
     } else if (raw.trim() && !raw.includes('Error') && !raw.includes('ENOENT')) {
       // recheck exited clean with no findings
-      console.log(chalk.green('  ✅ 未发现 ReDoS 漏洞'));
     } else if (!raw.trim()) {
       console.log(chalk.green('  ✅ 未发现 ReDoS 漏洞'));
     } else {
@@ -303,12 +280,10 @@ export function handleRecheckCli(_action, _params, targetPath, context) {
 }
 
 export function handleSkillspectorScan(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🛡️ 正在扫描 AI 技能安全（SkillSpector）...'));
   const skillsDir = join(targetPath, '.claude', 'skills');
   const commandsDir = join(targetPath, '.claude', 'commands');
 
   if (!existsSync(skillsDir) && !existsSync(commandsDir)) {
-    console.log(chalk.dim('  ⏭ 无 .claude/skills/ 或 .claude/commands/ 目录，跳过'));
     // Don't set Passed — let gate report as skipped
     return 'SkillSpector 扫描完成: 无技能目录';
   }
@@ -337,7 +312,6 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
       } catch {
         // Non-JSON output — check for text indicators
         if (raw.toLowerCase().includes('vulnerability') || raw.toLowerCase().includes('malicious')) {
-          console.log(chalk.yellow(`  ⚠ ${target}: 发现可疑内容`));
           scanFailed = true;
         } else if (raw.includes('No issues') || raw.includes('no issues') || raw.includes('clean')) {
           console.log(chalk.dim(`  ✓ ${target}: 未发现问题`));
@@ -347,11 +321,8 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
       }
     } catch (e) {
       if (e.message && e.message.includes('NOT_FOUND')) {
-        console.log(chalk.dim('  ℹ SkillSpector 未安装，跳过 AI 技能安全扫描'));
-        console.log(chalk.dim('    安装: pip install git+https://github.com/NVIDIA/skillspector.git'));
         return 'SkillSpector 扫描完成: 跳过（不可用）';
       }
-      console.log(chalk.dim(`  ⚠ SkillSpector ${target} 执行失败: ${e.message?.slice(0, 80) || '未知错误'}`));
       scanFailed = true;
     }
   }
@@ -363,11 +334,9 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
 
   const critical = allFindings.filter(f => f.severity === 'CRITICAL' || f.severity === 'critical');
   const high = allFindings.filter(f => f.severity === 'HIGH' || f.severity === 'high');
-  const medium = allFindings.filter(f => f.severity === 'MEDIUM' || f.severity === 'medium');
   const total = allFindings.length;
 
   if (total > 0) {
-    console.log(chalk.yellow(`  ⚠ 技能安全: ${total} 个问题 (${critical.length}C/${high.length}H/${medium.length}M)`));
     for (const f of critical.slice(0, 5)) {
       console.log(chalk.red(`    🔴 ${f.pattern || f.rule || f.type}: ${f.location?.file || f.file || f.path}`));
     }
@@ -378,7 +347,396 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
     return `SkillSpector 扫描完成: ${total} 个问题`;
   }
 
-  console.log(chalk.green('  ✅ 技能文件安全'));
   if (context) context.skillspectorPassed = true;
   return 'SkillSpector 扫描完成: 无问题';
+}
+
+// ── actionlint — GitHub Actions workflow syntax checker (3k+ stars) ──
+
+export function handleActionlint(_action, _params, targetPath, context) {
+  const workflowsDir = join(targetPath, '.github', 'workflows');
+
+  if (!existsSync(workflowsDir)) {
+    if (context) context.actionlintPassed = true;
+    return 'actionlint 检查完成: 无 GitHub Actions 工作流目录';
+  }
+
+  let issueCount = 0;
+  const issues = [];
+
+  try {
+    const raw = safeExec(
+      'npx actionlint -format "{{range .}}::error file={{.Filepath}},line={{.Lineno}},col={{.Col}}::{{.Message}}{{end}}" .github/workflows/ 2>&1 || true',
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 1024 * 1024, timeout: 30000 }
+    ).toString();
+
+    const lines = raw.split('\n').filter(Boolean);
+    issueCount = lines.filter(l => /^::error\b/.test(l)).length;
+
+    if (issueCount > 0) {
+      lines.filter(l => /^::error\b/.test(l)).slice(0, 15).forEach(l => {
+        const clean = l.replace(/^::error\s+/, '').slice(0, 200);
+        issues.push(clean);
+        console.log(chalk.yellow(`    ⚠ ${clean}`));
+      });
+    } else if (raw.includes('no lint errors') || raw.trim() === '') {
+      console.log(chalk.green('  ✅ actionlint: 工作流语法无问题'));
+    }
+  } catch {
+    console.log(chalk.dim('  ℹ actionlint 不可用，跳过工作流语法检查'));
+  }
+
+  if (context) context.actionlintPassed = issueCount === 0;
+  return `actionlint 检查完成: ${issueCount > 0 ? `${issueCount} 个问题` : '无问题'}`;
+}
+
+// ── zizmor — GitHub Actions security auditor (2.5k+ stars) ──
+
+export function handleZizmor(_action, _params, targetPath, context) {
+  const workflowsDir = join(targetPath, '.github', 'workflows');
+
+  if (!existsSync(workflowsDir)) {
+    if (context) context.zizmorPassed = true;
+    return 'zizmor 检查完成: 无 GitHub Actions 工作流目录';
+  }
+
+  let findingCount = 0;
+
+  try {
+    const raw = safeExec(
+      'npx zizmor --format json .github/workflows/ 2>&1 || true',
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
+    ).toString();
+
+    try {
+      const results = JSON.parse(raw);
+      // zizmor outputs an array of findings per file
+      const allFindings = Array.isArray(results) ? results : (results.findings || []);
+      findingCount = allFindings.length;
+
+      if (findingCount > 0) {
+        const bySeverity = {};
+        for (const f of allFindings) {
+          const sev = f.severity || 'unknown';
+          bySeverity[sev] = (bySeverity[sev] || 0) + 1;
+        }
+        const summary = Object.entries(bySeverity).map(([k, v]) => `${k}: ${v}`).join(', ');
+        console.log(chalk.red(`  🔴 zizmor 发现 ${findingCount} 个安全问题 (${summary})`));
+
+        for (const f of allFindings.slice(0, 10)) {
+          const loc = f.location || f.file || '';
+          const msg = f.message || f.description || f.title || '';
+          console.log(chalk.yellow(`    ⚠ [${f.severity || 'unknown'}] ${loc}: ${msg.slice(0, 150)}`));
+        }
+      } else {
+        console.log(chalk.green('  ✅ zizmor: 工作流安全无问题'));
+      }
+    } catch {
+      // Non-JSON output — check for text indicators
+      if (raw.toLowerCase().includes('vulnerability') || raw.toLowerCase().includes('error')) {
+        findingCount = (raw.match(/\b(ERROR|WARN|FAIL)\b/g) || []).length;
+      } else if (raw.includes('no issues') || raw.includes('clean') || raw.trim() === '') {
+        console.log(chalk.green('  ✅ zizmor: 工作流安全无问题'));
+      }
+    }
+  } catch {
+    console.log(chalk.dim('  ℹ zizmor 不可用，跳过工作流安全审计'));
+  }
+
+  if (context) context.zizmorPassed = findingCount === 0;
+  return `zizmor 检查完成: ${findingCount > 0 ? `${findingCount} 个问题` : '无问题'}`;
+}
+
+// ── jscpd — code duplication detector (4.7k+ stars) ──
+
+export function handleJscpd(_action, _params, targetPath, context) {
+  let raw = '';
+  try {
+    raw = safeExec(
+      'npx jscpd --format json --min-tokens 50 --min-lines 5 --ignore "node_modules,.git,.claude,dist,build,coverage,.next" . 2>&1',
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
+    ).toString();
+  } catch (e) {
+    // jscpd exits 1 when clones found — merged stdout+stderr is on e.stdout
+    raw = (e.stdout || '').toString();
+  }
+
+  if (!raw) {
+    console.log(chalk.dim('  ℹ jscpd 不可用'));
+    return '代码重复检测完成（jscpd 不可用）';
+  }
+
+  // Parse: Found 70 clones. / 1227 (3.41%) in summary table
+  const cloneMatch = raw.match(/Found\s+(\d+)\s*clones?/i);
+  const pctMatch = raw.match(/\b(\d+)\s*\(\s*([\d.]+)%\s*\)/) || raw.match(/Duplicated lines[^\d]*([\d.]+)%/i);
+
+  if (cloneMatch || pctMatch) {
+    const clones = cloneMatch ? parseInt(cloneMatch[1], 10) : 0;
+    // First regex has 2 groups (lines, pct), fallback has 1 (pct)
+    const pct = pctMatch ? parseFloat(pctMatch[2] || pctMatch[1]) : 0;
+
+    if (clones > 0 || pct > 0) {
+      if (pct > 5) {
+        console.log(chalk.red(`  🔴 代码重复率 ${pct.toFixed(1)}%，${clones} 处重复（阈值 5%）`));
+        if (context) context.jscpdPassed = false;
+        return `代码重复检测完成: ${clones} 处重复，重复率 ${pct.toFixed(1)}%`;
+      }
+      console.log(chalk.green(`  ✅ 代码重复率 ${pct.toFixed(1)}%（阈值 5%）`));
+      if (context) context.jscpdPassed = true;
+      return `代码重复检测完成: ${clones} 处重复，重复率 ${pct.toFixed(1)}%`;
+    }
+  }
+
+  if (/no clones|no duplicates|0 clones/i.test(raw)) {
+    console.log(chalk.green('  ✅ jscpd: 未发现代码重复'));
+    if (context) context.jscpdPassed = true;
+    return '代码重复检测完成: 无重复';
+  }
+
+  console.log(chalk.dim('  ℹ jscpd: 无法解析输出'));
+  return `代码重复检测完成: 无法解析输出`;
+}
+
+// ── Stryker — mutation testing (2.9k+ stars) ──
+
+export function handleStryker(_action, _params, targetPath, context) {
+  const configFiles = ['stryker.config.js', 'stryker.config.mjs', 'stryker.config.json', 'stryker.config.ts'];
+  const configExists = configFiles.some(f => existsSync(join(targetPath, f)));
+  const hasConfigInPkg = (() => {
+    try {
+      const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
+      return !!(pkg.stryker || pkg['@stryker-mutator/core']);
+    } catch { return false; }
+  })();
+
+  if (!configExists && !hasConfigInPkg) {
+    if (context) context.strykerPassed = true;
+    return 'Stryker 变异测试完成: 无 stryker 配置，已跳过';
+  }
+
+  let passed = true;
+  let score = 0;
+  let killed = 0;
+  let survived = 0;
+
+  try {
+    const raw = safeExec(
+      'npx stryker run --reporter json 2>&1 || true',
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 4 * 1024 * 1024, timeout: 300000 }
+    ).toString();
+
+    try {
+      const result = JSON.parse(raw);
+      const report = result.mutationScore || result.report;
+      if (report) {
+        score = report.mutationScore || report.percentage || 0;
+        killed = report.killed || 0;
+        survived = report.survived || 0;
+      } else {
+        score = result.mutationScore || 0;
+        killed = result.killed || 0;
+        survived = result.survived || 0;
+      }
+    } catch {
+      // Try to extract score from text output
+      const scoreMatch = raw.match(/mutation\s*score.*?(\d+(?:\.\d+)?)\s*%/i);
+      if (scoreMatch) {
+        score = parseFloat(scoreMatch[1]);
+        const killedMatch = raw.match(/killed.*?(\d+)/i);
+        const survivedMatch = raw.match(/survived.*?(\d+)/i);
+        if (killedMatch) killed = parseInt(killedMatch[1], 10);
+        if (survivedMatch) survived = parseInt(survivedMatch[1], 10);
+      } else if (raw.includes('No mutants') || raw.includes('no mutants')) {
+        console.log(chalk.green('  ✅ Stryker: 无变异体'));
+        passed = true;
+      }
+    }
+
+    if (score > 0) {
+      if (score >= 80) {
+        console.log(chalk.green(`  ✅ Stryker 变异测试分数: ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}）`));
+      } else if (score >= 60) {
+        console.log(chalk.yellow(`  ⚠ Stryker 变异测试分数: ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}，阈值 80%）`));
+      } else {
+        passed = false;
+        console.log(chalk.red(`  🔴 Stryker 变异测试分数过低: ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}，阈值 80%）`));
+      }
+    }
+  } catch {
+    console.log(chalk.dim('  ℹ Stryker 不可用，跳过变异测试'));
+  }
+
+  if (context) context.strykerPassed = passed;
+  return `Stryker 变异测试完成: ${score > 0 ? `分数 ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}）` : passed ? '通过' : '失败'}`;
+}
+
+// ── Spectral — API/OpenAPI linting (2.5k+ stars) ──
+
+export function handleSpectral(_action, _params, targetPath, context) {
+  const hasConfig = existsSync(join(targetPath, '.spectral.yaml')) ||
+    existsSync(join(targetPath, '.spectral.json')) ||
+    existsSync(join(targetPath, '.spectral.js'));
+
+  // Find OpenAPI spec files (non-hidden)
+  const specFiles = scanDir(targetPath, {
+    filter: f => /(openapi|swagger).*\.(yaml|yml|json)$/i.test(f) && !f.includes('node_modules'),
+  });
+
+  if (!hasConfig && specFiles.length === 0) {
+    if (context) context.spectralPassed = true;
+    return 'Spectral API lint 完成: 无 OpenAPI/Spec 文件，已跳过';
+  }
+
+  let issueCount = 0;
+  const issues = [];
+
+  try {
+    const targets = specFiles.length > 0 ? specFiles.join(' ') : '.';
+    const raw = safeExec(
+      `npx spectral lint ${targets} --format json 2>&1 || true`,
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
+    ).toString();
+
+    try {
+      const results = JSON.parse(raw);
+      if (Array.isArray(results)) {
+        issueCount = results.length;
+        for (const r of results) {
+          if (r.severity === 0) {
+            issues.push(`${r.code || 'unknown'}: ${(r.message || '').slice(0, 150)}`);
+          }
+        }
+        if (issueCount > 0) {
+          console.log(chalk[issues.length > 0 ? 'red' : 'yellow'](
+            `  ${issues.length > 0 ? '🔴' : '⚠'} Spectral: ${issueCount} 个问题（error: ${issues.length}）`
+          ));
+          issues.slice(0, 5).forEach(i => console.log(chalk.dim(`    ${i.slice(0, 200)}`)));
+        } else {
+          console.log(chalk.green('  ✅ Spectral: API lint 无问题'));
+        }
+      }
+    } catch {
+      if (raw.trim() === '' || raw.includes('No errors') || raw.includes('no results')) {
+        console.log(chalk.green('  ✅ Spectral: API lint 无问题'));
+      } else {
+        issueCount = (raw.match(/\berror\b/gi) || []).length;
+      }
+    }
+  } catch {
+    console.log(chalk.dim('  ℹ Spectral 不可用，跳过 API lint'));
+  }
+
+  if (context) context.spectralPassed = issueCount === 0;
+  return `Spectral API lint 完成: ${issueCount > 0 ? `${issueCount} 个问题` : '无问题'}`;
+}
+
+// ── markdownlint — Markdown file linting (5k+ stars) ──
+
+export function handleMarkdownlint(_action, _params, targetPath, context) {
+  let issueCount = 0;
+
+  try {
+    const raw = safeExec(
+      'npx markdownlint "**/*.md" --ignore node_modules --ignore ".git" --ignore ".claude/worktrees" --json 2>&1 || true',
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 4 * 1024 * 1024, timeout: 60000 }
+    ).toString();
+
+    try {
+      const results = JSON.parse(raw);
+      if (Array.isArray(results)) {
+        for (const r of results) {
+          issueCount += Array.isArray(r.errors) ? r.errors.length : (r.errorCount || 0);
+        }
+      } else if (typeof results === 'object') {
+        for (const errors of Object.values(results)) {
+          issueCount += Array.isArray(errors) ? errors.length : 0;
+        }
+      }
+    } catch {
+      const lines = raw.split('\n').filter(Boolean);
+      issueCount = lines.filter(l => /^[^:]+:\d+:\d+\s+(MD\d+|\w+-)/i.test(l)).length;
+    }
+
+    if (issueCount > 0) {
+      console.log(chalk.yellow(`  ⚠ markdownlint: ${issueCount} 个问题`));
+    } else if (raw.trim()) {
+      console.log(chalk.green('  ✅ markdownlint: 无问题'));
+    }
+  } catch {
+    console.log(chalk.dim('  ℹ markdownlint 不可用，跳过 Markdown lint'));
+  }
+
+  if (context) context.markdownlintPassed = issueCount === 0;
+  return `markdownlint 完成: ${issueCount > 0 ? `${issueCount} 个问题` : '无问题'}`;
+}
+
+// ── size-limit — bundle size budgeting (6.5k+ stars) ──
+
+export function handleSizeLimit(_action, _params, targetPath, context) {
+  const hasConfig = existsSync(join(targetPath, '.size-limit.json')) ||
+    existsSync(join(targetPath, '.size-limit.cjs')) ||
+    existsSync(join(targetPath, '.size-limit.mjs'));
+
+  if (!hasConfig) {
+    try {
+      const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
+      if (!pkg['size-limit'] && !pkg.sizeLimit) {
+        if (context) context.sizeLimitPassed = true;
+        return '包体积检查完成: 无 size-limit 配置，已跳过';
+      }
+    } catch {
+      if (context) context.sizeLimitPassed = true;
+      return '包体积检查完成: 无 package.json，已跳过';
+    }
+  }
+
+  let passed = true;
+  const failures = [];
+
+  try {
+    const raw = safeExec(
+      'npx size-limit --json 2>&1 || true',
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 1024 * 1024, timeout: 60000 }
+    ).toString();
+
+    try {
+      const results = JSON.parse(raw);
+      const items = Array.isArray(results) ? results : (results.results || []);
+      for (const item of items) {
+        const name = item.name || 'unknown';
+        const size = item.size || 0;
+        const limit = item.limit || item.maxSize || 0;
+        if (limit > 0 && size > limit) {
+          passed = false;
+          const sizeKB = (size / 1024).toFixed(1);
+          const limitKB = (limit / 1024).toFixed(1);
+          failures.push(`${name}: ${sizeKB} KB > 限制 ${limitKB} KB`);
+        }
+      }
+      if (failures.length > 0) {
+        console.log(chalk.red(`  🔴 size-limit 超限: ${failures.join('; ')}`));
+      } else if (items.length > 0) {
+        console.log(chalk.green('  ✅ size-limit: 所有包体积符合预算'));
+      }
+    } catch {
+      if (raw.includes('FAIL') || raw.includes('exceed')) {
+        passed = false;
+        console.log(chalk.red('  🔴 size-limit 检查失败（超出预算）'));
+      } else if (raw.trim()) {
+        console.log(chalk.green('  ✅ size-limit 检查通过'));
+      }
+    }
+  } catch {
+    console.log(chalk.dim('  ℹ size-limit 不可用，跳过包体积检查'));
+  }
+
+  if (context) context.sizeLimitPassed = passed;
+  return `包体积检查完成: ${passed ? '通过' : failures.join('; ')}`;
 }

@@ -290,6 +290,21 @@
       "on_error": "continue"
     },
     {
+      "step": 7.15,
+      "layer": "capability",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "webapp-testing",
+        "mode": "targeted"
+      },
+      "description": "Web 端 Bug 修复验证：Playwright 浏览器测试确认 bug 已修复且无回归",
+      "auto_execute": true,
+      "condition": "webapp_testing_available",
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
       "step": 7.2,
       "layer": "capability",
       "service": "VerifyService",

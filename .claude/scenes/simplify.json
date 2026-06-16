@@ -12,6 +12,19 @@
   ],
   "flow": [
     {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
       "step": 1,
       "layer": "capability",
       "service": "GitHubMCP",
@@ -134,6 +147,18 @@
       "description": "简化后审查：确认无行为改变、遵循项目约定、diff 可 review",
       "auto_execute": true,
       "on_error": "retry"
+    },
+    {
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
+      "auto_execute": true,
+      "on_error": "continue",
+      "step": 9.5
     },
     {
       "step": 10,

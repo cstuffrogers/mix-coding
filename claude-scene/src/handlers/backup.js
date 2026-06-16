@@ -120,7 +120,6 @@ RESTIC_PASSWORD=
 }
 
 export function handleSetupBackup(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n💾 正在配置 Restic 备份...'));
 
   const isWindows = process.platform === 'win32';
   const restic = checkRestic();
@@ -132,16 +131,13 @@ export function handleSetupBackup(_action, _params, targetPath, context) {
   }
 
   const sourceDirs = detectSourceDirs(targetPath);
-  console.log(chalk.dim(`  源目录: ${sourceDirs.length > 0 ? sourceDirs.join(', ') : '（默认 src）'}`));
 
   let scriptPath = '';
   let ok = true;
 
   try {
     generateExcludeFile(targetPath);
-    console.log(chalk.green('  ✅ restic-exclude.txt 已生成'));
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 生成排除文件失败: ${e.message}`));
+  } catch {
     ok = false;
   }
 
@@ -152,18 +148,13 @@ export function handleSetupBackup(_action, _params, targetPath, context) {
       try { safeExec(`chmod +x "${path}" 2>/dev/null || true`, targetPath, { stdio: 'pipe' }); } catch { /* ok */ }
     }
     scriptPath = path;
-    const scriptName = isWindows ? 'backup.ps1' : 'backup.sh';
-    console.log(chalk.green(`  ✅ ${scriptName} 已生成`));
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 生成备份脚本失败: ${e.message}`));
+  } catch {
     ok = false;
   }
 
   try {
     generateEnvExample(targetPath, sourceDirs);
-    console.log(chalk.green('  ✅ .restic-env.example 已生成'));
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 生成环境变量模板失败: ${e.message}`));
+  } catch {
     ok = false;
   }
 

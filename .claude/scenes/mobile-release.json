@@ -2,7 +2,7 @@
   "scene_id": "mobile-release",
   "workflow": "mobile-release",
   "name": "移动端发布流程",
-  "description": "端到端移动端发布：证书检查→质量门禁→版本号→CHANGELOG→fastlane构建签名→TestFlight/Google Play→OTA热更新→Sentry崩溃监控",
+  "description": "端到端移动端发布：证书检查→质量门禁→版本号→CHANGELOG→TestFlight/Google Play",
   "trigger_keywords": [
     "发布App",
     "App上线",
@@ -15,6 +15,19 @@
   ],
   "flow": [
     {
+      "step": 0.2,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
       "step": 0.5,
       "layer": "capability",
       "service": "MemoryService",
@@ -22,7 +35,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["mobile-release", "deployment", "release"]
+          "type": [
+            "mobile-release",
+            "deployment",
+            "release"
+          ]
         }
       },
       "description": "注入历史发布记录和配置记忆",
@@ -50,12 +67,29 @@
       "on_error": "abort"
     },
     {
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
+      "auto_execute": true,
+      "on_error": "continue",
+      "step": 2.1
+    },
+    {
       "step": 3,
       "layer": "capability",
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": ["security_scan", "performance_baseline", "tests_pass", "store_compliance"],
+        "checks": [
+          "security_scan",
+          "performance_baseline",
+          "tests_pass",
+          "store_compliance"
+        ],
         "mode": "strict",
         "block_release": true
       },
@@ -72,9 +106,18 @@
       "params": {
         "message": "📱 准备发布到以下渠道：\n\niOS: TestFlight 内部测试\nAndroid: Google Play Internal Testing\n\n请选择版本升级类型：",
         "options": [
-          { "label": "patch", "description": "Bug修复 (1.0.X)" },
-          { "label": "minor", "description": "新功能 (1.X.0)" },
-          { "label": "major", "description": "重大更新 (X.0.0)" }
+          {
+            "label": "patch",
+            "description": "Bug修复 (1.0.X)"
+          },
+          {
+            "label": "minor",
+            "description": "新功能 (1.X.0)"
+          },
+          {
+            "label": "major",
+            "description": "重大更新 (X.0.0)"
+          }
         ]
       },
       "description": "确认发布渠道和版本升级类型，仅此一步需要人工确认",
@@ -128,7 +171,7 @@
       "params": {
         "lane": "beta"
       },
-      "description": "iOS: fastlane gym archive → upload to TestFlight（条件：iOS项目）",
+      "description": "iOS: archive → upload to TestFlight（条件：iOS项目）",
       "auto_execute": true,
       "condition": "ios_platform",
       "on_error": "abort",
@@ -142,7 +185,7 @@
       "params": {
         "track": "internal"
       },
-      "description": "Android: fastlane gradle build → AAB签名 → Play Internal Testing（条件：Android项目）",
+      "description": "Android: AAB签名 → Play Internal Testing（条件：Android项目）",
       "auto_execute": true,
       "condition": "android_platform",
       "on_error": "abort",
@@ -150,17 +193,6 @@
     },
     {
       "step": 10,
-      "layer": "capability",
-      "service": "ShorebirdMCP",
-      "action": "shorebirdPatch",
-      "params": {},
-      "description": "Shorebird OTA 热更新资源包发布（可选，条件：Flutter/RN + Shorebird已配置）",
-      "auto_execute": true,
-      "condition": "flutter_or_rn && shorebird_available",
-      "on_error": "continue"
-    },
-    {
-      "step": 11,
       "layer": "capability",
       "service": "GitService",
       "action": "createRelease",
@@ -170,25 +202,17 @@
         "draft": false,
         "prerelease": true
       },
-      "consumes": ["changelog_content", "new_version"],
+      "consumes": [
+        "changelog_content",
+        "new_version"
+      ],
       "description": "GitHub Release + CHANGELOG（body_ref/tag_ref 分别引用 step 6 和 step 5 产出）",
       "auto_execute": true,
       "condition": "github_mcp_available",
       "on_error": "continue"
     },
     {
-      "step": 12,
-      "layer": "capability",
-      "service": "SentryMCP",
-      "action": "sentryCheckRelease",
-      "params": {},
-      "description": "Sentry 发布后崩溃率监控基线（新版本 crash-free rate 对比）",
-      "auto_execute": true,
-      "condition": "sentry_mcp_available",
-      "on_error": "continue"
-    },
-    {
-      "step": 13,
+      "step": 11,
       "layer": "capability",
       "service": "ECC",
       "action": "ce-compound",
@@ -202,20 +226,23 @@
       "on_error": "continue"
     },
     {
-      "step": 14,
+      "step": 12,
       "layer": "capability",
       "service": "CostService",
       "action": "report",
       "params": {
         "format": "summary",
-        "include": ["tokens", "api_calls"]
+        "include": [
+          "tokens",
+          "api_calls"
+        ]
       },
       "description": "发布流程成本报告",
       "auto_execute": true,
       "on_error": "continue"
     },
     {
-      "step": 15,
+      "step": 13,
       "layer": "capability",
       "service": "MemoryService",
       "action": "remember",
@@ -230,7 +257,7 @@
       "on_error": "continue"
     },
     {
-      "step": 16,
+      "step": 14,
       "layer": "capability",
       "service": "MemoryService",
       "action": "consolidate",
@@ -240,7 +267,7 @@
       "on_error": "continue"
     },
     {
-      "step": 17,
+      "step": 15,
       "layer": "capability",
       "service": "NotificationService",
       "action": "notify",

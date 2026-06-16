@@ -1,0 +1,15 @@
+# Upptime monitoring configuration
+# Docs: https://upptime.js.org/docs/
+owner: cstuffrogers
+repo: mix-coding
+user-agent: upptime
+sites:
+  - name: mix-coding
+    url: https://mix-coding.vercel.app
+assignees:
+  - cstuffrogers
+status-website:
+  baseUrl: /mix-coding
+  name: mix-coding
+  cname: ''
+schedule: "*/5 * * * *"

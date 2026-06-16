@@ -37,18 +37,18 @@ import { getActionMessage } from './data/action-messages.js';
 import { handleMemoryRecall, handleMemoryRemember, handleConsolidate, handleListMemories, handleAutoRemember } from './handlers/memory.js';
 import { handleCodeScan, handlePerformanceProfile, handleCodeMetrics, handleDetectAntiPatterns, handleGenerateReport } from './handlers/code-metrics.js';
 import { handleSecurityScan, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecurityVulnerabilities, handleLogSanitization, handleCorsCheck, handleEnvVarLeak, handleSensitiveFileCheck, handleDeprecatedDeps } from './handlers/security-scanning.js';
-import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan } from './handlers/external-tool-checks.js';
+import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan, handleActionlint, handleZizmor, handleJscpd, handleSizeLimit, handleStryker, handleSpectral, handleMarkdownlint } from './handlers/external-tool-checks.js';
 import { handleLighthouseGate } from './handlers/lighthouse.js';
 import { handleOpenRedirectScan } from './handlers/open-redirect.js';
 import { handleStateAudit } from './handlers/state-audit.js';
 import { handleI18nAudit } from './handlers/i18n.js';
 import { handleTestCoverage, handleTestUnit, handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest, handleLoadTest } from './handlers/testing.js';
 import { handleCreateBranch, handleCommitPush, handleCreatePR, handleAutoUpdate, handleBumpVersion, handleCreateTag, handleDeploy, handleCreateRelease, handleListReleases, handleRollback, handleCreateIssue } from './handlers/git.js';
-import { handleGenerateDesign, handleAnalyzeConsistency, handleExportAssets, handlePersist, handleDesignInput, handleHuashuBrandProtocol, handleHuashuExpertReview, handleHuashuPrototype, handleHuashuReleaseAnimation, handleHuashuReleaseDeck, handleHuashuInfographic, handleAwmBrandList, handleAwmBrandImport } from './handlers/design.js';
+import { handleGenerateDesign, handleAnalyzeConsistency, handleExportAssets, handlePersist, handleDesignInput, handleHuashuBrandProtocol, handleHuashuExpertReview, handleHuashuPrototype, handleHuashuReleaseAnimation, handleHuashuReleaseDeck, handleHuashuInfographic, handleAwmBrandList, handleAwmBrandImport, handleOdBrandList, handleOdBrandPick, handleOdBrandImport, handleOdTemplateList, handleOdTemplatePreview, handleOdSkillLoad, handleOdFrameList, handleOdFrameApply, handleOdPromptTemplateList, handleOdPromptTemplateLoad, handleOdDeckList, handleOdDeckLoad } from './handlers/design.js';
 import { handleIssueQuery, handleLocate, handleAnalyzeDependencies, handleFix, handleVerifyFix, handleRegression, handleCloseTicket } from './handlers/issues.js';
 import { handleBuild, handleApplyTemplate, handleImplementLogic, handleCleanup, handleAutoFix, handleGenerateRefactorPlan, handleApplyTransformations, handleAnalyzeInterface, handleDetectLanguage, handleLanguageBuild, handleLanguageTest } from './handlers/quality.js';
 import { handleCheckOutdated, handleUpdateDeps, handleCheckBreakingChanges } from './handlers/deps.js';
-import { handleRunReview, handleReviewFull, handleVerifyVisual, handleAiFriendlyReview } from './handlers/review.js';
+import { handleRunReview, handleReviewFull, handleVerifyVisual, handleAiFriendlyReview, handleGenerateReviewReport } from './handlers/review.js';
 import { handleApiDocs, handleChangelog, handleDevDocs } from './handlers/docs.js';
 import { handleMigrationReview } from './handlers/migration.js';
 import { handleSetupMonitor } from './handlers/monitor.js';
@@ -78,7 +78,7 @@ import {
   handleMeasureBaseline, handleAnalyzeBundle, handleAnalyzeAssets, handleAnalyzeNetwork,
   handleDetectMobileAntipatterns, handleGenerateOptimizePlan, handleExecuteOptimize,
   handleRemeasure, handleRunUITest, handleRunAgent, handleAggregateReport,
-  handleMobsfUpload, handleMobsfScan, handleBearerScan, handleShorebirdPatch, handleSentryCheckRelease,
+  handleMobsfUpload, handleMobsfScan, handleBearerScan,
 } from './handlers/mobile.js';
 import {
   handleReleaseChecks, handleMobileBumpVersion, handleMobileGenerateChangelog,
@@ -86,14 +86,15 @@ import {
 } from './handlers/mobile-release.js';
 import { handleSetupE2EConfig, handleVerifySetup, handleGenerateCIConfig } from './handlers/mobile-testing.js';
 import {
-  handleCheckRnDoctor, handleInitFastlane, handleCheckAndroidSDK,
+  handleCheckRnDoctor, handleCheckAndroidSDK,
   handleSetupEnv, handleSetupEmulator, handleVerifyBuild,
 } from './handlers/mobile-onboard.js';
 import { handleAislopScan } from './handlers/aislop.js';
 import { handleDepcruiseArchitecture } from './handlers/dependency-cruiser.js';
+import { handleInvokeSkill } from './handlers/skill-runner.js';
 
 // Re-export for direct consumers (ui-polish.js)
-export { handleCheckConsistency, handleVisualRegression, handleCheckAPIConsistency, handleAddAnimations, handleAnalyzeUI, handleCeAction, handleIconUpgrade, handleMicroInteractions };
+export { handleCheckConsistency, handleVisualRegression, handleCheckAPIConsistency, handleAddAnimations, handleAnalyzeUI, handleIconUpgrade, handleMicroInteractions };
 
 // ── Action registry ──
 
@@ -178,6 +179,7 @@ export const ACTION_REGISTRY = {
   detectAntiPatterns: handleDetectAntiPatterns,
   generateReport: handleGenerateReport,
   knipCheck: handleKnipCheck,
+  'knip-check': handleKnipCheck,
   skillspectorScan: handleSkillspectorScan,
   'skillspector-scan': handleSkillspectorScan,
   aislopScan: handleAislopScan,
@@ -202,7 +204,6 @@ export const ACTION_REGISTRY = {
   applyTransformations: handleApplyTransformations,
   cleanup: handleCleanup,
 
-  // Load testing
   loadTest: handleLoadTest,
   'load-test': handleLoadTest,
   loadtest: handleLoadTest,
@@ -307,9 +308,28 @@ export const ACTION_REGISTRY = {
   verifyHandlers: handleVerifyHandlers,
   'verify-handlers': handleVerifyHandlers,
 
-  // Design & review tools
+	// GitHub Actions lint & security (actionlint + zizmor)
+	actionlint: handleActionlint,
+	'actionlint-check': handleActionlint,
+	zizmor: handleZizmor,
+	'zizmor-audit': handleZizmor,
+	// Code duplication + bundle size
+	jscpd: handleJscpd,
+	'jscpd-check': handleJscpd,
+	size_limit: handleSizeLimit,
+	'size-limit-check': handleSizeLimit,
+	// Mutation testing + API lint + Markdown lint
+	stryker: handleStryker,
+	'stryker-check': handleStryker,
+	spectral: handleSpectral,
+	'spectral-lint': handleSpectral,
+	markdownlint: handleMarkdownlint,
+	'markdownlint-check': handleMarkdownlint,
+
   aiFriendlyReview: handleAiFriendlyReview,
   'ai-friendly-review': handleAiFriendlyReview,
+  generateReviewReport: handleGenerateReviewReport,
+  'generate-review-report': handleGenerateReviewReport,
   applyDaisyUI: handleApplyDaisyUI,
   applyComponents: handleApplyComponents,
   webDesignVerify: handleWebDesignVerify,
@@ -337,6 +357,42 @@ export const ACTION_REGISTRY = {
   'awm-brand-list': handleAwmBrandList,
   awmBrandImport: handleAwmBrandImport,
   'awm-brand-import': handleAwmBrandImport,
+
+  // Open Design brand
+  odBrandList: handleOdBrandList,
+  'od-brand-list': handleOdBrandList,
+  odBrandPick: handleOdBrandPick,
+  'od-brand-pick': handleOdBrandPick,
+  odBrandImport: handleOdBrandImport,
+  'od-brand-import': handleOdBrandImport,
+
+  // Open Design templates
+  odTemplateList: handleOdTemplateList,
+  'od-template-list': handleOdTemplateList,
+  odTemplatePreview: handleOdTemplatePreview,
+  'od-template-preview': handleOdTemplatePreview,
+
+  // Open Design skill loader
+  odSkillLoad: handleOdSkillLoad,
+  'od-skill-load': handleOdSkillLoad,
+
+  // Open Design device frames
+  odFrameList: handleOdFrameList,
+  'od-frame-list': handleOdFrameList,
+  odFrameApply: handleOdFrameApply,
+  'od-frame-apply': handleOdFrameApply,
+
+  // Open Design prompt templates
+  odPromptTemplateList: handleOdPromptTemplateList,
+  'od-prompt-list': handleOdPromptTemplateList,
+  odPromptTemplateLoad: handleOdPromptTemplateLoad,
+  'od-prompt-load': handleOdPromptTemplateLoad,
+
+  // Open Design deck templates
+  odDeckList: handleOdDeckList,
+  'od-deck-list': handleOdDeckList,
+  odDeckLoad: handleOdDeckLoad,
+  'od-deck-load': handleOdDeckLoad,
 
   // MCP actions — available in conversation mode (CLAUDECODE=1), skipped in CLI mode
   listIssues: (_a, _p) => process.env.CLAUDECODE === '1'
@@ -467,7 +523,6 @@ export const ACTION_REGISTRY = {
 
   // ── Mobile: Onboard ──
   checkRnDoctor: handleCheckRnDoctor,
-  initFastlane: handleInitFastlane,
   checkAndroidSDK: handleCheckAndroidSDK,
   setupEnv: handleSetupEnv,
   setupEmulator: handleSetupEmulator,
@@ -479,8 +534,6 @@ export const ACTION_REGISTRY = {
   scan: handleMobsfScan,
   mobsfScan: handleMobsfScan,
   bearerScan: handleBearerScan,
-  shorebirdPatch: handleShorebirdPatch,
-  sentryCheckRelease: handleSentryCheckRelease,
 
   // ── CE Plugin ──
   'ce-compound': handleCeAction,
@@ -489,6 +542,9 @@ export const ACTION_REGISTRY = {
   'ce-debug': handleCeAction,
   'ce-brainstorm': handleCeAction,
   'ce-work': handleCeAction,
+
+  // ── Skill ──
+  invokeSkill: handleInvokeSkill,
 };
 
 // ── Dispatch ──
@@ -496,7 +552,7 @@ export const ACTION_REGISTRY = {
 export async function executeAction(sceneId, action, params, context, targetPath) {
   try {
     if (action.startsWith('ce-')) {
-      return handleCeAction(action);
+      return handleCeAction(action, params, targetPath, context);
     }
 
     const handler = ACTION_REGISTRY[action];

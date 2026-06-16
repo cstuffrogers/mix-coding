@@ -1,0 +1,20 @@
+{
+  "selection": "",
+  "id": "13a519efe5c2",
+  "type": "docker",
+  "data": {
+    "dockerfilePath": "{{dockerfilePath}}",
+    "composeGenerated": "{{composeGenerated}}",
+    "configured": "{{dockerConfigured}}",
+    "findings": {
+      "security": {}
+    },
+    "completedSteps": [
+      1,
+      2
+    ],
+    "prompt": "",
+    "workflow": "docker"
+  },
+  "timestamp": "2026-06-16T00:59:09.484Z"
+}

@@ -1,0 +1,20 @@
+{
+  "selection": "",
+  "id": "f07de4545e1b",
+  "type": "loadtest",
+  "data": {
+    "passed": "{{loadTestPassed}}",
+    "output": "{{loadTestOutput}}",
+    "findings": {
+      "security": {}
+    },
+    "completedSteps": [
+      1,
+      2,
+      3
+    ],
+    "prompt": "",
+    "workflow": "loadtest"
+  },
+  "timestamp": "2026-06-16T01:04:30.582Z"
+}

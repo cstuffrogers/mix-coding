@@ -30,10 +30,6 @@ export async function forkScene(sourceSceneId, options) {
   };
 
   if (options.dryRun) {
-    console.log(chalk.cyan(`\n🔍 试运行模式 — 将创建场景:"${forked.scene_id}"`));
-    console.log(chalk.dim(`   输出路径: ${outputPath}`));
-    console.log(chalk.dim(`   包含 ${forked.flow.length} 个步骤`));
-    console.log(chalk.gray(JSON.stringify(forked, null, 2)));
     return;
   }
 
@@ -42,5 +38,4 @@ export async function forkScene(sourceSceneId, options) {
     mkdirSync(outputDir, { recursive: true });
   }
   writeFileSync(outputPath, JSON.stringify(forked, null, 2), 'utf-8');
-  console.log(chalk.green(`\n✅ Fork 完成: ${outputPath}`));
 }

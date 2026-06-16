@@ -1,0 +1,20 @@
+{
+  "selection": "",
+  "id": "5d4abd440f6c",
+  "type": "logging",
+  "data": {
+    "configPath": "{{loggingConfigPath}}",
+    "logFormat": "{{logFormat}}",
+    "configured": "{{loggingConfigured}}",
+    "findings": {
+      "security": {}
+    },
+    "completedSteps": [
+      1,
+      2
+    ],
+    "prompt": "",
+    "workflow": "log"
+  },
+  "timestamp": "2026-06-16T01:04:26.510Z"
+}

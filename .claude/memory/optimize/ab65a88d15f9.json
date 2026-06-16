@@ -1,0 +1,28 @@
+{
+  "selection": "前端：首屏加载慢（LCP 问题）",
+  "id": "ab65a88d15f9",
+  "type": "optimize",
+  "data": {
+    "source": "optimize_workflow",
+    "findings": {
+      "security": {},
+      "lintPassed": true
+    },
+    "completedSteps": [
+      0.3,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      9,
+      9.5,
+      11
+    ],
+    "prompt": "",
+    "workflow": "optimize"
+  },
+  "timestamp": "2026-06-16T01:16:20.067Z"
+}

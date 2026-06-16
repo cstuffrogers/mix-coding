@@ -135,7 +135,7 @@ export function matchEndpoint(call, methodIndex) {
 
   const exact = methodIndex.get(callNorm) || [];
   for (const c of exact) {
-    if (c.method === call.method || call.method === 'GET') {
+    if (c.method === call.method) {
       return { matched: true, schemaFields: c.schemaFields };
     }
   }
@@ -151,7 +151,7 @@ function matchTemplateEndpoint(call, callNorm, methodIndex) {
     if (segments.length !== callSegs.length) continue;
     if (!segmentsMatch(segments, callSegs)) continue;
     for (const c of candidates) {
-      if (c.method === call.method || call.method === 'GET') {
+      if (c.method === call.method) {
         return { matched: true, schemaFields: c.schemaFields };
       }
     }

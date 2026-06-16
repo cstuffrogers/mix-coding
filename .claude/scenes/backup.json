@@ -3,14 +3,30 @@
   "workflow": "backup",
   "name": "备份配置",
   "description": "使用 Restic 配置加密去重备份，生成备份脚本和排除规则",
-  "trigger_keywords": ["备份", "backup", "restic", "数据备份", "灾难恢复", "数据保护"],
+  "trigger_keywords": [
+    "备份",
+    "backup",
+    "restic",
+    "数据备份",
+    "灾难恢复",
+    "数据保护"
+  ],
   "flow": [
     {
       "step": 1,
       "layer": "core",
       "service": "MemoryService",
       "action": "recall",
-      "params": { "type": "backup", "filters": { "type": ["backup", "restic", "disaster-recovery"] } },
+      "params": {
+        "type": "backup",
+        "filters": {
+          "type": [
+            "backup",
+            "restic",
+            "disaster-recovery"
+          ]
+        }
+      },
       "description": "注入备份相关记忆",
       "auto_execute": true,
       "on_error": "continue"
@@ -30,7 +46,11 @@
       "layer": "core",
       "service": "QualityService",
       "action": "checkGate",
-      "params": { "checks": ["backup"] },
+      "params": {
+        "checks": [
+          "backup"
+        ]
+      },
       "description": "备份配置质量门禁",
       "auto_execute": true,
       "condition": "backupConfigured == false",
@@ -41,7 +61,9 @@
       "layer": "capability",
       "service": "BackupService",
       "action": "autoFix",
-      "params": { "source": "backup" },
+      "params": {
+        "source": "backup"
+      },
       "description": "自动修复备份配置问题",
       "auto_execute": true,
       "condition": "backupConfigured == false",
@@ -90,11 +112,27 @@
       "on_error": "continue"
     },
     {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "backup",
+        "source": "auto"
+      },
+      "description": "将backup知识沉淀到项目知识库 CLAUDE.md",
+      "auto_execute": true,
+      "condition": "plugin_ce_available",
+      "on_error": "continue"
+    },
+    {
       "step": 8,
       "layer": "core",
       "service": "NotificationService",
       "action": "notify",
-      "params": { "message": "备份配置工作流完成" },
+      "params": {
+        "message": "备份配置工作流完成"
+      },
       "description": "通知备份配置完成",
       "auto_execute": true,
       "on_error": "continue"

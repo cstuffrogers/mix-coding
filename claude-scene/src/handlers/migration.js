@@ -1,6 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 
 const MIGRATION_DIRS = ['migrations', 'prisma', 'drizzle', 'supabase/migrations'];
@@ -60,11 +59,6 @@ function runBuiltinScan(migrationFiles) {
     allFindings = [...allFindings, ...scanMigrationFile(file)];
   }
 
-  for (const f of allFindings) {
-    const icon = f.severity === 'CRITICAL' ? '🔴' : f.severity === 'HIGH' ? '🟠' : '🟡';
-    console.log(chalk.dim(`  ${icon} [${f.severity}] ${f.pattern}: ${f.file}`));
-  }
-
   const highOrAbove = allFindings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH').length;
   return { allFindings, highOrAbove };
 }
@@ -78,30 +72,23 @@ function setMigrationContext(context, findings, highOrAbove) {
 }
 
 export function handleMigrationReview(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🗄️ 正在审查数据库迁移...'));
 
   const migrationFiles = findMigrationFiles(targetPath);
 
   if (migrationFiles.length === 0) {
-    console.log(chalk.dim('  未发现迁移文件，跳过'));
     // Don't set Passed — let gate report as skipped (no migrations to review)
     return '迁移审查完成（无迁移文件）';
   }
-
-  console.log(chalk.dim(`  发现 ${migrationFiles.length} 个迁移文件`));
 
   const guardian = runGuardian(targetPath);
   let findings, highOrAbove;
 
   if (guardian.ran) {
-    console.log(chalk.dim('  已运行 db-scalability-guardian'));
     const criticalMatch = guardian.output.match(/CRITICAL|critical/i);
     const highMatch = guardian.output.match(/HIGH|high/i);
     highOrAbove = (criticalMatch?.length || 0) + (highMatch?.length || 0);
     findings = guardian.output;
-    if (highOrAbove > 0) console.log(chalk.red(`  ⚠ 发现 ${highOrAbove} 个 HIGH/CRITICAL 问题`));
   } else {
-    console.log(chalk.dim('  db-scalability-guardian 未安装，使用内置规则扫描'));
     const result = runBuiltinScan(migrationFiles);
     findings = result.allFindings;
     highOrAbove = result.highOrAbove;
@@ -110,9 +97,7 @@ export function handleMigrationReview(_action, _params, targetPath, context) {
   setMigrationContext(context, findings, highOrAbove);
 
   if (highOrAbove === 0) {
-    console.log(chalk.green('  ✅ 迁移审查通过'));
     return '迁移审查完成（通过）';
   }
-  console.log(chalk.red(`  🚫 迁移审查阻断: ${highOrAbove} 个 HIGH/CRITICAL 问题`));
   return `迁移审查完成（${highOrAbove} 个 HIGH/CRITICAL 问题）`;
 }

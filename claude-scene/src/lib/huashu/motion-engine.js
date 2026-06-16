@@ -23,7 +23,6 @@ export function generateReleaseAnimation({
   outputFormat = 'mp4',
 } = {}) {
   if (!isAvailable(projectRoot)) {
-    console.log(chalk.yellow('  ⚠ huashu motion-engine: render-video.js 不在 assets/huashu/'));
     return { skipped: true, reason: 'render-script-missing' };
   }
 
@@ -33,25 +32,18 @@ export function generateReleaseAnimation({
   const stageFile = join(outDir, `release-${Date.now()}.html`);
   writeFileSync(stageFile, buildReleaseStageHtml({ title, version, duration }), 'utf8');
 
-  console.log(chalk.blue(`\n🎬 huashu motion-engine: 生成 release 动画`));
-  console.log(chalk.dim(`  stage HTML: ${stageFile}`));
-  console.log(chalk.dim(`  目标格式: ${outputFormat}, 时长: ${duration}s`));
-
   // Attempt to render via huashu's render-video.js
   const renderScript = join(projectRoot, HUASHU_RENDER_SCRIPT);
   const outFile = join(outDir, `release-${Date.now()}.${outputFormat}`);
   try {
     safeExec(`node "${renderScript}" --input "${stageFile}" --output "${outFile}" --duration ${duration} 2>&1`, projectRoot, { stdio: 'pipe' });
     if (existsSync(outFile)) {
-      console.log(chalk.green(`  ✅ 渲染完成: ${outFile}`));
       return { file: outFile, stage: stageFile };
     }
   } catch (e) {
     console.log(chalk.yellow(`  ⚠ 渲染失败（缺少 sharp/playwright 依赖? ${e.message.split('\n', 1)[0]}）`));
   }
 
-  console.log(chalk.dim('  → 仅生成 stage HTML，渲染需在装齐 sharp+playwright 后手动执行'));
-  console.log(chalk.dim(`  → node ${HUASHU_RENDER_SCRIPT} --input "${stageFile}" --output release.mp4`));
   return { file: null, stage: stageFile, manual: true };
 }
 

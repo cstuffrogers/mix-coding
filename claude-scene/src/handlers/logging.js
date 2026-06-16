@@ -110,18 +110,14 @@ function detectELK(targetPath) {
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export function handleSetupLogging(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n📊 正在配置日志聚合...'));
 
   const logger = detectLogger(targetPath);
-  console.log(chalk.dim(`  检测到日志库: ${logger === 'none' ? '无（将使用推荐 winston）' : logger}`));
 
   const configPath = join(targetPath, 'logging.config.js');
   let loggingConfigured = true;
 
   if (existsSync(configPath)) {
-    console.log(chalk.dim('  logging.config.js 已存在，验证中...'));
-    const content = readFileSync(configPath, 'utf-8');
-    if (content.length < 20) console.log(chalk.yellow('  ⚠ 配置文件内容过短'));
+    /* config already exists — skip generation */
   } else {
     try {
       let configContent;
@@ -130,9 +126,7 @@ export function handleSetupLogging(_action, _params, targetPath, context) {
       else configContent = generateWinstonConfig();
 
       writeFileSync(configPath, configContent, 'utf-8');
-      console.log(chalk.green(`  ✅ logging.config.js 已生成 (${logger === 'none' || logger === 'unknown' ? 'winston 推荐' : logger})`));
-    } catch (e) {
-      console.log(chalk.yellow(`  ⚠ 日志配置生成失败: ${e.message}`));
+    } catch {
       loggingConfigured = false;
     }
   }
@@ -140,12 +134,10 @@ export function handleSetupLogging(_action, _params, targetPath, context) {
   // ELK/Fluentd detection
   const elkIndicators = detectELK(targetPath);
   if (elkIndicators.length) {
-    console.log(chalk.dim(`  检测到日志采集指标: ${elkIndicators.join(', ')}`));
     const fbPath = join(targetPath, 'filebeat.yml');
     if (!existsSync(fbPath)) {
       try {
         writeFileSync(fbPath, generateFilebeatConfig(), 'utf-8');
-        console.log(chalk.green('  ✅ filebeat.yml 已生成'));
       } catch (e) {
         console.log(chalk.yellow(`  ⚠ filebeat.yml 生成失败: ${e.message}`));
       }

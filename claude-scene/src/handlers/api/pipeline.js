@@ -1,12 +1,10 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import chalk from 'chalk';
 import { safeExec } from '../../lib/safe-exec.js';
 import { scanDir } from '../../lib/scan-dir.js';
 import { normalizePath, matchEndpoint as specMatchEndpoint } from './spec-utils.js';
 
 export function redoclyLint(specFile, targetPath) {
-  console.log(chalk.dim('  🔍 Redocly lint...'));
   try {
     const result = safeExec(`npx @redocly/cli lint "${specFile}" --format=stylish 2>&1 || true`, targetPath, { stdio: 'pipe' }).toString();
     const redoclyIssues = result.split('\n').filter(l =>
@@ -27,20 +25,17 @@ export function redoclyLint(specFile, targetPath) {
 }
 
 export function redoclyBundle(specFile, targetPath) {
-  console.log(chalk.dim('  📦 Redocly bundle...'));
   const outFile = join(targetPath, 'openapi.bundled.yaml');
   try {
     safeExec(`npx @redocly/cli bundle "${specFile}" -o "${outFile}" 2>&1 || true`, targetPath, { stdio: 'pipe' });
     if (existsSync(outFile)) return outFile;
     return null;
   } catch {
-    console.log(chalk.yellow('  ⚠ Redocly bundle 执行异常'));
     return null;
   }
 }
 
 export function openapiTypeScript(specFile, targetPath) {
-  console.log(chalk.dim('  📘 openapi-typescript...'));
   const typesDir = join(targetPath, 'src', 'types');
   const outFile = join(typesDir, 'api-types.ts');
   try {
@@ -49,7 +44,6 @@ export function openapiTypeScript(specFile, targetPath) {
     if (existsSync(outFile)) return { success: true, outputPath: 'src/types/api-types.ts' };
     return { success: false, outputPath: '' };
   } catch {
-    console.log(chalk.yellow('  ⚠ openapi-typescript 执行异常'));
     return { success: false, outputPath: '' };
   }
 }
@@ -81,7 +75,7 @@ export function runCrossReference(frontendCalls, serverEndpoints, issues, totalC
   for (const [key, ep] of serverEndpoints) {
     totalChecks++;
     const matched = frontendCalls.some(c => {
-      if (c.method !== ep.method && c.method !== 'GET') return false;
+      if (c.method !== ep.method) return false;
       const cNorm = normalizePath(c.path);
       const epNorm = normalizePath(ep.path);
       if (cNorm === epNorm) return true;
@@ -114,8 +108,6 @@ export function writeSkipReport(targetPath, context) {
   const report = buildSkipReport(targetPath);
   writeFileSync(join(targetPath, 'api-consistency-report.md'), report, 'utf-8');
   if (context) context.apiConsistencyScore = null;
-  console.log(chalk.yellow('  ⚠ 未找到 OpenAPI 规范，跳过一致性检查'));
-  console.log(chalk.dim('  💡 建议: 使用 @redocly/cli / tsoa / swagger-jsdoc / zod-to-openapi 为后端生成 OpenAPI 规范'));
 }
 
 function buildSkipReport(root) {

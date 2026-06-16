@@ -1,0 +1,52 @@
+{
+  "selection": "",
+  "id": "c9ee53532095",
+  "type": "review",
+  "data": {
+    "source": "review_workflow",
+    "findings": {
+      "security": {
+        "fixesApplied": false,
+        "highSeverityFound": false,
+        "findings": []
+      },
+      "fixApplied": false,
+      "lintPassed": false
+    },
+    "completedSteps": [
+      0.3,
+      0.5,
+      1,
+      1.1,
+      2,
+      2.3,
+      2.5,
+      2.6,
+      2.65,
+      2.7,
+      2.8,
+      2.9,
+      2.95,
+      2.96,
+      2.97,
+      2.98,
+      2.99,
+      3,
+      3.2,
+      3.5,
+      4,
+      4.1,
+      4.2,
+      4.3,
+      4.4,
+      4.5,
+      4.6,
+      4.7,
+      4.8,
+      5
+    ],
+    "prompt": "",
+    "workflow": "review"
+  },
+  "timestamp": "2026-06-16T14:33:38.350Z"
+}

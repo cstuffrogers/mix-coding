@@ -1,0 +1,33 @@
+{
+  "selection": "",
+  "id": "b618ed24b083",
+  "type": "mobile-audit",
+  "data": {
+    "source": "mobile-audit_workflow",
+    "findings": {
+      "security": {}
+    },
+    "completedSteps": [
+      0.2,
+      0.5,
+      1,
+      2,
+      2.5,
+      5,
+      6,
+      8,
+      9,
+      10,
+      11,
+      11.5,
+      12,
+      13,
+      13.1,
+      14,
+      15
+    ],
+    "prompt": "",
+    "workflow": "mobile-audit"
+  },
+  "timestamp": "2026-06-16T01:15:28.500Z"
+}

@@ -11,30 +11,18 @@ const LAYER_ICONS = {
 
 function printTriggerKeywords(scene) {
   if (!scene.trigger_keywords?.length) return;
-  console.log(chalk.bold('🔑 触发关键词:'));
-  console.log(`   ${scene.trigger_keywords.join(', ')}`);
-  console.log('');
 }
 
 function printSemanticTrigger(scene) {
   if (!scene.trigger_semantic) return;
-  console.log(chalk.bold('🧠 语义触发:'));
-  console.log(`   ${scene.trigger_semantic}`);
-  console.log('');
 }
 
 function printPriority(scene) {
   if (!scene.priority) return;
-  console.log(chalk.bold('⭐ 优先级:'));
-  console.log(`   ${scene.priority}`);
-  console.log('');
 }
 
 function printWorkflow(scene) {
   if (!scene.workflow) return;
-  console.log(chalk.bold('⚙️  工作流:'));
-  console.log(`   ${scene.workflow}.yaml`);
-  console.log('');
 }
 
 function printStepDetail(step) {
@@ -55,7 +43,6 @@ function printStepDetail(step) {
 
 function printSteps(steps) {
   if (steps.length === 0) return;
-  console.log(chalk.bold(`📝 步骤 (${steps.length} 个):`));
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     const idx = chalk.yellow(`${i + 1}`.padStart(2));
@@ -66,27 +53,20 @@ function printSteps(steps) {
     let line = `   ${idx}. ${stepId}`;
     if (layerIcon) line += ` ${layerIcon}`;
     line += ` ${autoBadge}`;
-    console.log(line);
     printStepDetail(step);
   }
-  console.log('');
 }
 
 function printMCPServers(scene) {
   if (!scene.mcp_servers?.length) return;
-  console.log(chalk.bold('🔌 MCP 服务:'));
-  console.log(`   ${scene.mcp_servers.join(', ')}`);
-  console.log('');
 }
 
 function printGuardrails(scene) {
   const guards = scene.guardrails;
   if (!guards || Object.keys(guards).length === 0) return;
-  console.log(chalk.bold('🛡️  Guardrails:'));
   for (const [key, value] of Object.entries(guards)) {
     console.log(`   ${key}: ${value}`);
   }
-  console.log('');
 }
 
 export async function showScene(sceneId) {
@@ -99,14 +79,6 @@ export async function showScene(sceneId) {
     console.error(chalk.red(`\n✖ 场景 "${sceneId}" 未找到`));
     process.exit(1);
   }
-
-  const name = scene.name || sceneId;
-  const desc = scene.description || '';
-
-  console.log(chalk.bold.cyan(`\n📋 场景: ${name}`));
-  console.log(chalk.gray(`   ID: ${sceneId}`));
-  if (desc) console.log(chalk.dim(`   ${desc}`));
-  console.log('');
 
   printTriggerKeywords(scene);
   printSemanticTrigger(scene);

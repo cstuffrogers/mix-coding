@@ -229,6 +229,21 @@
       "on_error": "abort"
     },
     {
+      "step": 7.65,
+      "layer": "capability",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "webapp-testing",
+        "mode": "e2e"
+      },
+      "description": "Web 端 E2E 验证：Playwright 浏览器测试确认新功能在真实环境中可用",
+      "auto_execute": true,
+      "condition": "webapp_testing_available",
+      "on_error": "continue",
+      "timeout": 300
+    },
+    {
       "step": 7.7,
       "layer": "capability",
       "service": "VerifyService",

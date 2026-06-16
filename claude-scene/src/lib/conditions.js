@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from "fs";
 import { join , dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
@@ -8,33 +8,6 @@ const __dirname = dirname(__filename);
 // claude-scene/src/lib/ → up 3 = auto-coding/
 const PROJECT_ROOT = join(__dirname, '..', '..', '..');
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
-function mcpAvailable(name) {
-  // Check local .mcp/ directories first
-  const mcpDir = join(PROJECT_ROOT, '.mcp');
-  if (existsSync(mcpDir)) {
-    const candidates = [`${name}-mcp`, name];
-    for (const c of candidates) {
-      if (existsSync(join(mcpDir, c))) return true;
-    }
-  }
-  // Also check .claude/mcp.json for configured servers
-  const mcpConfigPath = join(PROJECT_ROOT, '.claude', 'mcp.json');
-  if (existsSync(mcpConfigPath)) {
-    try {
-      const config = JSON.parse(readFileSync(mcpConfigPath, 'utf-8'));
-      if (config.mcpServers && config.mcpServers[name]) return true;
-      // tavily MCP is named "tavily-search" in mcp.json
-      if (name === 'tavily' && config.mcpServers['tavily-search']) return true;
-    } catch { /* mcp config not found or invalid */ }
-  }
-  // CodeGraph: check for local binary
-  if (name === 'codegraph') {
-    const cgBase = join(PROJECT_ROOT, 'codegraph-win32-x64');
-    return existsSync(cgBase);
-  }
-  return false;
-}
 
 const SIMPLE_CONDITIONS = {
   frontend_involved: (ctx) =>
@@ -75,6 +48,7 @@ const SIMPLE_CONDITIONS = {
   // Claude Code skills — not callable from CLI subprocess.
   // Detect CLAUDECODE env var: when running inside a Claude Code session,
   // the Skill tool IS available. When running in a standalone CLI, it's not.
+  conversation_mode: () => process.env.CLAUDECODE === '1',
   mattpocock_skill_available: () => process.env.CLAUDECODE === '1',
   web_design_engineer_available: () => process.env.CLAUDECODE === '1',
   ai_friendly_web_design_available: () => process.env.CLAUDECODE === '1',
@@ -88,6 +62,14 @@ const SIMPLE_CONDITIONS = {
   awesome_design_md_available: () => {
     return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'awesome-design-md', 'SKILL.md'));
   },
+
+  mobile_ui_review_available: () => {
+    // Skill() tool only available in conversation mode (CLAUDECODE=1)
+    if (process.env.CLAUDECODE !== '1') return false;
+    return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'mobile-ui-review', 'SKILL.md'));
+  },
+
+  webapp_testing_available: () => process.env.CLAUDECODE === '1',
 
   // MCP tools require Claude Code conversation-level tool calling.
   // When running inside a Claude Code session (CLAUDECODE=1), MCP tools ARE
@@ -128,16 +110,6 @@ const SIMPLE_CONDITIONS = {
     const dcBat = join(PROJECT_ROOT, 'tools', 'dependency-check', 'bin', 'dependency-check.bat');
     return existsSync(dcBat);
   },
-  flutter_or_rn: (ctx) => ctx.project_type === 'flutter' || ctx.project_type === 'rn',
-  fastlane_available: () => {
-    try {
-      // eslint-disable-next-line sonarjs/no-os-command-from-path -- tool detection, not user-controlled
-      execSync('fastlane --version 2>&1', { stdio: 'pipe', timeout: 5000 });
-      return true;
-    } catch { return false; }
-  },
-  shorebird_available: () => process.env.CLAUDECODE === '1',
-  maestro_mcp_available: () => process.env.CLAUDECODE === '1',
   detox_mcp_available: () => process.env.CLAUDECODE === '1',
 };
 
@@ -179,6 +151,13 @@ function evalClause(expr, ctx) {
       case '>=': return len >= n;
       case '<=': return len <= n;
     }
+  }
+
+  // negation: !key
+  if (trimmed.startsWith('!')) {
+    const key = trimmed.slice(1);
+    if (key in SIMPLE_CONDITIONS) return !SIMPLE_CONDITIONS[key](ctx);
+    return !ctx[key];
   }
 
   // simple truthy/falsy: key from context

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>test verification run</title>
+<style>
+  :root {
+    --bg: #FFFFFF; --fg: #1A1A1A;
+    --accent: #666666; --signal: #FF6600;
+    --font: system-ui, -apple-system, sans-serif;
+    --radius: 4px; --border-w: 1px;
+    --card-shadow: none;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e8e8ee; font-family: var(--font); display: grid; place-items: center; min-height: 100vh; padding: 24px; }
+  .device { width: 393px; height: 852px; background: var(--bg); color: var(--fg); border-radius: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; position: relative; }
+  .device.frame-desktop { border-radius: 12px; }
+  .device-bezel { position: absolute; top: 0; left: 0; right: 0; height: 36px; background: var(--bg); z-index: 10; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 8px; font-size: 12px; color: var(--fg); opacity: 0.7; }
+  .screens { padding: 48px 16px 80px; height: 100%; overflow-y: auto; }
+  .screen { animation: fadeIn 0.3s; }
+  .screen[hidden] { display: none; }
+  .screen h1 { font-size: 28px; font-weight: 700; margin-bottom: 16px; }
+  .screen .content { display: flex; flex-direction: column; gap: 12px; }
+  .screen p { font-size: 15px; line-height: 1.5; opacity: 0.85; }
+  button { font-family: var(--font); font-size: 15px; padding: 12px 20px; border: var(--border-w) solid var(--fg); background: transparent; color: var(--fg); border-radius: var(--radius); cursor: pointer; box-shadow: var(--card-shadow); }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  button.secondary { background: var(--bg); color: var(--fg); }
+  button:active { transform: translateY(2px); box-shadow: none; }
+  nav { position: absolute; left: 0; right: 0; bottom: 0; height: 60px; background: var(--bg); border-top: 1px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: center; z-index: 5; }
+  .nav-btn { background: none; border: 0; padding: 8px 12px; font-size: 12px; color: var(--fg); opacity: 0.5; box-shadow: none; }
+  .nav-btn[aria-current="true"] { opacity: 1; color: var(--accent); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .credits { position: fixed; bottom: 16px; right: 16px; font-size: 11px; color: #999; }
+</style>
+</head>
+<body>
+<main class="device frame-iphone" data-prototype="test verification run">
+  <div class="device-bezel">iPhone 15 Pro</div>
+  <div class="screens">
+      <section class="screen" data-screen="0" >
+        <header><h1>Home</h1></header>
+        <div class="content">
+          <p>Home 屏幕内容占位。点击下方按钮切换 screens。</p>
+          <button class="primary">主操作</button>
+          <button class="secondary">次操作</button>
+        </div>
+      </section>
+      <section class="screen" data-screen="1" hidden>
+        <header><h1>Detail</h1></header>
+        <div class="content">
+          <p>Detail 屏幕内容占位。点击下方按钮切换 screens。</p>
+          <button class="primary">主操作</button>
+          <button class="secondary">次操作</button>
+        </div>
+      </section>
+      <section class="screen" data-screen="2" hidden>
+        <header><h1>Profile</h1></header>
+        <div class="content">
+          <p>Profile 屏幕内容占位。点击下方按钮切换 screens。</p>
+          <button class="primary">主操作</button>
+          <button class="secondary">次操作</button>
+        </div>
+      </section></div>
+  <nav><button class="nav-btn" data-screen="0" aria-current="true">Home</button><button class="nav-btn" data-screen="1" >Detail</button><button class="nav-btn" data-screen="2" >Profile</button></nav>
+</main>
+<div class="credits">huashu prototype · style: 极简单色禁欲</div>
+<script>
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.screen;
+      document.querySelectorAll('.nav-btn').forEach(b => b.removeAttribute('aria-current'));
+      btn.setAttribute('aria-current', 'true');
+      document.querySelectorAll('.screen').forEach(s => {
+        s.hidden = s.dataset.screen !== target;
+      });
+    });
+  });
+</script>
+</body>
+</html>

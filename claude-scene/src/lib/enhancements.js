@@ -182,7 +182,6 @@ export async function applyEnhancements(sceneId, context, options = {}) {
 
   // Always show the menu (even in --auto), 3-second timeout falls back to defaults.
   // --auto only controls step confirmation, not enhancement selection.
-  console.log(chalk.cyan('\n📋 本次可选增强（空格切换勾选，回车确认；3 秒无操作 = 默认勾选）：\n'));
   const choices = enhancements.map(e => ({
     name: e.label,
     value: e.key,
@@ -205,8 +204,6 @@ export async function applyEnhancements(sceneId, context, options = {}) {
   const selected = result.selected || [];
   for (const k of selected) context[`enh_${k}`] = true;
 
-  if (result._timeout) console.log(chalk.dim(`  ⏱ 3 秒超时，使用默认: ${selected.join(', ') || '(无)'}`));
-  else console.log(chalk.green(`  ✅ 已启用增强: ${selected.join(', ') || '(无)'}`));
 }
 
 /**

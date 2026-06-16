@@ -72,8 +72,7 @@ describe('ACTION_REGISTRY', () => {
 
   it('has all design actions', () => {
     const actions = [
-      'generateDesign', 'generateLowFi', 'generateHiFi',
-      'analyzeConsistency', 'persist', 'input', 'exportAssets',
+      'generateDesign', 'analyzeConsistency', 'persist', 'input', 'exportAssets',
     ];
     for (const a of actions) {
       expect(typeof ACTION_REGISTRY[a]).toBe('function');

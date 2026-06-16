@@ -1,10 +1,7 @@
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../../lib/safe-exec.js';
 
 export function handleCorsCheck(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🌐 正在检查 CORS 配置...'));
   const findings = [];
   const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.codegraph';
 
@@ -34,8 +31,6 @@ export function handleCorsCheck(_action, _params, targetPath, context) {
           const trimmed = l.length > 150 ? l.slice(0, 150) + '...' : l;
           findings.push(`${name}: ${trimmed}`);
         });
-        console.log(chalk.yellow(`  ⚠ ${name}: ${lines.length} 处`));
-        lines.slice(0, 3).forEach(l => console.log(chalk.dim(`    ${l.length > 150 ? l.slice(0, 150) + '...' : l}`)));
       }
     } catch { /* skip */ }
   }
@@ -91,7 +86,6 @@ function scanProcessEnvLeaks(targetPath, excludeDirs) {
 }
 
 export function handleEnvVarLeak(_action, _params, targetPath, context) {
-  console.log(chalk.blue('\n🔐 正在检查前端环境变量泄露...'));
   const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.codegraph';
 
   const findings = [

@@ -1,0 +1,152 @@
+{
+  "A": {
+    "logic": "现实参照（获奖站迁移）",
+    "reference": {
+      "name": "Apple.com",
+      "category": "consumer",
+      "signature": "产品页, 居中hero, 渐进式叙事"
+    },
+    "style": {
+      "id": "notion-clean",
+      "name": "Notion 文档清流",
+      "temp": "quiet",
+      "fidelity": 96,
+      "fit": "docs/帮助中心/SaaS工具",
+      "dna": "近白+暗灰文字+少量强调色, 系统无衬线+衬线引文, 文档式宽度限制+左侧目录",
+      "font": "Inter / IBM Plex Sans",
+      "cssTokens": {
+        "palette": {
+          "primary": "#37352F",
+          "secondary": "#F7F6F3",
+          "accent": "#2383E2",
+          "background": "#FFFFFF",
+          "text": "#37352F",
+          "muted": "#9B9A97",
+          "border": "#E9E9E7"
+        },
+        "typography": {
+          "family": "Inter, IBM Plex Sans, sans-serif",
+          "mono": "monospace",
+          "headingWeight": "600",
+          "bodySize": "1rem",
+          "lineHeight": "1.625"
+        },
+        "spacing": {
+          "section": "3rem",
+          "gap": "1rem",
+          "pageWidth": "708px"
+        },
+        "radius": {
+          "default": "3px",
+          "card": "4px",
+          "button": "3px"
+        },
+        "shadows": {
+          "default": "none",
+          "card": "0 1px 3px rgba(0,0,0,0.06)",
+          "button": "none"
+        }
+      }
+    },
+    "rationale": "参照 Apple.com（consumer），稳妥底盘"
+  },
+  "B": {
+    "logic": "40 风格库中性温度",
+    "style": {
+      "id": "product-marketing",
+      "name": "科技产品营销",
+      "temp": "neutral",
+      "fidelity": 92,
+      "fit": "SaaS/Dev tool/AI产品",
+      "dna": "白底+暗色文字+品牌色, 几何无衬线, hero+特性卡+social proof+CTA",
+      "font": "Inter / Geist",
+      "cssTokens": {
+        "palette": {
+          "primary": "#6366F1",
+          "secondary": "#F8FAFC",
+          "accent": "#F59E0B",
+          "background": "#FFFFFF",
+          "text": "#0F172A",
+          "muted": "#64748B",
+          "border": "#E2E8F0"
+        },
+        "typography": {
+          "family": "Inter, Geist, sans-serif",
+          "mono": "monospace",
+          "headingWeight": "700",
+          "bodySize": "1.0625rem",
+          "lineHeight": "1.55"
+        },
+        "spacing": {
+          "section": "5rem",
+          "gap": "2rem",
+          "pageWidth": "1140px"
+        },
+        "radius": {
+          "default": "8px",
+          "card": "12px",
+          "button": "8px"
+        },
+        "shadows": {
+          "default": "0 1px 3px rgba(0,0,0,0.06)",
+          "card": "0 4px 16px rgba(0,0,0,0.06)",
+          "button": "0 2px 8px rgba(99,102,241,0.2)"
+        }
+      }
+    },
+    "rationale": "平衡方向, 与 A 拉差异"
+  },
+  "C": {
+    "logic": "秒数轮盘 + 顶级设计师哲学",
+    "designer": {
+      "name": "Dieter Rams (Braun)",
+      "philosophy": "少, 但更好",
+      "signature": "功能优先, 中性色, 几何精确"
+    },
+    "style": {
+      "id": "memphis-maximalism",
+      "name": "孟菲斯复古拼贴",
+      "temp": "bold",
+      "fidelity": 72,
+      "fit": "电商概念店/创意activity/Y2K复古",
+      "dna": "复古红/芥末黄/宝蓝撞色, 复古衬线+装饰字, 反网格拼贴策展+错位叠放",
+      "font": "DM Serif Display + Bungee + Space Mono",
+      "cssTokens": {
+        "palette": {
+          "primary": "#CC2936",
+          "secondary": "#F4B41A",
+          "accent": "#1E3A8A",
+          "background": "#FFF8F0",
+          "text": "#2D1B0E",
+          "muted": "#8B7355",
+          "border": "#CC2936"
+        },
+        "typography": {
+          "family": "DM Serif Display, serif",
+          "mono": "Space Mono, monospace",
+          "headingWeight": "700",
+          "bodySize": "1.0625rem",
+          "lineHeight": "1.55"
+        },
+        "spacing": {
+          "section": "5rem",
+          "gap": "2rem",
+          "pageWidth": "1100px"
+        },
+        "radius": {
+          "default": "12px",
+          "card": "16px",
+          "button": "24px"
+        },
+        "shadows": {
+          "default": "2px 4px 8px rgba(204,41,54,0.15)",
+          "card": "4px 6px 12px rgba(0,0,0,0.08)",
+          "button": "2px 4px 6px rgba(204,41,54,0.2)"
+        }
+      }
+    },
+    "rationale": "Dieter Rams (Braun) 的 少, 但更好 哲学 + 大胆风格强制注入, 打破默认极简偏差"
+  },
+  "requirement": "test verification run",
+  "category": "web"
+}

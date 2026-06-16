@@ -1,12 +1,9 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync } from "fs";
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
-import { getActionMessage } from '../data/action-messages.js';
 import { scanDir } from '../lib/scan-dir.js';
 import { PROJECT_ROOT } from '../lib/paths.js';
 import {
-  handleCeAction,
   handleCheckAPIConsistency,
   handleCheckConsistency as actionsCheckConsistency,
   handleVisualRegression as actionsVisualRegression,
@@ -14,9 +11,12 @@ import {
   handleAnalyzeUI as sharedAnalyzeUI,
   handleIconUpgrade,
   handleMicroInteractions,
+  executeAction,
 } from '../actions.js';
 import { handleRunSuite } from './testing.js';
 import { handleAwmBrandImport } from './design.js';
+import { handleApplyDaisyUI as applyDaisyUI, handleApplyComponents as sharedApplyComponents } from './ui-tools.js';
+import { handleInvokeSkill } from './skill-runner.js';
 
 const COMPONENT_MAP = {
   '<button': { component: 'Button' },
@@ -33,117 +33,11 @@ const COMPONENT_MAP = {
 };
 
 function handleInstallDeps(targetPath, theme) {
-  console.log(chalk.blue(`\n📦 正在安装依赖到 ${targetPath}...`));
   if (theme === 'animal-island') {
     safeExec('npm install animal-island-ui', targetPath, { stdio: 'ignore' });
   }
   safeExec('npm install lucide-react animate.css', targetPath, { stdio: 'ignore' });
   return '依赖安装完成';
-}
-
-// eslint-disable-next-line sonarjs/cognitive-complexity
-function handleApplyDaisyUI(targetPath, theme) {
-  console.log(chalk.blue(`\n🎨 正在应用主题到 ${targetPath}...`));
-  const tailwindConfigPath = join(targetPath, 'tailwind.config.js');
-  if (existsSync(tailwindConfigPath)) {
-    let tailwindConfig = readFileSync(tailwindConfigPath, 'utf-8');
-    if (theme === 'daisyui') {
-      if (!tailwindConfig.includes('daisyui')) {
-        if (tailwindConfig.includes("require('daisyui')") || tailwindConfig.includes('"daisyui"')) {
-          console.log(chalk.gray('  → daisyui 插件已配置，跳过'));
-        } else {
-          if (tailwindConfig.includes('plugins:')) {
-            tailwindConfig = tailwindConfig.replace(
-              /plugins:\s*\[/,
-              "plugins: [\n    require('daisyui'),"
-            );
-          } else if (tailwindConfig.includes('module.exports')) {
-            tailwindConfig = tailwindConfig.replace(
-              /module\.exports\s*=\s*\{/,
-              "module.exports = {\n  plugins: [require('daisyui')],"
-            );
-          }
-          if (!tailwindConfig.includes('daisyui: {')) {
-            tailwindConfig = tailwindConfig.replace(
-              /module\.exports\s*=\s*\{/,
-              "module.exports = {\n  daisyui: {\n    themes: ['light', 'dark', 'corporate', 'garden', 'cupcake'],\n  },"
-            );
-          }
-          writeFileSync(tailwindConfigPath, tailwindConfig);
-          console.log(chalk.green('  ✓ tailwind.config.js → 已配置 daisyui 插件及主题'));
-        }
-      }
-    } else if (theme === 'animal-island') {
-      if (!tailwindConfig.includes('island-primary')) {
-        const themeExtension = `      colors: {
-        'island-primary': '#19c8b9',
-        'island-secondary': '#F5F5DC',
-        'island-accent': '#FF6F61',
-        'island-text': '#5D4E37',
-        'island-bg': '#FAF8F5',
-      },
-      borderRadius: {
-        'island': '24px',
-        'island-sm': '16px',
-      },
-      boxShadow: {
-        'island': '0 4px 20px rgba(93, 78, 55, 0.1)',
-      },`;
-        if (tailwindConfig.includes('extend:')) {
-          tailwindConfig = tailwindConfig.replace(
-            /extend:\s*\{/,
-            `extend: {\n${themeExtension}`
-          );
-        } else if (tailwindConfig.includes('theme:')) {
-          tailwindConfig = tailwindConfig.replace(
-            /theme:\s*\{/,
-            `theme: {\n    extend: {\n${themeExtension}\n    },`
-          );
-        }
-        writeFileSync(tailwindConfigPath, tailwindConfig);
-        console.log(chalk.green('  ✓ tailwind.config.js → 已注入 Animal Island UI 主题色'));
-      } else {
-        console.log(chalk.gray('  → tailwind.config.js 已包含 Animal Island UI 主题，跳过'));
-      }
-    }
-  }
-  const indexCssPath = join(targetPath, 'src', 'index.css');
-  if (existsSync(indexCssPath)) {
-    let indexCss = readFileSync(indexCssPath, 'utf-8');
-    if (theme === 'animal-island') {
-      if (!indexCss.includes('--island-primary')) {
-        const animalIslandVars = `
-/* === Animal Island UI 主题变量 === */
-:root {
-  --island-primary: #19c8b9;
-  --island-secondary: #F5F5DC;
-  --island-accent: #FF6F61;
-  --island-text: #5D4E37;
-  --island-bg: #FAF8F5;
-  --island-radius: 16px;
-  --island-radius-lg: 24px;
-  --island-shadow: 0 4px 20px rgba(93, 78, 55, 0.1);
-}
-
-body {
-  background-color: var(--island-bg);
-  color: var(--island-text);
-  font-family: 'Nunito', 'Noto Sans SC', 'Segoe UI', sans-serif;
-}
-
-* {
-  border-radius: var(--island-radius);
-}
-`;
-        indexCss = indexCss.replace('@tailwind utilities;', `@tailwind utilities;\n${animalIslandVars}`);
-        writeFileSync(indexCssPath, indexCss);
-        console.log(chalk.green('  ✓ src/index.css → 已注入 Animal Island UI 主题变量'));
-      } else {
-        console.log(chalk.gray('  → src/index.css 已包含 Animal Island UI 变量，跳过'));
-      }
-    }
-  }
-  return `主题 ${theme} 应用完成`;
 }
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
@@ -199,15 +93,14 @@ function replaceInFile(fullPath, componentsUsed, modifiedFiles) {
     }
     writeFileSync(fullPath, content);
     modifiedFiles.push(fullPath);
-    console.log(chalk.green(`  ✓ ${fullPath} → 使用 ${[...fileComponents].join(', ')}`));
   }
 }
 
-function handleApplyComponents(targetPath, theme) {
+function handleApplyComponents(targetPath, theme, context) {
   if (theme !== 'animal-island') {
-    return '跳过组件替换（非 Animal Island UI 主题，DaisyUI 通过 CSS 类名生效）';
+    // Delegate to shared applyComponents for all other themes (light, dark, corporate, garden, cupcake, business, etc.)
+    return sharedApplyComponents('applyComponents', { theme }, targetPath, context);
   }
-  console.log(chalk.blue('\n🧩 正在扫描并替换为 Animal Island UI 组件...'));
   const componentsUsed = new Set();
   const modifiedFiles = [];
 
@@ -226,17 +119,15 @@ function handleAnalyzeUI(targetPath, context) {
   const files = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?|css|html)$/.test(f) });
   if (context) context.totalFiles = files.length;
   // Also run shared analysis for consistency
-  sharedAnalyzeUI('analyzeUI', {}, targetPath);
+  sharedAnalyzeUI('analyzeUI', {}, targetPath, context);
   return `前端分析完成，发现 ${files.length} 个前端文件`;
 }
 
 function handleNotify(context) {
-  console.log(chalk.green('\n✅ UI美化工作流执行完成！'));
-  console.log(chalk.dim(`  主题: ${context.selectedTheme || 'default'}`));
-  if (context.totalFiles) {
+  if (context.totalFiles !== undefined) {
     console.log(chalk.dim(`  分析文件数: ${context.totalFiles}`));
   }
-  if (context.consistencyScore) {
+  if (context.consistencyScore !== undefined) {
     console.log(chalk.dim(`  一致性评分: ${context.consistencyScore}/100`));
   }
   return '任务完成通知已发送';
@@ -244,39 +135,43 @@ function handleNotify(context) {
 
 const UI_POLISH_ACTIONS = {
   installDeps:        { handler: handleInstallDeps,        args: ['targetPath', 'theme'] },
-  applyDaisyUI:       { handler: handleApplyDaisyUI,       args: ['targetPath', 'theme'] },
-  applyComponents:    { handler: handleApplyComponents,    args: ['targetPath', 'theme'] },
+  applyDaisyUI:       { handler: (action, params, targetPath, context) => applyDaisyUI(action, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
+  applyComponents:    { handler: handleApplyComponents,    args: ['targetPath', 'theme', 'context'] },
   iconUpgrade:        { handler: (action, params, targetPath) => handleIconUpgrade(action, params, targetPath), args: ['action', 'params', 'targetPath'] },
   addAnimations:      { handler: (action, params, targetPath) => handleAddAnimations(action, params, targetPath), args: ['action', 'params', 'targetPath'] },
   microInteractions:  { handler: (action, params, targetPath) => handleMicroInteractions(action, params, targetPath), args: ['action', 'params', 'targetPath'] },
   analyzeUI:          { handler: handleAnalyzeUI,          args: ['targetPath', 'context'] },
   checkConsistency:   { handler: (action, params, targetPath, context) => actionsCheckConsistency(null, null, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
   runSuite:           { handler: handleRunSuite,           args: ['action', 'params', 'targetPath', 'context'] },
-  visualRegression:   { handler: (action, params, targetPath) => actionsVisualRegression(null, params, targetPath), args: ['action', 'params', 'targetPath'] },
+  visualRegression:   { handler: (action, params, targetPath, context) => actionsVisualRegression(null, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
   notify:             { handler: handleNotify,             args: ['context'] },
   checkAPIConsistency:{ handler: handleCheckAPIConsistency,args: ['action', 'params', 'targetPath', 'context'] },
   'awm-brand-import': { handler: (action, params, targetPath, context) => handleAwmBrandImport(action, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
+  invokeSkill:       { handler: (action, params, targetPath, context) => handleInvokeSkill(action, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
 };
 
 export async function executeUIPolish(action, params, context) {
-  const targetPath = context.targetPath || PROJECT_ROOT;
+  if (!context.targetPath) {
+    console.error(chalk.red('\n⚠️ 错误: context.targetPath 未定义，无法确定目标项目路径'));
+    return '动作执行失败（缺少 targetPath）';
+  }
+  const targetPath = context.targetPath;
   context.lastStepFailed = false;
   if (!context.securityScanResult) context.securityScanResult = {};
   const theme = context.selectedTheme || 'daisyui';
 
   try {
-    if (action.startsWith('ce-')) {
-      return handleCeAction(action);
-    }
     const entry = UI_POLISH_ACTIONS[action];
     if (entry) {
       const argMap = { action, params, targetPath, context, theme };
       return entry.handler(...entry.args.map(name => argMap[name]));
     }
-    return getActionMessage(action);
+    // Fall through to full ACTION_REGISTRY for all other actions
+    // (od-brand-*, reconcileDesignTokens, exportAssets, review, etc.)
+    return executeAction('ui-polish', action, params, context, targetPath);
   } catch (error) {
     context.lastStepFailed = true;
-    console.log(chalk.red(`\n⚠️ 执行 ${action} 时出错: ${error.message}`));
+    console.error(chalk.red(`\n⚠️ 执行 ${action} 时出错: ${error.message}`));
     return `动作 ${action} 执行完成（部分操作可能失败）`;
   }
 }

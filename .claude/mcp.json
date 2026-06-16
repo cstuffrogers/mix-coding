@@ -98,14 +98,6 @@
         "MOBSF_API_KEY": "${env:MOBSF_API_KEY}"
       }
     },
-    "maestro": {
-      "type": "stdio",
-      "command": "maestro",
-      "args": ["mcp"],
-      "env": {
-        "MAESTRO_CLI_API_KEY": "${env:MAESTRO_CLI_API_KEY}"
-      }
-    },
     "detox": {
       "type": "stdio",
       "command": "npx",
@@ -124,14 +116,5 @@
       "env": {
         "BEARER_API_KEY": "${env:BEARER_API_KEY}"
       }
-    },
-    "shorebird": {
-      "type": "stdio",
-      "command": "shorebird",
-      "args": ["mcp"],
-      "env": {
-        "SHOREBIRD_TOKEN": "${env:SHOREBIRD_TOKEN}"
-      }
-    }
   }
 }
