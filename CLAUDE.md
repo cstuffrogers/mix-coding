@@ -42,6 +42,7 @@ jvn 引入了规范的 spec → design → build 开发流程，由 5 个专业 
 - AI 驱动设计（Open Design 完整集成：150 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词 + 11 条 craft 设计铁律）
 - 前端美化工具链（DaisyUI + Animal Island UI + Animate.css + Lucide React + Playwright + web-design-engineer 设计基准声明）
 - Impeccable 设计打磨（27 条反AI模式规则 + 12 条 LLM 批判规则，自动修正 AI 塑料感）
+- 编码原则三重防线：Ponytail（写之前阻断—YAGNI/标准库/一行搞定决策阶梯）+ Karpathy 四诫（写之时约束—简洁优先/手术式修改）+ `/simplify`（写之后清理），详见 `.claude/rules/ponytail.md`
 - 5 层代码审查 + CE Plugin 深度审查
 - jvn Spec-Driven 开发（/spec → /design → /build）+ 5 Agent 增强审查（PM + 架构师 + UX + 代码审查 + 宪法校验）
 - 记忆组件组合（7种记忆工具：project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory）

@@ -282,12 +282,12 @@ function detectImportIssuesFallback() {
     const fileSrc = readOrNull(resolved);
     if (!fileSrc) { missingFiles.push({ file: rawPath, imported: names.join(', ') }); continue; }
     for (const name of names) {
-      const exported = new RegExp(
+      const isExported = new RegExp(
         `export\\s+(async\\s+)?function\\s+${name}\\b|` +
         `export\\s+(const|let|var)\\s+${name}\\b|` +
         `export\\s*\\{[^}]*\\b${name}\\b[^}]*\\}`
       ).test(fileSrc);
-      if (!exported) brokenExports.push({ file: rawPath, missing_export: name });
+      if (!isExported) brokenExports.push({ file: rawPath, missing_export: name });
     }
   }
   return { knip: false, broken: brokenExports, missing: missingFiles, ok: !brokenExports.length && !missingFiles.length };
@@ -394,15 +394,15 @@ function detectHandlerCrashes() {
     }
 
     // Check: function is exported (directly or via barrel re-export)
-    const directExport = new RegExp(`export\\s+(async\\s+)?function\\s+${handlerName}\\b`).test(modSrc);
-    const barrelExport = new RegExp(`export\\s*\\{[^}]*\\b${handlerName}\\b[^}]*\\}\\s*from\\s*'([^']+)'`).test(modSrc);
-    if (!directExport && !barrelExport) {
+    const isDirectExport = new RegExp(`export\\s+(async\\s+)?function\\s+${handlerName}\\b`).test(modSrc);
+    const isBarrelExport = new RegExp(`export\\s*\\{[^}]*\\b${handlerName}\\b[^}]*\\}\\s*from\\s*'([^']+)'`).test(modSrc);
+    if (!isDirectExport && !isBarrelExport) {
       crashes.push({ handler: handlerName, file: modPath.replace(SRC_DIR, '.'), error: '未找到导出函数' });
       continue;
     }
 
     // Only analyze body for directly-exported functions, skip barrel re-exports
-    if (!directExport) continue;
+    if (!isDirectExport) continue;
 
     // Check: function body is non-trivial (more than just print+return)
     const fnBodyMatch = modSrc.match(new RegExp(
@@ -506,11 +506,10 @@ function detectMcpIssues(_targetPath) {
 }
 
 // ═══════════════════════════════════════════════════
-// Main export
+// Pass runners — each runs + prints a group of related passes
 // ═══════════════════════════════════════════════════
-export function handleVerifyHandlers(_action, _params, targetPath, context) {
 
-  // ── Passes 1-3: Handler stubs ──
+function runStubDetection() {
   const { mcp, mp, rawCount } = detectInlineStubs();
   const ce = detectCeStub();
   const { stubs: pseudoStubs, total: totalHandlerFuncs } = detectPseudoStubs();
@@ -538,13 +537,18 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
     console.log(chalk.green(`  ✅ Pass 3 — 逻辑密度: ${totalHandlerFuncs} 个函数全部通过`));
   }
 
-  // ── Passes 4-5: Tools ──
+  return {
+    catA: mcp.length + mp.length,
+    catB: ce.isStub ? 1 : 0,
+    catC: pseudoStubs.length,
+  };
+}
+
+function runToolAndDepHealth(targetPath) {
   const toolHealth = detectToolHealth();
-  const totalTools = Object.keys(TOOL_CHECKS).length;
-  const requiredTools = totalTools - Object.values(TOOL_CHECKS).filter(t => t.optional).length;
-  const availCount = toolHealth.available.length;
   const missCount = toolHealth.missing.length;
   const optMissCount = toolHealth.optional_missing.length;
+  const availCount = toolHealth.available.length;
 
   if (missCount) {
     console.error(chalk.dim(`     缺失: ${toolHealth.missing.map(t => t.name).join(', ')}`));
@@ -554,16 +558,23 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
   }
 
   const depHealth = detectDepHealth(targetPath);
+  let criticalDeps = 0;
+  let warnDeps = 0;
   if (depHealth.skipped) {
     console.log(chalk.dim(`  ⏭ Pass 5 — 依赖健康: ${depHealth.reason}`));
   } else if (depHealth.critical.length || depHealth.warning.length) {
-    console.log(chalk.yellow(`  ⚠ Pass 5 — 依赖健康: ${depHealth.scanned} 包, ${depHealth.critical.length}严重 ${depHealth.warning.length}警告`));
+    criticalDeps = depHealth.critical.length;
+    warnDeps = depHealth.warning.length;
+    console.log(chalk.yellow(`  ⚠ Pass 5 — 依赖健康: ${depHealth.scanned} 包, ${criticalDeps}严重 ${warnDeps}警告`));
     for (const d of depHealth.critical) console.log(chalk.yellow(`     🔴 ${d.name}: ${d.reason}`));
   } else {
     console.log(chalk.green(`  ✅ Pass 5 — 依赖健康: ${depHealth.scanned} 包全部健康`));
   }
 
-  // ── Pass 6: CE plugin ──
+  return { missCount, availCount, criticalDeps, warnDeps };
+}
+
+function runProjectHealth(targetPath) {
   const ceAvailable = checkCePlugin(targetPath);
   if (ceAvailable) {
     console.log(chalk.green('  ✅ Pass 6 — CE Plugin: 已安装'));
@@ -571,20 +582,32 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
     console.log(chalk.yellow('  ⚠ Pass 6 — CE Plugin: 未安装'));
   }
 
-  // ── Pass 7: import resolution (knip) ──
   const importIssues = detectImportIssues(targetPath);
+  let importBroken = 0;
+  let unusedFilesCount = 0;
+  let unusedDepsCount = 0;
+  let knipUnresolved = 0;
+  let knipUnlisted = 0;
+  let isDeadCodePassed = true;
+
   if (importIssues.knip) {
     const { unusedExports, unresolved, unlisted, unusedDeps, unusedFiles } = importIssues;
+    importBroken = unresolved.length + unlisted.length + unusedExports.length;
+    unusedFilesCount = unusedFiles;
+    unusedDepsCount = unusedDeps.length;
+    knipUnresolved = unresolved.length;
+    knipUnlisted = unlisted.length;
     const hasIssues = unresolved.length || unlisted.length || unusedExports.length;
     if (hasIssues) {
       console.log(chalk.yellow(`  ⚠ Pass 7 — knip: ${unresolved.length}未解析 ${unlisted.length}未声明 ${unusedExports.length}未用导出 ${unusedDeps.length}未用依赖 ${unusedFiles}死文件`));
       for (const u of unresolved.slice(0, 4)) console.log(chalk.yellow(`     🔴 ${u.target} ← ${u.file}`));
       for (const u of unlisted.slice(0, 3)) console.log(chalk.yellow(`     🟡 ${u.name} (在 ${u.file} 中使用但未声明)`));
       for (const u of unusedExports.slice(0, 3)) console.log(chalk.dim(`     ⬜ ${u.symbol} @ ${u.file}`));
-      if (unresolved.length + unlisted.length + unusedExports.length > 7) console.log(chalk.dim(`     ... 共 ${unresolved.length + unlisted.length + unusedExports.length} 项`));
+      if (importBroken > 7) console.log(chalk.dim(`     ... 共 ${importBroken} 项`));
     } else {
       console.log(chalk.green(`  ✅ Pass 7 — knip: 0未解析 0未声明 (${unusedFiles}死文件 ${unusedDeps.length}未用依赖)`));
     }
+    isDeadCodePassed = importBroken === 0 && unusedDepsCount === 0;
   } else if (importIssues.ok) {
     console.log(chalk.green('  ✅ Pass 7 — 导入链: 全部有效'));
   } else {
@@ -596,30 +619,36 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
       console.log(chalk.red(`  🔴 Pass 7 — 导出断裂: ${importIssues.broken.length}`));
       for (const i of importIssues.broken) console.log(chalk.dim(`     ${i.file}: ${i.missing_export}`));
     }
+    importBroken = (importIssues.missing ? importIssues.missing.length : 0) + (importIssues.broken ? importIssues.broken.length : 0);
+    isDeadCodePassed = importBroken === 0;
   }
 
-  // ── Pass 8: scene-to-registry ──
   const { orphans, sceneCount, ok: orphanOk } = detectOrphanActions();
+  const orphanCount = orphans.length;
   if (orphanOk) {
     console.log(chalk.green(`  ✅ Pass 8 — 场景引用: ${sceneCount} 场景全部有效`));
-  } else if (orphans.length) {
+  } else if (orphanCount) {
     for (const o of orphans.slice(0, 8)) {
       console.log(chalk.dim(`     ${o.scene}:${o.step} → ${o.action} (不存在)`));
     }
   }
 
-  // ── Pass 9: handler smoke test ──
+  return { ceAvailable, importBroken, unusedFilesCount, unusedDepsCount, knipUnresolved, knipUnlisted, deadCodePassed: isDeadCodePassed, orphanCount };
+}
+
+function runSafetyChecks(targetPath) {
   const smoke = detectHandlerCrashes();
+  const crashCount = smoke.crashes ? smoke.crashes.length : 0;
   if (smoke.ok) {
     console.log(chalk.green(`  ✅ Pass 9 — Handler 冒烟: ${smoke.tested} 个全部通过`));
-  } else if (smoke.crashes.length) {
+  } else if (crashCount) {
     for (const c of smoke.crashes.slice(0, 5)) {
       console.error(chalk.dim(`     ${c.handler} @ ${c.file}: ${c.error}`));
     }
   }
 
-  // ── Pass 10: MCP config ──
   const mcpConfig = detectMcpIssues(targetPath);
+  const mcpIssueCount = mcpConfig.issueCount || 0;
   if (mcpConfig.total === 0) {
     console.log(chalk.dim(`  ⏭ Pass 10 — MCP 配置: ${mcpConfig.summary || '无配置'}`));
   } else if (mcpConfig.ok) {
@@ -633,23 +662,14 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
     if (mcpConfig.infos.length) parts.push(`${mcpConfig.infos.length} 信息`);
   }
 
-  // ── Summary ──
-  const catA = mcp.length + mp.length;
-  const catB = ce.isStub ? 1 : 0;
-  const catC = pseudoStubs.length;
-  const handlerStubs = catA + catB + catC;
-  const criticalDeps = depHealth.skipped ? 0 : depHealth.critical.length;
-  const warnDeps = depHealth.skipped ? 0 : depHealth.warning.length;
-  const importBroken = importIssues.knip
-    ? importIssues.unresolved.length + importIssues.unlisted.length + importIssues.unusedExports.length
-    : (importIssues.missing ? importIssues.missing.length : 0) + (importIssues.broken ? importIssues.broken.length : 0);
-  const unusedFilesCount = importIssues.knip ? importIssues.unusedFiles : 0;
-  const unusedDepsCount = importIssues.knip ? importIssues.unusedDeps.length : 0;
-  const orphanCount = orphans.length;
-  const crashCount = smoke.crashes ? smoke.crashes.length : 0;
-  const mcpIssueCount = mcpConfig.issueCount || 0;
+  return { crashCount, mcpIssueCount };
+}
 
-  const totalIssues = handlerStubs + missCount + criticalDeps + (ceAvailable ? 0 : 1) + importBroken + unusedDepsCount + orphanCount + crashCount + mcpIssueCount;
+function computeAndStore(stubs, tools, project, safety, targetPath, context) {
+  const handlerStubs = stubs.catA + stubs.catB + stubs.catC;
+  const totalIssues = handlerStubs + tools.missCount + tools.criticalDeps
+    + (project.ceAvailable ? 0 : 1) + project.importBroken + project.unusedDepsCount
+    + project.orphanCount + safety.crashCount + safety.mcpIssueCount;
 
   if (totalIssues === 0) {
     console.log(chalk.green('\n  🎉 全部 10 道检查通过！'));
@@ -661,23 +681,33 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
     context.handlerVerificationComplete = true;
     context.handlerVerificationStubCount = handlerStubs;
     context.handlerVerificationTotalIssues = totalIssues;
-    context.toolHealthResult = { available: availCount, missing: missCount, optionalMissing: optMissCount, required: requiredTools };
-    context.depHealthResult = { critical: criticalDeps, warning: warnDeps };
-    context.importIssues = importBroken;
-    context.orphanActions = orphanCount;
-    context.handlerCrashes = crashCount;
-    context.mcpIssues = mcpIssueCount;
-    context.cePluginAvailable = ceAvailable;
-    if (importIssues.knip) {
-      context.knipUnusedFiles = unusedFilesCount;
-      context.knipUnusedDeps = unusedDepsCount;
-      context.knipUnresolved = importIssues.unresolved.length;
-      context.knipUnlisted = importIssues.unlisted.length;
-      context.deadCodePassed = importBroken === 0 && unusedDepsCount === 0;
-    } else {
-      context.deadCodePassed = importBroken === 0;
-    }
+    context.toolHealthResult = { available: tools.availCount, missing: tools.missCount, optionalMissing: 0, required: 0 };
+    context.depHealthResult = { critical: tools.criticalDeps, warning: tools.warnDeps };
+    context.importIssues = project.importBroken;
+    context.orphanActions = project.orphanCount;
+    context.handlerCrashes = safety.crashCount;
+    context.mcpIssues = safety.mcpIssueCount;
+    context.cePluginAvailable = project.ceAvailable;
+    context.knipUnusedFiles = project.unusedFilesCount;
+    context.knipUnusedDeps = project.unusedDepsCount;
+    context.knipUnresolved = project.knipUnresolved;
+    context.knipUnlisted = project.knipUnlisted;
+    context.deadCodePassed = project.deadCodePassed;
   }
+
+  return totalIssues;
+}
+
+// ═══════════════════════════════════════════════════
+// Main export
+// ═══════════════════════════════════════════════════
+export function handleVerifyHandlers(_action, _params, targetPath, context) {
+  const stubs = runStubDetection();
+  const tools = runToolAndDepHealth(targetPath);
+  const project = runProjectHealth(targetPath);
+  const safety = runSafetyChecks(targetPath);
+
+  const totalIssues = computeAndStore(stubs, tools, project, safety, targetPath, context);
 
   return `10 道检查完成: ${totalIssues} 个问题`;
 }

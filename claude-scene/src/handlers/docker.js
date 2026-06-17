@@ -156,7 +156,7 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
 
   const language = detectLanguage(targetPath);
 
-  let dockerConfigured = true;
+  let isDockerConfigured = true;
   const dockerfilePath = join(targetPath, 'Dockerfile');
   const ignorePath = join(targetPath, '.dockerignore');
   const composePath = join(targetPath, 'docker-compose.yml');
@@ -166,7 +166,7 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
     try {
       writeFileSync(dockerfilePath, generateDockerfile(language, targetPath), 'utf-8');
     } catch {
-      dockerConfigured = false;
+      isDockerConfigured = false;
     }
   }
 
@@ -205,13 +205,13 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
   }
 
   if (context) {
-    context.dockerConfigured = dockerConfigured;
+    context.dockerConfigured = isDockerConfigured;
     context.dockerfilePath = dockerfilePath;
     context.composeGenerated = existsSync(composePath);
-    if (!dockerConfigured) context.lastStepFailed = true;
+    if (!isDockerConfigured) context.lastStepFailed = true;
   }
 
-  return dockerConfigured
+  return isDockerConfigured
     ? 'Docker 容器化配置完成：Dockerfile + .dockerignore + docker-compose.yml 已生成'
     : 'Docker 配置部分完成（检查警告）';
 }

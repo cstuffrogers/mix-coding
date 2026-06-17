@@ -249,43 +249,43 @@ export function handleRunReview(_action, params, targetPath, context) {
   const specialResult = handleSpecialMode(mode, targetPath, context);
   if (specialResult !== null) return specialResult;
 
-  let foundIssues = false;
-  let foundSecurityIssues = false;
+  let isFoundIssues = false;
+  let isFoundSecurityIssues = false;
 
   if (rules.includes('eslint-plugin-security') || rules.includes('OWASP-Top-10') || mode === 'security') {
     const r = runSecurityEslint(targetPath, autoFix);
-    foundIssues = foundIssues || r.foundIssues;
-    foundSecurityIssues = foundSecurityIssues || r.foundSecurityIssues;
+    isFoundIssues ||= r.foundIssues;
+    isFoundSecurityIssues ||= r.foundSecurityIssues;
   }
 
   if (rules.includes('npm-audit') || mode === 'security') {
     const r = runNpmAudit(targetPath, autoFix);
-    foundIssues = foundIssues || r.foundIssues;
-    foundSecurityIssues = foundSecurityIssues || r.foundSecurityIssues;
+    isFoundIssues ||= r.foundIssues;
+    isFoundSecurityIssues ||= r.foundSecurityIssues;
   }
 
   if (rules.includes('eslint') || mode === 'full') {
     const lintIssues = runEslintCheck(targetPath, autoFix);
-    if (lintIssues) foundIssues = true;
+    if (lintIssues) isFoundIssues = true;
     if (context) context.lintPassed = !lintIssues;
   }
 
   if (rules.includes('typescript') || mode === 'full') {
     const tsIssues = runTypeCheck(targetPath);
-    if (tsIssues) foundIssues = true;
+    if (tsIssues) isFoundIssues = true;
     if (context) context.typecheckPassed = !tsIssues;
   }
 
-  applyReviewResults(context, foundSecurityIssues, foundIssues, autoFix);
+  applyReviewResults(context, isFoundSecurityIssues, isFoundIssues, autoFix);
 
-  if (foundSecurityIssues) return '代码审查完成（发现安全问题）';
-  return foundIssues ? '代码审查完成（发现问题已标记）' : '代码审查完成（无问题）';
+  if (isFoundSecurityIssues) return '代码审查完成（发现安全问题）';
+  return isFoundIssues ? '代码审查完成（发现问题已标记）' : '代码审查完成（无问题）';
 }
 
 export function handleReviewFull(_action, _params, targetPath) {
-  const inClaudeCode = process.env.CLAUDECODE === '1';
+  const isInClaudeCode = process.env.CLAUDECODE === '1';
 
-  if (inClaudeCode) {
+  if (isInClaudeCode) {
     return '代码审查就绪（对话模式 Skill 调用）';
   }
 
@@ -313,9 +313,9 @@ export function handleReviewFull(_action, _params, targetPath) {
 }
 
 export function handleVerifyVisual(_action, _params, targetPath) {
-  const inClaudeCode = process.env.CLAUDECODE === '1';
+  const isInClaudeCode = process.env.CLAUDECODE === '1';
 
-  if (inClaudeCode) {
+  if (isInClaudeCode) {
     return '视觉验证就绪（对话模式 Playwright 执行）';
   }
 

@@ -21,7 +21,7 @@
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
 - ✅ **AI/Model 无缝切换**：通过配置文件快速切换 AI 服务提供商，支持 Claude、Gemini、Qwen 等主流模型
-- ✅ **Karpathy 原则集成**：强制执行 Think Before Coding、Simplicity First 等开发原则
+- ✅ **编码原则三重防线**：Ponytail（写之前阻断—YAGNI/标准库/一行搞定决策阶梯）+ Karpathy 四诫（写之时约束—简洁优先/手术式修改）+ `/simplify`（写之后清理）
 - ✅ **Compound Engineering Plugin 集成**：AI 规划、深度审查、系统调试、知识沉淀，所有 34 个工作流自动集成
 
 ---

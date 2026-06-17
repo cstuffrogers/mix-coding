@@ -120,7 +120,7 @@ export function handleAddAnimations(_action, _params, targetPath) {
     if (content.includes('animate__animated')) continue;
 
     const isScreen = screenDirs.some((d) => filePath.replace(/\\/g, '/').includes(`/${d}/`));
-    let modified = false;
+    let isModified = false;
 
     if (isScreen) {
       // 页面级组件：给容器区域加动画
@@ -140,13 +140,13 @@ export function handleAddAnimations(_action, _params, targetPath) {
             tm[0],
             tm[0].replace('className="', `className="animate__animated ${p.anim} `)
           );
-          modified = true;
+          isModified = true;
         }
       }
     }
 
     // 所有文件：给根 div 容器加 fadeIn（如果还没动画的话）
-    if (!modified && !content.includes('animate__')) {
+    if (!isModified && !content.includes('animate__')) {
       // 找第一个有 className 的顶层 JSX 容器（支持跨行）
       const rootMatch = content.match(/return\s*\(\s*[\s\S]*?<div\s+className="([^"]*)"/);
       if (rootMatch && !rootMatch[1].includes('animate__')) {
@@ -154,11 +154,11 @@ export function handleAddAnimations(_action, _params, targetPath) {
           /(return\s*\(\s*<div\s+className=")([^"]*)(")/,
           '$1$2 animate__animated animate__fadeIn$3'
         );
-        modified = true;
+        isModified = true;
       }
     }
 
-    if (modified) {
+    if (isModified) {
       writeFileSync(filePath, content);
       animatedFiles++;
     }
@@ -276,7 +276,7 @@ export function handleIconUpgrade(_action, _params, targetPath) {
   for (const filePath of jsxFiles) {
     let content;
     try { content = readFileSync(filePath, 'utf-8'); } catch { continue; }
-    let fileModified = false;
+    let isFileModified = false;
     let fileIcons = 0;
 
     for (const pattern of patterns) {
@@ -298,7 +298,7 @@ export function handleIconUpgrade(_action, _params, targetPath) {
           const classProp = preservedClasses ? ` className="${preservedClasses}"` : '';
           content = content.replace(match[0], `<${lucideName} size={${size}}${classProp} />`);
           fileIcons++;
-          fileModified = true;
+          isFileModified = true;
           typeCounts[pattern.type]++;
         }
       }
@@ -315,13 +315,13 @@ export function handleIconUpgrade(_action, _params, targetPath) {
         if (/className=/.test(attrs)) continue;
         content = content.replace(svgMatch[0], svgMatch[0].replace('<svg', '<svg className="w-5 h-5 inline-block"'));
         svgCount++;
-        fileModified = true;
+        isFileModified = true;
       }
       if (svgCount > 0) typeCounts.inlineSvg += svgCount;
       fileIcons += svgCount;
     }
 
-    if (fileModified) {
+    if (isFileModified) {
       // 添加 lucide-react import
       const iconsInFile = [];
       for (const lucideName of Object.values(ICON_MAP)) {
@@ -366,7 +366,7 @@ export function handleMicroInteractions(_action, _params, targetPath) {
   for (const filePath of jsxFiles) {
     let content;
     try { content = readFileSync(filePath, 'utf-8'); } catch { continue; }
-    let fileModified = false;
+    let isFileModified = false;
 
     // 1. 给带 onClick 的可点击元素加 hover/active 效果
     // Two-pass: find elements with onClick, then check className
@@ -394,7 +394,7 @@ export function handleMicroInteractions(_action, _params, targetPath) {
           `className="${existingClasses}${extraClasses}"`
         );
         content = content.replace(fullTag, newTag);
-        fileModified = true;
+        isFileModified = true;
       }
     }
 
@@ -405,12 +405,12 @@ export function handleMicroInteractions(_action, _params, targetPath) {
         if (!cls.includes('hover:') && !cls.includes('transition')) {
           const enhanced = cls.replace(/"$/, ' hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] transition-all duration-200"');
           content = content.replace(cls, enhanced);
-          fileModified = true;
+          isFileModified = true;
         }
       }
     }
 
-    if (fileModified) {
+    if (isFileModified) {
       writeFileSync(filePath, content);
       modifiedFiles++;
     }
@@ -760,7 +760,7 @@ export function handleApplyComponents(_action, params, targetPath, context) {
   for (const filePath of jsxFiles) {
     let content;
     try { content = readFileSync(filePath, 'utf-8'); } catch { continue; }
-    let fileModified = false;
+    let isFileModified = false;
 
     // ── Enhance <button> elements ──
     const buttonRegex = /<button\b([^>]*?)className="([^"]*)"/g;
@@ -774,7 +774,7 @@ export function handleApplyComponents(_action, params, targetPath, context) {
         `<button${match[1]}className="${match[2]}"`,
         `<button${match[1]}className="${newClasses}"`
       );
-      fileModified = true;
+      isFileModified = true;
       totalElements++;
     }
 
@@ -790,7 +790,7 @@ export function handleApplyComponents(_action, params, targetPath, context) {
         `<input${match[1]}className="${match[2]}"`,
         `<input${match[1]}className="${newClasses}"`
       );
-      fileModified = true;
+      isFileModified = true;
       totalElements++;
     }
 
@@ -812,7 +812,7 @@ export function handleApplyComponents(_action, params, targetPath, context) {
         `<${tag}${attrs}className="${existingClasses}"`,
         `<${tag}${attrs}className="${newClasses}"`
       );
-      fileModified = true;
+      isFileModified = true;
       totalElements++;
       cardCount++;
     }
@@ -832,11 +832,11 @@ export function handleApplyComponents(_action, params, targetPath, context) {
           `<section${match[1]}className="${existingClasses}"`,
           `<section${match[1]}className="${newClasses}"`
         );
-        fileModified = true;
+        isFileModified = true;
       }
     }
 
-    if (fileModified) {
+    if (isFileModified) {
       writeFileSync(filePath, content);
       enhancedFiles++;
     }
@@ -1047,7 +1047,7 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
     } catch {
       continue;
     }
-    let modified = false;
+    let isModified = false;
     const basename = path.basename(filePath);
 
     // 规则1: 纯黑文字 → neutral-900
@@ -1056,14 +1056,14 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
         .replace(/text-black/g, 'text-neutral-900')
         .replace(/#000000/gi, '#171717')
         .replace(/#000\b(?!\d)/gi, '#171717');
-      modified = true;
+      isModified = true;
       issues.fixed.push(`${basename}: 纯黑→neutral-900`);
     }
 
     // 规则2: 纯白背景 → neutral-50
     if (/\bbg-white\b/.test(content)) {
       content = content.replace(/\bbg-white\b/g, 'bg-neutral-50');
-      modified = true;
+      isModified = true;
       issues.fixed.push(`${basename}: bg-white→bg-neutral-50`);
     }
 
@@ -1082,7 +1082,7 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
           return `${prefix}${existingClasses} transition-colors duration-200${suffix}`;
         }
       );
-      modified = true;
+      isModified = true;
       issues.fixed.push(`${basename}: 交互元素补 transition`);
     }
 
@@ -1096,7 +1096,7 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
     const thickBorderRegex = /\bborder-l-(?:red|blue|green|purple|pink|indigo|violet|cyan|teal|orange|amber|yellow|lime|emerald|sky|fuchsia|rose)-\d00\b/g;
     if (thickBorderRegex.test(content)) {
       content = content.replace(thickBorderRegex, 'border border-gray-200');
-      modified = true;
+      isModified = true;
       issues.fixed.push(`${basename}: 侧边彩色描边→完整边框`);
     }
 
@@ -1115,7 +1115,7 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
       ).replace(
         /text-transparent/g, 'font-bold'
       );
-      modified = true;
+      isModified = true;
       issues.fixed.push(`${basename}: 渐变文字→纯色+字重`);
     }
 
@@ -1136,7 +1136,7 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
         .replace(/\s+/g, ' ')
         .trim();
       content = content.replace(eyebrowMatch[0], `className="${newClasses}"`);
-      modified = true;
+      isModified = true;
       issues.fixed.push(`${basename}: 小字大写眼眉→text-sm font-medium`);
     }
 
@@ -1160,7 +1160,7 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
         }
       }
       if (repeatedHex.length > 0) {
-        modified = true;
+        isModified = true;
         issues.fixed.push(`${basename}: ${repeatedHex.length} 处重复硬编码颜色→CSS变量`);
       } else if (hardcodedHex.length > 12) {
         issues.warned.push(`${basename}: ${hardcodedHex.length} 处硬编码颜色，建议抽取为 CSS 变量`);
@@ -1177,7 +1177,7 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
       issues.warned.push(`${basename}: 检测到英雄指标模板（AI套路），建议替换为真实数据叙事`);
     }
 
-    if (modified) {
+    if (isModified) {
       writeFileSync(filePath, content);
     }
   }

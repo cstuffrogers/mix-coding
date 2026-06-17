@@ -98,7 +98,7 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
   }
 
   const findings = [];
-  let passed = true;
+  let isPassed = true;
 
   try {
     const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
@@ -117,7 +117,7 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
     findings.push(...leaks);
 
     if (leaks.length > 0) {
-      passed = false;
+      isPassed = false;
     } else {
       console.log(chalk.green('  ✅ noleak 扫描完成，未发现泄露'));
     }
@@ -125,7 +125,7 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
     console.log(chalk.dim('  ℹ noleak 不可用，跳过泄露检查'));
   }
 
-  if (context) context.buildLeakPassed = passed;
+  if (context) context.buildLeakPassed = isPassed;
   return `构建泄露检查完成: ${findings.length ? findings.join('; ') : '无泄露'}`;
 }
 
@@ -171,7 +171,7 @@ export function handleDeadLinkCheck(_action, _params, targetPath, context) {
 
 export function handleSecurityHeaders(_action, _params, targetPath, context) {
   const findings = [];
-  let passed = true;
+  let isPassed = true;
 
   const checks = [
     { name: 'CSP', grep: 'contentSecurityPolicy|Content-Security-Policy|helmet' },
@@ -205,12 +205,12 @@ export function handleSecurityHeaders(_action, _params, targetPath, context) {
 
   const missingCount = findings.filter(f => f.includes('未配置')).length;
   if (missingCount > 0) {
-    passed = false;
+    isPassed = false;
   } else if (findings.length === 0) {
     console.log(chalk.green('  ✅ 安全响应头配置完整'));
   }
 
-  if (context) context.securityHeadersPassed = passed;
+  if (context) context.securityHeadersPassed = isPassed;
   return `安全响应头扫描完成: ${findings.length ? findings.join('; ') : '全部已配置'}`;
 }
 
@@ -298,7 +298,7 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
   const llmFlag = hasLlmKey ? '' : ' --no-llm';
 
   const allFindings = [];
-  let scanFailed = false;
+  let isScanFailed = false;
 
   for (const target of targets) {
     try {
@@ -312,7 +312,7 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
       } catch {
         // Non-JSON output — check for text indicators
         if (raw.toLowerCase().includes('vulnerability') || raw.toLowerCase().includes('malicious')) {
-          scanFailed = true;
+          isScanFailed = true;
         } else if (raw.includes('No issues') || raw.includes('no issues') || raw.includes('clean')) {
           console.log(chalk.dim(`  ✓ ${target}: 未发现问题`));
         } else {
@@ -323,11 +323,11 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
       if (e.message && e.message.includes('NOT_FOUND')) {
         return 'SkillSpector 扫描完成: 跳过（不可用）';
       }
-      scanFailed = true;
+      isScanFailed = true;
     }
   }
 
-  if (scanFailed && allFindings.length === 0) {
+  if (isScanFailed && allFindings.length === 0) {
     // Don't set Passed — let gate report as skipped
     return 'SkillSpector 扫描完成: 部分失败';
   }
@@ -504,7 +504,7 @@ export function handleJscpd(_action, _params, targetPath, context) {
 
 export function handleStryker(_action, _params, targetPath, context) {
   const configFiles = ['stryker.config.js', 'stryker.config.mjs', 'stryker.config.json', 'stryker.config.ts'];
-  const configExists = configFiles.some(f => existsSync(join(targetPath, f)));
+  const isConfigExists = configFiles.some(f => existsSync(join(targetPath, f)));
   const hasConfigInPkg = (() => {
     try {
       const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
@@ -512,12 +512,12 @@ export function handleStryker(_action, _params, targetPath, context) {
     } catch { return false; }
   })();
 
-  if (!configExists && !hasConfigInPkg) {
+  if (!isConfigExists && !hasConfigInPkg) {
     if (context) context.strykerPassed = true;
     return 'Stryker 变异测试完成: 无 stryker 配置，已跳过';
   }
 
-  let passed = true;
+  let isPassed = true;
   let score = 0;
   let killed = 0;
   let survived = 0;
@@ -552,7 +552,7 @@ export function handleStryker(_action, _params, targetPath, context) {
         if (survivedMatch) survived = parseInt(survivedMatch[1], 10);
       } else if (raw.includes('No mutants') || raw.includes('no mutants')) {
         console.log(chalk.green('  ✅ Stryker: 无变异体'));
-        passed = true;
+        isPassed = true;
       }
     }
 
@@ -562,7 +562,7 @@ export function handleStryker(_action, _params, targetPath, context) {
       } else if (score >= 60) {
         console.log(chalk.yellow(`  ⚠ Stryker 变异测试分数: ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}，阈值 80%）`));
       } else {
-        passed = false;
+        isPassed = false;
         console.log(chalk.red(`  🔴 Stryker 变异测试分数过低: ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}，阈值 80%）`));
       }
     }
@@ -570,8 +570,8 @@ export function handleStryker(_action, _params, targetPath, context) {
     console.log(chalk.dim('  ℹ Stryker 不可用，跳过变异测试'));
   }
 
-  if (context) context.strykerPassed = passed;
-  return `Stryker 变异测试完成: ${score > 0 ? `分数 ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}）` : passed ? '通过' : '失败'}`;
+  if (context) context.strykerPassed = isPassed;
+  return `Stryker 变异测试完成: ${score > 0 ? `分数 ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}）` : isPassed ? '通过' : '失败'}`;
 }
 
 // ── Spectral — API/OpenAPI linting (2.5k+ stars) ──
@@ -696,7 +696,7 @@ export function handleSizeLimit(_action, _params, targetPath, context) {
     }
   }
 
-  let passed = true;
+  let isPassed = true;
   const failures = [];
 
   try {
@@ -714,7 +714,7 @@ export function handleSizeLimit(_action, _params, targetPath, context) {
         const size = item.size || 0;
         const limit = item.limit || item.maxSize || 0;
         if (limit > 0 && size > limit) {
-          passed = false;
+          isPassed = false;
           const sizeKB = (size / 1024).toFixed(1);
           const limitKB = (limit / 1024).toFixed(1);
           failures.push(`${name}: ${sizeKB} KB > 限制 ${limitKB} KB`);
@@ -727,7 +727,7 @@ export function handleSizeLimit(_action, _params, targetPath, context) {
       }
     } catch {
       if (raw.includes('FAIL') || raw.includes('exceed')) {
-        passed = false;
+        isPassed = false;
         console.log(chalk.red('  🔴 size-limit 检查失败（超出预算）'));
       } else if (raw.trim()) {
         console.log(chalk.green('  ✅ size-limit 检查通过'));
@@ -737,6 +737,6 @@ export function handleSizeLimit(_action, _params, targetPath, context) {
     console.log(chalk.dim('  ℹ size-limit 不可用，跳过包体积检查'));
   }
 
-  if (context) context.sizeLimitPassed = passed;
-  return `包体积检查完成: ${passed ? '通过' : failures.join('; ')}`;
+  if (context) context.sizeLimitPassed = isPassed;
+  return `包体积检查完成: ${isPassed ? '通过' : failures.join('; ')}`;
 }

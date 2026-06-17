@@ -38,16 +38,16 @@ export function handleLighthouseGate(_action, params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024 }
     ).toString();
 
-    const passed = !/Assertion failed|Budget exceeded/i.test(result);
+    const isPassed = !/Assertion failed|Budget exceeded/i.test(result);
 
-    if (passed) {
+    if (isPassed) {
       console.log(chalk.green('  ✅ Lighthouse CI 性能门禁通过'));
     } else {
       if (context) context.lastStepFailed = true;
     }
 
-    if (context) context.lighthousePassed = passed;
-    return `Lighthouse CI 完成: ${passed ? '通过' : '未通过'}`;
+    if (context) context.lighthousePassed = isPassed;
+    return `Lighthouse CI 完成: ${isPassed ? '通过' : '未通过'}`;
   } catch {
     // Don't set Passed — let gate report as skipped (tool didn't run)
     return 'Lighthouse CI 完成（不可用）';

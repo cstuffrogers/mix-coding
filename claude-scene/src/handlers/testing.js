@@ -7,14 +7,14 @@ import { scanDir } from '../lib/scan-dir.js';
 
 export function handleTestCoverage(_action, params, targetPath, context) {
   const packagePath = join(targetPath, 'package.json');
-  let ran = false;
+  let isRan = false;
   if (existsSync(packagePath)) {
     try {
       safeExec('npx vitest run --coverage --coverage.include="src/**" 2>&1', targetPath, { stdio: 'inherit' });
-      ran = true;
-    } catch { ran = false; /* vitest coverage not configured */ }
+      isRan = true;
+    } catch { isRan = false; /* vitest coverage not configured */ }
   }
-  if (context) context.coveragePassed = ran;
+  if (context) context.coveragePassed = isRan;
   return '测试覆盖率分析完成';
 }
 

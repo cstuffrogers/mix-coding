@@ -5,7 +5,7 @@ import { safeExec } from '../lib/safe-exec.js';
 // ── E2E Config Setup ──
 
 export function handleSetupE2EConfig(_action, params, targetPath, context) {
-  const generateExamples = params?.generate_examples !== false;
+  const isGenerateExamples = params?.generate_examples !== false;
 
   const projectType = context?.project_type || 'rn';
   const toolMap = {
@@ -23,7 +23,7 @@ export function handleSetupE2EConfig(_action, params, targetPath, context) {
     try { mkdirSync(e2eDir, { recursive: true }); } catch { /* skip */ }
   }
 
-  if (generateExamples) {
+  if (isGenerateExamples) {
     const exampleTest = tool === 'Detox'
       ? `// Detox E2E 示例 — 登录流程\ndescribe('Login', () => {\n  beforeAll(async () => {\n    await device.launchApp();\n  });\n\n  it('should show login screen', async () => {\n    await expect(element(by.id('login-screen'))).toBeVisible();\n  });\n\n  it('should login with valid credentials', async () => {\n    await element(by.id('email-input')).typeText('test@example.com');\n    await element(by.id('password-input')).typeText('password123');\n    await element(by.id('login-button')).tap();\n    await expect(element(by.id('home-screen'))).toBeVisible();\n  });\n});\n`
       : `// E2E 示例测试 — 请根据框架调整\n`;

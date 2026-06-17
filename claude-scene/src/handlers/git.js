@@ -47,13 +47,13 @@ export function handleCreatePR(_action, params, targetPath) {
 
 export function handleAutoUpdate(_action, params, targetPath, context) {
   const mode = params?.mode || 'pull';
-  const rebase = params?.rebase !== false;
+  const isRebase = params?.rebase !== false;
   try {
     if (mode === 'fetch') {
       safeExec('git fetch origin 2>&1', targetPath, { stdio: 'pipe' });
       return '远程更新已获取（fetch only）';
     }
-    const rebaseFlag = rebase ? ' --rebase' : '';
+    const rebaseFlag = isRebase ? ' --rebase' : '';
     safeExec(`git pull${rebaseFlag} origin 2>&1`, targetPath, { stdio: 'pipe' });
     return '代码已更新到最新版本';
   } catch (e) {

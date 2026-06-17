@@ -275,21 +275,21 @@ for (const [sceneId, scene] of Object.entries(scenes)) {
 
     if (!action) continue; // skip steps without action
 
-    let handlerExists = false;
+    let isHandlerExists = false;
     let handlerName = null;
 
     if (isCeAction) {
-      handlerExists = ceActions.has(action);
+      isHandlerExists = ceActions.has(action);
       handlerName = 'handleCeAction';
     } else if (isUiPolishScene && uiPolishActions.has(action)) {
-      handlerExists = true;
+      isHandlerExists = true;
       handlerName = actionNameToHandlerName[action] || 'unknown';
     } else if (actionRegistry.has(action)) {
-      handlerExists = true;
+      isHandlerExists = true;
       handlerName = actionNameToHandlerName[action] || 'unknown';
     }
 
-    if (!handlerExists) {
+    if (!isHandlerExists) {
       err('ERROR', `${sceneId}.json step ${stepNum}: 动作 "${action}" 未注册到任何 handler`);
       continue;
     }

@@ -198,12 +198,12 @@ export function handleSetupE2E(_action, _params, targetPath, context) {
 
   logE2eSetupInfo(endpoints, specPath, deps);
 
-  let mswGenerated = false;
+  let isMswGenerated = false;
   let apiTestsGenerated;
-  let fuzzPassed = false;
+  let isFuzzPassed = false;
 
   if (endpoints.length > 0) {
-    mswGenerated = generateMswMocks(targetPath, endpoints);
+    isMswGenerated = generateMswMocks(targetPath, endpoints);
   } else {
     console.log(chalk.yellow('  ⚠ 未检测到 API 端点，跳过 MSW mock'));
   }
@@ -211,18 +211,18 @@ export function handleSetupE2E(_action, _params, targetPath, context) {
   apiTestsGenerated = generateIntegrationTests(targetPath, endpoints, specPath);
 
   if (specPath) {
-    fuzzPassed = runSchemathesisFuzz(targetPath, specPath);
+    isFuzzPassed = runSchemathesisFuzz(targetPath, specPath);
   }
 
   if (context) {
-    context.e2eConfigured = mswGenerated || apiTestsGenerated;
-    context.mswHandlersGenerated = mswGenerated;
+    context.e2eConfigured = isMswGenerated || apiTestsGenerated;
+    context.mswHandlersGenerated = isMswGenerated;
     context.apiTestsGenerated = apiTestsGenerated;
-    context.fuzzTestPassed = fuzzPassed;
+    context.fuzzTestPassed = isFuzzPassed;
     if (!context.e2eConfigured) context.lastStepFailed = true;
   }
 
   return context?.e2eConfigured
-    ? `E2E 测试配置完成（MSW: ${mswGenerated ? '是' : '否'}, API测试: ${apiTestsGenerated ? '是' : '否'}${fuzzPassed ? ', Fuzz: 通过' : ''}）`
+    ? `E2E 测试配置完成（MSW: ${isMswGenerated ? '是' : '否'}, API测试: ${apiTestsGenerated ? '是' : '否'}${isFuzzPassed ? ', Fuzz: 通过' : ''}）`
     : 'E2E 测试配置部分完成（检查警告）';
 }

@@ -23,8 +23,8 @@ export function handleFix(_action, _params, _targetPath, context) {
 export function handleVerifyFix(_action, _params, targetPath) {
   try {
     const result = safeExec('npx vitest run 2>&1', targetPath, { stdio: 'pipe' }).toString();
-    const passed = !result.includes('failed') && !result.includes('FAIL');
-    return passed ? '修复验证通过' : '修复验证: 测试失败';
+    const isPassed = !result.includes('failed') && !result.includes('FAIL');
+    return isPassed ? '修复验证通过' : '修复验证: 测试失败';
   } catch {
     return '修复验证完成（无测试运行器）';
   }
@@ -33,8 +33,8 @@ export function handleVerifyFix(_action, _params, targetPath) {
 export function handleRegression(_action, _params, targetPath) {
   try {
     const result = safeExec('npx vitest run 2>&1', targetPath, { stdio: 'pipe' }).toString();
-    const passed = !result.includes('failed') && !result.includes('FAIL');
-    return passed ? '回归测试通过' : '回归测试: 失败';
+    const isPassed = !result.includes('failed') && !result.includes('FAIL');
+    return isPassed ? '回归测试通过' : '回归测试: 失败';
   } catch {
     return '回归测试完成（无测试运行器）';
   }

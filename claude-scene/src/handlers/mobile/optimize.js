@@ -95,12 +95,12 @@ export function handleGenerateOptimizePlan(_action, params, _targetPath, context
 }
 
 export function handleExecuteOptimize(_action, params, _targetPath, context) {
-  const autoOnly = params?.auto_fix_only !== false;
+  const isAutoOnly = params?.auto_fix_only !== false;
 
   const applied = [];
   const skipped = [];
 
-  if (autoOnly) {
+  if (isAutoOnly) {
     applied.push('dead import 清理建议', '重复请求合并建议');
     skipped.push('WebP 转换（需设备验证）', '代码分割（需手动审查）');
   }

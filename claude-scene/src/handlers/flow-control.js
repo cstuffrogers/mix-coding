@@ -164,9 +164,9 @@ export function handleCeAction(action, _params, targetPath, context) {
 
   const ceConfigPath = targetPath ? join(targetPath, '..', '.claude', 'plugins', 'compound-engineering.json') : null;
   const ceAvailable = ceConfigPath ? existsSync(ceConfigPath) : false;
-  const inClaudeCode = process.env.CLAUDECODE === '1';
+  const isInClaudeCode = process.env.CLAUDECODE === '1';
 
-  if (ceAvailable && inClaudeCode) {
+  if (ceAvailable && isInClaudeCode) {
     console.log(chalk.cyan(`\n🧠 CE ${ceAction}: ${desc}`));
     console.log(chalk.dim('  → CE Plugin 已安装，对话模式中由 Claude Code 调用'));
   } else if (ceAvailable) {
@@ -204,7 +204,7 @@ export function handleCeAction(action, _params, targetPath, context) {
     }
   }
 
-  return `CE ${ceAction}: ${ceAvailable && inClaudeCode ? 'CE Plugin 就绪（对话模式执行）' : ceAvailable ? 'CE Plugin 已安装但需对话模式' : '上下文已设置（CE Plugin 未安装）'}`;
+  return `CE ${ceAction}: ${ceAvailable && isInClaudeCode ? 'CE Plugin 就绪（对话模式执行）' : ceAvailable ? 'CE Plugin 已安装但需对话模式' : '上下文已设置（CE Plugin 未安装）'}`;
 }
 
 export function handleAnalyze(_action, params, targetPath, context) {

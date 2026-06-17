@@ -114,7 +114,7 @@ export function handleSetupLogging(_action, _params, targetPath, context) {
   const logger = detectLogger(targetPath);
 
   const configPath = join(targetPath, 'logging.config.js');
-  let loggingConfigured = true;
+  let isLoggingConfigured = true;
 
   if (existsSync(configPath)) {
     /* config already exists — skip generation */
@@ -127,7 +127,7 @@ export function handleSetupLogging(_action, _params, targetPath, context) {
 
       writeFileSync(configPath, configContent, 'utf-8');
     } catch {
-      loggingConfigured = false;
+      isLoggingConfigured = false;
     }
   }
 
@@ -149,13 +149,13 @@ export function handleSetupLogging(_action, _params, targetPath, context) {
   }
 
   if (context) {
-    context.loggingConfigured = loggingConfigured;
+    context.loggingConfigured = isLoggingConfigured;
     context.loggingConfigPath = configPath;
     context.logFormat = 'json';
-    if (!loggingConfigured) context.lastStepFailed = true;
+    if (!isLoggingConfigured) context.lastStepFailed = true;
   }
 
-  return loggingConfigured
+  return isLoggingConfigured
     ? '日志聚合配置完成：结构化日志 + 轮转（14天）配置已生成'
     : '日志配置部分完成（检查警告）';
 }

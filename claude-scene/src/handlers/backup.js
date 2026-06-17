@@ -133,12 +133,12 @@ export function handleSetupBackup(_action, _params, targetPath, context) {
   const sourceDirs = detectSourceDirs(targetPath);
 
   let scriptPath = '';
-  let ok = true;
+  let isOk = true;
 
   try {
     generateExcludeFile(targetPath);
   } catch {
-    ok = false;
+    isOk = false;
   }
 
   try {
@@ -149,23 +149,23 @@ export function handleSetupBackup(_action, _params, targetPath, context) {
     }
     scriptPath = path;
   } catch {
-    ok = false;
+    isOk = false;
   }
 
   try {
     generateEnvExample(targetPath, sourceDirs);
   } catch {
-    ok = false;
+    isOk = false;
   }
 
   if (context) {
-    context.backupConfigured = ok;
+    context.backupConfigured = isOk;
     context.backupScriptPath = scriptPath;
     context.resticAvailable = restic.available;
-    if (!ok) context.lastStepFailed = true;
+    if (!isOk) context.lastStepFailed = true;
   }
 
-  return ok
+  return isOk
     ? 'Restic 备份配置完成'
     : 'Restic 备份配置部分完成（检查警告）';
 }
