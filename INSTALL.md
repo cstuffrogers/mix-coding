@@ -184,6 +184,35 @@ claude mcp update --all
 
 ---
 
+### 6.5. GitHub Spec-Kit（规范驱动开发引擎） - 必装 ⭐⭐⭐⭐⭐
+**作用：** jvn Spec-Driven 开发管线的底层引擎，提供 `/speckit-specify`、`/speckit-plan`、`/speckit-tasks`、`/speckit-implement` 等 12 个技能
+
+**安装：**
+```bash
+# 安装 uv（Python 包管理器）
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# 安装 spec-kit CLI
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
+
+# 在项目目录初始化为 Claude Code
+cd E:\auto-coding
+specify init --here --integration claude --force
+```
+
+**验证：**
+```bash
+specify version   # 应显示 0.11.x
+specify check     # 列出可用集成
+```
+
+**安装后效果：**
+- `.claude/skills/speckit-*` — 12 个 Claude Code 技能
+- `.specify/` — 模板 + 脚本 + 工作流配置
+- `/spec` 和 `/build` 命令完全激活（底层调用 speckit 技能）
+
+---
+
 ## 🧠 第三层：记忆和知识管理
 
 ### 7. claude-mem（记忆组件） - 必装 ⭐⭐⭐⭐
@@ -233,11 +262,11 @@ npm install supermemory
 ```
 
 **配置：**
-编辑项目根目录的 `.env` 文件，添加 API Key（不设置则不影响本地 6 后端）：
-```ini
-# 获取 Key: https://console.supermemory.ai
-SUPERMEMORY_API_KEY=sm_your_key_here
+设置环境变量（不设置则不影响本地 6 后端）：
+```bash
+export SUPERMEMORY_API_KEY=sm_your_key_here
 ```
+或写入 `claude-scene/.env.example` 并重命名为 `.env`。
 
 > 注意：Supermemory 是云端 SaaS，数据存储在云端。不配置 Key 时零影响。
 
@@ -350,21 +379,29 @@ mix-coding/
 ├── .codegraph/                # CodeGraph索引文件
 │
 ├── upgrade.bat                # 安全升级工具（Windows）
-├── start-claude.bat           # 一键启动Claude Code（推荐）
+├── upgrade.sh                 # 安全升级工具（macOS/Linux）
+├── start-claude.bat           # 一键启动 Claude Code（Windows）
+├── start-claude.sh            # 一键启动 Claude Code（macOS/Linux）
 └── README.md                  # 本文档
 ```
 
 ---
 
-## 📋 快速部署：一键安装脚本
+## 📋 快速部署
 
-### Windows：启动方式
+### 启动方式
 
-双击 `start-claude.bat` 一键启动 Claude Code，或使用：
+**Windows：** 双击 `start-claude.bat` 一键启动
+**macOS/Linux：** 终端运行 `./start-claude.sh`
+
+或直接使用 CLI：
 ```bash
 cd claude-scene
 node src/index.js list  # 查看所有场景
 ```
+
+> **Windows 用户注意**：需要 Git Bash（Git for Windows 自带）。Python 工具会自动扫描已安装的 Python 版本目录。
+> **macOS/Linux 用户**：所有脚本和命令直接可用。
 
 ### 手动安装步骤总结
 

@@ -23,7 +23,7 @@ A **three-layer architecture + Scene engine** intelligent development system:
 - ✅ **Zero-conflict architecture**: strict tool isolation and deduplication
 - ✅ **AI/Model switching**: switch AI providers via config files — supports Claude, Gemini, Qwen, and more
 - ✅ **Karpathy Principles**: enforced Think Before Coding, Simplicity First, and more
-- ✅ **Compound Engineering Plugin**: AI planning, deep review, system debugging, knowledge retention — integrated across all 34 workflows
+- ✅ **jvn Spec-Driven Development**: `/spec` → `/design` → `/build` spec-driven pipelines, powered by [GitHub Spec-Kit](https://github.com/github/spec-kit) (12 speckit skills) with 5 Agent-enhanced review (PM + Architect + UX + Code Review + Constitutional Validator)
 
 ---
 
@@ -43,17 +43,27 @@ A **three-layer architecture + Scene engine** intelligent development system:
 
 | Tool | File | Function | Platform |
 |------|------|----------|----------|
-| **Claude Code Launcher** | [start-claude.bat](./start-claude.bat) | One-click Claude Code (defaults to Chinese) | Windows |
-| **Safe Upgrade** | [upgrade.bat](./upgrade.bat) | Backup → Check → Upgrade → Verify | Windows |
+| **Claude Code Launcher** | [start-claude.bat](./start-claude.bat) / [start-claude.sh](./start-claude.sh) | One-click Claude Code launch | Windows / macOS / Linux |
+| **Safe Upgrade** | [upgrade.bat](./upgrade.bat) / [upgrade.sh](./upgrade.sh) | Backup → Check → Upgrade → Verify | Windows / macOS / Linux |
 
 ---
 
 ## 🚀 Quick Start
 
+### Prerequisites
+
+| Dependency | Notes |
+|------------|-------|
+| **Node.js** ≥ 18 | Required for CLI tools |
+| **Git** | Version control |
+| **bash** (built-in on macOS/Linux, Git Bash on Windows) | Shell execution |
+
 ### Option 1: Claude Code Integration (Recommended)
-1. Double-click `start-claude.bat` to launch
-2. Type `/` to see all available commands
-3. Use `/ui-polish`, `/bugfix` and other commands
+
+**Windows:** Double-click `start-claude.bat`
+**macOS/Linux:** Run `./start-claude.sh` in terminal
+
+Then type `/` to see all available commands, use `/ui-polish`, `/bugfix`, etc.
 
 ### Option 2: CLI Tool (no specific AI tool required)
 ```bash
@@ -308,9 +318,10 @@ mix-coding/
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
 │   ├── commands/             # Slash commands (34 workflows + jvn /spec /design /build /report etc.)
 │   ├── rules/                # Project rules (coding / karpathy-principles / memory-auto-save / mobile-coding / etc.)
-│   ├── skills/               # Claude Skills (including mobile-ui-review)
+│   ├── skills/               # Claude Skills (22: 10 core + 12 speckit)
 │   └── agents/               # 8 Agents (PM/Architect/UX/Reviewer/Constitutional-validator + mobile-reviewer/mobile-security/mobile-perf)
 │
+├── .specify/                 # Spec-Kit config (templates / scripts / memory)
 ├── claude-scene/             # CLI tool (Scene engine)
 │   └── src/
 │       ├── commands/         # CLI commands (list / show / start / fork)
@@ -385,9 +396,107 @@ claude plugins install compound-engineering@anthropic
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: semantic HTML/ARIA accessibility |
 | **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 curated brand DESIGN.md files (Vercel/Linear/Stripe/Notion/Apple) |
 | **MCP Servers** | `claude mcp install github playwright supabase` | AI context enhancement extensions |
+| **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` | GitHub spec-driven development engine (12 speckit skills) |
 | **Memory Tools** | `git clone https://github.com/claude-mem %USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 7 memory backends (project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory) |
 | **Security Toolchain** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli knip` + `pip install seraphim-audit` + Socket.dev API Key | Build leak detection / security headers / dead links / a11y / ReDoS / performance gates / dead code / supply chain |
 | **App Store** | [Claude App Store](https://github.com/topics/claude-app-store) | More Claude extensions |
+
+---
+
+## 📊 Integration Overview
+
+> **76+ external components**: 22 Skills + 16 MCP servers + 23 npm packages + 18 external tools
+
+### Local Skills (22, `.claude/skills/`)
+
+| Skill | Source | Purpose |
+|-------|--------|---------|
+| `speckit-specify` & 11 others | GitHub Spec-Kit | Full spec → plan → tasks → implement SDD pipeline |
+| `web-design-engineer` | ConardLi | OKLCH color + 6-step workflow + anti-AI-template |
+| `impeccable` | — | 27 anti-pattern rules + 12 LLM critique rules |
+| `ai-friendly-web-design` | ianho7 | Semantic HTML / ARIA accessibility |
+| `awesome-design-md` | VoltAgent | 5 brand DESIGN.md (Vercel/Linear/Stripe/Notion/Apple) |
+| `mattpocock` | Matt Pocock | 29 sub-skills (TS/engineering/productivity) |
+| `review-checklist` | — | 23 review checklist items |
+| `sec-bug-hunt` | — | 5-vector security scan rules |
+| `mobile-ui-review` | — | Mobile UI review |
+| `constitution-reference` | — | Project constitution reference |
+| `stack-knowledge` | — | Tech stack knowledge base |
+
+**Recommended extras** (`npx skills install`): `anthropics/skills`, `obra/superpowers`, `frontend-design`, `security-guidance`, `claude-seo`, `plannotator`, `deep-trilogy`
+
+### MCP Servers (16, `.mcp.json`)
+
+| Server | Purpose | Server | Purpose |
+|--------|---------|--------|---------|
+| `codegraph` | Code symbol index | `github` | PR/Issue operations |
+| `context7` | Documentation query | `tavily-search` | Web search |
+| `playwright` | Browser automation | `filesystem` | Filesystem ops |
+| `sequential-thinking` | Chain reasoning | `memory` | Session memory |
+| `mempalace` | Verbatim conversation archive | `stripe` | Payments |
+| `supabase` | Database operations | `resend` | Email service |
+| `sentry` | Error monitoring | `bearer` | PII/GDPR compliance |
+| `detox` | RN E2E testing | `mobsfscan` | Mobile SAST |
+
+### npm Packages (23, `claude-scene/package.json`)
+
+**devDependencies (19)**: `@lhci/cli`, `knip`, `noleak`, `pa11y-ci`, `recheck-cli`, `artillery`, `@cyclonedx/cyclonedx-npm`, `@redocly/cli`, `@vitest/coverage-v8`, `eslint` + 3 plugins, `license-checker`, `openapi-typescript`, `playwright`, `runme`, `vitest`
+
+**dependencies (4)**: `chalk`, `commander`, `inquirer`, `ora`
+
+### External Tools (18, by type)
+
+| Type | Count | Tools | Install |
+|------|-------|-------|---------|
+| **uv/Python** | 3 | `specify-cli` (spec-kit), `seraphim-audit`, `skillspector` | uv tool install / pip install |
+| **Rust binary** | 1 | `lychee` | brew / cargo / .exe |
+| **Go binary** | 2 | `act`, `restic` | winget / brew / download |
+| **npx zero-install** | 8 | `aislop`, `dependency-cruiser`, `jscpd`, `size-limit`, `Stryker`, `Spectral`, `markdownlint`, `knip` | None needed |
+| **Built-in grep** | 4 | `log-sanitizer`, `cors-checker`, `env-leak-scanner`, `sensitive-file-check` | Built-in |
+
+### Integrated GitHub Projects (18)
+
+`seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
+
+---
+
+## 🔄 Update Guide
+
+### One-click Full Update
+
+```bash
+# Windows
+update-all.bat
+
+# macOS / Linux
+./update-all.sh
+```
+
+Covers **5 dimensions**:
+
+| Dimension | Action | Auto |
+|-----------|--------|------|
+| **npm packages** (19) | `npm update` compatible versions | Full auto |
+| **Python tools** (2) | `pip install --upgrade` reinstall | Full auto |
+| **Git repos** (6) | `git pull --ff-only` fast-forward | Full auto (skips if local changes) |
+| **Binary tools** (3) | Version check + manual upgrade hint | Semi-auto |
+| **npx zero-install** (8) | Latest pulled on each run | No action needed |
+
+### Manual Per-dimension Update
+
+```bash
+# npm only
+cd claude-scene && npm update
+
+# Python only
+pip install --upgrade seraphim-audit git+https://github.com/NVIDIA/skillspector.git
+
+# Binary only
+winget upgrade nektos.act restic.restic     # Windows
+brew upgrade lychee                          # macOS
+```
+
+> **Recommended frequency**: Run `update-all` monthly. npm deps can be updated on-demand during feature work.
 
 ---
 
