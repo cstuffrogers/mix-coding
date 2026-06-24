@@ -10,7 +10,7 @@ echo ==============================================================
 echo.
 
 :: 设置项目目录
-set PROJECT_ROOT=e:\auto-coding
+set PROJECT_ROOT=%~dp0
 cd /d %PROJECT_ROOT%
 
 echo 项目目录: %PROJECT_ROOT%
@@ -58,7 +58,7 @@ echo.
 echo 4. 验证和激活:
 echo   claude skills list
 necho   claude skills install all
-necho   claude code e:\\auto-coding
+necho   claude code %PROJECT_ROOT%
 
 
 echo 您现在可以:

@@ -8,7 +8,12 @@
     "test": "vitest",
     "visual-test": "playwright test",
     "lint": "eslint .",
-    "start": "node claude-scene/src/index.js"
+    "start": "node claude-scene/src/index.js",
+    "scan:deadcode": "node scripts/find-deadcode-full.cjs",
+    "scan:memory": "node scripts/check-memory-system.cjs",
+    "scan:all": "node scripts/find-deadcode-full.cjs && node scripts/check-memory-system.cjs",
+    "setup:mempalace": "node scripts/setup-mempalace.cjs",
+    "mcp:switch": "node scripts/switch-mcp.cjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",

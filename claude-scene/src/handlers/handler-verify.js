@@ -164,7 +164,6 @@ const TOOL_CHECKS = {
   knip: { check: 'npx knip --version 2>&1 || echo NOT_FOUND', type: 'quality' },
   'deprecated-deps': { check: 'npm --version 2>&1 || echo NOT_FOUND', type: 'quality' },
   'lighthouse-ci': { check: 'npx @lhci/cli --version 2>&1 || echo NOT_FOUND', type: 'quality' },
-  clearible: { check: 'npx clearible --version 2>&1 || echo NOT_FOUND', type: 'quality' },
   // ── Accessibility ──
   'pa11y-ci': { check: 'npx pa11y-ci --version 2>&1 || echo NOT_FOUND', type: 'a11y' },
   // ── Regex security ──
@@ -506,6 +505,66 @@ function detectMcpIssues(_targetPath) {
 }
 
 // ═══════════════════════════════════════════════════
+// Pass 11: LLM proxy audit health — honeytool + whitelist
+// ═══════════════════════════════════════════════════
+const HONEYTOOL_NAMES = [
+  'fetch_internal_config', 'sync_internal_cache', 'send_admin_notification',
+  'verify_user_credentials', 'export_analytics_report',
+];
+
+function detectLlmProxyAuditHealth() {
+  const result = { honeytoolOk: false, whitelistOk: false, denyCoverage: 0, issues: [] };
+
+  // Check .honeytools.json
+  const htPath = join(PROJECT_ROOT, '.honeytools.json');
+  if (!existsSync(htPath)) {
+    result.issues.push({ level: 'error', file: '.honeytools.json', detail: '蜜罐配置文件不存在' });
+    return result;
+  }
+
+  try {
+    const ht = JSON.parse(readFileSync(htPath, 'utf-8'));
+    const tools = ht.honeytools || [];
+    if (tools.length < 5) {
+      result.issues.push({ level: 'warn', file: '.honeytools.json', detail: `仅 ${tools.length}/5 个蜜罐工具` });
+    } else {
+      result.honeytoolOk = true;
+    }
+  } catch (e) {
+    result.issues.push({ level: 'error', file: '.honeytools.json', detail: `JSON 解析失败: ${e.message}` });
+    return result;
+  }
+
+  // Check .tool-whitelist.json deny coverage
+  const wlPath = join(PROJECT_ROOT, '.tool-whitelist.json');
+  if (!existsSync(wlPath)) {
+    result.issues.push({ level: 'warn', file: '.tool-whitelist.json', detail: '工具白名单配置文件不存在' });
+    return result;
+  }
+
+  try {
+    const wl = JSON.parse(readFileSync(wlPath, 'utf-8'));
+    const denyList = wl.deny || [];
+    const covered = HONEYTOOL_NAMES.filter(h => denyList.includes(h));
+    result.denyCoverage = covered.length;
+    result.whitelistOk = covered.length === HONEYTOOL_NAMES.length;
+
+    const missing = HONEYTOOL_NAMES.filter(h => !denyList.includes(h));
+    if (missing.length) {
+      result.issues.push({
+        level: 'warn',
+        file: '.tool-whitelist.json',
+        detail: `${missing.length} 个蜜罐工具名未加入 deny 列表: ${missing.join(', ')}`,
+      });
+    }
+  } catch (e) {
+    result.issues.push({ level: 'error', file: '.tool-whitelist.json', detail: `JSON 解析失败: ${e.message}` });
+  }
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════
 // Pass runners — each runs + prints a group of related passes
 // ═══════════════════════════════════════════════════
 
@@ -665,14 +724,35 @@ function runSafetyChecks(targetPath) {
   return { crashCount, mcpIssueCount };
 }
 
-function computeAndStore(stubs, tools, project, safety, targetPath, context) {
+function runLlmProxyAuditHealth() {
+  const health = detectLlmProxyAuditHealth();
+  const issueCount = health.issues.length;
+
+  if (health.honeytoolOk && health.whitelistOk) {
+    console.log(chalk.green(`  ✅ Pass 11 — LLM 代理审计: 5 蜜罐就绪, deny 全覆盖`));
+  } else if (health.honeytoolOk && !health.whitelistOk) {
+    console.log(chalk.yellow(`  ⚠ Pass 11 — LLM 代理审计: 蜜罐就绪, deny 覆盖 ${health.denyCoverage}/5`));
+  } else {
+    console.log(chalk.yellow(`  ⚠ Pass 11 — LLM 代理审计: ${issueCount} 个问题`));
+  }
+
+  for (const iss of health.issues.slice(0, 4)) {
+    const marker = iss.level === 'error' ? '🔴' : '🟡';
+    console.log(chalk.dim(`     ${marker} ${iss.file}: ${iss.detail}`));
+  }
+
+  return health;
+}
+
+function computeAndStore(stubs, tools, project, safety, llmAudit, targetPath, context) {
   const handlerStubs = stubs.catA + stubs.catB + stubs.catC;
+  const llmAuditIssues = (llmAudit.honeytoolOk ? 0 : 1) + (llmAudit.whitelistOk ? 0 : 1);
   const totalIssues = handlerStubs + tools.missCount + tools.criticalDeps
     + (project.ceAvailable ? 0 : 1) + project.importBroken + project.unusedDepsCount
-    + project.orphanCount + safety.crashCount + safety.mcpIssueCount;
+    + project.orphanCount + safety.crashCount + safety.mcpIssueCount + llmAuditIssues;
 
   if (totalIssues === 0) {
-    console.log(chalk.green('\n  🎉 全部 10 道检查通过！'));
+    console.log(chalk.green('\n  🎉 全部 11 道检查通过！'));
   } else {
     console.log(chalk.yellow(`\n  ⚠ 共 ${totalIssues} 个问题待处理`));
   }
@@ -693,6 +773,7 @@ function computeAndStore(stubs, tools, project, safety, targetPath, context) {
     context.knipUnresolved = project.knipUnresolved;
     context.knipUnlisted = project.knipUnlisted;
     context.deadCodePassed = project.deadCodePassed;
+    context.llmProxyAuditHealth = { honeytoolOk: llmAudit.honeytoolOk, whitelistOk: llmAudit.whitelistOk, denyCoverage: llmAudit.denyCoverage };
   }
 
   return totalIssues;
@@ -706,8 +787,9 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
   const tools = runToolAndDepHealth(targetPath);
   const project = runProjectHealth(targetPath);
   const safety = runSafetyChecks(targetPath);
+  const llmAudit = runLlmProxyAuditHealth();
 
-  const totalIssues = computeAndStore(stubs, tools, project, safety, targetPath, context);
+  const totalIssues = computeAndStore(stubs, tools, project, safety, llmAudit, targetPath, context);
 
-  return `10 道检查完成: ${totalIssues} 个问题`;
+  return `11 道检查完成: ${totalIssues} 个问题`;
 }

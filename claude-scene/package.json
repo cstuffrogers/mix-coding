@@ -19,7 +19,6 @@
     "@redocly/cli": "^2.34.0",
     "@vitest/coverage-v8": "^4.1.9",
     "artillery": "^2.0.33",
-    "clearible": "^0.1.1",
     "eslint": "^10.5.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-sonarjs": "^4.0.3",
@@ -41,7 +40,6 @@
     ],
     "ignoreDependencies": [
       "@lhci/cli",
-      "clearible",
       "noleak",
       "pa11y-ci",
       "recheck-cli",

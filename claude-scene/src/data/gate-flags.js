@@ -14,7 +14,7 @@ export default Object.assign(Object.create(null), {
   docker: 'dockerConfigured', changelog: 'changelogGenerated', sbom: 'sbomGenerated',
   logging: 'loggingConfigured', dead_links: 'deadLinkPassed', build_leaks: 'buildLeakPassed',
   open_redirect: 'openRedirectPassed', security_headers: 'securityHeadersPassed',
-  recheck: 'recheckPassed', state_audit: 'stateAuditPassed', lighthouse: 'lighthousePassed',
+  recheck: 'recheckPassed', lighthouse: 'lighthousePassed',
   log_sanitization: 'logSanitizationPassed', cors_check: 'corsCheckPassed',
   env_var_leak: 'envVarLeakPassed',
   postinstall: 'postinstallPassed', socket_scan: 'socketScanPassed',

@@ -301,9 +301,9 @@ export function handleCheckGate(_action, params, _targetPath, context) {
   }
 
   if (results.failed.length) console.error(chalk.yellow(`  ⚠ 失败: ${results.failed.join(', ')}`));
-  if (results.blocked.length && context) {
+  if ((results.failed.length || results.blocked.length) && context) {
       context.lastStepFailed = true;
-      context.gateBlocked = true;
+      if (results.blocked.length) context.gateBlocked = true;
     }
 
   const effectiveTotal = checks.length - results.skipped.length;

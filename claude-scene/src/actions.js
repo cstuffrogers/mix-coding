@@ -40,7 +40,6 @@ import { handleSecurityScan, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecu
 import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan, handleActionlint, handleZizmor, handleJscpd, handleSizeLimit, handleStryker, handleSpectral, handleMarkdownlint } from './handlers/external-tool-checks.js';
 import { handleLighthouseGate } from './handlers/lighthouse.js';
 import { handleOpenRedirectScan } from './handlers/open-redirect.js';
-import { handleStateAudit } from './handlers/state-audit.js';
 import { handleI18nAudit } from './handlers/i18n.js';
 import { handleTestCoverage, handleTestUnit, handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest, handleLoadTest } from './handlers/testing.js';
 import { handleCreateBranch, handleCommitPush, handleCreatePR, handleAutoUpdate, handleBumpVersion, handleCreateTag, handleDeploy, handleCreateRelease, handleListReleases, handleRollback, handleCreateIssue } from './handlers/git.js';
@@ -92,6 +91,10 @@ import {
 import { handleAislopScan } from './handlers/aislop.js';
 import { handleDepcruiseArchitecture } from './handlers/dependency-cruiser.js';
 import { handleInvokeSkill } from './handlers/skill-runner.js';
+import {
+  handleLobsterTrapInstall, handleLobsterTrapConfig, handleHoneytoolSetup,
+  handleDiffTest, handleWhitelistValidate, handleEgressBenchmark, handleLlmProxyReport,
+} from './handlers/llm-proxy-audit.js';
 
 // Re-export for direct consumers (ui-polish.js)
 export { handleCheckConsistency, handleVisualRegression, handleCheckAPIConsistency, handleAddAnimations, handleAnalyzeUI, handleIconUpgrade, handleMicroInteractions };
@@ -285,8 +288,6 @@ export const ACTION_REGISTRY = {
   'lighthouse-gate': handleLighthouseGate,
   openRedirectScan: handleOpenRedirectScan,
   'open-redirect-scan': handleOpenRedirectScan,
-  stateAudit: handleStateAudit,
-  'state-audit': handleStateAudit,
   i18nAudit: handleI18nAudit,
   'i18n-audit': handleI18nAudit,
   securityHeaders: handleSecurityHeaders,
@@ -545,6 +546,22 @@ export const ACTION_REGISTRY = {
 
   // ── Skill ──
   invokeSkill: handleInvokeSkill,
+
+  // ── LLM Proxy Audit ──
+  lobsterTrapInstall: handleLobsterTrapInstall,
+  'lobster-trap-install': handleLobsterTrapInstall,
+  lobsterTrapConfig: handleLobsterTrapConfig,
+  'lobster-trap-config': handleLobsterTrapConfig,
+  honeytoolSetup: handleHoneytoolSetup,
+  'honeytool-setup': handleHoneytoolSetup,
+  diffTest: handleDiffTest,
+  'diff-test': handleDiffTest,
+  whitelistValidate: handleWhitelistValidate,
+  'whitelist-validate': handleWhitelistValidate,
+  egressBenchmark: handleEgressBenchmark,
+  'egress-benchmark': handleEgressBenchmark,
+  llmProxyReport: handleLlmProxyReport,
+  'llm-proxy-report': handleLlmProxyReport,
 };
 
 // ── Dispatch ──

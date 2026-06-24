@@ -68,7 +68,7 @@ if %errorlevel% neq 0 (
 
 REM Check if package.json dependencies are already installed
 set NEEDS_NPM_INSTALL=0
-for %%t in (@lhci/cli express-sec-audit clearible knip) do (
+for %%t in (@lhci/cli knip) do (
     if not exist "node_modules\%%t" set NEEDS_NPM_INSTALL=1
 )
 
@@ -109,7 +109,7 @@ echo.
 
 REM Verify key tools
 echo    Verifying installed tools...
-for %%t in (@lhci/cli express-sec-audit clearible knip noleak pa11y-ci recheck-cli) do (
+for %%t in (@lhci/cli knip noleak pa11y-ci recheck-cli) do (
     if exist "node_modules\%%t" (
         echo      [OK] %%t
     ) else (
@@ -219,8 +219,6 @@ echo.
 echo Installed tools:
 echo   npm (claude-scene/devDependencies):
 echo     - @lhci/cli         (Lighthouse CI performance gate)
-echo     - express-sec-audit (AST-level security scanning)
-echo     - clearible         (React architecture analysis)
 echo     - knip              (dead code detection)
 echo     - noleak            (build leak detection)
 echo     - pa11y-ci           (WCAG 2.1 AA accessibility)

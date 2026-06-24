@@ -68,7 +68,7 @@ cd "$CLAUDE_SCENE"
 
 # Check if package.json dependencies are already installed
 NEEDS_NPM_INSTALL=0
-for pkg in @lhci/cli express-sec-audit clearible knip; do
+for pkg in @lhci/cli knip; do
     if [ ! -d "node_modules/$pkg" ]; then
         NEEDS_NPM_INSTALL=1
         break
@@ -104,7 +104,7 @@ fi
 
 echo ""
 echo "   Verifying installed tools..."
-for pkg in @lhci/cli express-sec-audit clearible knip noleak pa11y-ci recheck-cli; do
+for pkg in @lhci/cli knip noleak pa11y-ci recheck-cli; do
     if [ -d "node_modules/$pkg" ]; then
         echo -e "     ${GREEN}[OK]${NC} $pkg"
     else
@@ -183,8 +183,6 @@ echo ""
 echo "Installed tools:"
 echo "  npm (claude-scene/devDependencies):"
 echo "    - @lhci/cli         (Lighthouse CI performance gate)"
-echo "    - express-sec-audit (AST-level security scanning)"
-echo "    - clearible         (React architecture analysis)"
 echo "    - knip              (dead code detection)"
 echo "    - noleak            (build leak detection)"
 echo "    - pa11y-ci          (WCAG 2.1 AA accessibility)"

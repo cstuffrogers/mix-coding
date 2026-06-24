@@ -5,11 +5,17 @@ import { safeExec } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
 
 function _resolvePythonTool(toolName, moduleName) {
-  // Windows: look for the .exe in user Python Scripts (forward-slashed for shell compat)
+  // Windows: scan Python Scripts directories for the tool executable
   if (process.platform === 'win32' && process.env.APPDATA) {
-    const userScripts = process.env.APPDATA.replace(/\\/g, '/') + '/Python/Python314/Scripts';
-    const exePath = userScripts + '/' + toolName + '.exe';
-    if (existsSync(exePath)) return exePath;
+    const pythonDir = process.env.APPDATA.replace(/\\/g, '/') + '/Python';
+    try {
+      const { readdirSync } = require('fs');
+      const versions = readdirSync(pythonDir).filter(d => /^Python3\d+$/.test(d)).sort().reverse();
+      for (const ver of versions) {
+        const exePath = `${pythonDir}/${ver}/Scripts/${toolName}.exe`;
+        if (existsSync(exePath)) return exePath;
+      }
+    } catch { /* dir doesn't exist */ }
   }
   // Fallback to module invocation if supported
   if (moduleName) return `python -m ${moduleName}`;
