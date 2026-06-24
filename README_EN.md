@@ -113,7 +113,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ## 🔧 Action Handler Completeness
 
-The system registers **235 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 35 workflows.
+The system registers **235 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 28 workflows.
 
 | Action | Purpose | Status |
 |--------|---------|--------|
