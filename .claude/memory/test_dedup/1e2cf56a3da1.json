@@ -1,9 +1,0 @@
-{
-  "id": "1e2cf56a3da1",
-  "type": "test_dedup",
-  "data": {
-    "test": "dedup-check",
-    "value": 42
-  },
-  "timestamp": "2026-06-03T16:38:52.588Z"
-}
