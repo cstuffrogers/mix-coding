@@ -42,7 +42,6 @@ describe('ACTION_REGISTRY', () => {
       'deadLinkCheck', 'dead-link-check',
       'lighthouseGate', 'lighthouse-gate',
       'openRedirectScan', 'open-redirect-scan',
-      'stateAudit', 'state-audit',
       'i18nAudit', 'i18n-audit',
     ];
     for (const a of actions) {

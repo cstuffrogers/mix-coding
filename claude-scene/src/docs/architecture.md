@@ -22,12 +22,6 @@ data/
   sync-docs-config.js
 docs/
   CHANGELOG.md
-express-sec-audit-2026-06-13T15-53-37-133Z.txt
-express-sec-audit-2026-06-13T15-54-39-456Z.txt
-express-sec-audit-2026-06-13T16-10-48-296Z.txt
-express-sec-audit-2026-06-13T16-16-47-933Z.txt
-express-sec-audit-2026-06-13T16-25-19-679Z.txt
-express-sec-audit-2026-06-13T16-27-03-407Z.txt
 handlers/
   api/
     frontend-detect.js

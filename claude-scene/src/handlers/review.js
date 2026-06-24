@@ -445,7 +445,6 @@ export async function handleGenerateReviewReport(_action, _params, targetPath, c
     a11y: context.a11yPassed,
     knip: context.deadCodePassed,
     dependency_cruiser: context.depCruiserPassed,
-    state_audit: context.stateAuditPassed,
     aislop: context.aislopPassed,
     open_redirect: context.openRedirectPassed,
     log_sanitization: context.logSanitizationPassed,
@@ -482,9 +481,6 @@ export async function handleGenerateReviewReport(_action, _params, targetPath, c
     context.aislop_issue_count != null
       ? `- **AI Code Smells**: ${context.aislop_issue_count}`
       : '- **AI Code Smells**: N/A',
-    context.stateAuditFindings
-      ? `- **State Audit Issues**: ${context.stateAuditFindings.length}`
-      : '- **State Audit Issues**: N/A',
     context.securityScanResult?.highSeverityFound
       ? '- **🔴 Security**: HIGH severity issues found — review required before merge'
       : '- **Security**: No critical issues found',

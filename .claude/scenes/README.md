@@ -20,6 +20,7 @@
 | `feature` | `/feature 描述` | 端到端一键推进新功能开发流程（集成CE知识沉淀） |
 | `hunt` | `/hunt` | 代码安全漏洞扫描与修复（集成CE知识沉淀） |
 | `incident` | `/incident` | 使用 Runme 生成可执行的 Markdown Incident Runbook，包含健康检查、常见问题、升级路径 |
+| `llm-proxy-audit` | `/llm-proxy-audit` | 三层防线检测中转站 LLM API 是否注入盗取信息的 tool call：Lobster Trap 实时拦截 + AgentShield 蜜罐检测 + agent-egress-bench 基准验证 |
 | `loadtest` | `/loadtest [模式]` | 运行 Artillery 负载测试：支持 smoke/load/stress 三种模式，作为 CI/CD 性能门禁 |
 | `log` | `/log` | 检测项目日志库（winston/pino/log4js），自动生成结构化日志配置，检测 ELK/Fluentd 并生成采集配置 |
 | `loop` | `/loop` | 无人值守自动迭代（集成CE知识沉淀） |
@@ -40,7 +41,7 @@
 | `rollback` | `/rollback` | 紧急回滚流程：识别目标版本 → 验证回滚安全性 → 执行回滚 → 验证服务恢复 |
 | `sbom` | `/sbom` | 生成软件物料清单 (SBOM) 和许可证合规报告，检测限制性许可证（GPL/AGPL/SSPL 等） |
 | `simplify` | `/simplify` | 简化代码以提高可读性和可维护性，不改变行为（集成CE知识沉淀） |
-| `ui-polish` | `/ui-polish <主题> <路径>` | 使用 DaisyUI/Animate.css/Lucide/Playwright 美化前端界面 + Impeccable 全维度打磨（critique 检测→13 fixes→critique 验证→3 精准修复，双轮品控+残留修复）+ web-design-engineer/Huashu 设计智能，59 步混合工作流 |
+| `ui-polish` | `/ui-polish <主题> <路径>` | 全对话模式 59 步混合工作流。前置检测→Phase 0 设计基准→Phase 1 机械步骤（安装依赖/主题注入/图标升级/DaisyUI组件类/Animal Island组件替换/自定义keyframe动画/微交互/硬编码颜色清除+每步验证）→Phase 2 Impeccable 全维度打磨（Huashu→critique→13fixes→critique验证→3精准修复→Huashu验证）+ 完成标准门禁。修复版：每个步骤带强制验证，多子项目独立执行，组件JSX必须修改（不只改CSS）。animate.css 已禁止使用（自定义 keyframe 动画替代） |
 <!-- AUTO-SYNC:SCENE-TABLE-END -->
 
 ## 相关文件

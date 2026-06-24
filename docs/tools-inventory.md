@@ -10,7 +10,7 @@
 2. [MCP 服务器（13个）与场景使用矩阵](#mcp-服务器13个与场景使用矩阵)
 3. [Claude Skills（37个）与触发场景](#claude-skills37个与触发场景)
 4. [CLI 工具 claude-scene（16模块 + 280+ Action处理器）](#cli-工具-claude-scene16模块--280-action处理器)
-5. [34 个场景工作流（Scene JSON + Command Markdown）](#35-个场景工作流scene-json--command-markdown)
+5. [35 个场景工作流（Scene JSON + Command Markdown）](#35-个场景工作流scene-json--command-markdown)
 6. [89 个 Slash 命令分类](#89-个-slash-命令分类)
 7. [CI/CD 与配置体系](#cicd-与配置体系)
 8. [前端美化工具链](#前端美化工具链)
@@ -116,7 +116,7 @@
 | **gpt-taste** | 有 | GSAP 动效/AIDA 结构/Bento 网格/大间距排版 | 前端设计类任务 |
 | **ui-polish** | 有 | DaisyUI/主题/动画/图标集成 | ui-polish 场景 |
 | **ui-visual-trigger** | 有 | 视觉回归测试/截图/基线管理 | ui-polish 场景 |
-| **api-contract-check** | 有 | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | feature/design/new-project 等 34 个场景 |
+| **api-contract-check** | 有 | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | feature/design/new-project 等 35 个场景 |
 | **ua-context** | 有 | 前端审查的用户代理上下文感知 | review 场景 |
 
 ### 移动端 Skills（1个）
@@ -253,7 +253,7 @@ claude-scene/src/
 
 ---
 
-## 34 个场景工作流（Scene JSON + Command Markdown）
+## 35 个场景工作流（Scene JSON + Command Markdown）
 
 > 每个场景有两层定义：`.claude/scenes/<id>.json`（数据结构）→ `.claude/commands/<id>.md`（用户命令）
 
@@ -632,7 +632,7 @@ claude-scene/src/
 | **Lucide React** | npm `lucide-react` | 2000+ SVG 图标 | ui-polish | 运行时 React |
 | **Tailwind CSS** | npm `tailwindcss` | 实用优先 CSS 框架 | 全局 | 构建时 |
 | **Playwright** | npm `@playwright/test` | 浏览器 E2E/视觉回归测试 | ui-polish/全局 | 测试时 |
-| **Open Design** | `open-design/` 本地仓库 | AI 设计生成（150套品牌系统 + 111模板 + 137 Skill + 6设备框 + 3文稿 + 102提示词） | design/new-project/ui-polish | 独立应用 |
+| **Open Design** | `open-design/` 本地仓库 | AI 设计生成（152套品牌系统 + 111模板 + 137 Skill + 6设备框 + 3文稿 + 102提示词） | design/new-project/ui-polish | 独立应用 |
 | **Impeccable** | `.claude/skills/impeccable/` | AI 设计词汇 + 27 反模式规则 + 12 LLM 批判规则，自动修正 UI 塑料感 | ui-polish/design | Claude Code Skill |
 
 ### 质量与安全工具链（14 个工具）
@@ -640,7 +640,6 @@ claude-scene/src/
 | 工具 | 版本/来源 | 用途 | 使用场景 | 运行时 |
 |------|----------|------|---------|--------|
 | **Lighthouse CI** | npm `@lhci/cli` | Web 性能门禁（LCP/CLS/TBT/缓存/PWA） | audit, release | CLI |
-| **Clearible** | npm `clearible` | React 组件架构分析（耦合度/循环依赖） | review, audit | CLI |
 | **noleak** | npm `noleak` | 构建产物泄露检测（.env/Source Map/密钥） | audit, release | CLI |
 | **seraphim-audit** | pip `seraphim-audit` | 安全响应头扫描（CSP/HSTS/X-Frame-Options） | hunt, audit | CLI |
 | **lychee** | Rust 二进制 | 死链接检测（Markdown/HTML） | audit | CLI |
@@ -674,7 +673,7 @@ claude-scene/src/
 ```
 recall → listMemories → analyzeUI → web-design-declare-system
 → installDeps(DaisyUI+Animate.css+Lucide+Playwright)
-→ checkConsistency → confirm(主题选择) → awm-brand-import
+→ checkConsistency → confirm(主题选择) → Open Design 品牌导入
 → reconcileDesignTokens → applyDaisyUI → applyComponents
 → iconUpgrade(Material Symbols→lucide-react) → addAnimations(animate.css类注入)
 → microInteractions(hover/active效果) → web-design-verify

@@ -20,7 +20,6 @@
 | 工具 | 版本 | npm 包名 | 负责工作流 | 功能 |
 |------|------|---------|-----------|------|
 | **Lighthouse CI** | ^0.15.1 | `@lhci/cli` | audit, release | Web 性能门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA |
-| **Clearible** | ^0.1.1 | `clearible` | review, audit | React 组件架构分析：耦合度/循环依赖/状态库混用 |
 | **Knip** | ^6.16.1 | `knip` | audit, analyze | 死代码/未使用依赖检测 |
 
 ---
