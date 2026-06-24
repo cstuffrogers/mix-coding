@@ -7,6 +7,7 @@
 | 检测项 | 检测方式 | 适用场景 |
 |--------|---------|---------|
 | Web 前端项目 | 存在 `*.tsx`/`*.jsx`/`*.html` + `package.json` | review、ui-polish |
+| 前端代码变更 | `git diff --name-only` 含 .tsx/.jsx/.vue/.html/.css | review |
 | 数据库 | 存在 `migrations/`、`schema.*`、`prisma/`、`drizzle/`、`*.sql` | feature、release |
 | 需求复杂度 | 用户描述 > 50 字 | feature、new-project |
 | i18n 多语言 | 存在 i18n 配置、locale/ 目录 | review |
@@ -34,6 +35,7 @@
 |---|------|------|---------|
 | 1 | jvn 多 Agent 审查 — PM + 架构师 + UX + 代码审查 + 宪法校验 | ✓ | 需求 > 50 字 |
 | 2 | 迁移审查 — SchemaForge 审查 DB 变更 | ✓ | 检测到数据库 |
+| 3 | CEO 策略审查 — 10x 分析 + 精简化 + 用户价值三桶分类（Read `../commands/plan-ceo-review.md`） | ✓ | 需求 > 50 字 |
 
 ### `/review`
 
@@ -41,6 +43,7 @@
 |---|------|------|---------|
 | 1 | 无障碍扫描 — WCAG 合规检查 | ✓ | Web 前端项目 |
 | 2 | i18n 审查 — 硬编码字符串/翻译覆盖率 | — | 检测到 i18n |
+| 3 | 浏览器 QA 验证 — git diff → 浏览器测试 → Bug 分级报告（Read `../commands/qa.md`） | ✓ | 前端代码变更 |
 
 ### `/release`
 

@@ -39,8 +39,9 @@ Scene 引擎在对话内执行工作流。34 个场景。`node src/index.js star
 | `/simplify` | 代码简化 | `/optimize` | 性能优化 |
 | `/ui-polish` | 前端美化 | `/design` | AI 辅助 UI 设计 |
 | `/refactor` | 重构 | `/new-project` | 新建项目 |
-| `/qa` | 浏览器 QA 验证 | `/plan-ceo-review` | 创始人策略审查 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
+
+> `/qa`、`/plan-ceo-review` 已融入增强菜单：`/review` 时检测前端变更自动弹出 QA，`/feature` 时自动弹出 CEO 审查。也可独立调用。
 
 执行工作流时 Read `conditional/workflows.md`（完整列表）和 `conditional/enhancements.md`（可选增强规则）。
 安全/审计/漏洞工作流额外 Read `conditional/security-toolchain.md`。
