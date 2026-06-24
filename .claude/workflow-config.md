@@ -76,10 +76,9 @@ Claude Code 会自动加载 `.claude/scenes/` 目录中的场景配置。
 3. 应用样式
 
 **通用步骤**（所有主题生效）：
-- 安装并集成 Animate.css：`npm install animate.css`
 - 安装 Lucide React：`npm install lucide-react`
 - **图标升级**：扫描 JSX/TSX，Material Symbols → lucide-react 组件（60+ 映射）
-- **动画注入**：给页面根元素添加入场动画类（fadeIn/fadeInUp/fadeInDown）
+- **自定义动画注入**：给入口 CSS 添加 keyframes + 视图组件添加入场动画类（animate-in/slide-in-from-bottom，reduced-motion 保护）
 - **微交互**：可点击元素添加 hover:-translate-y-0.5 / hover:shadow-lg / active:scale-[0.98]
 - **Impeccable 打磨**：扫描修复纯黑/纯白、紫色渐变等 AI 塑料感问题
 - **设计验证**：CSS 变量使用率、内联样式、布局检查
@@ -127,6 +126,7 @@ Claude Code 会自动加载 `.claude/scenes/` 目录中的场景配置。
 | mobile-optimize | "优化App" | App 性能优化 |
 | mobile-e2e | "App测试" | 移动端 E2E 测试 |
 | mobile-onboard | "App环境" | App 开发环境搭建 |
+| llm-proxy-audit | "中转站" | 三层防线检测 LLM 代理 tool call 注入 |
 
 ## 执行原则
 

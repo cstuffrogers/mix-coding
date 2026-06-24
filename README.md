@@ -1,4 +1,4 @@
-﻿# 🚀 Mix-Coding System — 快速入门指南
+# 🚀 Mix-Coding System — 快速入门指南
 
 本指南帮助您在 5 分钟内启动并使用全自动代码开发系统。
 适合非专业技术人员全自动开发，集成了GitHub中最热门的开发项目，高效无冲突。
@@ -10,7 +10,7 @@
 
 - ✅ **34 个自动化工作流**：覆盖 Web 前端（28 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建等
 - ✅ **多轮自动审查与修复**：直到问题清零
-- ✅ **AI 驱动设计**：Open Design 完整集成（150 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词模板 + 11 craft 设计铁律），零设计门槛
+- ✅ **AI 驱动设计**：Open Design 完整集成（152 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词模板 + 11 craft 设计铁律），零设计门槛
 - ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 全维度设计打磨（shape 设计简报 + 27 条反AI模式规则 + 12 条 LLM 批判规则 + 双轮品控 + 3 项精准残留修复）+ web-design-engineer Skill（OKLCH 色彩系统 + 反AI套路规则 + 设计基准声明，所有模式必须执行）
 - ✅ **5 层代码审查**：ESLint + TypeScript + 安全扫描 + npm audit + AI 语义 + Handler 功能验证（10 Pass 空转桩检测）
 - ✅ **数据库迁移审查**：扫描迁移文件，检测 8 种危险模式（DROP TABLE / NOT NULL 无默认值等），自动阻断高风险变更
@@ -75,44 +75,45 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ---
 
-## 📋 34 个工作流场景
+## 📋 35 个工作流场景（共 729 步）
 
 | 场景 | 步骤数 | 描述 | 命令 |
 |------|--------|------|------|
-| **ui-polish** | 59步 | 前端美化（Open Design 全资源 → shape 设计简报 → DaisyUI/Animal Island 主题 → 图标升级 → 动画注入 → 微交互 → Impeccable 全维度打磨（双轮品控+3项精准残留修复）+ Huashu + AI-Friendly 审查） | `/ui-polish` |
-| **feature** | 29步 | 新增功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
-| **bugfix** | 31步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
-| **review** | 28步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义 + 状态管理审计 + 开放重定向 + Handler 功能验证 + i18n + 聚合报告） | `/review` |
-| **refactor** | 24步 | 代码重构（代码度量 + 反模式检测 + 增量重构 + 测试验证） | `/refactor` |
-| **optimize** | 16步 | 性能优化（问题选择 → 基线 → 反模式 → 测量确认 → 增量测试） | `/optimize` |
-| **simplify** | 15步 | 代码简化（可读性优先，逐方向简化 + 测试保全） | `/simplify` |
-| **hunt** | 24步 | 安全漏洞扫描与修复（ESLint 安全规则 + npm audit + OWASP + 开放重定向 + 安全响应头扫描 + 12 项外部工具链 + CE 沉淀） | `/hunt` |
-| **design** | 53步 | AI 驱动设计（Open Design 全资源 + shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（双轮品控+3项精准残留修复）+ Huashu 验证） | `/design` |
-| **analyze** | 18步 | 深度代码分析（复杂度 / 安全 / 性能 / CI + 自动修复） | `/analyze` |
-| **loop** | 12步 | 自动迭代循环（无人值守，持续审查→修复→验证） | `/loop` |
-| **new-project** | 65步 | 从零开始新项目（Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → CE 规划 → Open Design 全资源 + Impeccable 全维度打磨（双轮品控+3项精准残留修复）+ AI-Friendly 可访问性 + 审查 + 沉淀） | `/new-project` |
-| **release** | 24步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 健康检查 + 监控） | `/release` |
-| **audit** | 41步 | 全面项目健康检查（安全 + 代码 + 依赖 + 性能 + 覆盖率 + 复杂度 + 死代码 + 密钥扫描 + 安全响应头 + 死链 + 构建泄露 + 开放重定向 + 状态管理 + Lighthouse + Handler 功能验证 + i18n + 27 项质量门禁 + 信息图） | `/audit` |
-| **deps** | 16步 | 安全依赖更新（扫描过期 + 逐项更新 + Breaking Changes 检测 + 测试） | `/deps` |
-| **rollback** | 16步 | 紧急回滚（版本选择 + 回滚 + 构建 + 健康检查 + 监控复原） | `/rollback` |
-| **onboard** | 16步 | 开发环境搭建（检测语言 + 安装依赖 + 配置 .env + 启动服务） | `/onboard` |
-| **migration** | 10步 | 数据库迁移审查：检测 8 种危险模式（DROP/NOT NULL 无默认值等），阻断高风险变更 | `/migration` |
-| **loadtest** | 9步 | 负载测试（Artillery，smoke/load/stress 三级模式，性能门禁） | `/loadtest` |
-| **backup** | 9步 | 加密去重备份（Restic 配置 + S3/SSH 远程备份 + 定时任务集成） | `/backup` |
-| **changelog** | 10步 | 变更日志生成（Git 历史 + Conventional Commits + CHANGELOG.md 更新） | `/changelog` |
-| **cicd** | 9步 | CI/CD 配置（Act + Taskfile 本地流水线 + GitHub Actions 验证） | `/cicd` |
-| **docker** | 9步 | Docker 容器化（多阶段 Dockerfile + .dockerignore + docker-compose.yml） | `/docker` |
-| **e2e** | 9步 | 端到端测试配置（MSW + Supertest + Schemathesis API fuzz） | `/e2e` |
-| **incident** | 9步 | 事故响应手册（Runme Runbook + 健康检查 + 常见问题 + 升级路径） | `/incident` |
-| **log** | 9步 | 日志配置（winston/pino/log4js + ELK/Fluentd 采集配置） | `/log` |
-| **monitor** | 9步 | 网站监控（Upptime + GitHub Actions + 状态页 + 可用性告警） | `/monitor` |
-| **sbom** | 9步 | 软件物料清单（SBOM 生成 + 许可证合规检测 + GPL/AGPL 阻断） | `/sbom` |
-| **mobile-audit** | 24步 | App 安全审计（MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5 层门禁） | `/mobile-audit` |
-| **mobile-review** | 17步 | 移动端代码审查（ESLint → mobsfscan SAST → UI 截图 → mobile-ui-review UI审查 → AI 语义+a11y → 聚合报告 + 质量门禁） | `/mobile-review` |
-| **mobile-release** | 17步 | App 发布部署（证书检查→质量门禁→版本号→CHANGELOG→TestFlight/Play Store + 4 层门禁） | `/mobile-release` |
-| **mobile-optimize** | 19步 | App 性能优化（Bundle 分析 + 启动优化 + 网络分析 + 反模式检测 + 自动修复 + 4 层门禁） | `/mobile-optimize` |
-| **mobile-e2e** | 12步 | 移动端 E2E 测试（Detox/Patrol 自动检测 + 配置生成 + CI 集成 + 3 层门禁） | `/mobile-e2e` |
-| **mobile-onboard** | 16步 | App 开发环境搭建（平台感知前置条件 + RN Doctor + .env 模板 + 模拟器配置 + 门禁） | `/mobile-onboard` |
+| **ui-polish** | 69 步 | 前端美化（全对话模式：设计系统声明 → 主题注入 → Impeccable 全维度打磨 + AI-Friendly 审查） | `/ui-polish` |
+| **new-project** | 66 步 | 从零开始新项目（设计基准 → shape 简报 → 上下文收集 → CE 规划 → Open Design + Impeccable + AI-Friendly） | `/new-project` |
+| **design** | 53 步 | AI 辅助 UI 设计（设计系统 → 品牌选择 → 三方向提案 → 专家评审 → 验证） | `/design` |
+| **audit** | 47 步 | 全面项目健康检查（27 项质量门禁 + 信息图） | `/audit` |
+| **review** | 33 步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义 + i18n + 聚合报告） | `/review` |
+| **bugfix** | 30 步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
+| **feature** | 26 步 | 新功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
+| **hunt** | 24 步 | 安全漏洞扫描与修复（12 项外部工具链 + CE 沉淀） | `/hunt` |
+| **mobile-audit** | 24 步 | App 安全审计（MobSF + mobsfscan + Bearer + DependencyCheck + 5 层门禁） | `/mobile-audit` |
+| **refactor** | 23 步 | 代码重构（代码度量 + 反模式检测 + 增量重构 + 测试验证） | `/refactor` |
+| **mobile-optimize** | 19 步 | App 性能优化（Bundle 分析 + 启动优化 + 网络分析 + 反模式检测 + 4 层门禁） | `/mobile-optimize` |
+| **analyze** | 18 步 | 深度代码分析（复杂度 / 安全 / 性能 / CI + 自动修复） | `/analyze` |
+| **mobile-release** | 18 步 | App 发布部署（证书检查 → 质量门禁 → 版本号 → CHANGELOG → TestFlight/Play Store + 4 层门禁） | `/mobile-release` |
+| **deps** | 17 步 | 安全依赖更新（扫描过期 + 逐项更新 + Breaking Changes 检测 + 测试） | `/deps` |
+| **mobile-review** | 17 步 | 移动端代码审查（ESLint + mobsfscan SAST + UI 截图 + AI 语义+a11y + 聚合报告） | `/mobile-review` |
+| **optimize** | 17 步 | 性能优化（问题选择 → 基线 → 反模式 → 测量确认 → 增量测试） | `/optimize` |
+| **mobile-onboard** | 16 步 | App 开发环境搭建（平台感知前置条件 + RN Doctor + .env 模板 + 模拟器配置） | `/mobile-onboard` |
+| **onboard** | 16 步 | 开发环境搭建（检测语言 + 安装依赖 + 配置 .env + 启动服务） | `/onboard` |
+| **rollback** | 16 步 | 紧急回滚（版本选择 + 回滚 + 构建 + 健康检查 + 监控复原） | `/rollback` |
+| **simplify** | 15 步 | 代码简化（可读性优先，逐方向简化 + 测试保全） | `/simplify` |
+| **loop** | 13 步 | 自动迭代循环（无人值守，持续审查→修复→验证） | `/loop` |
+| **mobile-e2e** | 13 步 | 移动端 E2E 测试（Detox/Patrol 自动检测 + 配置生成 + CI 集成 + 3 层门禁） | `/mobile-e2e` |
+| **cicd** | 12 步 | CI/CD 配置（Act + Taskfile 本地流水线 + GitHub Actions 验证） | `/cicd` |
+| **llm-proxy-audit** | 11 步 | LLM 代理安全审计（lobstertrap DLP + 蜜罐检测 + 流量审计） | `/llm-proxy-audit` |
+| **changelog** | 10 步 | 变更日志生成（Git 历史 + Conventional Commits + CHANGELOG.md 更新） | `/changelog` |
+| **migration** | 10 步 | 数据库迁移审查：检测 8 种危险模式，阻断高风险变更 | `/migration` |
+| **release** | 24 步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 健康检查 + 监控） | `/release` |
+| **backup** | 9 步 | 加密去重备份（Restic 配置 + S3/SSH 远程备份 + 定时任务集成） | `/backup` |
+| **docker** | 9 步 | Docker 容器化（多阶段 Dockerfile + .dockerignore + docker-compose.yml） | `/docker` |
+| **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + Schemathesis API fuzz） | `/e2e` |
+| **incident** | 9 步 | 事故响应手册（Runme Runbook + 健康检查 + 常见问题 + 升级路径） | `/incident` |
+| **loadtest** | 9 步 | 负载测试（Artillery，smoke/load/stress 三级模式，性能门禁） | `/loadtest` |
+| **log** | 9 步 | 日志配置（winston/pino/log4js + ELK/Fluentd 采集配置） | `/log` |
+| **monitor** | 9 步 | 网站监控（Upptime + GitHub Actions + 状态页 + 可用性告警） | `/monitor` |
+| **sbom** | 9 步 | 软件物料清单（SBOM 生成 + 许可证合规检测 + GPL/AGPL 阻断） | `/sbom` |
 
 ---
 
@@ -135,7 +136,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | 一键基础设施配置 | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | 事故/变更/SBOM 自动化 | ✅ |
 | `huashu-*`（7 个） | Huashu 品牌设计系统集成 | ✅ |
-| `awm-brand-*`（2 个） | Awesome Design MD 品牌导入（list + import） | ✅ |
+| `awm-brand-*`（2 个） | Open Design 品牌导入（list + import） | ✅ |
 | `mp-*`（10 个） | Matt Pocock TypeScript skill 桥接 | ✅ |
 | `ce-*` | Compound Engineering Plugin 集成 | ✅ |
 | `notify` / `send` | 通知与告警 | ✅ |
@@ -154,11 +155,11 @@ node src/index.js start ui-polish --auto --theme animal-island --target "./your-
 > /ui-polish animal-island ./your-project
 ```
 
-# 执行步骤（59 步混合工作流）
+# 执行步骤（59 步全对话模式工作流）
 # Phase 0: Pre-flight 设计智能
 0. web-design-engineer → 声明设计系统基线（Palette/Typography/Spacing/Motion/Radius/Shadows）
 0.05. review-checklist → 加载 23 项审查清单
-# Phase 1: CLI 机械步骤
+# Phase 1: 对话内机械步骤（Claude 直接操作文件，不再通过 CLI 子进程）
 1. recall         → 注入历史上下文和相关记忆
 2. listMemories   → 召回之前的 UI 优化记录（Memory MCP）
 3. analyzeUI      → 分析项目结构，统计 CSS/组件文件
@@ -166,8 +167,8 @@ node src/index.js start ui-polish --auto --theme animal-island --target "./your-
 4. installDeps    → 安装 daisyui, animate.css, lucide-react, playwright
 5. checkConsistency → 检查 UI 一致性，输出评分
 5.8-6.44. Open Design 资源加载 → 品牌选择 + 模板预览 + Skill 加载 + 设备框 + 演示文稿 + 提示词
-6. confirm        → 用户选择主题（DaisyUI/Animal Island/Custom/Huashu/Awesome Design MD）
-6.5. awm-brand-import → Awesome Design MD: 加载品牌 DESIGN.md 注入 CSS 变量（条件触发）
+6. confirm        → 用户选择主题（DaisyUI/Animal Island/Custom/Huashu/Open Design 152 品牌）
+6.5. awm-brand-import → Open Design: 直接读取 `open-design/design-systems/<brand>/` DESIGN.md + tokens.css → 注入 CSS 变量（条件触发）
 6.7. reconcileDesignTokens → 设计 Token 调和：已有值优先，新主题填充缺失
 7. applyDaisyUI   → 整合应用主题（on_error: abort）
 7.15. exportAssets → 导出设计资源到 src/assets/design-system/
@@ -233,14 +234,14 @@ node src/index.js start new-project
 node src/index.js start new-project --auto --prompt "创建一个 React 电商网站"
 ```
 
-### 完整流程说明（65 步混合工作流）
+### 完整流程说明（65 步全对话模式工作流）
 
 | 阶段 | 步骤 | 说明 |
 |------|------|------|
 | **Phase 0: Pre-flight** | web-design-engineer → review-checklist → recall → shape 设计简报 | 设计基准声明 + 品味方向确立 |
 | **Phase 1: 上下文收集** | GitHub/Tavily/Context7/Supabase/Stripe/Resend MCP + OpenDigger 竞品分析 | 自动搜索最佳实践、文档、模板 |
 | **Phase 2: 规划** | ce-plan → Skill review（PRD 合成 + Issue 拆解） | CE 详细规划 + Issue Tracker 集成 |
-| **Phase 3: 脚手架** | applyTemplate → askUser(Open Design) → Open Design 全资源加载 → awesome-design-md → generateDesign | 项目创建 + 品牌选择 + AI 设计生成 |
+| **Phase 3: 脚手架** | applyTemplate → askUser(Open Design) → Open Design 152 品牌资源加载 → brand-import → generateDesign | 项目创建 + 品牌选择 + AI 设计生成 |
 | **Phase 3.5: Impeccable 打磨** | Huashu 基线 → critique(检测) → polish → layout → colorize → bolder → typeset → animate → delight → harden → distill → clarify → adapt → optimize → critique(验证) → polish+bolder+delight(精准修复) → Huashu 验证 → AI-Friendly 可访问性 | 双轮品控+3项残留修复，所有关键步骤 on_error: abort |
 | **Phase 4: 实现+审查** | implementLogic → checkAPI → runReview → aislop → sec-bug-hunt → runSuite | 业务逻辑 + 代码质量 + 安全基线 |
 | **Phase 5: 沉淀** | review(git-guardrails) → ce-compound → remember → consolidate → notify | 知识沉淀 + 记忆保存 |
@@ -365,7 +366,7 @@ node src/index.js start hunt --auto
 | `--auto` | 自动模式，跳过交互确认 |
 | `--dry-run` | 试运行，仅预览不执行 |
 | `--target <path>` | 指定目标项目路径 |
-| `--theme <name>` | 指定主题（daisyui/animal-island/custom/huashu/awm-brand） |
+| `--theme <name>` | 指定主题（daisyui/animal-island/custom/huashu/open-design） |
 | `--option <name>` | 指定选项（用于 optimize/simplify 场景） |
 | `--prompt <text>` | 指定提示信息 |
 
@@ -400,9 +401,13 @@ mix-coding/
 │       ├── commands/         # CLI 命令（list / show / start / fork）
 │       ├── handlers/         # 能力处理器
 │       └── lib/              # 工具库（含 huashu 设计集成）
-│
+├── scripts/                  # 项目脚本（Node.js .cjs，跨平台不假死）
+│   ├── scan-scenes.cjs       # 扫描所有 scene 真实步骤数
+│   ├── find-deadcode.cjs     # 死代码扫描
+│   ├── check-memory-system.cjs # 记忆系统状态检查
+│   └── setup-mempalace.cjs   # MemPalace MCP 一键配置
 ├── constitution.md           # 项目宪法（constitutional-validator Agent 强制执行）
-├── CLAUDE.md                 # 项目主指令
+├── CLAUDE.md                 # 项目主指令（精简后 ~270 行）
 ├── ARCHITECTURE.md           # 完整架构文档
 ├── upgrade.bat / start-claude.bat   # 一键工具
 └── README.md
@@ -410,44 +415,85 @@ mix-coding/
 
 ---
 
+## 🧠 MemPalace 记忆系统（MCP 工具调用）
+
+**状态**：✅ 已通过 MCP 工具调用（不走 hook 避免 Windows 路径转义假死）
+
+### 架构变化
+
+```
+旧架构（已废弃）：Trae/Claude Code → hook 脚本 → 假死 ❌
+新架构（当前）：   Trae/Claude Code ─┬─→ [禁用 hook] sys.exit(0) 立即返回
+                                  └─→ MCP 工具调 mempalace ✅
+```
+
+### 用法
+
+| 场景 | Claude 主动调用的 MCP 工具 |
+|------|----------------------------|
+| 用户问"上次 / 之前 / 那个" | `mcp__mempalace__search` |
+| 重要决策 / 关键 bug 修复 | `mcp__mempalace__remember` |
+| 项目知识沉淀 | `mcp__mempalace__store` |
+| 列出所有记忆 | `mcp__mempalace__list` |
+
+### 安装配置
+
+```bash
+# mempalace CLI 需先安装
+uv tool install mempalace
+
+# 一键配置（修改 .mcp.json 用全路径避免 Windows 路径问题）
+npm run setup:mempalace
+
+# 验证
+npm run scan:memory
+```
+
+### 一键脚本
+
+| 脚本 | 作用 |
+|------|------|
+| `npm run setup:mempalace` | 安装 + 配置 |
+| `npm run scan:memory` | 状态扫描 |
+| `npm run scan:deadcode` | 死代码扫描 |
+| `npm run scan:all` | 综合扫描 |
+
+详细说明见 [docs/省token.md](./docs/省token.md)
+
+---
+
 ## 🔧 MCP 动态启用
 
 | 工作流 | 启用的 MCP 服务器 |
 |--------|-------------------|
-| new-project | github, tavily-search, context7, supabase, stripe, resend |
-| feature | github, context7, supabase |
-| bugfix | sentry, tavily-search, context7, github, codegraph |
-| refactor | github, context7 |
-| design | tavily-search, context7 |
-| ui-polish | memory, playwright |
-| simplify | github, context7 |
-| optimize | github, context7 |
-| review | github, context7 |
-| hunt | sentry, tavily-search, context7, github, codegraph |
-| analyze | tavily-search, opendigger |
-| loop | github, context7 |
-| release | github |
-| audit | github, tavily-search, context7, codegraph |
-| deps | github |
-| rollback | github, codegraph |
-| onboard | （无） |
-| migration | github |
-| loadtest | （无） |
-| backup | （无） |
-| changelog | github |
-| cicd | github |
-| docker | （无） |
-| e2e | （无） |
-| incident | github |
-| log | （无） |
-| monitor | github |
-| sbom | github |
-| mobile-audit | mobsf, mobsfscan, bearer, sentry, dependencycheck |
-| mobile-review | mobsfscan, detox, codegraph, mobile-ui-review |
-| mobile-release | github |
-| mobile-optimize | bundle-visualizer, detox, toxiproxy |
-| mobile-e2e | detox, patrol |
-| mobile-onboard | react-native-doctor |
+| new-project | github, context7, supabase, stripe, resend, mempalace |
+| feature | github, context7, supabase, mempalace |
+| bugfix | sentry, context7, github, codegraph, mempalace |
+| refactor | github, context7, mempalace |
+| design | context7, mempalace |
+| ui-polish | memory, playwright, mempalace |
+| simplify | github, context7, mempalace |
+| optimize | github, context7, mempalace |
+| review | github, context7, mempalace |
+| hunt | sentry, context7, github, codegraph, mempalace |
+| analyze | opendigger, mempalace |
+| loop | github, context7, mempalace |
+| release | github, mempalace |
+| audit | github, context7, codegraph, mempalace |
+| deps | github, mempalace |
+| rollback | github, codegraph, mempalace |
+| changelog | github, mempalace |
+| cicd | github, mempalace |
+| incident | github, mempalace |
+| monitor | github, mempalace |
+| sbom | github, mempalace |
+| mobile-audit | mobsf, mobsfscan, bearer, sentry, dependencycheck, mempalace |
+| mobile-review | mobsfscan, detox, codegraph, mobile-ui-review, mempalace |
+| mobile-release | github, mempalace |
+| mobile-optimize | bundle-visualizer, detox, toxiproxy, mempalace |
+| mobile-e2e | detox, patrol, mempalace |
+| mobile-onboard | react-native-doctor, mempalace |
+| llm-proxy-audit | lobstertrap, mempalace |
 
 ---
 
@@ -506,7 +552,7 @@ claude plugins install compound-engineering@anthropic
 | **Impeccable Skill** | `echo Y \| npx --yes impeccable@2.3.2 skills install` | AI 设计词汇 + 27 反模式规则 + 12 LLM 批判规则，自动修正 UI 塑料感 |
 | **Web Design Skill** | 复制 `SKILL.md` 到 `.claude/skills/web-design-engineer/`（注意：前序元数据仅保留 name/description/user-invocable） | ConardLi: 反AI套路设计系统，OKLCH 色彩 + 6步工作流 + 预交付检查清单 |
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: 语义HTML/ARIA可访问性 |
-| **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md`（同上，注意前序元数据格式） | 5 精选品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple） |
+| **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md`（同上，注意前序元数据格式） | 5 精选品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为 Open Design 152 品牌库直接文件读取 |
 | **MCP服务器** | `claude mcp install github playwright supabase` | AI上下文增强扩展 |
 | **记忆工具** | `git clone https://github.com/claude-mem \`%USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 7种记忆组件组合使用（project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory） |
 | **安全工具链** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli knip` + `pip install seraphim-audit` + Socket.dev API Key 配置 | 构建泄露检测 / 安全响应头 / 死链 / 无障碍 / ReDoS / 性能门禁 / AST 死代码检测 / 日志脱敏 / CORS / 敏感文件 / 供应链安全 / 技术债务 |
@@ -516,7 +562,7 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **76+ 个外部组件**：Skills 22 个 + MCP 16 个 + npm 包 23 个 + 外部工具 18 个
+> 共集成 **80+ 个外部组件**：Skills 22 个 + MCP 16 个 + npm 包 23 个 + 外部工具 18 个 + MemPalace 工具 1 个
 
 ### 本地 Skills（22 个，`.claude/skills/`）
 
@@ -526,7 +572,7 @@ claude plugins install compound-engineering@anthropic
 | `web-design-engineer` | ConardLi | OKLCH 色彩 + 6步工作流 + 反 AI 套路 |
 | `impeccable` | — | 27 反模式规则 + 12 LLM 批判规则，去塑料感 |
 | `ai-friendly-web-design` | ianho7 | 语义 HTML / ARIA 可访问性 |
-| `awesome-design-md` | VoltAgent | 5 品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple） |
+| `awesome-design-md` | VoltAgent | 5 品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为 Open Design 152 品牌库直接文件读取 |
 | `mattpocock` | Matt Pocock | 含 29 个子技能（TS/工程/生产力） |
 | `review-checklist` | — | 23 项审查清单 |
 | `sec-bug-hunt` | — | 5 向量安全扫描规则 |

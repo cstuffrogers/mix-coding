@@ -135,6 +135,23 @@ npx skills install plannotator
 npx skills install deep-trilogy
 ```
 
+### 5.b 必备设计技能（ui-polish / design 工作流）
+
+```bash
+# Impeccable（反 AI 套路，27 反模式 + 12 LLM 批判规则）
+echo Y | npx --yes impeccable@2.3.2 skills install
+
+# web-design-engineer（OKLCH 色彩 + 反 AI 套路）
+# 手动安装：把 SKILL.md 复制到 .claude/skills/web-design-engineer/
+
+# ai-friendly-web-design（可访问性审查）
+npx ai-friendly-web-design-skill --local
+
+# awesome-design-md（5 精选品牌 DESIGN.md：Vercel/Linear/Stripe/Notion/Apple）
+mkdir -p .claude/skills/awesome-design-md
+# 手动放置：5 个品牌 .md 文件
+```
+
 **验证安装的技能：**
 ```bash
 npx skills list
@@ -263,12 +280,45 @@ npm install supermemory
 
 **配置：**
 设置环境变量（不设置则不影响本地 6 后端）：
-```bash
-export SUPERMEMORY_API_KEY=sm_your_key_here
-```
-或写入 `claude-scene/.env.example` 并重命名为 `.env`。
 
-> 注意：Supermemory 是云端 SaaS，数据存储在云端。不配置 Key 时零影响。
+---
+
+### 10. MemPalace（对话原文记忆） - 推荐安装 ⭐⭐⭐⭐
+**作用：** 对话原文自动归档 + 跨会话历史召回，通过 **MCP 工具调用**（不走 hook，避免 Windows 路径转义假死）
+
+**安装 CLI：**
+```bash
+# 用 uv 安装（已装 uv 才能用）
+uv tool install mempalace
+
+# 验证
+mempalace --version
+# 应显示 v3.3.5+
+```
+
+**配置 MCP：** 一键脚本自动配置
+```bash
+cd e:\auto-coding
+npm run setup:mempalace
+```
+
+**手动配置**（如果脚本失败）：
+编辑 `.mcp.json`，把 mempalace 的 command 改为全路径：
+```json
+"mempalace": {
+  "command": "C:\\Users\\你的用户名\\.local\\bin\\mempalace-mcp.exe",
+  "args": []
+}
+```
+
+**使用：** Claude 主动调用 `mcp__mempalace__search` / `remember` / `list` / `store`
+
+> **重要**：MemPalace hook 已被禁用（避免 Windows 路径转义假死）。记忆功能通过 MCP 工具调用实现。
+
+**验证：**
+```bash
+npm run scan:memory
+```
 
 ---
 

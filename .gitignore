@@ -58,6 +58,16 @@ codegraph-win32-x64/
 # 外部仓库（独立项目，不提交到本仓库）
 open-design/
 
+# 已归档的备份目录（保留在 e:\auto-coding\archive\）
+.claude/.backup/
+.claude/.claude-flow/
+
+# Compiled binaries (rebuild from source via `go build`)
+.claude/tools/lobstertrap.exe
+.claude/tools/lobstertrap
+# 但保留 lobstertrap 源码（独立 Go 项目）
+!.claude/tools/lobstertrap-src/
+
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
@@ -69,9 +79,28 @@ entities.json
 # Python cache
 __pycache__/
 
+# CodeGuardian 优化产物
+.codeguardian/
+
 # 个人参考文档（非项目文档）
 3.md
 AI辅助Web与移动端开发完整问题清单.md
 Claude_Code_全自动驾驶系统_融合版.md
 加入新skill.md
 前后端一致性问题.md
+
+# 自动生成的分析文件（含机器特定路径）
+claude-scene/.claude/test-gaps.json
+
+# express-sec-audit 缓存和报告（自动生成，不应提交）
+express-sec-audit-*.txt
+.express-sec-audit-cache.json
+clearible-report.mdx
+
+# === Claude Code 项目级配置（私密，不提交） ===
+.claude/settings.local.json
+.claude/settings.json
+.claudeignore
+
+# === od-craft 设计规则（按需手动 Read，不自动加载） ===
+.claude/rules/od-craft/

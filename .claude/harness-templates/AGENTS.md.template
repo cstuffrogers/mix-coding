@@ -178,7 +178,7 @@ Use these commands to trigger system capabilities:
 | `/loop` | Long-running autonomous iteration |
 | `/simplify` | Code simplification (clarity over cleverness) |
 | `/optimize` | Performance optimization (measure-first) |
-| `/polish` | Frontend UI polish with DaisyUI/Animate.css/Lucide |
+| `/polish` | Frontend UI polish with DaisyUI/custom keyframe animations/Lucide |
 
 ### Memory System
 

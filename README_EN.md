@@ -9,10 +9,10 @@ Designed for non-technical users — integrates the hottest GitHub projects with
 
 A **three-layer architecture + Scene engine** intelligent development system:
 
-- ✅ **34 automated workflows**: 28 Web + 6 Mobile — code review, security scanning, performance optimization, E2E testing, release deployment, environment setup, and more
+- ✅ **35 automated workflows** (729 steps total):| **review** | 33 Web + 6 Mobile + 1 LLM proxy audit — code review, security scanning, performance optimization, E2E testing, release deployment, environment setup, and more
 - ✅ **Multi-round auto review & fix**: iterate until issues are cleared
-- ✅ **AI-driven design**: Open Design fully integrated (150 brands + 111 templates + 137 skills + 6 device frames + 3 decks + 102 prompt templates + 11 craft principles)
-- ✅ **Frontend polish toolchain**: DaisyUI (35+ themes) + Animal Island UI + Animate.css + Lucide React + Playwright + Impeccable critique (27 anti-AI-pattern rules)
+- ✅ **AI-driven design**: Open Design fully integrated (152 brands + 111 templates + 137 skills + 6 device frames + 3 decks + 102 prompt templates + 11 craft principles)
+- ✅ **Frontend polish toolchain**: DaisyUI (35+ themes) + Animal Island UI + Animate.css + Lucide React + Playwright + Impeccable critique (27 anti-AI-pattern rules) + web-design-engineer + ai-friendly-web-design + awesome-design-md (5 brand DESIGN.md: Vercel/Linear/Stripe/Notion/Apple)
 - ✅ **5-layer code review**: ESLint + TypeScript + Security Scan + npm audit + AI Semantic + Handler verification (10-pass stub detection)
 - ✅ **Database migration review**: scans migration files, detects 8 dangerous patterns (DROP TABLE / NOT NULL without DEFAULT, etc.), blocks high-risk changes
 - ✅ **Load testing**: Artillery integration — smoke/load/stress, 3-tier performance gates
@@ -74,32 +74,33 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ---
 
-## 📋 34 Workflow Scenes
+## 📋 35 Workflow Scenes (729 Steps Total)
 
 | Scene | Steps | Description | Command |
 |-------|-------|-------------|---------|
-| **ui-polish** | 59 | Frontend polish (Open Design full stack → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
-| **feature** | 29 | New feature development (CE plan + TDD + multi-Agent review) | `/feature` |
-| **bugfix** | 31 | Bug fix (repro → root cause → fix → PR → regression test) | `/bugfix` |
-| **review** | 28 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic + state audit + open redirect + handler verification + i18n) | `/review` |
-| **refactor** | 24 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
-| **optimize** | 16 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
+| **ui-polish** | 69 | Frontend polish (full conversation mode, Open Design 152 brands → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
+| **feature** | 26 | New feature development (CE plan + TDD + multi-Agent review) | `/feature` |
+| **bugfix** | 30 | Bug fix (repro → root cause → fix → PR → regression test) | `/bugfix` |
+| **review** | 33 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic + state audit + open redirect + handler verification + i18n) | `/review` |
+| **refactor** | 23 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
+| **optimize** || **mobile-release** | 18 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
 | **simplify** | 15 | Code simplification (readability-first, incremental simplify + test safety) | `/simplify` |
-| **hunt** | 24 | Security vulnerability scan & fix (ESLint + npm audit + OWASP + 12 external tools + CE retention) | `/hunt` |
-| **design** | 53 | AI-driven design (Open Design full stack + shape design brief → 3-direction proposal → Huashu prototype → AWM brand → expert review → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu verification) | `/design` |
+| **hunt** | 24 | Security vulnerability scan & fix (ESLint + npm audit + OWASP +| **mobile-e2e** | 13 external tools + CE retention) | `/hunt` |
+| **design** | 53 | AI-driven design (full conversation mode, Open Design 152 brands + shape design brief → 3-direction proposal → Huashu prototype → expert review → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu verification) | `/design` |
 | **analyze** | 18 | Deep code analysis (complexity / security / performance / CI + auto-fix) | `/analyze` |
-| **loop** | 12 | Auto iteration loop (unattended: review → fix → verify) | `/loop` |
-| **new-project** | 65 | Project from scratch (Pre-flight design baseline → shape design brief → context gathering → CE plan → Open Design full stack + Impeccable full-suite polish (dual-round QC + 3 precision fixes) + AI-Friendly a11y + review + retention) | `/new-project` |
+| **loop** | 13 | Auto iteration loop (unattended: review → fix → verify) | `/loop` |
+| **new-project** | 66 | Project from scratch (full conversation mode, Pre-flight design baseline → shape design brief → context gathering → CE plan → Open Design 152 brands + Impeccable full-suite polish (dual-round QC + 3 precision fixes) + AI-Friendly a11y + review + retention) | `/new-project` |
 | **release** | 24 | Release deployment (quality gates + version bump + build + leak check + tag + health check + monitoring) | `/release` |
-| **audit** | 41 | Full project health check (security + code + deps + performance + coverage + complexity + dead code + secret scan + 27 quality gates + infographic) | `/audit` |
-| **deps** | 16 | Safe dependency updates (scan outdated → update one-by-one → breaking changes check → test) | `/deps` |
+| **audit** | 47 | Full project health check (security + code + deps + performance + coverage + complexity + dead code + secret scan + 27 quality gates + infographic) | `/audit` |
+| **deps** || **mobile-release** | 18 | Safe dependency updates (scan outdated → update one-by-one → breaking changes check → test) | `/deps` |
 | **rollback** | 16 | Emergency rollback (version selection → rollback → build → health check → monitor restoration) | `/rollback` |
 | **onboard** | 16 | Dev environment setup (detect language → install deps → configure .env → start dev server) | `/onboard` |
 | **migration** | 10 | Database migration review: detect 8 dangerous patterns, block high-risk changes | `/migration` |
 | **loadtest** | 9 | Load testing (Artillery, smoke/load/stress, performance gates) | `/loadtest` |
 | **backup** | 9 | Encrypted deduplicated backup (Restic config + S3/SSH remote + cron integration) | `/backup` |
 | **changelog** | 10 | Changelog generation (Git history + Conventional Commits) | `/changelog` |
-| **cicd** | 9 | CI/CD config (Act + Taskfile local pipeline + GitHub Actions validation) | `/cicd` |
+| **cicd** || **mobile-e2e** | 13 | CI/CD config (Act + Taskfile local pipeline + GitHub Actions validation) | `/cicd` |
+| **llm-proxy-audit** | 11 | LLM proxy security audit (lobstertrap DLP + honeypot detect + traffic audit) | `/llm-proxy-audit` |
 | **docker** | 9 | Docker containerization (multi-stage Dockerfile + .dockerignore + docker-compose.yml) | `/docker` |
 | **e2e** | 9 | E2E test config (MSW + Supertest + Schemathesis API fuzz) | `/e2e` |
 | **incident** | 9 | Incident runbook (Runme + health checks + FAQs + escalation paths) | `/incident` |
@@ -107,17 +108,17 @@ node src/index.js start ui-polish --auto    # Execute workflow
 | **monitor** | 9 | Website monitoring (Upptime + GitHub Actions + status page + availability alerts) | `/monitor` |
 | **sbom** | 9 | SBOM generation + license compliance check (GPL/AGPL blocking) | `/sbom` |
 | **mobile-audit** | 24 | App security audit (MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5-layer gates) | `/mobile-audit` |
-| **mobile-review** | 17 | Mobile code review (ESLint → mobsfscan SAST → UI screenshots → mobile-ui-review → AI semantic + a11y → aggregate report) | `/mobile-review` |
-| **mobile-release** | 17 | App release (quality gate → cert check → version bump → CHANGELOG → TestFlight/Play Store + 4-layer gates) | `/mobile-release` |
+| **mobile-review** || **mobile-release** | 18 | Mobile code review (ESLint → mobsfscan SAST → UI screenshots → mobile-ui-review → AI semantic + a11y → aggregate report) | `/mobile-review` |
+| **mobile-release** | 18 | App release (quality gate → cert check → version bump → CHANGELOG → TestFlight/Play Store + 4-layer gates) | `/mobile-release` |
 | **mobile-optimize** | 19 | App performance optimization (Bundle analysis + startup + network + anti-patterns + auto-fix + 4-layer gates) | `/mobile-optimize` |
-| **mobile-e2e** | 12 | Mobile E2E testing (Detox/Patrol auto-detect + config generation + CI integration + 3-layer gates) | `/mobile-e2e` |
+| **mobile-e2e** | 13 | Mobile E2E testing (Detox/Patrol auto-detect + config generation + CI integration + 3-layer gates) | `/mobile-e2e` |
 | **mobile-onboard** | 16 | App dev environment setup (platform-aware prerequisites + RN Doctor + .env + emulator config) | `/mobile-onboard` |
 
 ---
 
 ## 🔧 Action Handler Completeness
 
-The system registers **321 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 34 workflows.
+The system registers **235 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 35 workflows.
 
 | Action | Purpose | Status |
 |--------|---------|--------|
@@ -134,7 +135,7 @@ The system registers **321 action handlers** (see `claude-scene/src/actions.js` 
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | One-click infrastructure config | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | Incident/Changelog/SBOM automation | ✅ |
 | `huashu-*` (7) | Huashu brand design system integration | ✅ |
-| `awm-brand-*` (2) | Awesome Design MD brand import (list + import) | ✅ |
+| `awm-brand-*` (2) | Open Design brand import (list + import) | ✅ |
 | `mp-*` (10) | Matt Pocock TypeScript skill bridge | ✅ |
 | `ce-*` | Compound Engineering Plugin integration | ✅ |
 | `notify` / `send` | Notifications & alerts | ✅ |
@@ -149,11 +150,11 @@ The system registers **321 action handlers** (see `claude-scene/src/actions.js` 
 # CLI command
 node src/index.js start ui-polish --auto --theme animal-island --target "E:\your\project"
 
-# Execution steps (59-step hybrid workflow)
+# Execution steps (69-step full conversation mode workflow)
 # Phase 0: Pre-flight Design Intelligence
 0. web-design-engineer → Declare design system baseline (Palette/Typography/Spacing/Motion/Radius/Shadows)
 0.05. review-checklist → Load 23-item review checklist
-# Phase 1: CLI Mechanical Steps
+# Phase 1: In-Conversation Mechanical Steps (Claude operates files directly, no CLI subprocess)
 1. recall         → Inject historical context and memories
 2. listMemories   → Recall previous UI optimization records
 3. analyzeUI      → Analyze project structure, count CSS/components
@@ -161,12 +162,12 @@ node src/index.js start ui-polish --auto --theme animal-island --target "E:\your
 4. installDeps    → Install daisyui, animate.css, lucide-react, playwright
 5. checkConsistency → Check UI consistency, output score
 5.8-6.44. Open Design resources → Brand selection + template preview + skill loading + frames + decks + prompts
-6. confirm        → User selects theme (DaisyUI/Animal Island/Custom/Huashu/Awesome Design MD)
-6.5. awm-brand-import → Load brand DESIGN.md, inject CSS variables (conditional)
+6. confirm        → User selects theme (DaisyUI/Animal Island/Custom/Huashu/Open Design 152 brands)
+6.5. awm-brand-import → Open Design: read `open-design/design-systems/<brand>/` DESIGN.md + tokens.css → inject CSS variables (conditional)
 6.7. reconcileDesignTokens → Protect existing tokens, fill gaps from new theme
 7. applyDaisyUI   → Merge theme (on_error: abort)
 7.2. huashu-expert-review → 5-dimension review (round 1 baseline)
-7.25. impeccable-critique (round 1) → 27 anti-pattern + 12 LLM critique rules, detect AI slop (on_error: abort)
+7.25. impeccable-critique (round 1) → 27 anti-pattern +| **mobile-e2e** | 13 LLM critique rules, detect AI slop (on_error: abort)
 8. applyComponents → Scan JSX/TSX, replace with themed components
 8.5. iconUpgrade  → Material Symbols → lucide-react (all themes)
 9. addAnimations  → Integrate Animate.css entrance animations
@@ -185,7 +186,7 @@ node src/index.js start ui-polish --auto --theme animal-island --target "E:\your
 9.594. impeccable-clarify → UX copy optimization (on_error: abort)
 9.595. impeccable-adapt → Responsive design verification (on_error: abort)
 9.596. impeccable-optimize → CSS/render performance (on_error: abort)
-9.6. impeccable-critique (CLI) → 12-rule auto scan (CLI supplement)
+9.6. impeccable-critique (CLI) →| **mobile-e2e** | 13-rule auto scan (CLI supplement)
 9.61. impeccable-critique (round 2) → Verify polish effectiveness (on_error: abort)
 9.62. impeccable-polish (round 3) → Precision fix residual AI slop
 9.63. impeccable-bolder (round 3) → Amplify conservative decisions
@@ -292,7 +293,7 @@ node src/index.js start hunt --auto
 | `--auto` | Auto mode, skip interactive confirmation |
 | `--dry-run` | Dry run, preview only |
 | `--target <path>` | Target project path |
-| `--theme <name>` | Theme (daisyui/animal-island/custom/huashu/awm-brand) |
+| `--theme <name>` | Theme (daisyui/animal-island/custom/huashu/open-design) |
 | `--option <name>` | Option (for optimize/simplify scenes) |
 | `--prompt <text>` | Prompt text |
 
@@ -303,7 +304,7 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # Scene definitions (34 JSON files)
+│   ├── scenes/               # Scene definitions (35 JSON files, 729 steps)
 │   │   ├── ui-polish.json    bugfix.json     feature.json
 │   │   ├── review.json       refactor.json   optimize.json
 │   │   ├── simplify.json     hunt.json       design.json
@@ -316,9 +317,9 @@ mix-coding/
 │   │   ├── monitor.json      sbom.json
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
-│   ├── commands/             # Slash commands (34 workflows + jvn /spec /design /build /report etc.)
+│   ├── commands/             # Slash commands (35 workflows + jvn /spec /design /build /report etc.)
 │   ├── rules/                # Project rules (coding / karpathy-principles / memory-auto-save / mobile-coding / etc.)
-│   ├── skills/               # Claude Skills (22: 10 core + 12 speckit)
+│   ├── skills/               # Claude Skills (22: 10 core +| **mobile-e2e** | 13 speckit)
 │   └── agents/               # 8 Agents (PM/Architect/UX/Reviewer/Constitutional-validator + mobile-reviewer/mobile-security/mobile-perf)
 │
 ├── .specify/                 # Spec-Kit config (templates / scripts / memory)
@@ -391,10 +392,10 @@ claude plugins install compound-engineering@anthropic
 | **Claude Code** | `npm install -g @anthropic-ai/claude-code` | AI assistant core CLI |
 | **CodeGraph** | `npm install -g @codegraph/cli` | Code structure memory analysis |
 | **Claude Skills** | `npx skills install <skill-name>` | Skill plugin ecosystem (12+ plugins) |
-| **Impeccable Skill** | `echo Y | npx --yes impeccable@2.3.2 skills install` | AI design vocabulary + 27 anti-pattern rules + 12 LLM critique rules |
+| **Impeccable Skill** | `echo Y | npx --yes impeccable@2.3.2 skills install` | AI design vocabulary + 27 anti-pattern rules +| **mobile-e2e** | 13 LLM critique rules |
 | **Web Design Skill** | Copy `SKILL.md` to `.claude/skills/web-design-engineer/` | ConardLi: anti-AI-template design system |
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: semantic HTML/ARIA accessibility |
-| **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 curated brand DESIGN.md files (Vercel/Linear/Stripe/Notion/Apple) |
+| **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 curated brand DESIGN.md files (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
 | **MCP Servers** | `claude mcp install github playwright supabase` | AI context enhancement extensions |
 | **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` | GitHub spec-driven development engine (12 speckit skills) |
 | **Memory Tools** | `git clone https://github.com/claude-mem %USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 7 memory backends (project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory) |
@@ -413,10 +414,10 @@ claude plugins install compound-engineering@anthropic
 |-------|--------|---------|
 | `speckit-specify` & 11 others | GitHub Spec-Kit | Full spec → plan → tasks → implement SDD pipeline |
 | `web-design-engineer` | ConardLi | OKLCH color + 6-step workflow + anti-AI-template |
-| `impeccable` | — | 27 anti-pattern rules + 12 LLM critique rules |
+| `impeccable` | — | 27 anti-pattern rules +| **mobile-e2e** | 13 LLM critique rules |
 | `ai-friendly-web-design` | ianho7 | Semantic HTML / ARIA accessibility |
-| `awesome-design-md` | VoltAgent | 5 brand DESIGN.md (Vercel/Linear/Stripe/Notion/Apple) |
-| `mattpocock` | Matt Pocock | 29 sub-skills (TS/engineering/productivity) |
+| `awesome-design-md` | VoltAgent | 5 brand DESIGN.md (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
+| `mattpocock` | Matt Pocock || **feature** | 26 sub-skills (TS/engineering/productivity) |
 | `review-checklist` | — | 23 review checklist items |
 | `sec-bug-hunt` | — | 5-vector security scan rules |
 | `mobile-ui-review` | — | Mobile UI review |
