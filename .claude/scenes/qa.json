@@ -1,0 +1,169 @@
+{
+  "scene_id": "qa",
+  "workflow": "qa",
+  "name": "浏览器 QA 验证",
+  "description": "读取 git diff，浏览器测试受影响路由，发现 Bug 并生成结构化报告",
+  "trigger_keywords": [
+    "qa",
+    "浏览器测试",
+    "QA验证",
+    "browser test",
+    "visual regression"
+  ],
+  "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "recent",
+        "filters": {
+          "type": "qa"
+        }
+      },
+      "description": "回忆历史 QA 发现和已知脆弱点",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "Bash",
+      "action": "git diff --name-only",
+      "params": {},
+      "description": "获取变更文件列表，识别前端文件（.tsx/.jsx/.vue/.html/.css）",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "CodeAnalysis",
+      "action": "mapRoutes",
+      "params": {
+        "source": "git_diff"
+      },
+      "description": "从变更文件反推受影响的路由/页面，无前端变更则跳过后续步骤",
+      "auto_execute": true,
+      "condition": "has_frontend_changes",
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "BrowserTool",
+      "action": "loadPages",
+      "params": {
+        "mode": "available"
+      },
+      "description": "打开受影响页面，检查白屏/报错/加载超时/控制台 error/网络请求 4xx/5xx",
+      "auto_execute": true,
+      "condition": "has_frontend_changes",
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "BrowserTool",
+      "action": "testInteractions",
+      "params": {
+        "flows": ["form-submit", "navigation", "modal-toggle", "button-click"]
+      },
+      "description": "核心交互流程验证：表单提交、导航跳转、弹窗开关、按钮响应",
+      "auto_execute": true,
+      "condition": "has_frontend_changes",
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "BrowserTool",
+      "action": "visualCheck",
+      "params": {
+        "checks": ["layout", "styling", "responsive", "dark-mode"]
+      },
+      "description": "视觉回归：截图对比布局错乱/样式丢失/响应式断点/暗色模式",
+      "auto_execute": true,
+      "condition": "has_frontend_changes",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "AIFriendlyReview",
+      "action": "a11y-scan",
+      "params": {
+        "checks": ["img-alt", "input-label", "contrast-risk", "clickable-div"]
+      },
+      "description": "无障碍快速扫描：图片 alt/输入框 label/对比度/可点击 div",
+      "auto_execute": true,
+      "condition": "has_frontend_changes",
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "QAEngine",
+      "action": "classifyBugs",
+      "params": {
+        "levels": ["BLOCKER", "MAJOR", "MINOR"]
+      },
+      "description": "严重度分类：🔴 BLOCKER（阻断上线）/ 🟡 MAJOR（影响体验）/ 🔵 MINOR（可延后）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "ReportGenerator",
+      "action": "generateQAReport",
+      "params": {
+        "format": "markdown",
+        "output": ".claude/qa/qa-report-{timestamp}.md"
+      },
+      "description": "生成结构化 QA 报告，含严重度/截图路径/复现步骤/建议修复方案",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "qa",
+        "data": {
+          "source": "qa_workflow"
+        }
+      },
+      "description": "保存 QA 发现到记忆",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "QA 验证完成"
+      },
+      "description": "通知用户 QA 结果",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

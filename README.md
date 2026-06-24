@@ -8,7 +8,7 @@
 
 这是一个基于 **三层架构 + Scene 引擎** 的智能开发系统，支持：
 
-- ✅ **34 个自动化工作流**：覆盖 Web 前端（28 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建等
+- ✅ **36 个自动化工作流**：覆盖 Web 前端（28 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建等
 - ✅ **多轮自动审查与修复**：直到问题清零
 - ✅ **AI 驱动设计**：Open Design 完整集成（152 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词模板 + 11 craft 设计铁律），零设计门槛
 - ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 全维度设计打磨（shape 设计简报 + 27 条反AI模式规则 + 12 条 LLM 批判规则 + 双轮品控 + 3 项精准残留修复）+ web-design-engineer Skill（OKLCH 色彩系统 + 反AI套路规则 + 设计基准声明，所有模式必须执行）
@@ -377,7 +377,7 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # 场景定义（34 个 JSON）
+│   ├── scenes/               # 场景定义（36 个 JSON）
 │   │   ├── ui-polish.json    bugfix.json     feature.json
 │   │   ├── review.json       refactor.json   optimize.json
 │   │   ├── simplify.json     hunt.json       design.json
@@ -388,9 +388,10 @@ mix-coding/
 │   │   ├── changelog.json    cicd.json       docker.json
 │   │   ├── e2e.json          incident.json   log.json
 │   │   ├── monitor.json      sbom.json
+│   │   ├── qa.json           plan-ceo-review.json
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
-│   ├── commands/             # Slash commands（34 个工作流 + jvn /spec /design /build /report 等）
+│   ├── commands/             # Slash commands（36 个工作流 + jvn /spec /design /build /report 等）
 │   ├── rules/                # 项目规则（conditional/ 按需加载：core-rules / workflows / enhancements 等 9 个）
 │   ├── skills/               # Claude Skills（22 个：10 核心 + 12 speckit）
 │   └── agents/               # 8 个 Agent（PM/架构师/UX/审查/宪法校验 + mobile-reviewer/mobile-security/mobile-perf）

@@ -39,6 +39,7 @@ Scene 引擎在对话内执行工作流。34 个场景。`node src/index.js star
 | `/simplify` | 代码简化 | `/optimize` | 性能优化 |
 | `/ui-polish` | 前端美化 | `/design` | AI 辅助 UI 设计 |
 | `/refactor` | 重构 | `/new-project` | 新建项目 |
+| `/qa` | 浏览器 QA 验证 | `/plan-ceo-review` | 创始人策略审查 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
 
 执行工作流时 Read `conditional/workflows.md`（完整列表）和 `conditional/enhancements.md`（可选增强规则）。

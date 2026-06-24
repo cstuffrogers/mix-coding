@@ -29,6 +29,8 @@
 | `/ui-polish` | ui-polish | 必须先声明设计系统 |
 | `/design` | design | 152 品牌 + 111 模板 + 137 Skill |
 | `/review` | review | 5 层审查 + CE |
+| `/qa` | qa | 浏览器 QA 验证 + Bug 报告 |
+| `/plan-ceo-review` | plan-ceo-review | 创始人策略审查：10x + 精简 + 用户价值 |
 | `/new-project` | new-project | 完整 + 知识沉淀 |
 | `/bugfix` | bugfix | issue → 分支 → 修复 → PR |
 
