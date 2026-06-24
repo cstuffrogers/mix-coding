@@ -170,6 +170,20 @@
       "step": 9.5
     },
     {
+      "step": 9.6,
+      "layer": "capability",
+      "service": "CodeGuardianMCP",
+      "action": "codeguardian_optimize",
+      "params": {
+        "mode": "validate",
+        "scope": "optimized_files"
+      },
+      "description": "CodeGuardian 优化边界验证：物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止过度优化与负优化",
+      "auto_execute": true,
+      "condition": "codeguardian_mcp_available",
+      "on_error": "abort"
+    },
+    {
       "step": 10,
       "layer": "interactive",
       "service": "SceneSelector",

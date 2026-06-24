@@ -89,6 +89,20 @@
       "on_error": "continue"
     },
     {
+      "step": 5.1,
+      "layer": "capability",
+      "service": "CodeGraphMCP",
+      "action": "codegraph_impact",
+      "params": {
+        "symbol": "target_module",
+        "depth": 3
+      },
+      "description": "CodeGraph 重构影响分析：评估重构模块的爆炸半径，识别所有依赖方",
+      "auto_execute": true,
+      "condition": "codegraph_mcp_available",
+      "on_error": "continue"
+    },
+    {
       "step": 6,
       "layer": "capability",
       "service": "CodeAnalyzer",
@@ -218,6 +232,20 @@
       "auto_execute": true,
       "condition": "user_confirmed === true",
       "on_error": "continue"
+    },
+    {
+      "step": 13.5,
+      "layer": "capability",
+      "service": "CodeGuardianMCP",
+      "action": "codeguardian_optimize",
+      "params": {
+        "mode": "validate",
+        "scope": "refactored_files"
+      },
+      "description": "CodeGuardian 重构边界验证：物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止重构引入新依赖或过度膨胀",
+      "auto_execute": true,
+      "condition": "codeguardian_mcp_available",
+      "on_error": "abort"
     },
     {
       "step": 14,

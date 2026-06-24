@@ -93,6 +93,21 @@
       "on_error": "continue"
     },
     {
+      "step": 2.35,
+      "layer": "capability",
+      "service": "SecurityTool",
+      "action": "pa11y-ci",
+      "params": {
+        "standard": "WCAG2AA",
+        "includeNotices": true,
+        "includeWarnings": true
+      },
+      "description": "pa11y-ci WCAG 2.1 AA 无障碍 CLI 扫描：HTML 文件时运行 pa11y-ci，JSX/TSX 回退到代码级 aria/alt/label 检查",
+      "auto_execute": true,
+      "condition": "frontend_involved",
+      "on_error": "continue"
+    },
+    {
       "step": 2.5,
       "layer": "capability",
       "service": "HuashuService",
@@ -108,7 +123,10 @@
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "knip-check",
-      "params": {},
+      "params": {
+        "strict": true,
+        "production": true
+      },
       "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入",
       "auto_execute": true,
       "on_error": "continue"
@@ -118,18 +136,11 @@
       "layer": "capability",
       "service": "ArchitectureService",
       "action": "depcruise-architecture",
-      "params": {},
+      "params": {
+        "rules": ".dependency-cruiser.js",
+        "outputType": "err"
+      },
       "description": "Dependency-cruiser 架构验证：循环依赖检测 / 孤儿模块 / 分层合规",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
-      "step": 2.7,
-      "layer": "capability",
-      "service": "CodeAnalyzer",
-      "action": "state-audit",
-      "params": {},
-      "description": "状态管理审计：Context 过度使用、组件耦合度、循环依赖检测",
       "auto_execute": true,
       "on_error": "continue"
     },
@@ -160,7 +171,11 @@
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "jscpd",
-      "params": {},
+      "params": {
+        "minTokens": 50,
+        "minLines": 5,
+        "threshold": 0.05
+      },
       "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，重复率 > 5% 告警",
       "auto_execute": true,
       "on_error": "continue"
@@ -170,7 +185,10 @@
       "layer": "capability",
       "service": "BundleSizeService",
       "action": "size_limit",
-      "params": {},
+      "params": {
+        "config": ".size-limit.json",
+        "running": true
+      },
       "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出预算",
       "auto_execute": true,
       "on_error": "continue"
@@ -180,7 +198,14 @@
       "layer": "capability",
       "service": "MutationTestService",
       "action": "stryker",
-      "params": {},
+      "params": {
+        "incremental": true,
+        "timeoutMS": 60000,
+        "thresholds": {
+          "high": 80,
+          "low": 60
+        }
+      },
       "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量",
       "auto_execute": true,
       "on_error": "continue"
@@ -190,7 +215,10 @@
       "layer": "capability",
       "service": "SecurityTool",
       "action": "spectral",
-      "params": {},
+      "params": {
+        "ruleset": ".spectral.yaml",
+        "failSeverity": "error"
+      },
       "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）",
       "auto_execute": true,
       "on_error": "continue"
@@ -200,7 +228,9 @@
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "markdownlint",
-      "params": {},
+      "params": {
+        "config": ".markdownlint.json"
+      },
       "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）",
       "auto_execute": true,
       "on_error": "continue"
@@ -271,7 +301,10 @@
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "recheck-cli",
-      "params": {},
+      "params": {
+        "maxSteps": 10000,
+        "timeout": 5000
+      },
       "description": "ReDoS 正则灾难性回溯扫描：检测 exponential backtracking 漏洞",
       "auto_execute": true,
       "on_error": "continue"
@@ -337,6 +370,7 @@
           "typecheck",
           "security",
           "a11y",
+          "pa11y",
           "knip",
           "dependency_cruiser",
           "dead_code",

@@ -191,7 +191,10 @@
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "recheck-cli",
-      "params": {},
+      "params": {
+        "maxSteps": 10000,
+        "timeout": 5000
+      },
       "description": "正则 ReDoS 扫描：灾难性回溯检测 — recheck-cli",
       "auto_execute": true,
       "on_error": "continue"
@@ -263,7 +266,7 @@
       "description": "验证修复后无功能回归",
       "auto_execute": true,
       "condition": "fixes_applied",
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 6,

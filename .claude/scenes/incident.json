@@ -57,7 +57,7 @@
       "description": "Runbook 质量门禁",
       "auto_execute": true,
       "condition": "incidentRunbookCreated == false",
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 4,

@@ -52,7 +52,10 @@
       "layer": "capability",
       "service": "CIService",
       "action": "actionlint",
-      "params": {},
+      "params": {
+        "config": ".github/workflows",
+        "format": "json"
+      },
       "description": "actionlint: GitHub Actions 工作流语法检查（3k+ stars）",
       "auto_execute": true,
       "on_error": "continue"
@@ -62,9 +65,24 @@
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "zizmor",
-      "params": {},
+      "params": {
+        "persona": "pedantic"
+      },
       "description": "zizmor: GitHub Actions 安全审计 — 权限过度/脚本注入/敏感数据暴露（2.5k+ stars）",
       "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2.5,
+      "layer": "capability",
+      "service": "SecurityTool",
+      "action": "build-leak-check",
+      "params": {
+        "mode": "block"
+      },
+      "description": "构建产物泄露检测（noleak）：Source Map / .env / 密钥 — 阻断 CI 流水线",
+      "auto_execute": true,
+      "condition": "build_artifacts_exist",
       "on_error": "continue"
     },
     {
@@ -76,13 +94,14 @@
         "checks": [
           "cicd",
           "actionlint",
-          "zizmor"
+          "zizmor",
+          "build_leaks"
         ]
       },
       "description": "CI/CD 质量门禁",
       "auto_execute": true,
       "condition": "ciConfigured == false",
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 4,

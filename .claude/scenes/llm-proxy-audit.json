@@ -1,0 +1,142 @@
+{
+  "scene_id": "llm-proxy-audit",
+  "workflow": "llm-proxy-audit",
+  "name": "LLM 代理安全审计",
+  "description": "三层防线检测中转站 LLM API 是否注入盗取信息的 tool call：Lobster Trap 实时拦截 + AgentShield 蜜罐检测 + agent-egress-bench 基准验证",
+  "trigger_keywords": [
+    "中转站",
+    "LLM代理",
+    "API代理",
+    "tool call注入",
+    "代理安全",
+    "proxy audit",
+    "API中转"
+  ],
+  "flow": [
+    {
+      "step": 0,
+      "layer": "capability",
+      "service": "PrerequisitesService",
+      "action": "checkPrerequisites",
+      "params": {
+        "required": ["git", "node"]
+      },
+      "description": "环境准备：检测 git/node 可用性",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 0.5,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载安全审查清单，建立审查基准",
+      "auto_execute": true,
+      "condition": "conversation_mode",
+      "on_error": "continue"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "LobsterTrapService",
+      "action": "lobsterTrapInstall",
+      "params": {},
+      "description": "Layer 1: 安装 Lobster Trap 反向代理（亚毫秒级 DPI 检测）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "LobsterTrapService",
+      "action": "lobsterTrapConfig",
+      "params": {},
+      "description": "Layer 1: 生成 Lobster Trap YAML 策略（额外 tool_call / 未知函数 / URL 外发 / 内容篡改）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "HoneytoolService",
+      "action": "honeytoolSetup",
+      "params": {},
+      "description": "Layer 2: 生成 AgentShield 蜜罐工具（5 个诱饵，零假阳性检测）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "WhitelistService",
+      "action": "whitelistValidate",
+      "params": {},
+      "description": "辅助: 验证工具调用白名单配置，确保未知 tool call 被阻断",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "DiffTestService",
+      "action": "diffTest",
+      "params": {},
+      "description": "辅助: 差分对比测试（直连 API vs 中转站，3 轮对比）",
+      "auto_execute": true,
+      "condition": "diff_test_configured",
+      "on_error": "continue"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "BenchmarkService",
+      "action": "egressBenchmark",
+      "params": {},
+      "description": "Layer 3: 安装 agent-egress-bench（155 用例, 18 类别）",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "ReportService",
+      "action": "llmProxyReport",
+      "params": {},
+      "description": "生成三层防线汇总报告 + 部署顺序建议",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "send",
+      "params": {
+        "level": "error",
+        "title": "🔴 中转站篡改检测",
+        "content": "差分测试发现中转站疑似注入 tool call，详见审计报告"
+      },
+      "description": "发现篡改时即时推送",
+      "auto_execute": true,
+      "condition": "high_severity_found",
+      "on_error": "continue"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "LLM 代理安全审计完成。三层防线: Lobster Trap + 蜜罐 + egress-bench"
+      },
+      "description": "无条件通知：审计完成",
+      "auto_execute": true,
+      "on_error": "continue"
+    }
+  ],
+  "status": "active"
+}

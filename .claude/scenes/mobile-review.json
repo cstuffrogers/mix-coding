@@ -206,7 +206,7 @@
       },
       "description": "质量门禁：CRITICAL 问题阻断合并（PR 上下文），WARNING 建议修复（独立审查场景降级为 warning）",
       "auto_execute": true,
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 9,

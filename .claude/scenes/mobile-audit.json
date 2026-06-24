@@ -224,7 +224,7 @@
       },
       "description": "质量门禁：CRITICAL/HIGH 安全问题阻断，性能超标警告，合规缺失提示",
       "auto_execute": true,
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 11.5,

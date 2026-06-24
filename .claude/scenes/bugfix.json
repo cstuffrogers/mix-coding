@@ -239,6 +239,20 @@
       "on_error": "abort"
     },
     {
+      "step": 5.05,
+      "layer": "capability",
+      "service": "CodeGraphMCP",
+      "action": "codegraph_impact",
+      "params": {
+        "symbol": "affected_function",
+        "depth": 3
+      },
+      "description": "CodeGraph 爆炸半径分析：评估修复变更的影响范围，识别所有调用者和被调用者",
+      "auto_execute": true,
+      "condition": "codegraph_mcp_available",
+      "on_error": "continue"
+    },
+    {
       "step": 5.1,
       "layer": "capability",
       "service": "ContractChecker",
@@ -316,7 +330,7 @@
       },
       "description": "验证修复：确认bug不再复现，原有功能未被破坏",
       "auto_execute": true,
-      "on_error": "continue",
+      "on_error": "abort",
       "timeout": 180
     },
     {

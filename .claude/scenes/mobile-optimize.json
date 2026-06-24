@@ -211,7 +211,7 @@
       },
       "description": "性能预算门禁：超标项标注 🔴/🟡，生成通俗优化报告",
       "auto_execute": true,
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 12,

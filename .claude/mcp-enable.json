@@ -18,9 +18,9 @@
       "rationale": "错误修复需要错误监控、搜索、文档查询、仓库和代码图谱分析"
     },
     "refactor": {
-      "enabled_servers": ["github", "context7"],
-      "token_estimate": 700,
-      "rationale": "重构主要依赖代码仓库和文档"
+      "enabled_servers": ["github", "context7", "codeguardian"],
+      "token_estimate": 1000,
+      "rationale": "重构主要依赖代码仓库、文档和CodeGuardian防止过度重构"
     },
     "design": {
       "enabled_servers": ["tavily-search", "context7"],
@@ -30,7 +30,7 @@
     "ui-polish": {
       "enabled_servers": ["memory", "playwright", "a11y"],
       "token_estimate": 800,
-      "rationale": "DaisyUI/Animate.css/Lucide 纯前端工具链 + Playwright 视觉回归 + 可选无障碍扫描"
+      "rationale": "DaisyUI/自定义 keyframe 动画/Lucide 纯前端工具链 + Playwright 视觉回归 + 可选无障碍扫描"
     },
     "simplify": {
       "enabled_servers": ["github", "context7"],
@@ -38,9 +38,9 @@
       "rationale": "代码简化需要仓库访问和文档"
     },
     "optimize": {
-      "enabled_servers": ["github", "context7"],
-      "token_estimate": 500,
-      "rationale": "性能优化需要仓库访问和文档"
+      "enabled_servers": ["github", "context7", "codeguardian"],
+      "token_estimate": 800,
+      "rationale": "性能优化需要仓库访问、文档和CodeGuardian优化边界守护"
     },
     "review": {
       "enabled_servers": ["github", "context7", "a11y"],
@@ -58,9 +58,9 @@
       "rationale": "竞品分析需要搜索服务"
     },
     "loop": {
-      "enabled_servers": ["github", "context7"],
-      "token_estimate": 500,
-      "rationale": "循环监控需要仓库访问和文档"
+      "enabled_servers": ["github", "context7", "codeguardian"],
+      "token_estimate": 800,
+      "rationale": "无人值守循环最需要CodeGuardian防止优化跑偏和引入不必要变更"
     },
     "release": {
       "enabled_servers": ["github", "schemaforge"],
@@ -195,10 +195,17 @@
       "install_command": "npm install -g @bearer/cli",
       "description": "PII/GDPR 隐私合规扫描，120+ 内置规则，CI 友好"
     },
+    "codeguardian": {
+      "type": "codeguardian-mcp",
+      "install_command": "pip install -e E:/auto-coding/codeguardian",
+      "required_env_vars": [],
+      "description": "AI代码优化守护者：物理边界(max_lines/max_deps/max_complexity)+自动验证(test/bench/quality)+失败回滚+人工门控，防止过度优化与负优化"
+    },
     "toxiproxy": {
       "type": "toxiproxy-mcp",
       "install_command": "brew install toxiproxy || go install github.com/Shopify/toxiproxy/v2/cmd/toxiproxy@latest",
       "description": "网络故障注入：弱网/超时/丢包场景测试移动端网络弹性"
+    }
   },
   "activation_strategy": {
     "mode": "per-workflow",

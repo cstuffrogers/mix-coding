@@ -55,7 +55,7 @@
       "description": "监控配置质量门禁",
       "auto_execute": true,
       "condition": "monitorConfigured == false",
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 4,

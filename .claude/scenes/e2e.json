@@ -57,7 +57,7 @@
       "description": "E2E 配置质量门禁",
       "auto_execute": true,
       "condition": "e2eConfigured == false",
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 4,

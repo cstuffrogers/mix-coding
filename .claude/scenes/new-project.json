@@ -719,6 +719,18 @@
       "on_error": "continue"
     },
     {
+      "step": 4.4,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "模块测试基线：实现完成后立即运行测试套件，在审查前发现代码逻辑问题。测试失败则阻断，修复后再进入审查链",
+      "auto_execute": true,
+      "on_error": "abort"
+    },
+    {
       "step": 4.5,
       "layer": "capability",
       "service": "ReviewEngine",
@@ -774,7 +786,7 @@
       "params": {
         "mode": "unit"
       },
-      "description": "审查通过后运行完整测试套件，确保功能正确",
+      "description": "全量回归测试：审查通过后运行完整测试套件（含集成测试），确保所有模块正确且审查修改无副作用",
       "auto_execute": true,
       "on_error": "abort"
     },

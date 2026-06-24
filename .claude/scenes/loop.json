@@ -100,6 +100,20 @@
       "step": 4.1
     },
     {
+      "step": 4.2,
+      "layer": "capability",
+      "service": "CodeGuardianMCP",
+      "action": "codeguardian_optimize",
+      "params": {
+        "mode": "validate",
+        "scope": "modified_files"
+      },
+      "description": "CodeGuardian 变更边界验证：无人值守迭代中最关键防线。物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止自动修复跑偏",
+      "auto_execute": true,
+      "condition": "codeguardian_mcp_available",
+      "on_error": "abort"
+    },
+    {
       "step": 5,
       "layer": "capability",
       "service": "TestEngine",
@@ -109,7 +123,7 @@
       },
       "description": "自动修复后运行测试验证",
       "auto_execute": true,
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 6,

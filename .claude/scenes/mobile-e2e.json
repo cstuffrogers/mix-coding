@@ -115,7 +115,7 @@
       },
       "description": "E2E 配置质量门禁（CI 配置已生成后再检查）",
       "auto_execute": true,
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 6,

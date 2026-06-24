@@ -100,16 +100,14 @@
     {
       "step": 3.02,
       "layer": "capability",
-      "service": "ReviewEngine",
-      "action": "runReview",
+      "service": "SecurityTool",
+      "action": "pa11y-ci",
       "params": {
-        "mode": "a11y",
-        "options": {
-          "standard": "WCAG2.1",
-          "level": "AA"
-        }
+        "standard": "WCAG2AA",
+        "includeNotices": true,
+        "includeWarnings": true
       },
-      "description": "WCAG 无障碍扫描：img alt/语义化HTML/aria-label 基础检查",
+      "description": "pa11y-ci WCAG 2.1 AA 无障碍扫描：检测 HTML 文件，JSX/TSX 回退到代码级 aria/alt/label 检查",
       "auto_execute": true,
       "condition": "frontend_involved",
       "on_error": "continue"
@@ -151,7 +149,10 @@
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "recheck-cli",
-      "params": {},
+      "params": {
+        "maxSteps": 10000,
+        "timeout": 5000
+      },
       "description": "正则 ReDoS 扫描：灾难性回溯检测 — recheck-cli",
       "auto_execute": true,
       "on_error": "continue"
@@ -249,7 +250,12 @@
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "knip-check",
-      "params": {},
+      "params": {
+        "strict": true,
+        "production": true,
+        "dependencies": true,
+        "exports": true
+      },
       "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入",
       "auto_execute": true,
       "on_error": "continue"
@@ -259,7 +265,11 @@
       "layer": "capability",
       "service": "ArchitectureService",
       "action": "depcruise-architecture",
-      "params": {},
+      "params": {
+        "rules": ".dependency-cruiser.js",
+        "outputType": "err-html",
+        "outputTo": "docs/dependency-graph.html"
+      },
       "description": "依赖架构验证（dependency-cruiser）：循环依赖检测、孤儿模块识别、架构分层合规、调用图生成",
       "auto_execute": true,
       "on_error": "continue"
@@ -289,7 +299,13 @@
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "jscpd",
-      "params": {},
+      "params": {
+        "minTokens": 50,
+        "minLines": 5,
+        "threshold": 0.05,
+        "reporters": ["console", "html"],
+        "output": "docs/jscpd-report"
+      },
       "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，min-tokens 50，重复率 > 5% 告警",
       "auto_execute": true,
       "on_error": "continue"
@@ -299,7 +315,11 @@
       "layer": "capability",
       "service": "BundleSizeService",
       "action": "size_limit",
-      "params": {},
+      "params": {
+        "config": ".size-limit.json",
+        "webpack": false,
+        "running": true
+      },
       "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出 .size-limit.json 配置的预算",
       "auto_execute": true,
       "on_error": "continue"
@@ -309,7 +329,14 @@
       "layer": "capability",
       "service": "MutationTestService",
       "action": "stryker",
-      "params": {},
+      "params": {
+        "incremental": true,
+        "timeoutMS": 60000,
+        "thresholds": {
+          "high": 80,
+          "low": 60
+        }
+      },
       "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量",
       "auto_execute": true,
       "on_error": "continue"
@@ -319,7 +346,10 @@
       "layer": "capability",
       "service": "SecurityTool",
       "action": "spectral",
-      "params": {},
+      "params": {
+        "ruleset": ".spectral.yaml",
+        "failSeverity": "error"
+      },
       "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）",
       "auto_execute": true,
       "on_error": "continue"
@@ -329,7 +359,10 @@
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "markdownlint",
-      "params": {},
+      "params": {
+        "config": ".markdownlint.json",
+        "ignore": ["node_modules", ".git", "CHANGELOG.md"]
+      },
       "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）",
       "auto_execute": true,
       "on_error": "continue"
@@ -391,16 +424,6 @@
     {
       "step": 6.6,
       "layer": "capability",
-      "service": "CodeAnalyzer",
-      "action": "state-audit",
-      "params": {},
-      "description": "状态管理审计：Context API 过度使用、组件耦合度、循环依赖、多库混用检测",
-      "auto_execute": true,
-      "on_error": "continue"
-    },
-    {
-      "step": 6.7,
-      "layer": "capability",
       "service": "DepsService",
       "action": "checkOutdated",
       "params": {},
@@ -425,7 +448,12 @@
       "layer": "capability",
       "service": "QualityTool",
       "action": "dead-link-check",
-      "params": {},
+      "params": {
+        "accept": [200, 301, 302],
+        "timeout": 20,
+        "maxRedirects": 5,
+        "exclude": ["linkedin.com", "twitter.com", "localhost"]
+      },
       "description": "死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 — lychee（全目录扫描）",
       "auto_execute": true,
       "on_error": "continue"
@@ -499,7 +527,7 @@
       },
       "description": "汇总所有检查结果为统一健康报告（仅报告，不阻断）",
       "auto_execute": true,
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 10,

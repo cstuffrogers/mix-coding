@@ -1,6 +1,6 @@
 {
   "selection": "",
-  "id": "4f27a8eb858f",
+  "id": "bf0fb7fd3f6d",
   "type": "audit",
   "data": {
     "source": "audit_workflow",
@@ -52,7 +52,6 @@
       6,
       6.5,
       6.6,
-      6.7,
       8,
       8.5,
       8.7,
@@ -65,8 +64,8 @@
       13,
       13.5
     ],
-    "prompt": "",
+    "prompt": "spec-kit 集成变更审计",
     "workflow": "audit"
   },
-  "timestamp": "2026-06-17T09:57:56.497Z"
+  "timestamp": "2026-06-17T23:51:38.749Z"
 }

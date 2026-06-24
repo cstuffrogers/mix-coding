@@ -71,6 +71,19 @@
       "on_error": "abort"
     },
     {
+      "step": 3.5,
+      "layer": "capability",
+      "service": "DepsService",
+      "action": "deprecated-deps",
+      "params": {
+        "ecosystem": "auto",
+        "includeTransitive": false
+      },
+      "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包，标记已停止维护的依赖",
+      "auto_execute": true,
+      "on_error": "continue"
+    },
+    {
       "step": 4,
       "layer": "capability",
       "service": "ReviewEngine",
@@ -182,7 +195,7 @@
       },
       "description": "快速冒烟测试确保应用正常运行",
       "auto_execute": true,
-      "on_error": "continue",
+      "on_error": "abort",
       "timeout": 180
     },
     {

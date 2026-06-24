@@ -54,7 +54,7 @@
       "description": "变更日志质量门禁",
       "auto_execute": true,
       "condition": "changelogGenerated == false",
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 4,

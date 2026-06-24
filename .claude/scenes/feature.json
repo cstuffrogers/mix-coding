@@ -187,6 +187,20 @@
       "on_error": "continue"
     },
     {
+      "step": 6,
+      "layer": "capability",
+      "service": "CodeGraphMCP",
+      "action": "codegraph_trace",
+      "params": {
+        "from": "entry_point",
+        "to": "affected_module"
+      },
+      "description": "CodeGraph 调用链追踪：从入口点到受影响模块的完整调用路径，识别需要修改的所有代码点",
+      "auto_execute": true,
+      "condition": "codegraph_mcp_available",
+      "on_error": "continue"
+    },
+    {
       "step": 7,
       "layer": "capability",
       "service": "TestEngine",
@@ -254,7 +268,7 @@
       },
       "description": "验证新功能在真实环境中可用，确认功能行为符合预期",
       "auto_execute": true,
-      "on_error": "continue",
+      "on_error": "abort",
       "timeout": 180
     },
     {

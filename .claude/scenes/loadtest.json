@@ -70,7 +70,7 @@
       "description": "质量门禁：负载测试失败则阻断",
       "auto_execute": true,
       "condition": "loadTestPassed == false",
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 5,

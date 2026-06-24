@@ -1,151 +1,35 @@
 {
+  "_comment": "LIGHTWEIGHT mode: only 4 MCP servers active. For full 14 servers, restore from .mcp.json.full: cp .mcp.json.full .mcp.json",
+  "_modes": {
+    "current": "light",
+    "active_servers": ["mempalace", "context7", "github", "sentry"]
+  },
   "mcpServers": {
-    "codegraph": {
-      "type": "stdio",
-      "command": "codegraph",
-      "args": [
-        "serve",
-        "--mcp"
-      ]
-    },
-    "github": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-      },
-      "description": "GitHub 仓库操作 - PR、Issue、仓库管理"
-    },
-    "tavily-search": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "tavily-mcp"
-      ],
-      "env": {
-        "TAVILY_API_KEY": "${TAVILY_API_KEY}"
-      },
-      "description": "Tavily 网络搜索服务"
+    "mempalace": {
+      "command": "C:\\Users\\Administrator\\.local\\bin\\mempalace-mcp.exe",
+      "args": [],
+      "description": "MemPalace 本地优先 AI 记忆 (v3.3.5, 启动快)"
     },
     "context7": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp@latest"
-      ],
-      "description": "Context7 文档查询服务"
+      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "description": "Context7 文档查询 (高频使用)"
     },
-    "supabase": {
+    "github": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@supabase/mcp-server-supabase@latest"
-      ],
+      "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       },
-      "description": "Supabase 数据库操作"
-    },
-    "stripe": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "stripe-mcp"
-      ],
-      "env": {
-        "STRIPE_SECRET_KEY": "${STRIPE_SECRET_KEY}"
-      },
-      "description": "Stripe 支付集成"
-    },
-    "resend": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "resend-mcp"
-      ],
-      "env": {
-        "RESEND_API_KEY": "${RESEND_API_KEY}"
-      },
-      "description": "Resend 邮件服务"
+      "description": "GitHub 仓库操作 - PR/Issue/Repo"
     },
     "sentry": {
       "command": "npx",
-      "args": [
-        "-y",
-        "sentry-mcp"
-      ],
+      "args": ["-y", "sentry-mcp"],
       "env": {
         "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}"
       },
       "description": "Sentry 错误监控"
-    },
-    "memory": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
-      ],
-      "description": "会话持久化记忆"
-    },
-    "playwright": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@playwright/mcp",
-        "--browser",
-        "chrome"
-      ],
-      "description": "Playwright 浏览器自动化测试"
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "e:\\auto-coding"
-      ],
-      "description": "文件系统操作"
-    },
-    "sequential-thinking": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ],
-      "description": "链式思维推理"
-    },
-    "mempalace": {
-      "command": "mempalace-mcp",
-      "args": [],
-      "description": "MemPalace 本地优先 AI 记忆 - 逐字存储对话原文，语义检索 (ChromaDB)"
-    },
-    "bearer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@bearer/cli",
-        "scan",
-        "."
-      ],
-      "description": "Bearer CLI — PII/GDPR 隐私合规扫描 (120+ 规则)"
-    },
-    "detox": {
-      "command": "npx",
-      "args": [
-        "detox-cli"
-      ],
-      "description": "Detox — React Native Gray box E2E 测试框架"
-    },
-    "mobsfscan": {
-      "command": "mobsfscan",
-      "args": [
-        ".",
-        "--json"
-      ],
-      "description": "mobsfscan — 移动端源码级 SAST (Java/Kotlin/Swift/ObjC)"
     }
   }
 }

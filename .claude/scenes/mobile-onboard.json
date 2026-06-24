@@ -154,7 +154,7 @@
       },
       "description": "环境搭建质量门禁：检查依赖安装+构建通过+.env模板",
       "auto_execute": true,
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 10,

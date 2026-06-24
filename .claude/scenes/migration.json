@@ -68,7 +68,7 @@
       "description": "质量门禁：HIGH/CRITICAL 迁移问题阻断",
       "auto_execute": true,
       "condition": "migrationHighCount > 0",
-      "on_error": "continue"
+      "on_error": "abort"
     },
     {
       "step": 4,
