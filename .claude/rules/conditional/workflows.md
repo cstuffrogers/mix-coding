@@ -13,15 +13,12 @@
 
 **对话模式优先**：依赖 skill/MCP 工具的命令必须在对话内执行。
 
-## 可选增强检测
-| 检测项 | 检测方式 | 适用 |
-|--------|---------|------|
-| Web 前端 | `*.tsx`/`*.jsx`/`*.html` | review、ui-polish |
-| 数据库 | migrations/schema.* | feature、release |
-| 需求 > 50 字 | 描述长度 | feature、new-project |
-| i18n | locale/ 目录 | review |
+## 增强系统
 
-无适用增强时**不弹菜单**。
+9 个功能已融入增强菜单，对应父工作流自动弹出：
+`/qa`（review 前端变更）、`/plan-ceo-review`（feature 长需求）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（e2e）、`/log` `/incident`（monitor）、`/migration`（review/feature 检测到 DB）、`/llm-proxy-audit`（hunt）
+
+完整增强规则见 `enhancements.md`。
 
 ## 关键工作流（速查）
 | 指令 | 场景 | 关键 |
@@ -29,8 +26,6 @@
 | `/ui-polish` | ui-polish | 必须先声明设计系统 |
 | `/design` | design | 152 品牌 + 111 模板 + 137 Skill |
 | `/review` | review | 5 层审查 + CE |
-| `/qa` | qa | 浏览器 QA 验证 + Bug 报告 |
-| `/plan-ceo-review` | plan-ceo-review | 创始人策略审查：10x + 精简 + 用户价值 |
 | `/new-project` | new-project | 完整 + 知识沉淀 |
 | `/bugfix` | bugfix | issue → 分支 → 修复 → PR |
 

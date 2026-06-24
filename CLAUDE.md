@@ -28,7 +28,7 @@ MemPalace MCP：`mcp__mempalace__search` 查历史，`mcp__mempalace__remember` 
 
 ## 引擎
 
-Scene 引擎在对话内执行工作流。34 个场景。`node src/index.js start <场景ID> --auto [参数]`
+Scene 引擎在对话内执行工作流。28 个场景。`node src/index.js start <场景ID> --auto [参数]`
 
 ## 工作流速查
 
@@ -41,7 +41,7 @@ Scene 引擎在对话内执行工作流。34 个场景。`node src/index.js star
 | `/refactor` | 重构 | `/new-project` | 新建项目 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
 
-> `/qa`、`/plan-ceo-review` 已融入增强菜单：`/review` 时检测前端变更自动弹出 QA，`/feature` 时自动弹出 CEO 审查。也可独立调用。
+> 已融入增强菜单：`/qa`（review 前端变更）、`/plan-ceo-review`（feature 长需求）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（e2e）、`/log` `/incident`（monitor）、`/migration`（review/feature 检测到 DB）、`/llm-proxy-audit`（hunt）。也可独立调用。
 
 执行工作流时 Read `conditional/workflows.md`（完整列表）和 `conditional/enhancements.md`（可选增强规则）。
 安全/审计/漏洞工作流额外 Read `conditional/security-toolchain.md`。
