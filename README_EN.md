@@ -74,39 +74,34 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ---
 
-## 📋 35 Workflow Scenes (729 Steps Total)
+## 📋 28 Workflow Scenes
+
+> 9 features merged as enhancements: backup/docker→cicd, sbom→deps, loadtest→e2e, log/incident→monitor, changelog→release, migration→review, llm-proxy-audit→hunt. Triggered on-demand in parent workflows.
 
 | Scene | Steps | Description | Command |
 |-------|-------|-------------|---------|
 | **ui-polish** | 69 | Frontend polish (full conversation mode, Open Design 152 brands → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
 | **feature** | 26 | New feature development (CE plan + TDD + multi-Agent review) | `/feature` |
 | **bugfix** | 30 | Bug fix (repro → root cause → fix → PR → regression test) | `/bugfix` |
-| **review** | 33 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic + state audit + open redirect + handler verification + i18n) | `/review` |
+| **review** | 33 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic) + migration/QA/i18n/a11y enhancements | `/review` |
 | **refactor** | 23 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
 | **optimize** || **mobile-release** | 18 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
 | **simplify** | 15 | Code simplification (readability-first, incremental simplify + test safety) | `/simplify` |
-| **hunt** | 24 | Security vulnerability scan & fix (ESLint + npm audit + OWASP +| **mobile-e2e** | 13 external tools + CE retention) | `/hunt` |
+| **hunt** | 24 | Security vulnerability scan & fix (12 external tools + CE) + LLM proxy audit enhancement | `/hunt` |
 | **design** | 53 | AI-driven design (full conversation mode, Open Design 152 brands + shape design brief → 3-direction proposal → Huashu prototype → expert review → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu verification) | `/design` |
 | **analyze** | 18 | Deep code analysis (complexity / security / performance / CI + auto-fix) | `/analyze` |
 | **loop** | 13 | Auto iteration loop (unattended: review → fix → verify) | `/loop` |
 | **new-project** | 66 | Project from scratch (full conversation mode, Pre-flight design baseline → shape design brief → context gathering → CE plan → Open Design 152 brands + Impeccable full-suite polish (dual-round QC + 3 precision fixes) + AI-Friendly a11y + review + retention) | `/new-project` |
-| **release** | 24 | Release deployment (quality gates + version bump + build + leak check + tag + health check + monitoring) | `/release` |
+| **release** | 24 | Release deployment (quality gates + version bump + build + leak check + tag + health check + monitoring) + CHANGELOG enhancement | `/release` |
 | **audit** | 47 | Full project health check (security + code + deps + performance + coverage + complexity + dead code + secret scan + 27 quality gates + infographic) | `/audit` |
-| **deps** || **mobile-release** | 18 | Safe dependency updates (scan outdated → update one-by-one → breaking changes check → test) | `/deps` |
+| **deps** | 17 | Safe dependency updates (scan outdated → update one-by-one → breaking changes check → test) + SBOM enhancement | `/deps` |
 | **rollback** | 16 | Emergency rollback (version selection → rollback → build → health check → monitor restoration) | `/rollback` |
 | **onboard** | 16 | Dev environment setup (detect language → install deps → configure .env → start dev server) | `/onboard` |
-| **migration** | 10 | Database migration review: detect 8 dangerous patterns, block high-risk changes | `/migration` |
-| **loadtest** | 9 | Load testing (Artillery, smoke/load/stress, performance gates) | `/loadtest` |
-| **backup** | 9 | Encrypted deduplicated backup (Restic config + S3/SSH remote + cron integration) | `/backup` |
-| **changelog** | 10 | Changelog generation (Git history + Conventional Commits) | `/changelog` |
-| **cicd** || **mobile-e2e** | 13 | CI/CD config (Act + Taskfile local pipeline + GitHub Actions validation) | `/cicd` |
-| **llm-proxy-audit** | 11 | LLM proxy security audit (lobstertrap DLP + honeypot detect + traffic audit) | `/llm-proxy-audit` |
-| **docker** | 9 | Docker containerization (multi-stage Dockerfile + .dockerignore + docker-compose.yml) | `/docker` |
-| **e2e** | 9 | E2E test config (MSW + Supertest + Schemathesis API fuzz) | `/e2e` |
-| **incident** | 9 | Incident runbook (Runme + health checks + FAQs + escalation paths) | `/incident` |
-| **log** | 9 | Logging config (winston/pino/log4js + ELK/Fluentd collection) | `/log` |
-| **monitor** | 9 | Website monitoring (Upptime + GitHub Actions + status page + availability alerts) | `/monitor` |
-| **sbom** | 9 | SBOM generation + license compliance check (GPL/AGPL blocking) | `/sbom` |
+| **cicd** | 12 | CI/CD config (Act + Taskfile local pipeline + GitHub Actions validation) + Docker/backup enhancements | `/cicd` |
+| **e2e** | 9 | E2E test config (MSW + Supertest + Schemathesis API fuzz) + loadtest enhancement | `/e2e` |
+| **monitor** | 9 | Website monitoring (Upptime + GitHub Actions + status page) + log/incident enhancements | `/monitor` |
+| **qa** | 11 | Browser QA verification (git diff → browser test → bug report), also /review enhancement | `/qa` |
+| **plan-ceo-review** | 10 | Founder-mode product review (10x analysis + simplify + user value), also /feature enhancement | `/plan-ceo-review` |
 | **mobile-audit** | 24 | App security audit (MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5-layer gates) | `/mobile-audit` |
 | **mobile-review** || **mobile-release** | 18 | Mobile code review (ESLint → mobsfscan SAST → UI screenshots → mobile-ui-review → AI semantic + a11y → aggregate report) | `/mobile-review` |
 | **mobile-release** | 18 | App release (quality gate → cert check → version bump → CHANGELOG → TestFlight/Play Store + 4-layer gates) | `/mobile-release` |

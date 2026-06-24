@@ -75,7 +75,9 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ---
 
-## 📋 35 个工作流场景（共 729 步）
+## 📋 28 个工作流场景
+
+> 另有 9 个功能已融入增强菜单（backup/docker→cicd、sbom→deps、loadtest→e2e、log/incident→monitor、changelog→release、migration→review、llm-proxy-audit→hunt），对应父工作流中按需弹出。
 
 | 场景 | 步骤数 | 描述 | 命令 |
 |------|--------|------|------|
@@ -83,16 +85,17 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **new-project** | 66 步 | 从零开始新项目（设计基准 → shape 简报 → 上下文收集 → CE 规划 → Open Design + Impeccable + AI-Friendly） | `/new-project` |
 | **design** | 53 步 | AI 辅助 UI 设计（设计系统 → 品牌选择 → 三方向提案 → 专家评审 → 验证） | `/design` |
 | **audit** | 47 步 | 全面项目健康检查（27 项质量门禁 + 信息图） | `/audit` |
-| **review** | 33 步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义 + i18n + 聚合报告） | `/review` |
+| **review** | 33 步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义）+ 迁移审查/QA/i18n/无障碍可选增强 | `/review` |
 | **bugfix** | 30 步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
 | **feature** | 26 步 | 新功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
-| **hunt** | 24 步 | 安全漏洞扫描与修复（12 项外部工具链 + CE 沉淀） | `/hunt` |
+| **hunt** | 24 步 | 安全漏洞扫描与修复（12 项外部工具链 + CE 沉淀）+ LLM 代理审计可选增强 | `/hunt` |
 | **mobile-audit** | 24 步 | App 安全审计（MobSF + mobsfscan + Bearer + DependencyCheck + 5 层门禁） | `/mobile-audit` |
 | **refactor** | 23 步 | 代码重构（代码度量 + 反模式检测 + 增量重构 + 测试验证） | `/refactor` |
+| **release** | 24 步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 健康检查 + 监控）+ CHANGELOG 可选增强 | `/release` |
 | **mobile-optimize** | 19 步 | App 性能优化（Bundle 分析 + 启动优化 + 网络分析 + 反模式检测 + 4 层门禁） | `/mobile-optimize` |
 | **analyze** | 18 步 | 深度代码分析（复杂度 / 安全 / 性能 / CI + 自动修复） | `/analyze` |
 | **mobile-release** | 18 步 | App 发布部署（证书检查 → 质量门禁 → 版本号 → CHANGELOG → TestFlight/Play Store + 4 层门禁） | `/mobile-release` |
-| **deps** | 17 步 | 安全依赖更新（扫描过期 + 逐项更新 + Breaking Changes 检测 + 测试） | `/deps` |
+| **deps** | 17 步 | 安全依赖更新（扫描过期 + 逐项更新 + Breaking Changes 检测 + 测试）+ SBOM 可选增强 | `/deps` |
 | **mobile-review** | 17 步 | 移动端代码审查（ESLint + mobsfscan SAST + UI 截图 + AI 语义+a11y + 聚合报告） | `/mobile-review` |
 | **optimize** | 17 步 | 性能优化（问题选择 → 基线 → 反模式 → 测量确认 → 增量测试） | `/optimize` |
 | **mobile-onboard** | 16 步 | App 开发环境搭建（平台感知前置条件 + RN Doctor + .env 模板 + 模拟器配置） | `/mobile-onboard` |
@@ -101,25 +104,17 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **simplify** | 15 步 | 代码简化（可读性优先，逐方向简化 + 测试保全） | `/simplify` |
 | **loop** | 13 步 | 自动迭代循环（无人值守，持续审查→修复→验证） | `/loop` |
 | **mobile-e2e** | 13 步 | 移动端 E2E 测试（Detox/Patrol 自动检测 + 配置生成 + CI 集成 + 3 层门禁） | `/mobile-e2e` |
-| **cicd** | 12 步 | CI/CD 配置（Act + Taskfile 本地流水线 + GitHub Actions 验证） | `/cicd` |
-| **llm-proxy-audit** | 11 步 | LLM 代理安全审计（lobstertrap DLP + 蜜罐检测 + 流量审计） | `/llm-proxy-audit` |
-| **changelog** | 10 步 | 变更日志生成（Git 历史 + Conventional Commits + CHANGELOG.md 更新） | `/changelog` |
-| **migration** | 10 步 | 数据库迁移审查：检测 8 种危险模式，阻断高风险变更 | `/migration` |
-| **release** | 24 步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 健康检查 + 监控） | `/release` |
-| **backup** | 9 步 | 加密去重备份（Restic 配置 + S3/SSH 远程备份 + 定时任务集成） | `/backup` |
-| **docker** | 9 步 | Docker 容器化（多阶段 Dockerfile + .dockerignore + docker-compose.yml） | `/docker` |
-| **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + Schemathesis API fuzz） | `/e2e` |
-| **incident** | 9 步 | 事故响应手册（Runme Runbook + 健康检查 + 常见问题 + 升级路径） | `/incident` |
-| **loadtest** | 9 步 | 负载测试（Artillery，smoke/load/stress 三级模式，性能门禁） | `/loadtest` |
-| **log** | 9 步 | 日志配置（winston/pino/log4js + ELK/Fluentd 采集配置） | `/log` |
-| **monitor** | 9 步 | 网站监控（Upptime + GitHub Actions + 状态页 + 可用性告警） | `/monitor` |
-| **sbom** | 9 步 | 软件物料清单（SBOM 生成 + 许可证合规检测 + GPL/AGPL 阻断） | `/sbom` |
+| **cicd** | 12 步 | CI/CD 配置（Act + Taskfile 本地流水线 + GitHub Actions 验证）+ Docker 化/备份可选增强 | `/cicd` |
+| **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + Schemathesis API fuzz）+ 负载测试可选增强 | `/e2e` |
+| **monitor** | 9 步 | 网站监控（Upptime + GitHub Actions + 状态页）+ 日志/Incident Runbook 可选增强 | `/monitor` |
+| **qa** | 11 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级报告），也作为 /review 增强 | `/qa` |
+| **plan-ceo-review** | 10 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值三桶），也作为 /feature 增强 | `/plan-ceo-review` |
 
 ---
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **321 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 34 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **321 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 28 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|
