@@ -120,4 +120,4 @@
 ## 无增强场景
 
 以下场景无可选增强，直接执行核心工作流：
-`analyze`、`bugfix`、`design`、`loop`、`mobile-audit`、`mobile-e2e`、`mobile-onboard`、`mobile-optimize`、`mobile-release`、`mobile-review`、`onboard`、`optimize`、`rollback`、`simplify`
+`analyze`、`bugfix`、`loop`、`mobile-audit`、`mobile-e2e`、`mobile-onboard`、`mobile-optimize`、`mobile-release`、`mobile-review`、`onboard`、`optimize`、`plan-ceo-review`、`qa`、`rollback`、`simplify`
