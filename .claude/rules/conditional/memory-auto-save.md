@@ -5,20 +5,19 @@
 
 ## 三个记忆后端
 
-| 后端 | 触发方式 | 数据类型 | 路径 |
-|------|----------|----------|------|
-| **MemPalace** | hooks 自动 | 对话原文 + 智能注入 | `.claude/hooks/mempalace_*.{py,cmd}` |
-| **Claude Code auto-memory** | 内置 | 用户画像/偏好/项目事实 | `~/.claude/projects/<proj>/memory/` |
-| **项目 CLI 记忆** | 显式 | 技术发现/代码模式/安全 | `node src/index.js memory remember` |
+| 后端 | 触发方式 | 数据类型 |
+|------|----------|----------|
+| **MemPalace** | MCP 工具调用 | 对话原文 + 智能检索 |
+| **Claude Code auto-memory** | 内置 | 用户画像/偏好/项目事实 |
+| **项目 CLI 记忆** | 显式 | 技术发现/代码模式/安全 |
 
 ## 触发条件（自动）
 
 | 场景 | 后端 |
 |------|------|
-| 错误关键词（"报错"/"bug"/"失败"） | MemPalace hook |
-| 追忆引用（"上次"/"之前"） | MemPalace hook |
-| `/bugfix` `/refactor` 等工作流 | MemPalace hook |
-| 用户消息 > 80 字 | MemPalace hook |
+| 错误关键词（"报错"/"bug"/"失败"） | MemPalace MCP |
+| 追忆引用（"上次"/"之前"） | MemPalace MCP |
+| `/bugfix` `/refactor` 等工作流 | MemPalace MCP |
 | 安全漏洞发现 | CLI + auto-memory |
 | Bug 根因定位（>5 行改动） | CLI + auto-memory |
 | 架构决策 | CLI + auto-memory |

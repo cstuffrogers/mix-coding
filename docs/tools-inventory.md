@@ -584,7 +584,7 @@ claude-scene/src/
 | 文件 | 内容 |
 |------|------|
 | `coding.md` | 通用编码规范：camelCase/PascalCase/UPPER_SNAKE/kebab-case |
-| `karpathy-principles.md` | Karpathy 四诫：先思考、简洁优先、手术式修改、目标驱动 |
+| `core-rules.md` | Ponytail + Karpathy + CodeGuardian 三合一：决策阶梯/四约束/物理边界 |
 | `react-doctor.md` | react-doctor 去重：负责 effect/RSC/性能；ESLint 负责语法 |
 | `visual-standards.md` | Playwright 视觉阈值：maxDiffPixels=50, threshold=0.2, 3视口 |
 | `workflows.md` | 工作流触发规则：12个指令 + CE Plugin + 意图识别优先级 |

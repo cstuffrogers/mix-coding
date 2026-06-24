@@ -21,7 +21,7 @@
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
 - ✅ **AI/Model 无缝切换**：通过配置文件快速切换 AI 服务提供商，支持 Claude、Gemini、Qwen 等主流模型
-- ✅ **编码原则三重防线**：Ponytail（写之前阻断—YAGNI/标准库/一行搞定决策阶梯）+ Karpathy 四诫（写之时约束—简洁优先/手术式修改）+ `/simplify`（写之后清理）
+- ✅ **编码原则四重防线**：Ponytail（写之前阻断）+ Karpathy（写之时约束）+ CodeGuardian（改之后验证）+ `/simplify`（写之后清理），合并为 `conditional/core-rules.md` 按需加载
 - ✅ **jvn Spec-Driven 开发**：`/spec` → `/design` → `/build` 规范驱动开发，底层由 [GitHub Spec-Kit](https://github.com/github/spec-kit)（12 speckit 技能）驱动，5 Agent 增强审查（PM + 架构师 + UX + 代码审查 + 宪法校验）
 
 ---
@@ -391,7 +391,7 @@ mix-coding/
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
 │   ├── commands/             # Slash commands（34 个工作流 + jvn /spec /design /build /report 等）
-│   ├── rules/                # 项目规则（coding / karpathy-principles / memory-auto-save / mobile-coding / mobile-security-rules 等）
+│   ├── rules/                # 项目规则（conditional/ 按需加载：core-rules / workflows / enhancements 等 9 个）
 │   ├── skills/               # Claude Skills（22 个：10 核心 + 12 speckit）
 │   └── agents/               # 8 个 Agent（PM/架构师/UX/审查/宪法校验 + mobile-reviewer/mobile-security/mobile-perf）
 │
@@ -407,7 +407,7 @@ mix-coding/
 │   ├── check-memory-system.cjs # 记忆系统状态检查
 │   └── setup-mempalace.cjs   # MemPalace MCP 一键配置
 ├── constitution.md           # 项目宪法（constitutional-validator Agent 强制执行）
-├── CLAUDE.md                 # 项目主指令（精简后 ~270 行）
+├── CLAUDE.md                 # 项目主指令（精简后 ~65 行，全量加载）
 ├── ARCHITECTURE.md           # 完整架构文档
 ├── upgrade.bat / start-claude.bat   # 一键工具
 └── README.md

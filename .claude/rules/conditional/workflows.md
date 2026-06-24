@@ -11,7 +11,7 @@
 识别 → 收集参数 → 检测项目特征 → 弹出增强菜单（CLAUDE.md） → 执行
 ```
 
-**对话模式优先**：依赖 skill/MCP 工具的命令必须在对话内执行。完整工作流表见 CLAUDE.md。
+**对话模式优先**：依赖 skill/MCP 工具的命令必须在对话内执行。
 
 ## 可选增强检测
 | 检测项 | 检测方式 | 适用 |
@@ -32,7 +32,7 @@
 | `/new-project` | new-project | 完整 + 知识沉淀 |
 | `/bugfix` | bugfix | issue → 分支 → 修复 → PR |
 
-**完整 34 个工作流表见 CLAUDE.md**（不重复）。
+完整列表见 `.claude/scenes/` 目录。
 
 ## 执行约束
 - 工作流目录：`.claude/scenes/<id>.json`
