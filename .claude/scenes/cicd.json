@@ -186,5 +186,6 @@
       "auto_execute": true,
       "on_error": "continue"
     }
-  ]
+  ],
+  "status": "active"
 }
