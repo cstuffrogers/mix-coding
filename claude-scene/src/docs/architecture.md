@@ -108,4 +108,4 @@ CLI 命令 → Commander 解析参数 → `commands/start.js` 加载场景 JSON 
 
 ## 工作流
 
-本项目使用 mix-coding 系统，支持 35 个自动化工作流。详见 `CLAUDE.md`。
+本项目使用 mix-coding 系统，支持 28 个自动化工作流。详见 `CLAUDE.md`。
