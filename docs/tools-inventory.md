@@ -10,7 +10,7 @@
 2. [MCP 服务器（13个）与场景使用矩阵](#mcp-服务器13个与场景使用矩阵)
 3. [Claude Skills（37个）与触发场景](#claude-skills37个与触发场景)
 4. [CLI 工具 claude-scene（16模块 + 280+ Action处理器）](#cli-工具-claude-scene16模块--280-action处理器)
-5. [35 个场景工作流（Scene JSON + Command Markdown）](#35-个场景工作流scene-json--command-markdown)
+5. [37 个场景工作流（Scene JSON + Command Markdown）](#37-个场景工作流scene-json--command-markdown)
 6. [89 个 Slash 命令分类](#89-个-slash-命令分类)
 7. [CI/CD 与配置体系](#cicd-与配置体系)
 8. [前端美化工具链](#前端美化工具链)
@@ -116,7 +116,7 @@
 | **gpt-taste** | 有 | GSAP 动效/AIDA 结构/Bento 网格/大间距排版 | 前端设计类任务 |
 | **ui-polish** | 有 | DaisyUI/主题/动画/图标集成 | ui-polish 场景 |
 | **ui-visual-trigger** | 有 | 视觉回归测试/截图/基线管理 | ui-polish 场景 |
-| **api-contract-check** | 有 | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | feature/design/new-project 等 35 个场景 |
+| **api-contract-check** | 有 | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | feature/design/new-project 等 37 个场景 |
 | **ua-context** | 有 | 前端审查的用户代理上下文感知 | review 场景 |
 
 ### 移动端 Skills（1个）
@@ -253,7 +253,7 @@ claude-scene/src/
 
 ---
 
-## 35 个场景工作流（Scene JSON + Command Markdown）
+## 37 个场景工作流（Scene JSON + Command Markdown）
 
 > 每个场景有两层定义：`.claude/scenes/<id>.json`（数据结构）→ `.claude/commands/<id>.md`（用户命令）
 

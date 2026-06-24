@@ -35,6 +35,8 @@
 | `new-project` | `/new-project 描述` | 从零开始新项目：Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Open Design → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复→Huashu 验证，双轮品控+残留修复）+ AI-Friendly 可访问性审查 → 实现 → 审查 → CE 沉淀（65步） |
 | `onboard` | `/onboard` | 一键环境搭建：检测缺失依赖 → 安装 → 配置.env → 验证构建 → 启动开发服务器 |
 | `optimize` | `/optimize` | 基于测量的性能优化，先定位瓶颈再修复（集成CE知识沉淀） |
+| `plan-ceo-review` | `/plan-ceo-review` | 从创始人视角审查功能：找到 10x 版本、砍掉 scope creep、聚焦用户价值 |
+| `qa` | `/qa` | 读取 git diff，浏览器测试受影响路由，发现 Bug 并生成结构化报告 |
 | `refactor` | `/refactor 描述` | 自动执行重构流程：分析重构点、生成重构方案、执行重构、验证效果 |
 | `release` | `/release` | 端到端发布部署流程：质量门禁 → 版本号 → 构建 → 验证 → Tag → 发布 |
 | `review` | `/review` | 全面代码质量审查 + 自动化安全漏洞扫描（集成CE多Agent深度审查 + sec-bug-hunt + 8项工具链） |
