@@ -22,9 +22,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 0.5,
@@ -41,9 +39,7 @@
           ]
         }
       },
-      "description": "注入历史审计上下文和安全策略记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史审计上下文和安全策略记忆"
     },
     {
       "step": 1,
@@ -52,7 +48,6 @@
       "action": "detectProject",
       "params": {},
       "description": "识别平台：RN/Expo/Flutter/原生iOS/原生Android/小程序",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -68,9 +63,7 @@
           "dependencycheck"
         ]
       },
-      "description": "自动检测工具可用性 + 缺失工具安装指引",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "自动检测工具可用性 + 缺失工具安装指引"
     },
     {
       "step": 2.5,
@@ -80,9 +73,7 @@
       "params": {
         "missing_only": true
       },
-      "description": "自动安装步骤2检测到的缺失工具（MobSF/mobsfscan/Bearer/DependencyCheck），安装失败不阻断后续",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "自动安装步骤2检测到的缺失工具（MobSF/mobsfscan/Bearer/DependencyCheck），安装失败不阻断后续"
     },
     {
       "step": 2.6,
@@ -93,9 +84,7 @@
         "mode": "release"
       },
       "description": "构建 release APK/IPA（条件：Android/iOS 项目），产物供 MobSF 扫描使用，构建失败不阻断",
-      "auto_execute": true,
       "condition": "mobile_platform",
-      "on_error": "continue",
       "timeout": 900
     },
     {
@@ -108,9 +97,7 @@
         "source_step": 2.6
       },
       "description": "上传 step 2.6 构建产物（APK/IPA）至 MobSF 服务，auto_build 关闭——依赖前置构建步骤",
-      "auto_execute": true,
       "condition": "mobsf_mcp_available && mobile_platform",
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -122,9 +109,7 @@
         "mode": "static"
       },
       "description": "MobSF 静态安全分析：权限/组件导出/API密钥/证书/代码混淆",
-      "auto_execute": true,
       "condition": "mobsf_mcp_available && mobile_platform",
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -136,9 +121,7 @@
         "tool": "mobsfscan"
       },
       "description": "mobsfscan 源码级 SAST：硬编码密钥/不安全存储/弱加密/无SSL Pinning/WebView注入（补充 MobSF APK 级分析，AST 级精度检测代码模式）",
-      "auto_execute": true,
       "condition": "mobsfscan_available",
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -148,9 +131,7 @@
       "action": "bearerScan",
       "params": {},
       "description": "Bearer CLI 隐私合规扫描：PII泄露/GDPR合规/数据收集声明",
-      "auto_execute": true,
       "condition": "bearer_mcp_available",
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -162,9 +143,7 @@
         "tool": "dependencycheck"
       },
       "description": "DependencyCheck 第三方依赖 CVE 扫描",
-      "auto_execute": true,
       "condition": "dependencycheck_available",
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -175,9 +154,7 @@
       "params": {
         "level": "L1"
       },
-      "description": "OWASP MASVS L1 安全标准对照（标准应用），高安全项目自动升级 L2",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "OWASP MASVS L1 安全标准对照（标准应用），高安全项目自动升级 L2"
     },
     {
       "step": 9,
@@ -192,9 +169,7 @@
           "permissions_count"
         ]
       },
-      "description": "性能基线快照（静态指标）：包体积/资源占比/方法数/权限数 — 运行时指标（启动/FPS/内存）见 mobile-optimize",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "性能基线快照（静态指标）：包体积/资源占比/方法数/权限数 — 运行时指标（启动/FPS/内存）见 mobile-optimize"
     },
     {
       "step": 10,
@@ -202,9 +177,7 @@
       "service": "MobileService",
       "action": "storeCompliance",
       "params": {},
-      "description": "应用商店合规清单：隐私标签/权限声明/测试账号/截图规范（Apple/Google/微信）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "应用商店合规清单：隐私标签/权限声明/测试账号/截图规范（Apple/Google/微信）"
     },
     {
       "step": 11,
@@ -223,7 +196,6 @@
         "block_critical": true
       },
       "description": "质量门禁：CRITICAL/HIGH 安全问题阻断，性能超标警告，合规缺失提示",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -240,8 +212,6 @@
         ]
       },
       "description": "mobile-security Agent AI 安全审计：综合扫描结果→MASVS 对照→修复优先级排序→为报告提供专家解读",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -259,9 +229,7 @@
           "store_compliance"
         ]
       },
-      "description": "生成通俗审计报告：emoji 指标 + 自然语言 + 一键修复清单",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "生成通俗审计报告：emoji 指标 + 自然语言 + 一键修复清单"
     },
     {
       "step": 13,
@@ -272,8 +240,6 @@
         "mode": "safe_only"
       },
       "description": "自动修复安全/性能问题：密钥移入.env→WebP转换→minifyEnabled启用→SSL配置生成",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -284,8 +250,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 13.1
     },
     {
@@ -298,9 +262,7 @@
         "source": "auto"
       },
       "description": "安全审计知识沉淀到项目知识库",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 15,
@@ -314,9 +276,7 @@
           "api_calls"
         ]
       },
-      "description": "审计流程成本报告",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "审计流程成本报告"
     },
     {
       "step": 16,
@@ -329,9 +289,7 @@
           "source": "mobile-audit_workflow"
         }
       },
-      "description": "保存审计结果到记忆（安全发现/质量指标/性能热点/合规状态）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存审计结果到记忆（安全发现/质量指标/性能热点/合规状态）"
     },
     {
       "step": 17,
@@ -339,9 +297,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性，去重过期条目",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性，去重过期条目"
     },
     {
       "step": 18,
@@ -352,9 +308,7 @@
         "type": "success",
         "message": "移动端安全审计完成 🛡️ 报告已生成，包含安全评分+合规状态+一键修复清单"
       },
-      "description": "通知用户审计完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户审计完成"
     }
   ],
   "status": "active"

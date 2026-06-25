@@ -20,9 +20,7 @@
         "mode": "pull",
         "rebase": true
       },
-      "description": "拉取最新代码，避免合并冲突",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "拉取最新代码，避免合并冲突"
     },
     {
       "step": 2,
@@ -39,9 +37,7 @@
           ]
         }
       },
-      "description": "注入历史上下文和相关记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史上下文和相关记忆"
     },
     {
       "step": 3,
@@ -56,9 +52,7 @@
         "limit": 5
       },
       "description": "使用 GitHub MCP 列出重构相关的 issues",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 4,
@@ -69,9 +63,7 @@
         "topic": "refactoring best practices"
       },
       "description": "使用 Context7 MCP 获取重构最佳实践文档",
-      "auto_execute": true,
-      "condition": "context7_mcp_available",
-      "on_error": "continue"
+      "condition": "context7_mcp_available"
     },
     {
       "step": 5,
@@ -84,9 +76,7 @@
           "maintainability": 60
         }
       },
-      "description": "计算圈复杂度、维护性得分，识别重构点",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "计算圈复杂度、维护性得分，识别重构点"
     },
     {
       "step": 5.1,
@@ -98,9 +88,7 @@
         "depth": 3
       },
       "description": "CodeGraph 重构影响分析：评估重构模块的爆炸半径，识别所有依赖方",
-      "auto_execute": true,
-      "condition": "codegraph_mcp_available",
-      "on_error": "continue"
+      "condition": "codegraph_mcp_available"
     },
     {
       "step": 6,
@@ -114,9 +102,7 @@
           "duplicate_code"
         ]
       },
-      "description": "检测God Object、长方法、重复代码等反模式",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "检测God Object、长方法、重复代码等反模式"
     },
     {
       "step": 7,
@@ -132,9 +118,7 @@
         ]
       },
       "description": "Matt Pocock /improve-codebase-architecture: 基于 ADR 和 CONTEXT.md 寻找架构深化机会",
-      "auto_execute": true,
-      "condition": "mattpocock_skill_available",
-      "on_error": "continue"
+      "condition": "mattpocock_skill_available"
     },
     {
       "step": 8,
@@ -150,9 +134,7 @@
           "CMakeLists.txt"
         ]
       },
-      "description": "检测项目语言生态，确定使用哪种构建/测试工具链",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "检测项目语言生态，确定使用哪种构建/测试工具链"
     },
     {
       "step": 9,
@@ -168,7 +150,6 @@
         }
       },
       "description": "根据检测到的语言运行对应测试工具，建立非JS项目的重构前基线",
-      "auto_execute": true,
       "condition": "non_js_project_detected",
       "on_error": "abort"
     },
@@ -181,7 +162,6 @@
         "mode": "unit"
       },
       "description": "重构前运行测试建立基线，确保重构前代码可正常工作",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -194,7 +174,6 @@
         "include_tests": true
       },
       "description": "生成重构计划：包含代码结构调整、测试覆盖率要求",
-      "auto_execute": true,
       "condition": "refactor_points.length > 0",
       "on_error": "abort"
     },
@@ -229,9 +208,7 @@
         "preserve_behavior": true
       },
       "description": "应用重构变换：提取方法、提取类、重命名标识符",
-      "auto_execute": true,
-      "condition": "user_confirmed === true",
-      "on_error": "continue"
+      "condition": "user_confirmed === true"
     },
     {
       "step": 13.5,
@@ -243,7 +220,6 @@
         "scope": "refactored_files"
       },
       "description": "CodeGuardian 重构边界验证：物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止重构引入新依赖或过度膨胀",
-      "auto_execute": true,
       "condition": "codeguardian_mcp_available",
       "on_error": "abort"
     },
@@ -257,7 +233,6 @@
         "check_coverage": true
       },
       "description": "重构后运行测试套件，确保语义不变",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -270,9 +245,7 @@
         "mode": "gate",
         "compare_to_baseline": true
       },
-      "description": "测试覆盖率检查：确保重构后覆盖率不低于基线水平",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "测试覆盖率检查：确保重构后覆盖率不低于基线水平"
     },
     {
       "step": 16,
@@ -284,9 +257,7 @@
         "check_safety": true
       },
       "description": "重构质量检查：代码规范、重构完整性、影响范围评估",
-      "auto_execute": true,
-      "condition": "testPassed === true",
-      "on_error": "continue"
+      "condition": "testPassed === true"
     },
     {
       "step": 17,
@@ -296,9 +267,7 @@
       "params": {
         "scope": "refactored_modules"
       },
-      "description": "API 契约一致性检查：确认重构未改变公开API签名和行为",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "API 契约一致性检查：确认重构未改变公开API签名和行为"
     },
     {
       "step": 18,
@@ -312,9 +281,7 @@
           "format_code"
         ]
       },
-      "description": "清理无用代码、组织导入、格式化代码",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "清理无用代码、组织导入、格式化代码"
     },
     {
       "step": 19,
@@ -327,9 +294,7 @@
           "source": "refactor_workflow"
         }
       },
-      "description": "保存重构上下文到记忆（重构点/变换/结果）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存重构上下文到记忆（重构点/变换/结果）"
     },
     {
       "step": 20,
@@ -337,9 +302,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 21,
@@ -350,9 +313,7 @@
         "type": "success",
         "message": "代码重构完成：测试通过、代码审查通过"
       },
-      "description": "通知用户重构完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户重构完成"
     }
   ],
   "status": "active"

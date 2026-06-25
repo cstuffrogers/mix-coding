@@ -20,9 +20,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 1,
@@ -39,9 +37,7 @@
           ]
         }
       },
-      "description": "注入历史上下文和相关记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史上下文和相关记忆"
     },
     {
       "step": 2,
@@ -53,9 +49,7 @@
         "limit": 10
       },
       "description": "使用 Tavily MCP 搜索代码质量分析最佳实践和工具",
-      "auto_execute": true,
-      "condition": "tavily_mcp_available",
-      "on_error": "continue"
+      "condition": "tavily_mcp_available"
     },
     {
       "step": 3,
@@ -66,9 +60,7 @@
         "mode": "full",
         "depth": "deep"
       },
-      "description": "全量代码扫描：圈复杂度、重复率、依赖分析",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "全量代码扫描：圈复杂度、重复率、依赖分析"
     },
     {
       "step": 4,
@@ -79,9 +71,7 @@
         "vulnerabilities": true,
         "secrets": true
       },
-      "description": "安全扫描：漏洞检测、敏感信息检测",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "安全扫描：漏洞检测、敏感信息检测"
     },
     {
       "step": 5,
@@ -92,9 +82,7 @@
         "mode": "static",
         "target": "all"
       },
-      "description": "性能分析：热点函数识别、内存使用模式",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "性能分析：热点函数识别、内存使用模式"
     },
     {
       "step": 6,
@@ -108,9 +96,7 @@
           "coverage"
         ]
       },
-      "description": "CI流水线：ESLint、TypeScript、测试覆盖率检查",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "CI流水线：ESLint、TypeScript、测试覆盖率检查"
     },
     {
       "layer": "capability",
@@ -120,8 +106,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 6.5
     },
     {
@@ -188,9 +172,7 @@
         ],
         "exclude": []
       },
-      "description": "根据选择的策略执行自动修复",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "根据选择的策略执行自动修复"
     },
     {
       "step": 10,
@@ -201,9 +183,7 @@
         "format": "markdown",
         "destination": "docs/analysis-report.md"
       },
-      "description": "生成最终分析报告并保存到文档目录",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "生成最终分析报告并保存到文档目录"
     },
     {
       "step": 10.5,
@@ -214,9 +194,7 @@
         "title": "Analysis Report"
       },
       "description": "Huashu infographic: 将分析指标渲染为单页 HTML 信息图",
-      "auto_execute": true,
-      "condition": "enh_huashu_infographic",
-      "on_error": "continue"
+      "condition": "enh_huashu_infographic"
     },
     {
       "step": 11,
@@ -231,9 +209,7 @@
           "scan_results_count"
         ]
       },
-      "description": "输出本次分析的Token/API调用成本汇总",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "输出本次分析的Token/API调用成本汇总"
     },
     {
       "step": 12,
@@ -246,9 +222,7 @@
           "source": "analyze_workflow"
         }
       },
-      "description": "保存分析结果到记忆（复杂度/安全/性能）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存分析结果到记忆（复杂度/安全/性能）"
     },
     {
       "step": 13,
@@ -256,9 +230,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "layer": "capability",
@@ -269,9 +241,7 @@
         "source": "auto"
       },
       "description": "将analyze知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
       "condition": "plugin_ce_available",
-      "on_error": "continue",
       "step": 13.5
     },
     {
@@ -282,9 +252,7 @@
       "params": {
         "message": "✅ 代码分析完成！\n📊 报告已保存：docs/analysis-report.md\n🔧 自动修复已执行\n\n📋 详细改进建议请查看报告文件"
       },
-      "description": "通知用户分析完成和修复结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户分析完成和修复结果"
     }
   ],
   "status": "active"

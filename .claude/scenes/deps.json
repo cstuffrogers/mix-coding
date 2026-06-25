@@ -21,9 +21,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 1,
@@ -40,9 +38,7 @@
           ]
         }
       },
-      "description": "注入历史上下文和相关记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史上下文和相关记忆"
     },
     {
       "step": 2,
@@ -53,9 +49,7 @@
         "mode": "pull",
         "rebase": true
       },
-      "description": "拉取最新代码后再更新依赖",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "拉取最新代码后再更新依赖"
     },
     {
       "step": 3,
@@ -67,7 +61,6 @@
         "include_dev": true
       },
       "description": "扫描所有过期依赖（自动检测 npm/pip/cargo/go mod）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -79,9 +72,7 @@
         "ecosystem": "auto",
         "includeTransitive": false
       },
-      "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包，标记已停止维护的依赖",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包，标记已停止维护的依赖"
     },
     {
       "step": 4,
@@ -99,9 +90,7 @@
           ]
         }
       },
-      "description": "安全审计当前依赖：识别已知漏洞",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "安全审计当前依赖：识别已知漏洞"
     },
     {
       "step": 5,
@@ -142,7 +131,6 @@
         "mode": "unit"
       },
       "description": "更新前运行测试建立基线",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -155,8 +143,6 @@
         "auto_fix": true
       },
       "description": "逐项更新依赖，每次更新后运行测试",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -169,7 +155,6 @@
         "regression": true
       },
       "description": "全部更新完成后运行全量回归测试",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -180,9 +165,7 @@
       "params": {
         "compare_to": "lockfile_baseline"
       },
-      "description": "检查更新是否引入breaking changes（API变更检测）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "检查更新是否引入breaking changes（API变更检测）"
     },
     {
       "step": 10,
@@ -194,7 +177,6 @@
         "mode": "smoke_test"
       },
       "description": "快速冒烟测试确保应用正常运行",
-      "auto_execute": true,
       "on_error": "abort",
       "timeout": 180
     },
@@ -208,9 +190,7 @@
         "push_remote": true
       },
       "description": "提交更新的lockfile和package.json",
-      "auto_execute": true,
-      "condition": "testPassed === true",
-      "on_error": "continue"
+      "condition": "testPassed === true"
     },
     {
       "step": 12,
@@ -223,9 +203,7 @@
           "source": "deps_workflow"
         }
       },
-      "description": "保存依赖更新记录到记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存依赖更新记录到记忆"
     },
     {
       "step": 13,
@@ -233,9 +211,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "layer": "capability",
@@ -246,9 +222,7 @@
         "source": "auto"
       },
       "description": "将deps知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
       "condition": "plugin_ce_available",
-      "on_error": "continue",
       "step": 13.5
     },
     {
@@ -260,9 +234,7 @@
         "type": "success",
         "message": "依赖更新完成：测试通过、代码已提交"
       },
-      "description": "通知用户依赖更新结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户依赖更新结果"
     }
   ],
   "status": "active"

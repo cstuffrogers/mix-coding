@@ -20,9 +20,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 1,
@@ -38,9 +36,7 @@
         "limit": 5
       },
       "description": "使用 GitHub MCP 列出简化相关的 issues",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 2,
@@ -51,9 +47,7 @@
         "topic": "code simplification best practices"
       },
       "description": "使用 Context7 MCP 获取代码简化最佳实践",
-      "auto_execute": true,
-      "condition": "context7_mcp_available",
-      "on_error": "continue"
+      "condition": "context7_mcp_available"
     },
     {
       "step": 3,
@@ -78,9 +72,7 @@
           "type": "architecture"
         }
       },
-      "description": "回忆架构决策和项目约定",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "回忆架构决策和项目约定"
     },
     {
       "step": 5,
@@ -91,7 +83,6 @@
         "mode": "unit"
       },
       "description": "运行测试建立基线（简化前必须全部通过）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -103,7 +94,6 @@
         "mode": "full"
       },
       "description": "审查识别简化机会：深层嵌套、长函数、嵌套三元式、布尔参数标志、重复逻辑、死代码",
-      "auto_execute": true,
       "on_error": "retry"
     },
     {
@@ -133,7 +123,6 @@
       "action": "runAffected",
       "params": {},
       "description": "每次简化后运行受影响测试",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -145,7 +134,6 @@
         "mode": "pr"
       },
       "description": "简化后审查：确认无行为改变、遵循项目约定、diff 可 review",
-      "auto_execute": true,
       "on_error": "retry"
     },
     {
@@ -156,8 +144,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 9.5
     },
     {
@@ -170,9 +156,7 @@
         "source": "auto"
       },
       "description": "将代码简化知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 11,
@@ -185,9 +169,7 @@
           "source": "simplify_workflow"
         }
       },
-      "description": "保存简化结果到记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存简化结果到记忆"
     },
     {
       "step": 12,
@@ -195,9 +177,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 13,
@@ -208,9 +188,7 @@
         "type": "info",
         "message": "代码简化完成"
       },
-      "description": "通知用户简化结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户简化结果"
     }
   ],
   "status": "active"

@@ -19,9 +19,7 @@
         "mode": "pull",
         "rebase": true
       },
-      "description": "拉取最新代码，避免合并冲突",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "拉取最新代码，避免合并冲突"
     },
     {
       "step": 1,
@@ -33,9 +31,7 @@
         "limit": 5
       },
       "description": "使用 GitHub MCP 列出最近的 issues 获取开发上下文",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 1.1,
@@ -46,9 +42,7 @@
         "topic": "current feature tech stack best practices"
       },
       "description": "使用 Context7 MCP 获取相关技术文档",
-      "auto_execute": true,
-      "condition": "context7_mcp_available",
-      "on_error": "continue"
+      "condition": "context7_mcp_available"
     },
     {
       "step": 1.2,
@@ -59,9 +53,7 @@
         "project": "current"
       },
       "description": "使用 Supabase MCP 获取当前数据库结构",
-      "auto_execute": true,
-      "condition": "supabase_mcp_available",
-      "on_error": "continue"
+      "condition": "supabase_mcp_available"
     },
     {
       "step": 2,
@@ -73,8 +65,6 @@
         "limit": 5
       },
       "description": "回溯最近5条有效issue/PR作为开发上下文",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 120
     },
     {
@@ -91,9 +81,7 @@
         ]
       },
       "description": "Matt Pocock /grill-me: 逐分支追问方案决策树，消除需求盲区和设计歧义",
-      "auto_execute": true,
-      "condition": "mattpocock_skill_available",
-      "on_error": "continue"
+      "condition": "mattpocock_skill_available"
     },
     {
       "step": 2.6,
@@ -109,9 +97,7 @@
           "CMakeLists.txt"
         ]
       },
-      "description": "检测项目语言生态，确定使用哪种构建/测试工具链",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "检测项目语言生态，确定使用哪种构建/测试工具链"
     },
     {
       "step": 2.7,
@@ -127,9 +113,7 @@
         }
       },
       "description": "根据检测到的语言调用对应构建工具（Go/Rust/Flutter/Kotlin），JS/TS项目跳过",
-      "auto_execute": true,
-      "condition": "non_js_project_detected",
-      "on_error": "continue"
+      "condition": "non_js_project_detected"
     },
     {
       "step": 2.8,
@@ -145,7 +129,6 @@
         }
       },
       "description": "根据检测到的语言运行对应测试工具，建立非JS项目的测试基线",
-      "auto_execute": true,
       "condition": "non_js_project_detected",
       "on_error": "abort"
     },
@@ -158,7 +141,6 @@
         "branch_type": "feature"
       },
       "description": "基于最新main分支创建feature分支",
-      "auto_execute": true,
       "on_error": "abort",
       "timeout": 180
     },
@@ -168,9 +150,7 @@
       "service": "ContractChecker",
       "action": "checkAPIConsistency",
       "params": {},
-      "description": "API 契约一致性检查：验证新功能前端设计与后端 API 的字段/端点一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "API 契约一致性检查：验证新功能前端设计与后端 API 的字段/端点一致性"
     },
     {
       "step": 5.5,
@@ -183,8 +163,7 @@
       },
       "description": "Matt Pocock /tdd: 可选TDD模式——先写失败的测试，再实现功能使其通过",
       "auto_execute": false,
-      "condition": "mattpocock_skill_available",
-      "on_error": "continue"
+      "condition": "mattpocock_skill_available"
     },
     {
       "step": 6,
@@ -196,9 +175,7 @@
         "to": "affected_module"
       },
       "description": "CodeGraph 调用链追踪：从入口点到受影响模块的完整调用路径，识别需要修改的所有代码点",
-      "auto_execute": true,
-      "condition": "codegraph_mcp_available",
-      "on_error": "continue"
+      "condition": "codegraph_mcp_available"
     },
     {
       "step": 7,
@@ -210,8 +187,6 @@
         "mode": "unit"
       },
       "description": "生成组件单元测试用例（覆盖率90%以上）",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -224,7 +199,6 @@
         "check_coverage": true
       },
       "description": "运行生成的测试套件，验证功能正确性并检查覆盖率",
-      "auto_execute": true,
       "on_error": "abort",
       "timeout": 300
     },
@@ -239,7 +213,6 @@
         "block_on_fail": true
       },
       "description": "测试覆盖率门禁检查：低于85%阈值时阻断后续步骤",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -252,9 +225,7 @@
         "mode": "e2e"
       },
       "description": "Web 端 E2E 验证：Playwright 浏览器测试确认新功能在真实环境中可用",
-      "auto_execute": true,
       "condition": "webapp_testing_available",
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -267,7 +238,6 @@
         "mode": "e2e"
       },
       "description": "验证新功能在真实环境中可用，确认功能行为符合预期",
-      "auto_execute": true,
       "on_error": "abort",
       "timeout": 180
     },
@@ -287,8 +257,6 @@
         }
       },
       "description": "ESLint + React Doctor 多层深度审查",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 240
     },
     {
@@ -307,7 +275,6 @@
         "mode": "strict"
       },
       "description": "质量门禁：汇总所有检查结果（Lint + 类型 + 测试 + 覆盖率 + 安全），任一不达标阻止PR",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -337,9 +304,7 @@
         "push_remote": true
       },
       "description": "代码提交 + 推送远程feature分支（使用AI生成提交信息）",
-      "auto_execute": true,
       "condition": "user_confirmed === true",
-      "on_error": "continue",
       "timeout": 120
     },
     {
@@ -353,9 +318,7 @@
           "source": "feature_workflow"
         }
       },
-      "description": "保存新功能开发上下文到记忆（设计决策/实现方案/测试结果）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存新功能开发上下文到记忆（设计决策/实现方案/测试结果）"
     },
     {
       "step": 10.6,
@@ -363,9 +326,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 11,
@@ -377,9 +338,7 @@
         "format": "markdown"
       },
       "description": "Matt Pocock /handoff: 自动生成功能交接文档（API说明、使用示例、注意事项）",
-      "auto_execute": true,
-      "condition": "mattpocock_skill_available",
-      "on_error": "continue"
+      "condition": "mattpocock_skill_available"
     },
     {
       "step": 11.5,
@@ -390,9 +349,7 @@
         "type": "success",
         "message": "新功能开发完成：代码已提交并推送"
       },
-      "description": "通知用户功能开发完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户功能开发完成"
     }
   ],
   "status": "active"

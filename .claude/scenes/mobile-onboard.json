@@ -22,9 +22,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 0.5,
@@ -41,9 +39,7 @@
           ]
         }
       },
-      "description": "注入历史环境配置记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史环境配置记忆"
     },
     {
       "step": 1,
@@ -52,7 +48,6 @@
       "action": "detectProject",
       "params": {},
       "description": "识别项目类型：RN/Expo/Flutter/原生iOS/原生Android/小程序",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -70,9 +65,7 @@
           "cocoapods"
         ]
       },
-      "description": "检测前置依赖：Xcode/Android Studio/Node.js/JDK/Ruby/CocoaPods 版本",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "检测前置依赖：Xcode/Android Studio/Node.js/JDK/Ruby/CocoaPods 版本"
     },
     {
       "step": 3,
@@ -83,8 +76,7 @@
         "missing_only": true
       },
       "description": "自动安装缺失依赖（给出安装命令，交互模式下用户确认后执行）",
-      "auto_execute": false,
-      "on_error": "continue"
+      "auto_execute": false
     },
     {
       "step": 4,
@@ -93,9 +85,7 @@
       "action": "checkRnDoctor",
       "params": {},
       "description": "react-native doctor 环境完整性检查（条件：RN/Expo 项目）",
-      "auto_execute": true,
-      "condition": "project_type === 'rn' || project_type === 'expo'",
-      "on_error": "continue"
+      "condition": "project_type === 'rn' || project_type === 'expo'"
     },
     {
       "step": 5,
@@ -104,9 +94,7 @@
       "action": "checkAndroidSDK",
       "params": {},
       "description": "Android SDK/NDK 路径+版本检查（条件：Android 项目）",
-      "auto_execute": true,
-      "condition": "android_platform",
-      "on_error": "continue"
+      "condition": "android_platform"
     },
     {
       "step": 6,
@@ -114,9 +102,7 @@
       "service": "MobileService",
       "action": "setupEnv",
       "params": {},
-      "description": "生成 .env 模板：API地址/推送证书/地图Key/第三方服务配置",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "生成 .env 模板：API地址/推送证书/地图Key/第三方服务配置"
     },
     {
       "step": 7,
@@ -124,9 +110,7 @@
       "service": "MobileService",
       "action": "setupEmulator",
       "params": {},
-      "description": "模拟器/真机调试配置指引（系统镜像下载+开发者模式+USB调试）— 在构建前完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "模拟器/真机调试配置指引（系统镜像下载+开发者模式+USB调试）— 在构建前完成"
     },
     {
       "step": 8,
@@ -135,8 +119,6 @@
       "action": "verifyBuild",
       "params": {},
       "description": "首次构建验证：iOS pod install + build / Android gradle sync + build（按检测平台执行）",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -153,7 +135,6 @@
         "mode": "relaxed"
       },
       "description": "环境搭建质量门禁：检查依赖安装+构建通过+.env模板",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -166,9 +147,7 @@
         "source": "auto"
       },
       "description": "环境配置知识沉淀",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 11,
@@ -182,9 +161,7 @@
           "api_calls"
         ]
       },
-      "description": "环境搭建流程成本报告",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "环境搭建流程成本报告"
     },
     {
       "step": 12,
@@ -197,9 +174,7 @@
           "source": "mobile-onboard_workflow"
         }
       },
-      "description": "保存环境配置到记忆（工具版本/路径/配置选择）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存环境配置到记忆（工具版本/路径/配置选择）"
     },
     {
       "step": 13,
@@ -207,9 +182,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 14,
@@ -220,9 +193,7 @@
         "type": "success",
         "message": "移动端开发环境搭建完成 🎉 可以开始开发了！"
       },
-      "description": "通知用户环境搭建完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户环境搭建完成"
     }
   ],
   "status": "active"

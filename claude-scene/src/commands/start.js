@@ -284,7 +284,7 @@ async function runStep(sceneId, step, context, options) {
     return;
   }
 
-  if (!step.auto_execute) {
+  if (step.auto_execute === false) {
     if (await handleThemeSelection(step, options, context)) return;
 
     if (await handleAwmBrandSelection(step, options, context)) return;
@@ -400,8 +400,8 @@ export async function startScene(sceneId, options) {
   for (const step of scene.flow) {
     if (options.dryRun) {
       const icon = LAYER_ICONS[step.layer] || '📦';
-      const stepIcon = step.auto_execute ? '▶' : '⏸';
-      const autoLabel = step.auto_execute ? '自动' : '需确认';
+      const stepIcon = step.auto_execute === false ? '⏸' : '▶';
+      const autoLabel = step.auto_execute === false ? '需确认' : '自动';
       const desc = step.description || step.action;
       console.log(chalk.dim(`  ${stepIcon} Step ${step.step} [${autoLabel}] ${icon}`));
       console.log(chalk.gray(`     └─ ${desc}`));

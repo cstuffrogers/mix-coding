@@ -23,7 +23,7 @@ A **three-layer architecture + Scene engine** intelligent development system:
 - ✅ **Zero-conflict architecture**: strict tool isolation and deduplication
 - ✅ **AI/Model switching**: switch AI providers via config files — supports Claude, Gemini, Qwen, and more
 - ✅ **Karpathy Principles**: enforced Think Before Coding, Simplicity First, and more
-- ✅ **jvn Spec-Driven Development**: `/spec` → `/design` → `/build` spec-driven pipelines, powered by [GitHub Spec-Kit](https://github.com/github/spec-kit) (12 speckit skills) with 5 Agent-enhanced review (PM + Architect + UX + Code Review + Constitutional Validator)
+- ✅ **jvn Spec-Driven Development**: `/spec` → `/design` → `/build` spec-driven pipelines, powered by [GitHub Spec-Kit](https://github.com/github/spec-kit) (11 speckit skills) with 5 Agent-enhanced review (PM + Architect + UX + Code Review + Constitutional Validator)
 
 ---
 
@@ -85,7 +85,8 @@ node src/index.js start ui-polish --auto    # Execute workflow
 | **bugfix** | 30 | Bug fix (repro → root cause → fix → PR → regression test) | `/bugfix` |
 | **review** | 33 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic) + migration/QA/i18n/a11y enhancements | `/review` |
 | **refactor** | 23 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
-| **optimize** || **mobile-release** | 18 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
+| **optimize** | 17 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
+| **mobile-release** | 18 | App release (quality gate → cert check → version bump → CHANGELOG → TestFlight/Play Store + 4-layer gates) | `/mobile-release` |
 | **simplify** | 15 | Code simplification (readability-first, incremental simplify + test safety) | `/simplify` |
 | **hunt** | 24 | Security vulnerability scan & fix (12 external tools + CE) + LLM proxy audit enhancement | `/hunt` |
 | **design** | 53 | AI-driven design (full conversation mode, Open Design 152 brands + shape design brief → 3-direction proposal → Huashu prototype → expert review → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu verification) | `/design` |
@@ -100,10 +101,10 @@ node src/index.js start ui-polish --auto    # Execute workflow
 | **cicd** | 12 | CI/CD config (Act + Taskfile local pipeline + GitHub Actions validation) + Docker/backup enhancements | `/cicd` |
 | **e2e** | 9 | E2E test config (MSW + Supertest + Schemathesis API fuzz) + loadtest enhancement | `/e2e` |
 | **monitor** | 9 | Website monitoring (Upptime + GitHub Actions + status page) + log/incident enhancements | `/monitor` |
-| **qa** | 11 | Browser QA verification (git diff → browser test → bug report), also /review enhancement | `/qa` |
-| **plan-ceo-review** | 10 | Founder-mode product review (10x analysis + simplify + user value), also /feature enhancement | `/plan-ceo-review` |
+| **qa** | 12 | Browser QA verification (git diff → browser test → bug report), also /review enhancement | `/qa` |
+| **plan-ceo-review** | 11 | Founder-mode product review (10x analysis + simplify + user value), also /feature enhancement | `/plan-ceo-review` |
 | **mobile-audit** | 24 | App security audit (MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5-layer gates) | `/mobile-audit` |
-| **mobile-review** || **mobile-release** | 18 | Mobile code review (ESLint → mobsfscan SAST → UI screenshots → mobile-ui-review → AI semantic + a11y → aggregate report) | `/mobile-review` |
+| **mobile-review** | 17 | Mobile code review (ESLint → mobsfscan SAST → UI screenshots → mobile-ui-review → AI semantic + a11y → aggregate report) | `/mobile-review` |
 | **mobile-release** | 18 | App release (quality gate → cert check → version bump → CHANGELOG → TestFlight/Play Store + 4-layer gates) | `/mobile-release` |
 | **mobile-optimize** | 19 | App performance optimization (Bundle analysis + startup + network + anti-patterns + auto-fix + 4-layer gates) | `/mobile-optimize` |
 | **mobile-e2e** | 13 | Mobile E2E testing (Detox/Patrol auto-detect + config generation + CI integration + 3-layer gates) | `/mobile-e2e` |
@@ -113,7 +114,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ## 🔧 Action Handler Completeness
 
-The system registers **235 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 28 workflows.
+The system registers **333 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 28 workflows.
 
 | Action | Purpose | Status |
 |--------|---------|--------|
@@ -299,22 +300,20 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # Scene definitions (35 JSON files, 729 steps)
+│   ├── scenes/               # Scene definitions (28 JSON files)
 │   │   ├── ui-polish.json    bugfix.json     feature.json
 │   │   ├── review.json       refactor.json   optimize.json
 │   │   ├── simplify.json     hunt.json       design.json
 │   │   ├── analyze.json      loop.json       new-project.json
-│   │   ├── release.json      audit.json
-│   │   ├── deps.json         rollback.json   onboard.json
-│   │   ├── migration.json    loadtest.json   backup.json
-│   │   ├── changelog.json    cicd.json       docker.json
-│   │   ├── e2e.json          incident.json   log.json
-│   │   ├── monitor.json      sbom.json
+│   │   ├── release.json      audit.json      deps.json
+│   │   ├── rollback.json     onboard.json    cicd.json
+│   │   ├── e2e.json          monitor.json
+│   │   ├── qa.json           plan-ceo-review.json
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
-│   ├── commands/             # Slash commands (35 workflows + jvn /spec /design /build /report etc.)
-│   ├── rules/                # Project rules (coding / karpathy-principles / memory-auto-save / mobile-coding / etc.)
-│   ├── skills/               # Claude Skills (22: 10 core +| **mobile-e2e** | 13 speckit)
+│   ├── commands/             # Slash commands (28 workflows + jvn /spec /design /build /report etc.)
+│   ├── rules/                # Project rules (conditional/ on-demand: core-rules / workflows / enhancements / 9 files)
+│   ├── skills/               # Claude Skills (21: 10 core + 11 speckit)
 │   └── agents/               # 8 Agents (PM/Architect/UX/Reviewer/Constitutional-validator + mobile-reviewer/mobile-security/mobile-perf)
 │
 ├── .specify/                 # Spec-Kit config (templates / scripts / memory)
@@ -324,6 +323,11 @@ mix-coding/
 │       ├── handlers/         # Capability handlers
 │       └── lib/              # Utility library (including huashu design integration)
 │
+├── scripts/                  # Project scripts (Node.js .cjs)
+│   ├── scan-scenes.cjs       # Scan all scene step counts
+│   ├── find-deadcode.cjs     # Dead code scanner
+│   ├── check-memory-system.cjs # Memory system health check
+│   └── setup-mempalace.cjs   # MemPalace MCP setup
 ├── constitution.md           # Project constitution (enforced by constitutional-validator Agent)
 ├── CLAUDE.md                 # Main project instructions
 ├── ARCHITECTURE.md           # Full architecture documentation
@@ -392,7 +396,7 @@ claude plugins install compound-engineering@anthropic
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: semantic HTML/ARIA accessibility |
 | **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 curated brand DESIGN.md files (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
 | **MCP Servers** | `claude mcp install github playwright supabase` | AI context enhancement extensions |
-| **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` | GitHub spec-driven development engine (12 speckit skills) |
+| **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` | GitHub spec-driven development engine (11 speckit skills) |
 | **Memory Tools** | `git clone https://github.com/claude-mem %USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 7 memory backends (project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory) |
 | **Security Toolchain** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli knip` + `pip install seraphim-audit` + Socket.dev API Key | Build leak detection / security headers / dead links / a11y / ReDoS / performance gates / dead code / supply chain |
 | **App Store** | [Claude App Store](https://github.com/topics/claude-app-store) | More Claude extensions |
@@ -401,18 +405,18 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 Integration Overview
 
-> **76+ external components**: 22 Skills + 16 MCP servers + 23 npm packages + 18 external tools
+> **76+ external components**: 21 Skills + 14 MCP servers + 23 npm packages + 18 external tools
 
-### Local Skills (22, `.claude/skills/`)
+### Local Skills (21, `.claude/skills/`)
 
 | Skill | Source | Purpose |
 |-------|--------|---------|
-| `speckit-specify` & 11 others | GitHub Spec-Kit | Full spec → plan → tasks → implement SDD pipeline |
+| `speckit-specify` & 10 others | GitHub Spec-Kit | Full spec → plan → tasks → implement SDD pipeline |
 | `web-design-engineer` | ConardLi | OKLCH color + 6-step workflow + anti-AI-template |
-| `impeccable` | — | 27 anti-pattern rules +| **mobile-e2e** | 13 LLM critique rules |
+| `impeccable` | — | 27 anti-pattern rules + 12 LLM critique rules |
 | `ai-friendly-web-design` | ianho7 | Semantic HTML / ARIA accessibility |
 | `awesome-design-md` | VoltAgent | 5 brand DESIGN.md (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
-| `mattpocock` | Matt Pocock || **feature** | 26 sub-skills (TS/engineering/productivity) |
+| `mattpocock` | Matt Pocock | 26 sub-skills (TS/engineering/productivity) |
 | `review-checklist` | — | 23 review checklist items |
 | `sec-bug-hunt` | — | 5-vector security scan rules |
 | `mobile-ui-review` | — | Mobile UI review |

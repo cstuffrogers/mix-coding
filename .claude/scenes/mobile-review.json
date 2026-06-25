@@ -21,9 +21,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 0.5,
@@ -40,9 +38,7 @@
           ]
         }
       },
-      "description": "注入历史审查上下文和已知代码质量问题",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史审查上下文和已知代码质量问题"
     },
     {
       "step": 1,
@@ -51,7 +47,6 @@
       "action": "detectProject",
       "params": {},
       "description": "识别平台→选择规则集（RN→@react-native/eslint-config / Flutter→dart analyze+awesome_lints / 原生→各自lint）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -64,9 +59,7 @@
         "limit": 5
       },
       "description": "列出待审查的 PR",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 3,
@@ -82,9 +75,7 @@
           ]
         }
       },
-      "description": "L1: ESLint + RN/Flutter 规则 — 语法/样式/平台API误用/widget生命周期",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "L1: ESLint + RN/Flutter 规则 — 语法/样式/平台API误用/widget生命周期"
     },
     {
       "step": 4,
@@ -96,9 +87,7 @@
         "tool": "mobsfscan"
       },
       "description": "L2: mobsfscan 源码安全扫描 — 硬编码密钥/不安全存储/弱加密/无SSL Pinning",
-      "auto_execute": true,
       "condition": "mobsfscan_available",
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -111,9 +100,7 @@
         "tool": "auto"
       },
       "description": "L3: UI 截图对比 — Detox 关键流程（登录→主页→核心操作）前后对比",
-      "auto_execute": true,
       "condition": "detox_mcp_available",
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -134,9 +121,7 @@
         ]
       },
       "description": "L3.5: mobile-ui-review Skill 移动端UI审查 — 安全区域/键盘避让/触控目标(≥44pt)/手势冲突/加载态/横竖屏/对比度",
-      "auto_execute": true,
       "condition": "mobile_ui_review_available",
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -155,8 +140,6 @@
         ]
       },
       "description": "L4: mobile-reviewer Agent AI 语义审查 — 导航栈/Platform.OS散落/内存泄漏/状态管理/移动端a11y",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -174,9 +157,7 @@
         ],
         "mode": "mobile"
       },
-      "description": "L5: 聚合报告 — 去重、按严重度排序、修复建议、emoji 指标",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "L5: 聚合报告 — 去重、按严重度排序、修复建议、emoji 指标"
     },
     {
       "layer": "capability",
@@ -186,8 +167,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 7.5
     },
     {
@@ -205,7 +184,6 @@
         "block_merge": true
       },
       "description": "质量门禁：CRITICAL 问题阻断合并（PR 上下文），WARNING 建议修复（独立审查场景降级为 warning）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -218,9 +196,7 @@
         "source": "auto"
       },
       "description": "审查知识沉淀到项目知识库",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 10,
@@ -234,9 +210,7 @@
           "api_calls"
         ]
       },
-      "description": "代码审查流程成本报告",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "代码审查流程成本报告"
     },
     {
       "step": 11,
@@ -249,9 +223,7 @@
           "source": "mobile-review_workflow"
         }
       },
-      "description": "保存审查结果到记忆（安全问题/代码质量/审查通过项）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存审查结果到记忆（安全问题/代码质量/审查通过项）"
     },
     {
       "step": 12,
@@ -259,9 +231,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 13,
@@ -272,9 +242,7 @@
         "type": "success",
         "message": "移动端代码审查完成 📱 5层+UI审查管线：ESLint → mobsfscan → UI截图 → mobile-ui-review → AI语义+a11y → 聚合报告"
       },
-      "description": "通知审查完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知审查完成"
     }
   ],
   "status": "active"

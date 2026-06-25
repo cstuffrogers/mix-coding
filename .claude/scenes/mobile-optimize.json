@@ -23,9 +23,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 0.5,
@@ -42,9 +40,7 @@
           ]
         }
       },
-      "description": "注入历史性能基线和优化记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史性能基线和优化记忆"
     },
     {
       "step": 1,
@@ -53,7 +49,6 @@
       "action": "detectProject",
       "params": {},
       "description": "识别平台→确定性能指标标准（RN <2MB / Flutter <5MB / 原生按平台）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -73,8 +68,6 @@
         "mode": "static_first"
       },
       "description": "性能基线测量：优先静态（包体积/资源占比），设备可用时追加运行时指标（启动/FPS/内存）",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -85,9 +78,7 @@
       "params": {
         "tool": "auto"
       },
-      "description": "Bundle 分析：RN→bundle-visualizer / Flutter→--analyze-size / 原生→APK Analyzer，大模块定位+代码分割机会",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Bundle 分析：RN→bundle-visualizer / Flutter→--analyze-size / 原生→APK Analyzer，大模块定位+代码分割机会"
     },
     {
       "step": 4,
@@ -95,9 +86,7 @@
       "service": "MobileService",
       "action": "analyzeAssets",
       "params": {},
-      "description": "资源分析：图片未压缩/未WebP/未多分辨率/未懒加载、字体过大、冗余资源",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "资源分析：图片未压缩/未WebP/未多分辨率/未懒加载、字体过大、冗余资源"
     },
     {
       "step": 5,
@@ -113,9 +102,7 @@
           "image_oversize"
         ]
       },
-      "description": "网络分析：重复请求/未批量合并/无预加载/无离线缓存/图片下载尺寸 > 显示尺寸 2x",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "网络分析：重复请求/未批量合并/无预加载/无离线缓存/图片下载尺寸 > 显示尺寸 2x"
     },
     {
       "step": 6,
@@ -123,9 +110,7 @@
       "service": "MobileService",
       "action": "detectMobileAntipatterns",
       "params": {},
-      "description": "性能反模式检测：离屏渲染/过度绘制/主线程长任务/匿名render函数/WakeLock未释放",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "性能反模式检测：离屏渲染/过度绘制/主线程长任务/匿名render函数/WakeLock未释放"
     },
     {
       "step": 7,
@@ -144,8 +129,6 @@
         ]
       },
       "description": "mobile-perf Agent AI 性能分析：综合测量数据→按收益排序→生成预算违规报告",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -156,8 +139,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 7.1
     },
     {
@@ -168,9 +149,7 @@
       "params": {
         "prioritize": "impact"
       },
-      "description": "生成优化方案：综合 Agent 分析 + 测量数据，按收益排序（图片→WebP > 代码分割 > 懒加载 > 预加载 > 离线缓存）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "生成优化方案：综合 Agent 分析 + 测量数据，按收益排序（图片→WebP > 代码分割 > 懒加载 > 预加载 > 离线缓存）"
     },
     {
       "step": 9,
@@ -181,8 +160,6 @@
         "auto_fix_only": true
       },
       "description": "执行可自动修复的优化：图片WebP转换/多分辨率生成/dead import移除/重复请求合并",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -192,8 +169,6 @@
       "action": "remeasure",
       "params": {},
       "description": "优化后重新测量所有指标 + 优化前后对比",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -210,7 +185,6 @@
         ]
       },
       "description": "性能预算门禁：超标项标注 🔴/🟡，生成通俗优化报告",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -223,9 +197,7 @@
         "source": "auto"
       },
       "description": "性能优化知识沉淀",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 13,
@@ -239,9 +211,7 @@
           "api_calls"
         ]
       },
-      "description": "性能优化流程成本报告",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "性能优化流程成本报告"
     },
     {
       "step": 14,
@@ -254,9 +224,7 @@
           "source": "mobile-optimize_workflow"
         }
       },
-      "description": "保存性能基线和优化结果到记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存性能基线和优化结果到记忆"
     },
     {
       "step": 15,
@@ -264,9 +232,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 16,
@@ -277,9 +243,7 @@
         "type": "success",
         "message": "移动端性能优化完成 ⚡ 优化前后对比报告已生成"
       },
-      "description": "通知优化结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知优化结果"
     }
   ],
   "status": "active"

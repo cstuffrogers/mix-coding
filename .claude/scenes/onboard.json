@@ -22,9 +22,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 1,
@@ -41,9 +39,7 @@
           ]
         }
       },
-      "description": "注入历史上下文和相关记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史上下文和相关记忆"
     },
     {
       "step": 2,
@@ -63,7 +59,6 @@
         ]
       },
       "description": "检测项目语言生态和所需工具链",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -81,9 +76,7 @@
           "pnpm"
         ]
       },
-      "description": "检查系统是否安装了必需的运行时和工具",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "检查系统是否安装了必需的运行时和工具"
     },
     {
       "step": 4,
@@ -95,7 +88,6 @@
         "frozen_lockfile": true
       },
       "description": "安装项目依赖（自动选择npm/pip/cargo/go mod）",
-      "auto_execute": true,
       "on_error": "abort",
       "timeout": 300
     },
@@ -108,9 +100,7 @@
         "template": ".env.example",
         "target": ".env"
       },
-      "description": "检查.env配置，从.env.example模板提示缺失的环境变量",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "检查.env配置，从.env.example模板提示缺失的环境变量"
     },
     {
       "step": 6,
@@ -126,8 +116,7 @@
       },
       "description": "交互式填写缺失的环境变量",
       "auto_execute": false,
-      "condition": "missing_env_vars_detected",
-      "on_error": "continue"
+      "condition": "missing_env_vars_detected"
     },
     {
       "step": 7,
@@ -138,9 +127,7 @@
         "template": ".env.example"
       },
       "description": "根据模板和用户输入生成.env文件",
-      "auto_execute": true,
-      "condition": "missing_env_vars_detected",
-      "on_error": "continue"
+      "condition": "missing_env_vars_detected"
     },
     {
       "step": 8,
@@ -151,8 +138,6 @@
         "mode": "dev"
       },
       "description": "开发构建验证：确保项目可正常编译",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -164,7 +149,6 @@
         "mode": "unit"
       },
       "description": "运行测试验证环境和代码正确",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -176,9 +160,7 @@
         "mode": "background",
         "port": "auto"
       },
-      "description": "启动开发服务器（后台运行）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "启动开发服务器（后台运行）"
     },
     {
       "step": 11,
@@ -191,7 +173,6 @@
         "retry": 3
       },
       "description": "验证开发服务器是否正常启动",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -205,9 +186,7 @@
           "source": "onboard_workflow"
         }
       },
-      "description": "记录环境搭建信息到项目记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "记录环境搭建信息到项目记忆"
     },
     {
       "step": 13,
@@ -215,9 +194,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "layer": "capability",
@@ -228,9 +205,7 @@
         "source": "auto"
       },
       "description": "将onboard知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
       "condition": "plugin_ce_available",
-      "on_error": "continue",
       "step": 13.5
     },
     {
@@ -242,9 +217,7 @@
         "type": "success",
         "message": "✅ 环境搭建完成！\n🔧 语言: ${detected_language}\n📦 依赖已安装\n⚙️ 环境变量已配置\n🏗️ 构建验证通过\n🧪 测试通过\n🌐 开发服务器: ${dev_server_url}"
       },
-      "description": "通知用户环境搭建结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户环境搭建结果"
     }
   ],
   "status": "active"

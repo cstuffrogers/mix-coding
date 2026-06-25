@@ -20,7 +20,7 @@
 ## 命名与文件
 
 变量/函数 camelCase · 类/接口 PascalCase · 常量 UPPER_SNAKE_CASE · 文件 kebab-case。
-一个文件一个主要导出。测试文件同目录 `*.test.ts`。
+一个文件一个主要导出。测试文件同目录 `*.test.js`。
 
 ## 记忆系统
 

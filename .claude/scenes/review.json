@@ -20,9 +20,7 @@
         "skill": "review-checklist"
       },
       "description": "预加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 0.5,
@@ -39,9 +37,7 @@
           ]
         }
       },
-      "description": "注入历史审查上下文和已知代码质量问题",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史审查上下文和已知代码质量问题"
     },
     {
       "step": 1,
@@ -53,9 +49,7 @@
         "limit": 5
       },
       "description": "使用 GitHub MCP 列出待审查的 Pull Requests",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 1.1,
@@ -66,9 +60,7 @@
         "topic": "code review best practices"
       },
       "description": "使用 Context7 MCP 获取代码审查最佳实践",
-      "auto_execute": true,
-      "condition": "context7_mcp_available",
-      "on_error": "continue"
+      "condition": "context7_mcp_available"
     },
     {
       "step": 2,
@@ -79,7 +71,6 @@
         "mode": "full"
       },
       "description": "ESLint → TypeScript → npm audit 静态分析，五层审查引擎核心",
-      "auto_execute": true,
       "on_error": "retry"
     },
     {
@@ -88,9 +79,7 @@
       "service": "AccessibilityService",
       "action": "ai-friendly-review",
       "params": {},
-      "description": "无障碍静态扫描：img-alt / input-label / html-lang / contrast-risk / clickable-div — 5 项检查",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "无障碍静态扫描：img-alt / input-label / html-lang / contrast-risk / clickable-div — 5 项检查"
     },
     {
       "step": 2.35,
@@ -103,9 +92,7 @@
         "includeWarnings": true
       },
       "description": "pa11y-ci WCAG 2.1 AA 无障碍 CLI 扫描：HTML 文件时运行 pa11y-ci，JSX/TSX 回退到代码级 aria/alt/label 检查",
-      "auto_execute": true,
-      "condition": "frontend_involved",
-      "on_error": "continue"
+      "condition": "frontend_involved"
     },
     {
       "step": 2.5,
@@ -114,9 +101,7 @@
       "action": "huashu-expert-review",
       "params": {},
       "description": "Huashu 5 维度专家评审: philosophy/hierarchy/craft/functionality/originality — UI 设计质量评分",
-      "auto_execute": true,
-      "condition": "enh_huashu_expert_review",
-      "on_error": "continue"
+      "condition": "enh_huashu_expert_review"
     },
     {
       "step": 2.6,
@@ -127,9 +112,7 @@
         "strict": true,
         "production": true
       },
-      "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入"
     },
     {
       "step": 2.65,
@@ -140,9 +123,7 @@
         "rules": ".dependency-cruiser.js",
         "outputType": "err"
       },
-      "description": "Dependency-cruiser 架构验证：循环依赖检测 / 孤儿模块 / 分层合规",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Dependency-cruiser 架构验证：循环依赖检测 / 孤儿模块 / 分层合规"
     },
     {
       "step": 2.8,
@@ -150,9 +131,7 @@
       "service": "MetaCheckService",
       "action": "verify-handlers",
       "params": {},
-      "description": "Handler 功能性验证：扫描 ACTION_REGISTRY + CE dispatch + handler 文件，检测空转桩（MCP/MP/CE/伪桩）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Handler 功能性验证：扫描 ACTION_REGISTRY + CE dispatch + handler 文件，检测空转桩（MCP/MP/CE/伪桩）"
     },
     {
       "step": 2.9,
@@ -162,9 +141,7 @@
       "params": {
         "mode": "scan"
       },
-      "description": "AI 代码气味扫描（aislop）：50+ 规则 — 叙事注释、吞异常、死代码、as any 滥用、重复 helper、过多抽象层级",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "AI 代码气味扫描（aislop）：50+ 规则 — 叙事注释、吞异常、死代码、as any 滥用、重复 helper、过多抽象层级"
     },
     {
       "step": 2.95,
@@ -176,9 +153,7 @@
         "minLines": 5,
         "threshold": 0.05
       },
-      "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，重复率 > 5% 告警",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，重复率 > 5% 告警"
     },
     {
       "step": 2.96,
@@ -189,9 +164,7 @@
         "config": ".size-limit.json",
         "running": true
       },
-      "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出预算",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出预算"
     },
     {
       "step": 2.97,
@@ -206,9 +179,7 @@
           "low": 60
         }
       },
-      "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量"
     },
     {
       "step": 2.98,
@@ -219,9 +190,7 @@
         "ruleset": ".spectral.yaml",
         "failSeverity": "error"
       },
-      "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）"
     },
     {
       "step": 2.99,
@@ -231,9 +200,7 @@
       "params": {
         "config": ".markdownlint.json"
       },
-      "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）"
     },
     {
       "step": 3,
@@ -245,9 +212,7 @@
         "agent_count": 9
       },
       "description": "CE Plugin 多Agent深度审查：架构、安全、性能、代码规范、可维护性、文档、测试、国际化、最佳实践",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 3.2,
@@ -258,9 +223,7 @@
         "skill": "review"
       },
       "description": "Matt Pocock 双轴审查：标准轴（编码规范）+ 规范轴（原始 issue/PRD 对照）",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 3.5,
@@ -272,9 +235,7 @@
         "subcommand": "critique"
       },
       "description": "Impeccable 设计批判：27 条反 AI 模式规则 + 12 条 LLM 批判规则，检测 AI 塑料感",
-      "auto_execute": true,
-      "condition": "impeccable_available && conversation_mode",
-      "on_error": "continue"
+      "condition": "impeccable_available && conversation_mode"
     },
     {
       "step": 4,
@@ -291,8 +252,6 @@
         ]
       },
       "description": "代码安全深度审计：执行高置信度 (>=0.85) 的漏洞扫描，阻断高危漏洞（SQLi、XSS、命令注入等）",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 600,
       "criticality": "BLOCK-MERGE"
     },
@@ -305,9 +264,7 @@
         "maxSteps": 10000,
         "timeout": 5000
       },
-      "description": "ReDoS 正则灾难性回溯扫描：检测 exponential backtracking 漏洞",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "ReDoS 正则灾难性回溯扫描：检测 exponential backtracking 漏洞"
     },
     {
       "step": 4.2,
@@ -315,9 +272,7 @@
       "service": "SecuritySkill",
       "action": "open-redirect-scan",
       "params": {},
-      "description": "开放重定向检测：URL 参数注入、重定向跳转安全风险",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "开放重定向检测：URL 参数注入、重定向跳转安全风险"
     },
     {
       "step": 4.3,
@@ -325,9 +280,7 @@
       "service": "SecuritySkill",
       "action": "log-sanitization",
       "params": {},
-      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测"
     },
     {
       "step": 4.4,
@@ -335,9 +288,7 @@
       "service": "SecuritySkill",
       "action": "cors-check",
       "params": {},
-      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置"
     },
     {
       "step": 4.5,
@@ -345,9 +296,7 @@
       "service": "SecuritySkill",
       "action": "env-var-leak",
       "params": {},
-      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / process.env 浏览器端泄露",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / process.env 浏览器端泄露"
     },
     {
       "step": 4.6,
@@ -355,9 +304,7 @@
       "service": "SecuritySkill",
       "action": "sensitive-file-check",
       "params": {},
-      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态"
     },
     {
       "step": 4.7,
@@ -392,7 +339,6 @@
         "block_merge": true
       },
       "description": "质量门禁：汇总五层审查+安全审计+工具链结果（20 项检查），关键问题阻断合并",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -401,9 +347,7 @@
       "service": "ReportService",
       "action": "generateReviewReport",
       "params": {},
-      "description": "生成结构化审查报告（.claude/reviews/review-report-<timestamp>.md）+ 审查指标信息图",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "生成结构化审查报告（.claude/reviews/review-report-<timestamp>.md）+ 审查指标信息图"
     },
     {
       "step": 5,
@@ -415,9 +359,7 @@
         "source": "auto"
       },
       "description": "将审查 + 安全审计知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 6,
@@ -430,9 +372,7 @@
           "source": "review_workflow"
         }
       },
-      "description": "保存审查结果到记忆（安全问题/代码质量问题/审查通过项）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存审查结果到记忆（安全问题/代码质量问题/审查通过项）"
     },
     {
       "step": 6.5,
@@ -440,9 +380,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 7,
@@ -453,9 +391,7 @@
         "type": "info",
         "message": "代码审查 + 安全审计完成"
       },
-      "description": "通知审计结果（含漏洞统计与合规状态）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知审计结果（含漏洞统计与合规状态）"
     }
   ],
   "status": "active"

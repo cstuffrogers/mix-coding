@@ -20,9 +20,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 1,
@@ -39,9 +37,7 @@
           ]
         }
       },
-      "description": "注入历史上下文和相关记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史上下文和相关记忆"
     },
     {
       "step": 2,
@@ -52,9 +48,7 @@
         "limit": 10
       },
       "description": "列出最近10个发布版本，确定回滚目标",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 3,
@@ -79,9 +73,7 @@
         "depth": 2
       },
       "description": "分析当前版本与回滚目标版本之间的差异，评估回滚影响范围",
-      "auto_execute": true,
-      "condition": "codegraph_mcp_available",
-      "on_error": "continue"
+      "condition": "codegraph_mcp_available"
     },
     {
       "step": 5,
@@ -111,7 +103,6 @@
         "preserve_data": true
       },
       "description": "执行Git回滚到目标版本（保留数据库/用户数据）",
-      "auto_execute": true,
       "condition": "user_confirmed === true",
       "on_error": "abort",
       "criticality": "HIGH-RISK"
@@ -125,7 +116,6 @@
         "optimize": true
       },
       "description": "回滚后重新构建",
-      "auto_execute": true,
       "on_error": "abort",
       "timeout": 600
     },
@@ -140,7 +130,6 @@
         "retry": 5
       },
       "description": "强力健康检查：确认回滚后服务正常",
-      "auto_execute": true,
       "on_error": "retry",
       "timeout": 300
     },
@@ -153,7 +142,6 @@
         "mode": "unit"
       },
       "description": "回滚后运行测试验证功能完整",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -165,9 +153,7 @@
         "message": "revert: 紧急回滚至 ${selected_version}",
         "push_remote": true
       },
-      "description": "提交回滚记录并推送",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "提交回滚记录并推送"
     },
     {
       "step": 11,
@@ -183,9 +169,7 @@
         "body": "版本回滚详情..."
       },
       "description": "创建回滚事件记录Issue供事后复盘",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 12,
@@ -198,9 +182,7 @@
           "source": "rollback_workflow"
         }
       },
-      "description": "保存回滚事件到记忆（版本/原因/影响）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存回滚事件到记忆（版本/原因/影响）"
     },
     {
       "step": 13,
@@ -208,9 +190,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "layer": "capability",
@@ -221,9 +201,7 @@
         "source": "auto"
       },
       "description": "将rollback知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
       "condition": "plugin_ce_available",
-      "on_error": "continue",
       "step": 13.5
     },
     {
@@ -236,9 +214,7 @@
         "title": "⚠️ 紧急回滚已执行",
         "content": "已回滚至版本 ${selected_version}，服务已恢复。详情见 Issue #${issue_number}"
       },
-      "description": "紧急通知：回滚已执行",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "紧急通知：回滚已执行"
     }
   ],
   "status": "active"

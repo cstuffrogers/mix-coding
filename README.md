@@ -22,7 +22,7 @@
 - ✅ **零冲突架构**：严格工具隔离与去重
 - ✅ **AI/Model 无缝切换**：通过配置文件快速切换 AI 服务提供商，支持 Claude、Gemini、Qwen 等主流模型
 - ✅ **编码原则四重防线**：Ponytail（写之前阻断）+ Karpathy（写之时约束）+ CodeGuardian（改之后验证）+ `/simplify`（写之后清理），合并为 `conditional/core-rules.md` 按需加载
-- ✅ **jvn Spec-Driven 开发**：`/spec` → `/design` → `/build` 规范驱动开发，底层由 [GitHub Spec-Kit](https://github.com/github/spec-kit)（12 speckit 技能）驱动，5 Agent 增强审查（PM + 架构师 + UX + 代码审查 + 宪法校验）
+- ✅ **jvn Spec-Driven 开发**：`/spec` → `/design` → `/build` 规范驱动开发，底层由 [GitHub Spec-Kit](https://github.com/github/spec-kit)（11 speckit 技能）驱动，5 Agent 增强审查（PM + 架构师 + UX + 代码审查 + 宪法校验）
 
 ---
 
@@ -107,14 +107,14 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **cicd** | 12 步 | CI/CD 配置（Act + Taskfile 本地流水线 + GitHub Actions 验证）+ Docker 化/备份可选增强 | `/cicd` |
 | **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + Schemathesis API fuzz）+ 负载测试可选增强 | `/e2e` |
 | **monitor** | 9 步 | 网站监控（Upptime + GitHub Actions + 状态页）+ 日志/Incident Runbook 可选增强 | `/monitor` |
-| **qa** | 11 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级报告），也作为 /review 增强 | `/qa` |
-| **plan-ceo-review** | 10 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值三桶），也作为 /feature 增强 | `/plan-ceo-review` |
+| **qa** | 12 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级报告），也作为 /review 增强 | `/qa` |
+| **plan-ceo-review** | 11 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值三桶），也作为 /feature 增强 | `/plan-ceo-review` |
 
 ---
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **321 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 28 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **333 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 28 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|
@@ -385,7 +385,7 @@ mix-coding/
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
 │   ├── commands/             # Slash commands（28 个工作流 + jvn /spec /design /build /report 等）
 │   ├── rules/                # 项目规则（conditional/ 按需加载：core-rules / workflows / enhancements 等 9 个）
-│   ├── skills/               # Claude Skills（22 个：10 核心 + 12 speckit）
+│   ├── skills/               # Claude Skills（21 个：10 核心 + 11 speckit）
 │   └── agents/               # 8 个 Agent（PM/架构师/UX/审查/宪法校验 + mobile-reviewer/mobile-security/mobile-perf）
 │
 ├── .specify/                 # Spec-Kit 配置（templates / scripts / memory）
@@ -541,7 +541,7 @@ claude plugins install compound-engineering@anthropic
 | **Claude Code** | `npm install -g @anthropic-ai/claude-code` | AI助手核心CLI |
 | **CodeGraph** | `npm install -g @codegraph/cli` | 代码结构记忆分析工具 |
 | **Claude Skills** | `npx skills install 技能名` | 技能插件生态（12+主流插件） |
-| **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` + `specify init --here --integration claude --force` | GitHub Spec-Driven Development 引擎（12 speckit 技能） |
+| **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` + `specify init --here --integration claude --force` | GitHub Spec-Driven Development 引擎（11 speckit 技能） |
 | **Impeccable Skill** | `echo Y \| npx --yes impeccable@2.3.2 skills install` | AI 设计词汇 + 27 反模式规则 + 12 LLM 批判规则，自动修正 UI 塑料感 |
 | **Web Design Skill** | 复制 `SKILL.md` 到 `.claude/skills/web-design-engineer/`（注意：前序元数据仅保留 name/description/user-invocable） | ConardLi: 反AI套路设计系统，OKLCH 色彩 + 6步工作流 + 预交付检查清单 |
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: 语义HTML/ARIA可访问性 |
@@ -555,13 +555,13 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **80+ 个外部组件**：Skills 22 个 + MCP 16 个 + npm 包 23 个 + 外部工具 18 个 + MemPalace 工具 1 个
+> 共集成 **80+ 个外部组件**：Skills 21 个 + MCP 14 个 + npm 包 23 个 + 外部工具 18 个 + MemPalace 工具 1 个
 
-### 本地 Skills（22 个，`.claude/skills/`）
+### 本地 Skills（21 个，`.claude/skills/`）
 
 | Skill | 来源 | 功能 |
 |-------|------|------|
-| `speckit-specify` 等 12 个 | GitHub Spec-Kit | spec → plan → tasks → implement 规范驱动开发全流程 |
+| `speckit-specify` 等 11 个 | GitHub Spec-Kit | spec → plan → tasks → implement 规范驱动开发全流程 |
 | `web-design-engineer` | ConardLi | OKLCH 色彩 + 6步工作流 + 反 AI 套路 |
 | `impeccable` | — | 27 反模式规则 + 12 LLM 批判规则，去塑料感 |
 | `ai-friendly-web-design` | ianho7 | 语义 HTML / ARIA 可访问性 |

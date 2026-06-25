@@ -28,9 +28,7 @@
           ]
         }
       },
-      "description": "注入监控相关记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入监控相关记忆"
     },
     {
       "step": 2,
@@ -38,9 +36,7 @@
       "service": "MonitorService",
       "action": "setupMonitor",
       "params": {},
-      "description": "检测项目类型，生成 .upptimerc.yml 和 GitHub Actions 工作流",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "检测项目类型，生成 .upptimerc.yml 和 GitHub Actions 工作流"
     },
     {
       "step": 3,
@@ -53,7 +49,6 @@
         ]
       },
       "description": "监控配置质量门禁",
-      "auto_execute": true,
       "condition": "monitorConfigured == false",
       "on_error": "abort"
     },
@@ -66,9 +61,7 @@
         "source": "monitor"
       },
       "description": "自动修复监控配置问题",
-      "auto_execute": true,
-      "condition": "monitorConfigured == false",
-      "on_error": "continue"
+      "condition": "monitorConfigured == false"
     },
     {
       "step": 5,
@@ -81,9 +74,7 @@
         "content": "Upptime 配置未能完成，请检查 Git 仓库设置和 GitHub 连接"
       },
       "description": "监控配置失败通知",
-      "auto_execute": true,
-      "condition": "monitorConfigured == false",
-      "on_error": "continue"
+      "condition": "monitorConfigured == false"
     },
     {
       "step": 6,
@@ -98,9 +89,7 @@
           "configured": "{{monitorConfigured}}"
         }
       },
-      "description": "保存监控配置结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存监控配置结果"
     },
     {
       "step": 7,
@@ -108,9 +97,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理去重记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理去重记忆"
     },
     {
       "step": 7.5,
@@ -122,9 +109,7 @@
         "source": "auto"
       },
       "description": "将monitor知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 8,
@@ -134,9 +119,7 @@
       "params": {
         "message": "Upptime 监控配置工作流完成"
       },
-      "description": "通知监控配置完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知监控配置完成"
     }
   ],
   "status": "active"

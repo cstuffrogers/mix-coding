@@ -33,9 +33,7 @@
           ]
         }
       },
-      "description": "注入 CI/CD 相关记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入 CI/CD 相关记忆"
     },
     {
       "step": 2,
@@ -43,9 +41,7 @@
       "service": "CIService",
       "action": "setupCI",
       "params": {},
-      "description": "扫描工作流、验证、生成 Taskfile.yml",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "扫描工作流、验证、生成 Taskfile.yml"
     },
     {
       "step": 2.3,
@@ -56,9 +52,7 @@
         "config": ".github/workflows",
         "format": "json"
       },
-      "description": "actionlint: GitHub Actions 工作流语法检查（3k+ stars）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "actionlint: GitHub Actions 工作流语法检查（3k+ stars）"
     },
     {
       "step": 2.4,
@@ -68,9 +62,7 @@
       "params": {
         "persona": "pedantic"
       },
-      "description": "zizmor: GitHub Actions 安全审计 — 权限过度/脚本注入/敏感数据暴露（2.5k+ stars）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "zizmor: GitHub Actions 安全审计 — 权限过度/脚本注入/敏感数据暴露（2.5k+ stars）"
     },
     {
       "step": 2.5,
@@ -81,9 +73,7 @@
         "mode": "block"
       },
       "description": "构建产物泄露检测（noleak）：Source Map / .env / 密钥 — 阻断 CI 流水线",
-      "auto_execute": true,
-      "condition": "build_artifacts_exist",
-      "on_error": "continue"
+      "condition": "build_artifacts_exist"
     },
     {
       "step": 3,
@@ -99,7 +89,6 @@
         ]
       },
       "description": "CI/CD 质量门禁",
-      "auto_execute": true,
       "condition": "ciConfigured == false",
       "on_error": "abort"
     },
@@ -112,9 +101,7 @@
         "source": "cicd"
       },
       "description": "自动修复 CI/CD 配置问题",
-      "auto_execute": true,
-      "condition": "ciConfigured == false",
-      "on_error": "continue"
+      "condition": "ciConfigured == false"
     },
     {
       "step": 5,
@@ -127,9 +114,7 @@
         "content": "未能生成有效的 CI/CD 配置，请检查项目结构"
       },
       "description": "CI/CD 配置失败通知",
-      "auto_execute": true,
-      "condition": "ciConfigured == false",
-      "on_error": "continue"
+      "condition": "ciConfigured == false"
     },
     {
       "step": 6,
@@ -146,9 +131,7 @@
           "taskAvailable": "{{taskAvailable}}"
         }
       },
-      "description": "保存 CI/CD 配置结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存 CI/CD 配置结果"
     },
     {
       "step": 7,
@@ -156,9 +139,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理去重记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理去重记忆"
     },
     {
       "step": 7.5,
@@ -170,9 +151,7 @@
         "source": "auto"
       },
       "description": "将cicd知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 8,
@@ -182,9 +161,7 @@
       "params": {
         "message": "CI/CD 流水线配置工作流完成"
       },
-      "description": "通知 CI/CD 配置完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知 CI/CD 配置完成"
     }
   ],
   "status": "active"

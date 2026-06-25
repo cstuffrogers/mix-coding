@@ -23,9 +23,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 0.5,
@@ -42,9 +40,7 @@
           ]
         }
       },
-      "description": "注入历史发布记录和配置记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史发布记录和配置记忆"
     },
     {
       "step": 1,
@@ -53,7 +49,6 @@
       "action": "detectProject",
       "params": {},
       "description": "识别平台→确定发布渠道（iOS→TestFlight/App Store, Android→Play Internal/Production, 小程序→体验版/审核）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -63,7 +58,6 @@
       "action": "releaseChecks",
       "params": {},
       "description": "发布前环境检查：证书/Profile有效性(iOS)、签名密钥(Android)、隐私标签、测试账号",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -74,8 +68,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 2.1
     },
     {
@@ -94,7 +86,6 @@
         "block_release": true
       },
       "description": "发布前质量门禁：安全扫描通过（无CRITICAL/HIGH）+ 性能基线达标 + 测试通过 + 商店合规",
-      "auto_execute": true,
       "on_error": "abort",
       "criticality": "BLOCK-RELEASE"
     },
@@ -135,7 +126,6 @@
       },
       "produces": "new_version",
       "description": "自动更新版本号（从 step 4 获取 bump_type → 更新 package.json/build.gradle/Info.plist/pubspec.yaml）→ 输出版本号供后续步骤使用",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -148,9 +138,7 @@
       },
       "consumes": "new_version",
       "produces": "changelog_content",
-      "description": "从 Conventional Commits 自动生成 CHANGELOG（基于 new_version，构建前生成，随 release 一起发布）→ 输出 changelog_content 供 GitHub Release 使用",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "从 Conventional Commits 自动生成 CHANGELOG（基于 new_version，构建前生成，随 release 一起发布）→ 输出 changelog_content 供 GitHub Release 使用"
     },
     {
       "step": 7,
@@ -159,9 +147,7 @@
       "action": "grayReleaseConfig",
       "params": {},
       "consumes": "new_version",
-      "description": "灰度发布配置（基于 new_version）：分阶段 rollout 比例 + 强制更新策略 + 版本兼容矩阵（构建前设定，纳入构建参数）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "灰度发布配置（基于 new_version）：分阶段 rollout 比例 + 强制更新策略 + 版本兼容矩阵（构建前设定，纳入构建参数）"
     },
     {
       "step": 8,
@@ -172,7 +158,6 @@
         "lane": "beta"
       },
       "description": "iOS: archive → upload to TestFlight（条件：iOS项目）",
-      "auto_execute": true,
       "condition": "ios_platform",
       "on_error": "abort",
       "timeout": 1200
@@ -186,7 +171,6 @@
         "track": "internal"
       },
       "description": "Android: AAB签名 → Play Internal Testing（条件：Android项目）",
-      "auto_execute": true,
       "condition": "android_platform",
       "on_error": "abort",
       "timeout": 1200
@@ -207,9 +191,7 @@
         "new_version"
       ],
       "description": "GitHub Release + CHANGELOG（body_ref/tag_ref 分别引用 step 6 和 step 5 产出）",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 11,
@@ -221,9 +203,7 @@
         "source": "auto"
       },
       "description": "发布流程知识沉淀",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 12,
@@ -237,9 +217,7 @@
           "api_calls"
         ]
       },
-      "description": "发布流程成本报告",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "发布流程成本报告"
     },
     {
       "step": 13,
@@ -252,9 +230,7 @@
           "source": "mobile-release_workflow"
         }
       },
-      "description": "保存发布记录到记忆（版本号/渠道/构建号/发布状态）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存发布记录到记忆（版本号/渠道/构建号/发布状态）"
     },
     {
       "step": 14,
@@ -262,9 +238,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 15,
@@ -275,9 +249,7 @@
         "type": "success",
         "message": "发布完成 🚀 iOS TestFlight + Android Play Internal Testing 已提交，审核通过后将自动上架"
       },
-      "description": "通知发布结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知发布结果"
     }
   ],
   "status": "active"

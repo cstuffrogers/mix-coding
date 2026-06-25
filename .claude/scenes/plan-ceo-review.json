@@ -22,9 +22,7 @@
           "type": "product_decision"
         }
       },
-      "description": "回忆历史产品决策和用户反馈",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "回忆历史产品决策和用户反馈"
     },
     {
       "step": 1,
@@ -34,9 +32,7 @@
       "params": {
         "paths": ["spec.md", "plan.md", "tasks.md", "README.md"]
       },
-      "description": "读取功能规格/PRD/任务文档，理解当前方案",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "读取功能规格/PRD/任务文档，理解当前方案"
     },
     {
       "step": 1.5,
@@ -58,9 +54,7 @@
       "params": {
         "prompt": "如果只给一周，10x 版本长什么样？不做渐进式修补，从第一性原理重新定义问题。不是好 10%，而是好 10 倍。"
       },
-      "description": "10x 分析：从第一性原理重新定义问题，找到突破性方案",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "10x 分析：从第一性原理重新定义问题，找到突破性方案"
     },
     {
       "step": 3,
@@ -70,9 +64,7 @@
       "params": {
         "prompt": "什么可以砍？识别 scope creep、镀金需求、过度工程化。最简可上线版本（MLP）需要哪些？哪些是一年后也没人会发现的功能？"
       },
-      "description": "精简化：识别 scope creep 和可砍功能",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "精简化：识别 scope creep 和可砍功能"
     },
     {
       "step": 4,
@@ -82,9 +74,7 @@
       "params": {
         "prompt": "用户会注意到并关心吗？这个功能移动什么核心指标？如果不上线用户会流失吗？影响哪些用户画像？"
       },
-      "description": "用户价值：评估核心指标影响和用户感知度",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "用户价值：评估核心指标影响和用户感知度"
     },
     {
       "step": 5,
@@ -98,9 +88,7 @@
           "cut": "镀金/过度工程/没人会注意，砍掉或永久推迟"
         }
       },
-      "description": "三桶分类：Must-Do / Nice-to-Have / Cut",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "三桶分类：Must-Do / Nice-to-Have / Cut"
     },
     {
       "step": 6,
@@ -111,9 +99,7 @@
         "format": "markdown",
         "output": ".claude/ceo-review-{timestamp}.md"
       },
-      "description": "生成结构化审查报告：每条建议含是什么/为什么/用户影响/建议行动",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "生成结构化审查报告：每条建议含是什么/为什么/用户影响/建议行动"
     },
     {
       "step": 7,
@@ -126,9 +112,7 @@
           "source": "ceo_review_workflow"
         }
       },
-      "description": "保存产品决策到记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存产品决策到记忆"
     },
     {
       "step": 8,
@@ -136,9 +120,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 9,
@@ -149,9 +131,7 @@
         "type": "info",
         "message": "CEO 策略审查完成"
       },
-      "description": "通知用户审查结果",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户审查结果"
     }
   ],
   "status": "active"

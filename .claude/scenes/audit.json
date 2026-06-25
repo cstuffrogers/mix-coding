@@ -21,9 +21,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单，建立审计基准框架",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 0.5,
@@ -40,9 +38,7 @@
           ]
         }
       },
-      "description": "注入历史审计上下文和安全策略记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史审计上下文和安全策略记忆"
     },
     {
       "step": 1,
@@ -60,8 +56,6 @@
         ]
       },
       "description": "全量安全扫描：XSS、SQL注入、CSRF、硬编码密钥、不安全依赖",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 600
     },
     {
@@ -73,8 +67,6 @@
         "mode": "full"
       },
       "description": "五层代码审查：ESLint → react-doctor → Playwright → AI语义 → 聚合",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -93,9 +85,7 @@
           ]
         }
       },
-      "description": "依赖安全审计：npm audit / pip audit / cargo audit",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "依赖安全审计：npm audit / pip audit / cargo audit"
     },
     {
       "step": 3.02,
@@ -108,9 +98,7 @@
         "includeWarnings": true
       },
       "description": "pa11y-ci WCAG 2.1 AA 无障碍扫描：检测 HTML 文件，JSX/TSX 回退到代码级 aria/alt/label 检查",
-      "auto_execute": true,
-      "condition": "frontend_involved",
-      "on_error": "continue"
+      "condition": "frontend_involved"
     },
     {
       "step": 3.03,
@@ -120,9 +108,7 @@
       "params": {
         "mode": "check"
       },
-      "description": "i18n 国际化审查：硬编码中文字符串、RTL布局适配、i18n配置检测",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "i18n 国际化审查：硬编码中文字符串、RTL布局适配、i18n配置检测"
     },
     {
       "step": 3.04,
@@ -130,9 +116,7 @@
       "service": "SecuritySkill",
       "action": "open-redirect-scan",
       "params": {},
-      "description": "开放重定向检测：location.href/window.open 参数注入",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "开放重定向检测：location.href/window.open 参数注入"
     },
     {
       "step": 3.05,
@@ -140,9 +124,7 @@
       "service": "SecuritySkill",
       "action": "security-headers",
       "params": {},
-      "description": "安全响应头扫描：CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy — seraphim-audit（代码配置 + 可选实时 URL 扫描）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "安全响应头扫描：CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy — seraphim-audit（代码配置 + 可选实时 URL 扫描）"
     },
     {
       "step": 3.06,
@@ -153,9 +135,7 @@
         "maxSteps": 10000,
         "timeout": 5000
       },
-      "description": "正则 ReDoS 扫描：灾难性回溯检测 — recheck-cli",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "正则 ReDoS 扫描：灾难性回溯检测 — recheck-cli"
     },
     {
       "step": 3.07,
@@ -163,9 +143,7 @@
       "service": "SecuritySkill",
       "action": "log-sanitization",
       "params": {},
-      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测"
     },
     {
       "step": 3.08,
@@ -173,9 +151,7 @@
       "service": "SecuritySkill",
       "action": "cors-check",
       "params": {},
-      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置"
     },
     {
       "step": 3.09,
@@ -183,9 +159,7 @@
       "service": "SecuritySkill",
       "action": "env-var-leak",
       "params": {},
-      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / Next.js process.env 前缀检查",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / Next.js process.env 前缀检查"
     },
     {
       "step": 3.12,
@@ -193,9 +167,7 @@
       "service": "SecuritySkill",
       "action": "sensitive-file-check",
       "params": {},
-      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态"
     },
     {
       "step": 3.16,
@@ -203,9 +175,7 @@
       "service": "DepsService",
       "action": "deprecated-deps",
       "params": {},
-      "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包"
     },
     {
       "step": 3.17,
@@ -213,9 +183,7 @@
       "service": "MetaCheckService",
       "action": "verify-handlers",
       "params": {},
-      "description": "Handler 功能性验证：扫描 ACTION_REGISTRY + CE dispatch + handler 文件，检测空转桩（MCP/MP/CE/伪桩）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Handler 功能性验证：扫描 ACTION_REGISTRY + CE dispatch + handler 文件，检测空转桩（MCP/MP/CE/伪桩）"
     },
     {
       "step": 3.18,
@@ -229,9 +197,7 @@
         ],
         "format": "json"
       },
-      "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）"
     },
     {
       "step": 3.19,
@@ -241,9 +207,7 @@
       "params": {
         "mode": "scan"
       },
-      "description": "AI 代码气味扫描（aislop）：50+ 规则 — 叙事注释、吞异常、死代码、as any 滥用、重复 helper、过多抽象层级",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "AI 代码气味扫描（aislop）：50+ 规则 — 叙事注释、吞异常、死代码、as any 滥用、重复 helper、过多抽象层级"
     },
     {
       "step": 3.195,
@@ -256,9 +220,7 @@
         "dependencies": true,
         "exports": true
       },
-      "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入"
     },
     {
       "step": 3.21,
@@ -270,9 +232,7 @@
         "outputType": "err-html",
         "outputTo": "docs/dependency-graph.html"
       },
-      "description": "依赖架构验证（dependency-cruiser）：循环依赖检测、孤儿模块识别、架构分层合规、调用图生成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "依赖架构验证（dependency-cruiser）：循环依赖检测、孤儿模块识别、架构分层合规、调用图生成"
     },
     {
       "step": 3.22,
@@ -280,9 +240,7 @@
       "service": "CIService",
       "action": "actionlint",
       "params": {},
-      "description": "GitHub Actions 工作流语法检查（actionlint）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "GitHub Actions 工作流语法检查（actionlint）"
     },
     {
       "step": 3.23,
@@ -290,9 +248,7 @@
       "service": "SecuritySkill",
       "action": "zizmor",
       "params": {},
-      "description": "GitHub Actions 安全审计（zizmor）：权限过度/脚本注入/敏感数据暴露",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "GitHub Actions 安全审计（zizmor）：权限过度/脚本注入/敏感数据暴露"
     },
     {
       "step": 3.24,
@@ -306,9 +262,7 @@
         "reporters": ["console", "html"],
         "output": "docs/jscpd-report"
       },
-      "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，min-tokens 50，重复率 > 5% 告警",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，min-tokens 50，重复率 > 5% 告警"
     },
     {
       "step": 3.25,
@@ -320,9 +274,7 @@
         "webpack": false,
         "running": true
       },
-      "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出 .size-limit.json 配置的预算",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出 .size-limit.json 配置的预算"
     },
     {
       "step": 3.26,
@@ -337,9 +289,7 @@
           "low": 60
         }
       },
-      "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量"
     },
     {
       "step": 3.27,
@@ -350,9 +300,7 @@
         "ruleset": ".spectral.yaml",
         "failSeverity": "error"
       },
-      "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）"
     },
     {
       "step": 3.28,
@@ -363,9 +311,7 @@
         "config": ".markdownlint.json",
         "ignore": ["node_modules", ".git", "CHANGELOG.md"]
       },
-      "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）"
     },
     {
       "step": 4,
@@ -376,9 +322,7 @@
         "mode": "static",
         "target": "all"
       },
-      "description": "性能静态分析：识别热点函数、大Bundle、N+1查询模式",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "性能静态分析：识别热点函数、大Bundle、N+1查询模式"
     },
     {
       "step": 5,
@@ -389,9 +333,7 @@
         "threshold": 0,
         "mode": "report"
       },
-      "description": "获取当前测试覆盖率（仅报告，不设阈值阻断）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "获取当前测试覆盖率（仅报告，不设阈值阻断）"
     },
     {
       "step": 6,
@@ -402,9 +344,7 @@
         "mode": "full",
         "depth": "deep"
       },
-      "description": "代码复杂度扫描：圈复杂度、重复率、文件行数、依赖深度",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "代码复杂度扫描：圈复杂度、重复率、文件行数、依赖深度"
     },
     {
       "step": 6.5,
@@ -417,9 +357,7 @@
           "maintainability": 60
         }
       },
-      "description": "代码复杂度指标：圈复杂度阈值检查（>15 视为高复杂度）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "代码复杂度指标：圈复杂度阈值检查（>15 视为高复杂度）"
     },
     {
       "step": 6.6,
@@ -427,9 +365,7 @@
       "service": "DepsService",
       "action": "checkOutdated",
       "params": {},
-      "description": "依赖审计：检测过期 npm 包",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "依赖审计：检测过期 npm 包"
     },
     {
       "step": 8,
@@ -439,9 +375,7 @@
       "params": {
         "mode": "history"
       },
-      "description": "Git 历史密钥扫描：API Key、Token、私钥、JWT 泄露检测",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "Git 历史密钥扫描：API Key、Token、私钥、JWT 泄露检测"
     },
     {
       "step": 8.5,
@@ -454,9 +388,7 @@
         "maxRedirects": 5,
         "exclude": ["linkedin.com", "twitter.com", "localhost"]
       },
-      "description": "死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 — lychee（全目录扫描）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 — lychee（全目录扫描）"
     },
     {
       "step": 8.7,
@@ -466,9 +398,7 @@
       "params": {
         "mode": "report"
       },
-      "description": "构建产物泄露检测：Source Map / .env / 密钥扫描 — noleak（仅报告）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "构建产物泄露检测：Source Map / .env / 密钥扫描 — noleak（仅报告）"
     },
     {
       "step": 8.8,
@@ -478,9 +408,7 @@
       "params": {
         "mode": "report"
       },
-      "description": "性能预算门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查 — Lighthouse CI（仅报告）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "性能预算门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查 — Lighthouse CI（仅报告）"
     },
     {
       "step": 9,
@@ -526,7 +454,6 @@
         "mode": "report_only"
       },
       "description": "汇总所有检查结果为统一健康报告（仅报告，不阻断）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -569,9 +496,7 @@
           "markdownlint"
         ]
       },
-      "description": "生成全面审计报告：包含各项得分、风险等级、改进建议",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "生成全面审计报告：包含各项得分、风险等级、改进建议"
     },
     {
       "step": 10.5,
@@ -582,9 +507,7 @@
         "title": "Project Health Audit"
       },
       "description": "Huashu infographic: 将审计指标渲染为单页 HTML 信息图（editorial-brutalism）",
-      "auto_execute": true,
-      "condition": "enh_huashu_infographic",
-      "on_error": "continue"
+      "condition": "enh_huashu_infographic"
     },
     {
       "step": 10.7,
@@ -601,9 +524,7 @@
         ]
       },
       "description": "架构深度审计：God Module检测 + 分层合规 + 依赖分析 + 复杂度热点图",
-      "auto_execute": true,
-      "condition": "enh_architecture_deep_audit",
-      "on_error": "continue"
+      "condition": "enh_architecture_deep_audit"
     },
     {
       "step": 11,
@@ -634,9 +555,7 @@
           "dependencies"
         ]
       },
-      "description": "根据审计结果执行自动修复（安全+规范+依赖）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "根据审计结果执行自动修复（安全+规范+依赖）"
     },
     {
       "step": 13,
@@ -650,9 +569,7 @@
           "api_calls"
         ]
       },
-      "description": "审计流程成本报告",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "审计流程成本报告"
     },
     {
       "step": 13.5,
@@ -664,9 +581,7 @@
         "source": "auto"
       },
       "description": "将审计发现沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 14,
@@ -679,9 +594,7 @@
           "source": "audit_workflow"
         }
       },
-      "description": "保存审计结果到多后端记忆（安全发现/质量指标/性能热点）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存审计结果到多后端记忆（安全发现/质量指标/性能热点）"
     },
     {
       "step": 14.5,
@@ -689,9 +602,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性，去重过期条目",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性，去重过期条目"
     },
     {
       "step": 15,
@@ -702,9 +613,7 @@
         "type": "info",
         "message": "项目健康检查完成：报告已保存至 docs/audit-report.md"
       },
-      "description": "通知用户审计完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户审计完成"
     }
   ],
   "status": "active"

@@ -18,9 +18,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 1,
@@ -37,9 +35,7 @@
           ]
         }
       },
-      "description": "注入历史上下文和相关记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史上下文和相关记忆"
     },
     {
       "step": 2,
@@ -51,9 +47,7 @@
         "limit": 10
       },
       "description": "使用 GitHub MCP 列出待处理的 issues",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 3,
@@ -64,9 +58,7 @@
         "topic": "continuous integration best practices"
       },
       "description": "使用 Context7 MCP 获取持续集成最佳实践",
-      "auto_execute": true,
-      "condition": "context7_mcp_available",
-      "on_error": "continue"
+      "condition": "context7_mcp_available"
     },
     {
       "step": 4,
@@ -83,9 +75,7 @@
           "autoFix": true
         }
       },
-      "description": "持续监控：全量审查并自动修复",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "持续监控：全量审查并自动修复"
     },
     {
       "layer": "capability",
@@ -95,8 +85,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 4.1
     },
     {
@@ -109,7 +97,6 @@
         "scope": "modified_files"
       },
       "description": "CodeGuardian 变更边界验证：无人值守迭代中最关键防线。物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止自动修复跑偏",
-      "auto_execute": true,
       "condition": "codeguardian_mcp_available",
       "on_error": "abort"
     },
@@ -122,7 +109,6 @@
         "mode": "unit"
       },
       "description": "自动修复后运行测试验证",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -135,9 +121,7 @@
         "source": "auto"
       },
       "description": "将迭代循环知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 7,
@@ -150,9 +134,7 @@
           "source": "loop_workflow"
         }
       },
-      "description": "保存迭代循环结果到记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存迭代循环结果到记忆"
     },
     {
       "step": 7.5,
@@ -160,9 +142,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨组件记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨组件记忆一致性"
     },
     {
       "step": 8,
@@ -177,9 +157,7 @@
           "mcp_usage"
         ]
       },
-      "description": "输出本轮迭代的Token/API调用/MCP使用成本汇总",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "输出本轮迭代的Token/API调用/MCP使用成本汇总"
     },
     {
       "step": 9,
@@ -190,9 +168,7 @@
         "type": "info",
         "message": "自动迭代循环完成：审查→修复→测试验证已完成"
       },
-      "description": "通知用户迭代循环完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户迭代循环完成"
     }
   ],
   "status": "active"

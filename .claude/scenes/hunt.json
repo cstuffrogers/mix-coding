@@ -21,9 +21,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 1,
@@ -35,9 +33,7 @@
         "limit": 10
       },
       "description": "使用 Sentry MCP 查询最近7天的错误和安全事件",
-      "auto_execute": true,
-      "condition": "sentry_mcp_available",
-      "on_error": "continue"
+      "condition": "sentry_mcp_available"
     },
     {
       "step": 1.1,
@@ -49,9 +45,7 @@
         "limit": 10
       },
       "description": "使用 Tavily MCP 搜索最新的安全漏洞信息",
-      "auto_execute": true,
-      "condition": "tavily_mcp_available",
-      "on_error": "continue"
+      "condition": "tavily_mcp_available"
     },
     {
       "step": 1.2,
@@ -62,9 +56,7 @@
         "topic": "OWASP security best practices"
       },
       "description": "使用 Context7 MCP 获取安全最佳实践文档",
-      "auto_execute": true,
-      "condition": "context7_mcp_available",
-      "on_error": "continue"
+      "condition": "context7_mcp_available"
     },
     {
       "step": 1.3,
@@ -80,9 +72,7 @@
         "limit": 10
       },
       "description": "使用 GitHub MCP 查询历史安全漏洞 issues",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "step": 1.4,
@@ -93,9 +83,7 @@
         "depth": 3
       },
       "description": "使用 CodeGraph MCP 分析代码安全漏洞和依赖关系",
-      "auto_execute": true,
-      "condition": "codegraph_mcp_available",
-      "on_error": "continue"
+      "condition": "codegraph_mcp_available"
     },
     {
       "step": 2,
@@ -107,9 +95,7 @@
           "type": "security"
         }
       },
-      "description": "注入项目安全策略和已知漏洞上下文",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入项目安全策略和已知漏洞上下文"
     },
     {
       "step": 3,
@@ -129,9 +115,7 @@
           "autoFix": true
         }
       },
-      "description": "安全审查：SQL注入、XSS、CSRF、敏感信息泄露（ESLint --fix 自动修复可修问题）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "安全审查：SQL注入、XSS、CSRF、敏感信息泄露（ESLint --fix 自动修复可修问题）"
     },
     {
       "step": 4,
@@ -150,9 +134,7 @@
           "autoFix": true
         }
       },
-      "description": "依赖漏洞扫描（npm audit fix 自动修复安全依赖）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "依赖漏洞扫描（npm audit fix 自动修复安全依赖）"
     },
     {
       "layer": "capability",
@@ -162,8 +144,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 4.01
     },
     {
@@ -172,9 +152,7 @@
       "service": "SecuritySkill",
       "action": "open-redirect-scan",
       "params": {},
-      "description": "开放重定向检测：location.href/window.open 参数注入",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "开放重定向检测：location.href/window.open 参数注入"
     },
     {
       "step": 4.05,
@@ -182,9 +160,7 @@
       "service": "SecuritySkill",
       "action": "security-headers",
       "params": {},
-      "description": "安全响应头扫描：CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy — seraphim-audit（代码配置扫描）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "安全响应头扫描：CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy — seraphim-audit（代码配置扫描）"
     },
     {
       "step": 4.07,
@@ -195,9 +171,7 @@
         "maxSteps": 10000,
         "timeout": 5000
       },
-      "description": "正则 ReDoS 扫描：灾难性回溯检测 — recheck-cli",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "正则 ReDoS 扫描：灾难性回溯检测 — recheck-cli"
     },
     {
       "step": 4.08,
@@ -205,9 +179,7 @@
       "service": "SecuritySkill",
       "action": "log-sanitization",
       "params": {},
-      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测"
     },
     {
       "step": 4.09,
@@ -215,9 +187,7 @@
       "service": "SecuritySkill",
       "action": "cors-check",
       "params": {},
-      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置"
     },
     {
       "step": 4.11,
@@ -225,9 +195,7 @@
       "service": "SecuritySkill",
       "action": "env-var-leak",
       "params": {},
-      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / process.env 浏览器端泄露",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / process.env 浏览器端泄露"
     },
     {
       "step": 4.12,
@@ -235,9 +203,7 @@
       "service": "SecuritySkill",
       "action": "sensitive-file-check",
       "params": {},
-      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态"
     },
     {
       "step": 4.15,
@@ -251,9 +217,7 @@
         ],
         "format": "json"
       },
-      "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）"
     },
     {
       "step": 5,
@@ -264,7 +228,6 @@
         "mode": "unit"
       },
       "description": "验证修复后无功能回归",
-      "auto_execute": true,
       "condition": "fixes_applied",
       "on_error": "abort"
     },
@@ -278,9 +241,7 @@
         "source": "auto"
       },
       "description": "将安全审查知识沉淀到项目知识库 CLAUDE.md",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 6.5,
@@ -293,9 +254,7 @@
           "source": "hunt_workflow"
         }
       },
-      "description": "保存安全审查结果到记忆（漏洞类型/修复状态/风险等级）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存安全审查结果到记忆（漏洞类型/修复状态/风险等级）"
     },
     {
       "step": 6.6,
@@ -303,9 +262,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 7,
@@ -318,9 +275,7 @@
         "content": "安全审查发现严重漏洞，详见审查报告"
       },
       "description": "发现高危漏洞时即时推送",
-      "auto_execute": true,
-      "condition": "high_severity_found",
-      "on_error": "continue"
+      "condition": "high_severity_found"
     },
     {
       "step": 8,
@@ -331,9 +286,7 @@
         "type": "info",
         "message": "安全漏洞审查完成，详见审查报告"
       },
-      "description": "无条件通知：安全审查流程已完成（含漏洞统计与合规状态）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "无条件通知：安全审查流程已完成（含漏洞统计与合规状态）"
     }
   ],
   "status": "active"

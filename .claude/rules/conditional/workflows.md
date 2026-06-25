@@ -13,23 +13,7 @@
 
 **对话模式优先**：依赖 skill/MCP 工具的命令必须在对话内执行。
 
-## 增强系统
-
-9 个功能已融入增强菜单，对应父工作流自动弹出：
-`/qa`（review 前端变更）、`/plan-ceo-review`（feature 长需求）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（e2e）、`/log` `/incident`（monitor）、`/migration`（review/feature 检测到 DB）、`/llm-proxy-audit`（hunt）
-
-完整增强规则见 `enhancements.md`。
-
-## 关键工作流（速查）
-| 指令 | 场景 | 关键 |
-|------|------|------|
-| `/ui-polish` | ui-polish | 必须先声明设计系统 |
-| `/design` | design | 152 品牌 + 111 模板 + 137 Skill |
-| `/review` | review | 5 层审查 + CE |
-| `/new-project` | new-project | 完整 + 知识沉淀 |
-| `/bugfix` | bugfix | issue → 分支 → 修复 → PR |
-
-完整列表见 `.claude/scenes/` 目录。
+增强菜单及工作流速查见 CLAUDE.md，完整增强规则见 `enhancements.md`。
 
 ## 执行约束
 - 工作流目录：`.claude/scenes/<id>.json`

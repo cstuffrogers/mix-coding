@@ -20,9 +20,7 @@
         "skill": "review-checklist"
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
-      "auto_execute": true,
-      "condition": "conversation_mode",
-      "on_error": "continue"
+      "condition": "conversation_mode"
     },
     {
       "step": 0.5,
@@ -39,9 +37,7 @@
           ]
         }
       },
-      "description": "注入历史测试配置记忆",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "注入历史测试配置记忆"
     },
     {
       "step": 1,
@@ -50,7 +46,6 @@
       "action": "detectProject",
       "params": {},
       "description": "识别框架→选择测试工具：RN/Expo→Detox / Flutter→Patrol / 小程序→miniprogram-automator / 通用→Detox",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -62,7 +57,6 @@
         "generate_examples": true
       },
       "description": "生成测试配置 + 示例用例（登录/主页/核心流程）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -72,8 +66,6 @@
       "action": "verifySetup",
       "params": {},
       "description": "验证测试环境可用：工具安装→配置语法检查→示例用例试运行",
-      "auto_execute": true,
-      "on_error": "continue",
       "timeout": 300
     },
     {
@@ -85,9 +77,7 @@
         "platform": "github_actions"
       },
       "description": "生成 CI 配置：GitHub Actions runner + 模拟器启动（后续可扩展 GitLab CI/Jenkins）",
-      "auto_execute": true,
-      "condition": "github_mcp_available",
-      "on_error": "continue"
+      "condition": "github_mcp_available"
     },
     {
       "layer": "capability",
@@ -97,8 +87,6 @@
         "mode": "scan"
       },
       "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
-      "auto_execute": true,
-      "on_error": "continue",
       "step": 4.1
     },
     {
@@ -114,7 +102,6 @@
         ]
       },
       "description": "E2E 配置质量门禁（CI 配置已生成后再检查）",
-      "auto_execute": true,
       "on_error": "abort"
     },
     {
@@ -127,9 +114,7 @@
         "source": "auto"
       },
       "description": "E2E 测试配置知识沉淀",
-      "auto_execute": true,
-      "condition": "plugin_ce_available",
-      "on_error": "continue"
+      "condition": "plugin_ce_available"
     },
     {
       "step": 7,
@@ -143,9 +128,7 @@
           "api_calls"
         ]
       },
-      "description": "E2E 配置流程成本报告",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "E2E 配置流程成本报告"
     },
     {
       "step": 8,
@@ -158,9 +141,7 @@
           "source": "mobile-e2e_workflow"
         }
       },
-      "description": "保存测试配置到记忆（框架选择/配置文件路径/CI配置）",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "保存测试配置到记忆（框架选择/配置文件路径/CI配置）"
     },
     {
       "step": 9,
@@ -168,9 +149,7 @@
       "service": "MemoryService",
       "action": "consolidate",
       "params": {},
-      "description": "整理跨后端记忆一致性",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "整理跨后端记忆一致性"
     },
     {
       "step": 10,
@@ -181,9 +160,7 @@
         "type": "success",
         "message": "移动端 E2E 测试配置完成 🧪 示例用例已就绪，运行 npx detox test 开始"
       },
-      "description": "通知用户 E2E 配置完成",
-      "auto_execute": true,
-      "on_error": "continue"
+      "description": "通知用户 E2E 配置完成"
     }
   ],
   "status": "active"
