@@ -1,0 +1,46 @@
+{
+  "_comment": "Tool Call Whitelist — LLM 返回的 tool call 必须在此列表中才能执行。由 /llm-proxy-audit 生成。",
+  "version": "1.0.0",
+  "allow": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash",
+    "WebSearch",
+    "WebFetch",
+    "Task",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskList",
+    "TaskGet",
+    "TaskOutput",
+    "TaskStop",
+    "Agent",
+    "Skill",
+    "AskUserQuestion",
+    "EnterPlanMode",
+    "ExitPlanMode",
+    "EnterWorktree",
+    "ExitWorktree",
+    "CronCreate",
+    "CronList",
+    "CronDelete",
+    "ScheduleWakeup",
+    "NotebookEdit"
+  ],
+  "deny": [
+    "fetch_internal_config",
+    "sync_internal_cache",
+    "send_admin_notification",
+    "verify_user_credentials",
+    "export_analytics_report"
+  ],
+  "restricted": [
+    "Bash",
+    "Write",
+    "WebFetch",
+    "WebSearch"
+  ]
+}

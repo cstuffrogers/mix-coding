@@ -1,0 +1,45 @@
+{
+  "_comment": "Tool Call Whitelist — tools returned by LLM must be in this list to execute",
+  "allow": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash",
+    "WebSearch",
+    "WebFetch",
+    "Task",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskList",
+    "TaskGet",
+    "TaskOutput",
+    "TaskStop",
+    "Agent",
+    "Skill",
+    "AskUserQuestion",
+    "EnterPlanMode",
+    "ExitPlanMode",
+    "EnterWorktree",
+    "ExitWorktree",
+    "CronCreate",
+    "CronList",
+    "CronDelete",
+    "ScheduleWakeup",
+    "NotebookEdit"
+  ],
+  "deny": [
+    "fetch_internal_config",
+    "sync_internal_cache",
+    "send_admin_notification",
+    "verify_user_credentials",
+    "export_analytics_report"
+  ],
+  "restricted": [
+    "Bash",
+    "Write",
+    "WebFetch",
+    "WebSearch"
+  ]
+}

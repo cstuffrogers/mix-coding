@@ -5,8 +5,9 @@
  * Auto mode (--auto) or non-TTY: only DEFAULT-true items are enabled.
  * Interactive: 3-second timeout falls back to defaults; otherwise user picks.
  */
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { scanDir } from './scan-dir.js';
@@ -46,6 +47,27 @@ const DETECTORS = {
     return /\b[A-Z][a-z]+(?:\s+[A-Z0-9][a-z0-9]*){0,2}\b/.test(prompt);
   },
   complexRequirement: (prompt = '') => (prompt || '').length > 50,
+  stagehand: (root) => {
+    try {
+      const pkgPath = join(root, 'package.json');
+      if (!existsSync(pkgPath)) return false;
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      return '@browserbasehq/stagehand' in deps;
+    } catch { return false; }
+  },
+  mythosAgent: () => {
+    try {
+      execSync('mythos-agent --version', { stdio: 'ignore' });
+      return true;
+    } catch { return false; }
+  },
+  gepa: () => {
+    try {
+      execSync('python -c "import gepa"', { stdio: 'ignore' });
+      return true;
+    } catch { return false; }
+  },
 };
 
 /**
@@ -75,6 +97,12 @@ const REGISTRY = {
       default: true,
       when: () => true,
     },
+    {
+      key: 'stagehand_responsive',
+      label: 'Stagehand 响应式校验 — desktop/tablet/mobile 多视口自动截图对比',
+      default: false,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
   ],
   'ui-polish': [
     {
@@ -89,6 +117,12 @@ const REGISTRY = {
       default: true,
       when: () => true,
     },
+    {
+      key: 'stagehand_interaction',
+      label: 'Stagehand 交互完整性校验 — 美化后确认 hover/click/focus/modal 未损坏',
+      default: true,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
   ],
   review: [
     {
@@ -96,6 +130,18 @@ const REGISTRY = {
       label: 'Huashu 5 维度专家评审 (Layer 6) — UI 设计质量评分',
       default: true,
       when: (ctx) => DETECTORS.uiFiles(ctx.targetPath),
+    },
+    {
+      key: 'stagehand_behavior',
+      label: 'Stagehand 行为验证 — git diff → 受影响页面自动操作验证（自愈选择器）',
+      default: false,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
+    {
+      key: 'mythos_agent_review',
+      label: 'mythos-agent 安全深度推理 — 基于 diff 推理新攻击面',
+      default: false,
+      when: () => DETECTORS.mythosAgent(),
     },
   ],
   release: [
@@ -110,6 +156,18 @@ const REGISTRY = {
       label: 'Huashu Release Animation — MP4/GIF 发布动画 (需 sharp+playwright)',
       default: false,
       when: () => true,
+    },
+    {
+      key: 'stagehand_smoke',
+      label: 'Stagehand 发布前冒烟 — 关键路径浏览器验证，任一失败阻断发布',
+      default: false,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
+    {
+      key: 'mythos_agent_release',
+      label: 'mythos-agent 发布安全门禁 — 假设驱动全量扫描，不通过则阻断',
+      default: false,
+      when: () => DETECTORS.mythosAgent(),
     },
   ],
   changelog: [
@@ -133,6 +191,12 @@ const REGISTRY = {
       default: false,
       when: () => true,
     },
+    {
+      key: 'mythos_agent_audit',
+      label: 'mythos-agent 安全审计 — 假设驱动全库扫描 + 数据流推理',
+      default: true,
+      when: () => DETECTORS.mythosAgent(),
+    },
   ],
   analyze: [
     {
@@ -148,6 +212,104 @@ const REGISTRY = {
       label: 'Huashu HTML Prototype Fallback — MattPocock 不可用时兜底',
       default: true,
       when: () => true,
+    },
+  ],
+  bugfix: [
+    {
+      key: 'stagehand_reproduce',
+      label: 'Stagehand 浏览器复现闭环 — 自然语言 → 复现 → 修复 → 验证',
+      default: true,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
+    {
+      key: 'mythos_agent_variants',
+      label: 'mythos-agent 同根因排查 — 修一个漏洞，全库扫描同类模式',
+      default: true,
+      when: () => DETECTORS.mythosAgent(),
+    },
+  ],
+  deps: [
+    {
+      key: 'mythos_agent_cve',
+      label: 'mythos-agent CVE 可利用性分析 — 判断 CVE 是否真正到达受影响代码路径',
+      default: false,
+      when: () => DETECTORS.mythosAgent(),
+    },
+  ],
+  e2e: [
+    {
+      key: 'stagehand_functional',
+      label: 'Stagehand 功能性测试 — act/extract/observe 验证用户关键路径',
+      default: true,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
+  ],
+  feature: [
+    {
+      key: 'stagehand_acceptance',
+      label: 'Stagehand 功能验收 — 新功能完整用户流程浏览器自动化验证',
+      default: true,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
+    {
+      key: 'mythos_agent_feature',
+      label: 'mythos-agent 新功能安全审计 — API 端点/文件上传/数据流安全推理',
+      default: true,
+      when: () => DETECTORS.mythosAgent(),
+    },
+  ],
+  hunt: [
+    {
+      key: 'mythos_agent_hunt',
+      label: 'mythos-agent 假设驱动扫描 — AI 推理未知漏洞 + 变量分析 + PoC 生成',
+      default: true,
+      when: () => DETECTORS.mythosAgent(),
+    },
+  ],
+  monitor: [
+    {
+      key: 'stagehand_synthetic',
+      label: 'Stagehand 合成监控 — 定时跑关键路径浏览器验证，失败告警',
+      default: false,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
+  ],
+  'new-project': [
+    {
+      key: 'stagehand_scaffold',
+      label: 'Stagehand E2E 脚手架 — 自动生成 Stagehand 测试模板 + CI 配置',
+      default: false,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
+  ],
+  optimize: [
+    {
+      key: 'gepa_evolve',
+      label: 'GEPA prompt 进化 — LLM 反思执行轨迹 → Pareto 进化搜索 → 自动优化场景 prompt',
+      default: true,
+      when: () => DETECTORS.gepa(),
+    },
+  ],
+  loop: [
+    {
+      key: 'gepa_self_evolve',
+      label: 'GEPA 自进化模式 — 每轮自动评估 → GEPA 优化 prompt → 循环至收敛',
+      default: true,
+      when: () => DETECTORS.gepa(),
+    },
+  ],
+  refactor: [
+    {
+      key: 'stagehand_regression',
+      label: 'Stagehand 行为回归 — 重构前后浏览器功能一致性验证',
+      default: true,
+      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+    },
+    {
+      key: 'mythos_agent_refactor',
+      label: 'mythos-agent 安全审计 — 假设驱动全库扫描 + 数据流变化推理',
+      default: true,
+      when: () => DETECTORS.mythosAgent(),
     },
   ],
 };

@@ -1,0 +1,40 @@
+﻿| Scene | Steps | File |
+|-------|-------|------|
+| 前端美化 | 69 | ui-polish.json |
+| 从零开始新项目 | 66 | new-project.json |
+| AI 辅助 UI 设计 | 53 | design.json |
+| 全面项目健康检查 | 47 | audit.json |
+| 代码审查 + 安全审计 | 33 | review.json |
+| Bug修复 | 30 | bugfix.json |
+| 新功能开发 | 26 | feature.json |
+| 安全漏洞审查 | 24 | hunt.json |
+| 移动端全维度审计 | 24 | mobile-audit.json |
+| 发布部署 | 24 | release.json |
+| 代码重构 | 23 | refactor.json |
+| 移动端性能优化 | 19 | mobile-optimize.json |
+| 代码分析 | 18 | analyze.json |
+| 移动端发布流程 | 18 | mobile-release.json |
+| 依赖更新 | 17 | deps.json |
+| 移动端代码审查 | 17 | mobile-review.json |
+| 性能优化 | 17 | optimize.json |
+| 移动端开发环境搭建 | 16 | mobile-onboard.json |
+| 开发者入职/环境搭建 | 16 | onboard.json |
+| 快速回滚 | 16 | rollback.json |
+| 代码简化 | 15 | simplify.json |
+| 自动迭代循环 | 13 | loop.json |
+| 移动端 E2E 测试配置 | 13 | mobile-e2e.json |
+| CI/CD 流水线配置 | 12 | cicd.json |
+| LLM 代理安全审计 | 11 | llm-proxy-audit.json |
+| 变更日志生成 | 10 | changelog.json |
+| 数据库迁移审查 | 10 | migration.json |
+| 备份配置 | 9 | backup.json |
+| Docker 容器化配置 | 9 | docker.json |
+| E2E 测试配置 | 9 | e2e.json |
+| Incident Runbook 生成 | 9 | incident.json |
+| 负载测试 | 9 | loadtest.json |
+| 日志聚合配置 | 9 | log.json |
+| 监控配置 | 9 | monitor.json |
+| SBOM 和许可证合规 | 9 | sbom.json |
+
+Total scenes: 35
+Total steps: 729

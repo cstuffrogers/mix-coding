@@ -16,6 +16,7 @@
     "mcp:switch": "node scripts/switch-mcp.cjs"
   },
   "devDependencies": {
+    "@browserbasehq/stagehand": "^3.6.0",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.61.1",
     "@vitest/coverage-v8": "^4.1.9",
@@ -31,7 +32,8 @@
     "react-dom": "^19.2.7",
     "recheck-cli": "^0.3.1",
     "tailwindcss": "^3.4.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "zod": "^4.4.3"
   },
   "dependencies": {
     "animal-island-ui": "^0.9.8"

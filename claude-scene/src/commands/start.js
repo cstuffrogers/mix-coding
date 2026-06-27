@@ -333,11 +333,11 @@ async function runStep(sceneId, step, context, options) {
   // Auto-detect no-op steps: tool unavailable / nothing to check / config missing
   const resultStr = typeof result === 'string' ? result : '';
   const isNoop = !context.lastStepFailed &&
-    /(不可用|无.*[目录配置文件]|未安装|未找到|not found|not available|已?跳过|no .*found)/i.test(resultStr);
+    /(不可用|无.*?[目录配置文件]|未安装|未找到|not found|not available|已?跳过|no .*?found)/i.test(resultStr);
 
   // Auto-detect warn: passes but result indicates non-zero issues (aislop findings, vulnerabilities, etc.)
   const isWarn = !context.lastStepFailed && !isNoop &&
-    /[1-9]\d*\s*((个|处|类).{0,30}?(问题|漏洞|警告|气味|发现|重复)|failed|failures?)/i.test(resultStr);
+    /[1-9]\d*\s*([个处类].{0,30}?(问题|漏洞|警告|气味|发现|重复)|failed|failures?)/i.test(resultStr);
 
   LOG_SUMMARY.total++;
   const stepStatus = context.lastStepFailed ? 'fail' : (isNoop ? 'noop' : (isWarn ? 'warn' : 'pass'));

@@ -1,0 +1,24 @@
+【第一层】Lobster Trap — 实时拦截
+  状态: ✅ 已安装
+  策略: ✅ 已配置
+  位置: .claude/tools/lobstertrap-policy.yaml
+
+【第二层】AgentShield 蜜罐 — 零假阳性检测
+  状态: ✅ 5 个蜜罐
+  位置: .honeytools.json
+  原理: 中转站注入未知 tool call → 触发蜜罐 → 确认攻击
+
+【第三层】agent-egress-bench — 基准验证
+  状态: ✅ 就绪
+  用例: 155 个 (18 类别)
+  位置: .claude/tools/agent-egress-bench
+
+【辅助工具】
+  差分测试: ⚠ 需配置 API 凭证
+  白名单: ✅ 27 工具
+
+【部署顺序建议】
+  1. 配置 API 凭证 → 运行差分测试验证中转站基线行为
+  2. 生成蜜罐 → 混入工具集 → 监控 .honeytool-hits.log
+  3. 启动 Lobster Trap → 实时拦截
+  4. 定期运行 agent-egress-bench → 验证防线有效

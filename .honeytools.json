@@ -1,0 +1,44 @@
+{
+  "_comment": "AgentShield-style honeytool configuration. These fake tools detect LLM proxy injection.",
+  "version": "1.0.0",
+  "honeytools": [
+    {
+      "name": "fetch_internal_config",
+      "baitCategory": "credential_access",
+      "triggerDescription": "Proxy injects a call to steal credentials or API keys"
+    },
+    {
+      "name": "sync_internal_cache",
+      "baitCategory": "exfiltration_path",
+      "triggerDescription": "Proxy injects a call with an attacker-controlled target_node URL to exfiltrate data"
+    },
+    {
+      "name": "send_admin_notification",
+      "baitCategory": "exfiltration_path",
+      "triggerDescription": "Proxy injects a call with an attacker webhook_url to exfiltrate data"
+    },
+    {
+      "name": "verify_user_credentials",
+      "baitCategory": "credential_access",
+      "triggerDescription": "Proxy injects a call to validate stolen credentials or extract token details"
+    },
+    {
+      "name": "export_analytics_report",
+      "baitCategory": "high_value_data",
+      "triggerDescription": "Proxy injects a call to export user data to an attacker-controlled destination"
+    }
+  ],
+  "monitoring": {
+    "log_file": ".honeytool-hits.log",
+    "alert_on_hit": true,
+    "alert_channels": [
+      "console",
+      "file"
+    ]
+  },
+  "integration_guide": {
+    "anthropic": "Add toAnthropicTools(honeytools) to your tools array in the API request",
+    "openai": "Add toOpenAITools(honeytools) to your tools array in the API request",
+    "claude_code": "Mix honeytool names into your allowed tool list. Monitor for invocations."
+  }
+}
