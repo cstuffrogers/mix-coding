@@ -18,13 +18,24 @@ echo "=============================================="
 echo ""
 
 # ── 1. npm 包更新 ──
-echo -e "${CYAN}[1/5]${NC} npm 依赖更新..."
+echo -e "${CYAN}[1/7]${NC} npm 依赖更新..."
 cd "$SCRIPT_DIR/claude-scene"
-npm update --legacy-peer-deps 2>&1 && echo -e "  ${GREEN}[OK]${NC} npm 依赖更新完成" || echo -e "  ${YELLOW}[WARN]${NC} npm update 有错误，跳过"
+npm update --legacy-peer-deps 2>&1 && echo -e "  ${GREEN}[OK]${NC} claude-scene npm 依赖更新完成" || echo -e "  ${YELLOW}[WARN]${NC} npm update 有错误，跳过"
+
+echo -e "${CYAN}[2/7]${NC} 项目根依赖安装 (Stagehand + zod)..."
+cd "$SCRIPT_DIR"
+npm install --legacy-peer-deps 2>&1 && echo -e "  ${GREEN}[OK]${NC} 根依赖安装完成" || echo -e "  ${YELLOW}[WARN]${NC} 根依赖安装有错误"
+
+echo -e "${CYAN}[3/7]${NC} mythos-agent 安装/更新..."
+if command -v mythos-agent &>/dev/null; then
+    npm update -g mythos-agent 2>&1 && echo -e "  ${GREEN}[OK]${NC} mythos-agent 已更新" || echo -e "  ${GREEN}[OK]${NC} mythos-agent 保持当前版本"
+else
+    npm install -g mythos-agent 2>&1 && echo -e "  ${GREEN}[OK]${NC} mythos-agent 安装完成" || echo -e "  ${YELLOW}[WARN]${NC} mythos-agent 安装失败"
+fi
 
 # ── 2. Python 包更新 ──
 echo ""
-echo -e "${CYAN}[2/5]${NC} Python 工具更新..."
+echo -e "${CYAN}[4/7]${NC} Python 工具更新..."
 
 if command -v python &>/dev/null; then
     PY_CMD="python"
@@ -42,13 +53,17 @@ if [ -n "$PY_CMD" ]; then
     # skillspector
     echo "  更新 skillspector..."
     $PY_CMD -m pip install --upgrade git+https://github.com/NVIDIA/skillspector.git 2>&1 && echo -e "  ${GREEN}[OK]${NC} skillspector" || echo -e "  ${YELLOW}[SKIP]${NC} skillspector (npx 备选)"
+
+    # GEPA
+    echo "  更新 GEPA..."
+    $PY_CMD -m pip install --upgrade gepa 2>&1 && echo -e "  ${GREEN}[OK]${NC} gepa" || echo -e "  ${YELLOW}[SKIP]${NC} gepa"
 else
     echo -e "  ${YELLOW}[SKIP]${NC} Python 未安装"
 fi
 
 # ── 3. Git 仓库更新 ──
 echo ""
-echo -e "${CYAN}[3/5]${NC} Git 仓库同步上游..."
+echo -e "${CYAN}[5/7]${NC} Git 仓库同步上游..."
 
 GIT_REPOS=(
     "$SCRIPT_DIR/open-design"
@@ -77,7 +92,7 @@ done
 
 # ── 4. 二进制工具检查 ──
 echo ""
-echo -e "${CYAN}[4/5]${NC} 二进制工具版本检查..."
+echo -e "${CYAN}[6/7]${NC} 二进制工具版本检查..."
 
 check_bin() {
     local name=$1
@@ -97,7 +112,7 @@ check_bin "restic" "restic version"
 
 # ── 5. npx 工具（无需操作）──
 echo ""
-echo -e "${CYAN}[5/5]${NC} npx 零安装工具（aislop/dependency-cruiser/jscpd/size-limit/Stryker/Spectral/markdownlint/knip）"
+echo -e "${CYAN}[7/7]${NC} npx 零安装工具（aislop/dependency-cruiser/jscpd/size-limit/Stryker/Spectral/markdownlint/knip）"
 echo -e "  ${GREEN}[OK]${NC} 每次执行自动拉最新版，无需手动更新"
 
 echo ""

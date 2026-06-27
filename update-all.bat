@@ -13,18 +13,35 @@ echo ==============================================
 echo.
 
 REM ── 1. npm 包更新 ──
-echo [1/5] npm 依赖更新...
+echo [1/7] npm 依赖更新...
 cd /d "%CLAUDE_SCENE%"
 call npm update --legacy-peer-deps 2>&1
 if %errorlevel% equ 0 (
-    echo   [OK] npm 依赖更新完成
+    echo   [OK] claude-scene npm 依赖更新完成
 ) else (
     echo   [WARN] npm update 有错误，跳过
 )
 
+echo   [2/7] 项目根依赖安装 (Stagehand + zod)...
+cd /d "%SCRIPT_DIR%"
+call npm install --legacy-peer-deps 2>&1
+if %errorlevel% equ 0 (
+    echo   [OK] 根依赖安装完成
+) else (
+    echo   [WARN] 根依赖安装有错误
+)
+
+echo   [3/7] mythos-agent 安装/更新...
+where mythos-agent >nul 2>&1
+if %errorlevel% equ 0 (
+    call npm update -g mythos-agent 2>&1 && echo   [OK] mythos-agent 已更新 || echo   [OK] mythos-agent 保持当前版本
+) else (
+    call npm install -g mythos-agent 2>&1 && echo   [OK] mythos-agent 安装完成 || echo   [WARN] mythos-agent 安装失败
+)
+
 REM ── 2. Python 包更新 ──
 echo.
-echo [2/5] Python 工具更新...
+echo [4/7] Python 工具更新...
 
 where python >nul 2>&1
 if %errorlevel% equ 0 (
@@ -33,13 +50,16 @@ if %errorlevel% equ 0 (
 
     echo   更新 skillspector...
     python -m pip install --upgrade git+https://github.com/NVIDIA/skillspector.git 2>nul && echo   [OK] skillspector || echo   [SKIP] skillspector
+
+    echo   更新 GEPA...
+    python -m pip install --upgrade gepa 2>nul && echo   [OK] gepa || echo   [SKIP] gepa
 ) else (
     echo   [SKIP] Python 未安装
 )
 
 REM ── 3. Git 仓库更新 ──
 echo.
-echo [3/5] Git 仓库同步上游...
+echo [5/7] Git 仓库同步上游...
 
 set REPO_COUNT=0
 set UPDATED_COUNT=0
@@ -78,7 +98,7 @@ if %UPDATED_COUNT% gtr 0 (
 
 REM ── 4. 二进制工具检查 ──
 echo.
-echo [4/5] 二进制工具版本检查...
+echo [6/7] 二进制工具版本检查...
 
 where lychee >nul 2>&1
 if %errorlevel% equ 0 (
@@ -106,7 +126,7 @@ if %errorlevel% equ 0 (
 
 REM ── 5. npx 工具 ──
 echo.
-echo [5/5] npx 零安装工具 ^(aislop/dependency-cruiser/jscpd/size-limit/Stryker/Spectral/markdownlint/knip^)
+echo [7/7] npx 零安装工具 ^(aislop/dependency-cruiser/jscpd/size-limit/Stryker/Spectral/markdownlint/knip^)
 echo   [OK] 每次执行自动拉最新版，无需手动更新
 
 echo.
