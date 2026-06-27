@@ -15,13 +15,15 @@
 - ✅ **5 层代码审查**：ESLint + TypeScript + 安全扫描 + npm audit + AI 语义 + Handler 功能验证（10 Pass 空转桩检测）
 - ✅ **数据库迁移审查**：扫描迁移文件，检测 8 种危险模式（DROP TABLE / NOT NULL 无默认值等），自动阻断高风险变更
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
-- ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计 + 安全响应头扫描 + 构建泄露检测 + 死链检测 + 开放重定向检测 + 状态管理审计 + 正则 ReDoS 扫描 + 日志脱敏 + CORS 检查 + 敏感文件检查 + 供应链安全扫描
-- ✅ **外部工具链**：16 个工具（noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— 自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
+- ✅ **浏览器功能测试**：Stagehand 集成，act/extract/observe API + 自愈选择器，AI 驱动用户关键路径验证（10 个工作流可选增强）
+- ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计 + mythos-agent 假设驱动推理（变量分析 + PoC 生成，8 个工作流可选增强）+ 安全响应头扫描 + 构建泄露检测 + 死链检测 + 开放重定向检测 + 状态管理审计 + 正则 ReDoS 扫描 + 日志脱敏 + CORS 检查 + 敏感文件检查 + 供应链安全扫描
+- ✅ **外部工具链**：18 个工具（Stagehand / mythos-agent / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— AI 浏览器功能测试、假设驱动安全推理、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
 - ✅ **记忆组件组合**：7 种记忆工具协同工作
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
 - ✅ **AI/Model 无缝切换**：通过配置文件快速切换 AI 服务提供商，支持 Claude、Gemini、Qwen 等主流模型
 - ✅ **编码原则四重防线**：Ponytail（写之前阻断）+ Karpathy（写之时约束）+ CodeGuardian（改之后验证）+ `/simplify`（写之后清理），合并为 `conditional/core-rules.md` 按需加载
+- ✅ **Prompt 自动进化**：GEPA 集成 — LLM 反思执行轨迹 → Pareto 进化搜索 → 自动优化场景 prompt（`/optimize`、`/loop` 可选增强）
 - ✅ **jvn Spec-Driven 开发**：`/spec` → `/design` → `/build` 规范驱动开发，底层由 [GitHub Spec-Kit](https://github.com/github/spec-kit)（11 speckit 技能）驱动，5 Agent 增强审查（PM + 架构师 + UX + 代码审查 + 宪法校验）
 
 ---

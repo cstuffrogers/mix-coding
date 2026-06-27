@@ -42,6 +42,7 @@ Scene 引擎在对话内执行工作流。28 个场景。`node src/index.js star
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
 
 > 已融入增强菜单：`/qa`（review 前端变更）、`/plan-ceo-review`（feature 长需求）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（e2e）、`/log` `/incident`（monitor）、`/migration`（review/feature 检测到 DB）、`/llm-proxy-audit`（hunt）。也可独立调用。
+> 新增增强工具：`Stagehand`（浏览器功能测试，10 工作流）、`mythos-agent`（假设驱动安全扫描，8 工作流）、`GEPA`（prompt 进化，/optimize + /loop）。检测到安装即自动弹菜单。
 
 执行工作流时 Read `conditional/workflows.md`（完整列表）和 `conditional/enhancements.md`（可选增强规则）。
 安全/审计/漏洞工作流额外 Read `conditional/security-toolchain.md`。
