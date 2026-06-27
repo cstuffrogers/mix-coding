@@ -1,11 +1,11 @@
 ---
-description: AI-assisted UI design workflow: Pre-flight design baseline → review-checklist → Impeccable audit → craft rules → shape design brief (taste direction) → 3-direction proposal → Open Design 152 brands/111 templates/138 skills + Huashu 8 modules + 5 device frames + 103 prompt templates + 3 deck frameworks + 8 community pets → expert review → Impeccable full 21-step polish chain（critique detect → 16 fixes(含quieter+onboard) → critique verify → 3 targeted fixes, dual-pass QC + residual repair）+ AI-Friendly a11y. 54+ 步全对话模式工作流。
+description: AI-assisted UI design workflow: Pre-flight design baseline → review-checklist → Impeccable audit → craft rules → shape design brief (taste direction) → 3-direction proposal → Open Design 152 brands/111 templates/138 skills + Huashu 8 modules + 5 device frames + 103 prompt templates + 3 deck frameworks + 8 community pets → expert review → Impeccable full 21-step polish chain（critique detect → 16 fixes(含quieter+onboard) → critique verify → 3 targeted fixes, dual-pass QC + residual repair）+ AI-Friendly a11y + Google DESIGN.md lint。55+ 步全对话模式工作流。
 argument-hint: "[描述] [--category web|mobile]"
 ---
 
 # /design — AI 辅助 UI 设计
 
-54 步全对话模式工作流：**Pre-flight Skill 设计基准（对话模式）→ shape 设计简报确立品味方向 → 三方向提案 → 原型构建 → 专家评审 → Impeccable 全维度打磨（对话模式，⚠️ 必须执行 critique 检测 → 12 项全维度修复 → critique 验证 → 3 项精准残留修复，双轮品控+残留修复）**
+55 步全对话模式工作流：**Pre-flight Skill 设计基准（对话模式）→ shape 设计简报确立品味方向 → 三方向提案 → 原型构建 → 专家评审 → Impeccable 全维度打磨（对话模式，⚠️ 必须执行 critique 检测 → 12 项全维度修复 → critique 验证 → 3 项精准残留修复，双轮品控+残留修复）**
 
 ## Usage
 
@@ -88,6 +88,7 @@ Claude 直接调用工具完成设计步骤（不通过 CLI 子进程）：
 ### Phase 5: 交付物 + 沉淀
 
 - **持久化** (`step 5`, `persist`)：保存设计选择到 .claude/designs/current.json
+- **DESIGN.md 校验** (`step 5.1`)：`npx @google/design.md lint` 校验生成的 DESIGN.md 格式正确性 + WCAG 对比度，失败则输出报告到 `.claude/designs/lint-report.md` 供审查
 - **信息图** (`step 5.5`)：Bash 调用 `node -e "import('./src/lib/huashu/infographic.js').then(m => m.renderInfographic({...}))"` 渲染设计系统可视化信息图（HTML）
 - **演示稿导出** (`step 5.6`)：Bash 调用 `node -e "import('./src/lib/huashu/deck-exporter.js').then(m => m.generateReleaseDeck({ targetPath: '...', projectRoot: process.cwd(), title: 'Design Deck', version: 'v1.0.0', highlights: [] }))"` 导出 HTML 演示稿（封面+亮点+结尾） + 可选 PPTX（需 pptxgenjs），写入 `.claude/decks/`
 - **CE 沉淀** (`step 6`, `ce-compound`)：设计知识沉淀到 CLAUDE.md
@@ -121,6 +122,7 @@ Claude 直接调用工具完成设计步骤（不通过 CLI 子进程）：
 | 评审 | Huashu 5 维度 + AI-friendly + Impeccable 批判 | Skill |
 | 打磨 | Impeccable 21 步全链（polish→layout→colorize→bolder→typeset→animate→delight→harden→distill→clarify→adapt→optimize→quieter→onboard→critique→3精准修复→Huashu→a11y） | Skill |
 | 可视化 | Huashu 信息图渲染 | CLI |
+| 校验 | Google DESIGN.md CLI（`npx @google/design.md lint` — 格式校验 + WCAG 对比度） | npx |
 
 ### 执行模式
 

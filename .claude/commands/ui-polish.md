@@ -69,6 +69,7 @@ AskUserQuestion 交互式选择：
 - Read `open-design/design-systems/<brand>/DESIGN.md` 获取品牌规范
 - Read `open-design/design-systems/<brand>/tokens.css` 获取 CSS 变量
 - Read `open-design/design-systems/<brand>/components.html` 获取组件参考 → 将可复用组件模式（按钮/卡片/表单/导航样式）映射为 DaisyUI 类或 Tailwind 类
+- `npx @google/design.md lint` 校验注入后的 DESIGN.md 格式 + WCAG 对比度，失败输出报告到 `.claude/designs/lint-report.md`
 
 选择设计模板时：
 - Bash `ls open-design/design-templates/` 列出 111 模板

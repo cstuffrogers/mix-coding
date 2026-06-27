@@ -2,7 +2,7 @@
   "scene_id": "design",
   "workflow": "design",
   "name": "AI 辅助 UI 设计",
-  "description": "一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复，双轮品控+残留修复，53步）",
+  "description": "一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复，双轮品控+残留修复，55步）",
   "trigger_keywords": [
     "设计",
     "UI设计",
@@ -518,6 +518,17 @@
       "action": "persist",
       "params": {},
       "description": "持久化设计数据：保存设计选择 + 变体到 .claude/designs/current.json"
+    },
+    {
+      "step": 5.1,
+      "layer": "capability",
+      "service": "DesignMDService",
+      "action": "design-md-lint",
+      "params": {
+        "command": "npx @google/design.md lint"
+      },
+      "description": "Google DESIGN.md CLI: 校验生成的 DESIGN.md 格式正确性 + WCAG 对比度检查，失败则输出报告到 .claude/designs/lint-report.md 供审查",
+      "condition": "conversation_mode"
     },
     {
       "step": 5.5,

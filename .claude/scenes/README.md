@@ -12,7 +12,7 @@
 | `bugfix` | `/bugfix 描述` | 端到端一键修复Bug流程（Jira/issue/PR --> issue注释 --> 本地分支 --> 修复 --> 测试 --> 提交 --> PR --> 回归测试 --> 关单） |
 | `cicd` | `/cicd` | 使用 Act + Task 配置本地 CI/CD 流水线，验证 GitHub Actions 工作流，生成 Taskfile.yml 任务运行器 |
 | `deps` | `/deps` | 安全依赖更新流程：检查过期 → 逐项更新 → 测试验证 → 检查breaking changes → 更新lockfile |
-| `design` | `/design 描述` | 一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复，双轮品控+残留修复，53步） |
+| `design` | `/design 描述` | 一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复，双轮品控+残留修复，55步） |
 | `e2e` | `/e2e` | 使用 MSW + Supertest + Schemathesis 配置端到端测试基础设施（Mock + HTTP 断言 + API fuzz） |
 | `feature` | `/feature 描述` | 端到端一键推进新功能开发流程（集成CE知识沉淀） |
 | `hunt` | `/hunt` | 代码安全漏洞扫描与修复（集成CE知识沉淀） |

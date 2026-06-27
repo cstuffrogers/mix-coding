@@ -51,7 +51,8 @@ Claude 直接调用 MCP 工具收集上下文（不通过 CLI 子进程）：
 15. **Git guardrails** (`step 3.1`) — 配置 PreToolUse Hook 拦截危险 git 命令（Edit 修改 settings.json）
 16. **askUser** (`step 3.5`) — 询问是否使用 Open Design（AskUserQuestion 交互）
 17. **Open Design 品牌导入** (`step 3.67`) — Bash `ls open-design/design-systems/` 列出 152 品牌 → AskUserQuestion 选择品牌 → Read `open-design/design-systems/<brand>/DESIGN.md` + `tokens.css` + `components.html` → Edit 注入 CSS 变量到项目，将可复用组件模式（按钮/卡片/表单/导航样式）映射为 DaisyUI 类或 Tailwind 类（对话模式，前端项目）
-18. **CSS 框架安装** (`step 3.675`) — 🆕 前端项目：`npm install daisyui@latest lucide-react@latest --save`（DaisyUI 主题）/ `npm install animal-island-ui lucide-react@latest --save`（Animal Island 主题）。tailwind.config.js 注册 daisyui plugin。禁止安装 animate.css。
+18. **DESIGN.md → Tailwind 导出** (`step 3.73`) — 品牌导入完成后：`npx @google/design.md export --format tailwind` 将 DESIGN.md token 导出为 Tailwind 配置，自动注入 `tailwind.config.js` 的 `theme.extend` 块。条件：`user_confirmed_open_design || awesome_design_md_used`
+19. **CSS 框架安装** (`step 3.675`) — 🆕 前端项目：`npm install daisyui@latest lucide-react@latest --save`（DaisyUI 主题）/ `npm install animal-island-ui lucide-react@latest --save`（Animal Island 主题）。tailwind.config.js 注册 daisyui plugin。禁止安装 animate.css。
 19. **Huashu 方向提案** (`step 3.677`) — 🆕 Bash 调用 `node -e "import('./src/lib/huashu/html-direction-advisor.js').then(m => m.proposeThreeDirections({...}))"` 生成 3 种视觉方向 + 评分矩阵，在设计生成前确立品味方向
 20. **Huashu 风格库** (`step 3.678`) — 🆕 Bash 调用 `node -e "import('./src/lib/huashu/style-library.js').then(m => m.listStyles())"` 浏览 40 种风格 → AskUserQuestion 选择风格方向
 21. **设计模板** (`step 3.679`) — 🆕 Bash `ls open-design/design-templates/` 列出 111 模板 → AskUserQuestion 选择 → Read 选中模板的 HTML/CSS，提取布局结构和组件模式
@@ -120,7 +121,7 @@ Claude 直接调用 MCP 工具收集上下文（不通过 CLI 子进程）：
 | 设计约束 | 无 | Open Design 全资源：152品牌+111模板+138技能+11场景插件+13原子插件+140示例 |
 | CSS 框架 | 无安装步骤 | DaisyUI/Animal Island UI + lucide-react 自动安装 |
 | 动画 | 无动画策略 | Huashu motion-engine（MP4/GIF 发布动画）+ 自定义 keyframes + `prefers-reduced-motion` + **禁止 animate.css** |
-| 品牌 | 无 awesome-design-md | Open Design 152 品牌 token 自动导入 + components.html 组件映射 |
+| 品牌 | 无 awesome-design-md | Open Design 152 品牌 token 自动导入 + components.html 组件映射 + `npx @google/design.md export` Tailwind 配置导出 |
 | 方向 | 无 | Huashu direction-advisor 三方向提案 + 风格库 40 风格 |
 | 品牌检测 | 无 | Huashu brand-protocol（品牌提及检测 → 5 步资产清单 → brand-spec.md） |
 | 原型 | 无 | Huashu prototype-builder + Playwright 验证 |

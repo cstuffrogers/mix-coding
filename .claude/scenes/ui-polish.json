@@ -254,6 +254,17 @@
       "condition": "user_confirmed_open_design"
     },
     {
+      "step": 6.71,
+      "layer": "capability",
+      "service": "DesignMDService",
+      "action": "design-md-lint",
+      "params": {
+        "command": "npx @google/design.md lint"
+      },
+      "description": "Google DESIGN.md CLI: 校验品牌注入后的 DESIGN.md 格式正确性 + WCAG 对比度，失败则输出报告到 .claude/designs/lint-report.md 供审查",
+      "condition": "conversation_mode"
+    },
+    {
       "step": 7,
       "layer": "capability",
       "service": "DesignService",
