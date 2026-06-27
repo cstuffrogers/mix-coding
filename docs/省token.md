@@ -13,6 +13,17 @@
 | **Claude Code 假死** | 30s+ 每次发消息 | **0 假死** | ✅ |
 | **Python hook 调用** | 5 个被调（失败 49）| 0（全部 .disabled）| ✅ |
 
+### 2026-06-27 追加优化
+
+| 指标 | 优化前 | 优化后 | 改善 |
+|------|--------|--------|------|
+| **Scene JSON（3 大文件）** | 76,087 字节 | **70,987 字节** | **-6.7%** |
+| **enhancements.md** | 123 行 / 4,217 字符 | **51 行 / 1,549 字符** | **-59%** |
+| **每工作流 Read** | 146 行（workflows + enhancements）| **74 行**（workflows + summary）| **-49%** |
+
+**Scene JSON 精简**：step 描述字段截断到 ~80 字符（仅 dry-run/skip 使用，spinner 用 action 字段）。
+**enhancements-summary**：检测规则 + 菜单映射压缩为紧凑单行格式，完整版见 `enhancements.md`。
+
 ---
 
 ## 🔴 假死的 5 大根因（全部已修复）

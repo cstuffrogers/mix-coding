@@ -2,7 +2,7 @@
   "scene_id": "new-project",
   "workflow": "new-project",
   "name": "从零开始新项目",
-  "description": "从零开始新项目：Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Open Design → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复→Huashu 验证，双轮品控+残留修复）+ AI-Friendly 可访问性审查 → 实现 → 审查 → CE 沉淀（65步）",
+  "description": "从零开始新项目：Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Open Design → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复→Huashu 验证，",
   "trigger_keywords": [
     "从零开始",
     "新项目",
@@ -19,7 +19,7 @@
       "params": {
         "skill": "web-design-engineer"
       },
-      "description": "Pre-flight: 声明设计系统基准（Palette/Typography/Spacing/Motion/Radius/Shadows），加载 150 品牌系统",
+      "description": "Pre-flight: 声明设计系统基准（Palette/Typography/Spacing/Motion/Radius/Shadows），",
       "condition": "conversation_mode && frontend_involved"
     },
     {
@@ -52,7 +52,7 @@
         "skill": "impeccable",
         "subcommand": "shape"
       },
-      "description": "Impeccable shape: 设计发现访谈 → 10 节设计简报（mood/references/color strategy/design direction/bold move），在新项目启动前建立品味方向约束",
+      "description": "Impeccable shape: 设计发现访谈 → 10 节设计简报（mood/references/color strategy/design",
       "condition": "impeccable_available && conversation_mode && frontend_involved",
       "on_error": "abort"
     },
@@ -189,7 +189,7 @@
       "params": {
         "skill": "review"
       },
-      "description": "Git guardrails: 配置 PreToolUse Hook 拦截危险 git 命令（force push/reset --hard/checkout .），保护开发全过程",
+      "description": "Git guardrails: 配置 PreToolUse Hook 拦截危险 git 命令（force push/reset --hard/checkout",
       "condition": "conversation_mode"
     },
     {
@@ -322,7 +322,7 @@
       "params": {
         "skill": "awesome-design-md"
       },
-      "description": "Skill: Awesome Design MD — 加载品牌 DESIGN.md 导入品牌 token（Stripe/Linear/Vercel/Notion/Apple）",
+      "description": "Skill: Awesome Design MD — 加载品牌 DESIGN.md 导入品牌",
       "condition": "conversation_mode && frontend_involved"
     },
     {
@@ -343,7 +343,7 @@
         "command": "npx @google/design.md export --format tailwind",
         "output": "tailwind.config.js theme.extend"
       },
-      "description": "Google DESIGN.md CLI: 品牌导入完成后，将 DESIGN.md token 导出为 Tailwind 配置，自动注入 tailwind.config.js theme.extend 块，对接后续 DaisyUI 安装",
+      "description": "Google DESIGN.md CLI: 品牌导入完成后，将 DESIGN.md token 导出为 Tailwind 配置，",
       "condition": "conversation_mode && frontend_involved && (user_confirmed_open_design || awesome_design_md_used)",
       "on_error": "retry"
     },
@@ -380,7 +380,7 @@
       "service": "HuashuService",
       "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu 5 维度专家评审（第一轮）：打磨前设计基线测量 — philosophy/hierarchy/craft/functionality/originality，为后续打磨效果对比建立基准",
+      "description": "Huashu 5 维度专家评审（第一轮）：打磨前设计基线 — philosophy/hierarchy/craft/functionality/originality",
       "condition": "frontend_involved"
     },
     {
@@ -392,7 +392,7 @@
         "skill": "impeccable",
         "subcommand": "critique"
       },
-      "description": "Impeccable critique（第一轮）：27 条反 AI 模式规则 + 12 条 LLM 批判规则，在打磨前检测设计中的 AI 塑料感，建立问题清单供后续步骤针对性修复",
+      "description": "Impeccable critique（第一轮）：27 条反 AI 模式规则 + 12 条 LLM 批判规则，在打磨前检测设计中的 AI 塑料感，",
       "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
       "on_error": "abort"
     },
@@ -561,7 +561,7 @@
         "skill": "impeccable",
         "subcommand": "critique"
       },
-      "description": "Impeccable 设计批判（第二轮）：验证新项目打磨后的整体设计质量 — 27 条反 AI 模式规则 + 12 条 LLM 批判规则复检，确保从零开始的设计达到品味标准",
+      "description": "Impeccable 设计批判（第二轮）：验证新项目打磨后的整体设计质量 — 27 条反 AI 模式规则 + 12 条 LLM 批判规则复检，",
       "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
       "on_error": "abort"
     },
@@ -610,7 +610,7 @@
       "service": "HuashuService",
       "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu 5 维度专家评审：新项目设计最终验证 — philosophy/hierarchy/craft/functionality/originality，确保从零开始的设计达到出彩标准",
+      "description": "Huashu 5 维度专家评审：新项目设计最终验证 — philosophy/hierarchy/craft/functionality/originality，",
       "condition": "frontend_involved"
     },
     {

@@ -2,7 +2,7 @@
   "scene_id": "ui-polish",
   "workflow": "ui-polish",
   "name": "前端美化",
-  "description": "全对话模式 59 步混合工作流。前置检测→Phase 0 设计基准→Phase 1 机械步骤（安装依赖/主题注入/图标升级/DaisyUI组件类/Animal Island组件替换/自定义keyframe动画/微交互/硬编码颜色清除+每步验证）→Phase 2 Impeccable 全维度打磨（Huashu→critique→13fixes→critique验证→3精准修复→Huashu验证）+ 完成标准门禁。修复版：每个步骤带强制验证，多子项目独立执行，组件JSX必须修改（不只改CSS）。animate.css 已禁止使用（自定义 keyframe 动画替代）",
+  "description": "全对话模式 59 步混合工作流。前置检测→Phase 0 设计基准→Phase 1 机械步骤（安装依赖/主题注入/图标升级/DaisyUI组件类/Animal Island组件替换/自定义keyframe动画/微交互/硬编码颜色清除+每步验证）",
   "trigger_keywords": [
     "美化",
     "UI优化",
@@ -21,7 +21,7 @@
         "skill": "web-design-engineer",
         "mode": "declare-system"
       },
-      "description": "Pre-flight: web-design-engineer Skill 声明设计系统基线（Palette/Typography/Spacing/Motion/Radius/Shadows），写入 .claude/designs/design-baseline.md",
+      "description": "Pre-flight: web-design-engineer 声明设计系统基线（Palette/Typography/Spacing/Motion/Radius/Shadows）",
       "condition": "web_design_engineer_available && conversation_mode",
       "timeout": 180
     },
@@ -149,7 +149,7 @@
       "service": "BrandService",
       "action": "od-brand-import",
       "params": {},
-      "description": "Open Design: 导入选中品牌 tokens.css + DESIGN.md + components.html → context.od_brand_css",
+      "description": "Open Design: 导入选中品牌 tokens.css + DESIGN.md + components.html →",
       "condition": "user_confirmed_open_design"
     },
     {
@@ -250,7 +250,7 @@
       "service": "DesignService",
       "action": "reconcileDesignTokens",
       "params": {},
-      "description": "检测项目已有设计 Token（DESIGN.md / CSS 变量 / tailwind.config.js brand 颜色 / 字体栈 / 间距尺度 / 圆角 / 阴影 / 动效偏好），提取值并记录。与当前选择的主题对比：保留已有品牌色/字体/间距/圆角/阴影，仅用新主题填充缺失项",
+      "description": "检测项目已有设计 Token（DESIGN.md / CSS 变量 / tailwind.config.js brand 颜色 / 字体栈 / 间距尺度 /",
       "condition": "user_confirmed_open_design"
     },
     {
@@ -261,7 +261,7 @@
       "params": {
         "command": "npx @google/design.md lint"
       },
-      "description": "Google DESIGN.md CLI: 校验品牌注入后的 DESIGN.md 格式正确性 + WCAG 对比度，失败则输出报告到 .claude/designs/lint-report.md 供审查",
+      "description": "Google DESIGN.md CLI: 校验品牌注入后的 DESIGN.md 格式正确性 + WCAG 对比度，",
       "condition": "conversation_mode"
     },
     {
@@ -270,7 +270,7 @@
       "service": "DesignService",
       "action": "applyDaisyUI",
       "params": {},
-      "description": "整合应用主题：安装 daisyui npm 包 + 配置 tailwind.config.js（plugins/daisyui.themes）+ animal-island 时注入 CSS 变量到 index.css。已有 Token 优先，新值填补空缺",
+      "description": "整合应用主题：安装 daisyui npm 包 + 配置 tailwind.config.js（plugins/daisyui.themes）",
       "on_error": "abort"
     },
     {
@@ -288,7 +288,7 @@
       "service": "HuashuService",
       "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu 5 维度专家评审（第一轮）：打磨前设计基线测量 — philosophy/hierarchy/craft/functionality/originality，为后续打磨效果对比建立基准"
+      "description": "Huashu 5 维度专家评审（第一轮）：打磨前设计基线 — philosophy/hierarchy/craft/functionality/originality"
     },
     {
       "step": 7.25,
@@ -300,7 +300,7 @@
         "command": "critique",
         "target": "current project"
       },
-      "description": "Impeccable critique（第一轮）：Skill 深度设计批判 — 在修复前检测 AI 塑料感（27 条反模式 + 12 条 LLM 批判规则），建立问题清单供后续打磨步骤针对性修复",
+      "description": "Impeccable critique（第一轮）：Skill 深度设计批判 — 在修复前检测 AI 塑料感（27 条反模式 + 12 条 LLM 批判规则），",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort",
       "timeout": 300
@@ -311,7 +311,7 @@
       "service": "DesignService",
       "action": "applyDaisyUIComponents",
       "params": {},
-      "description": "【DaisyUI 主题】扫描所有 JSX/TSX 的 button/input/select/textarea 标签，添加 DaisyUI 组件类（btn/btn-primary/btn-ghost/card/input-bordered/select-bordered/textarea-bordered/badge/tabs）。替换硬编码 indigo 色（#6366f1/#4f46e5/#8b5cf6）为语义类。此步骤是 polish 差异感的核心来源，不可跳过",
+      "description": "【DaisyUI 主题】扫描 JSX/TSX 的 button/input/select/textarea 标签，添加 DaisyUI 组件类（btn/btn-primary/card/input-bordered/badge 等）。替换硬编码 indigo 色为语义类。此步骤不可跳过",
       "on_error": "abort",
       "condition": "selectedTheme === \"daisyui\""
     },
@@ -321,7 +321,7 @@
       "service": "DesignService",
       "action": "removeHardcodedColors",
       "params": {},
-      "description": "【所有主题】扫描所有 JSX/TSX/CSS 文件中的硬编码 hex 颜色，替换为 Tailwind 语义类或 CSS 变量。重点清除 indigo 系（#6366f1/#4f46e5/#8b5cf6/#7c3aed/#a855f7）、默认 red/green/yellow hex"
+      "description": "【所有主题】扫描 JSX/TSX/CSS 中的硬编码 hex，替换为 Tailwind 语义类或 CSS 变量。重点清除 indigo 系（#6366f1/#4f46e5/#8b5cf6）及默认 red/green/yellow hex"
     },
     {
       "step": 8,
@@ -329,7 +329,7 @@
       "service": "DesignService",
       "action": "applyComponents",
       "params": {},
-      "description": "【Animal Island 主题】扫描 JSX/TSX 文件，将 button/input/select/card 等替换为 Animal Island UI 组件（Button/Card/Input/Divider）",
+      "description": "【Animal Island 主题】扫描 JSX/TSX 文件，将 button/input/select/card 等替换为 Animal Island UI",
       "condition": "selectedTheme === \"animal-island\""
     },
     {
@@ -338,7 +338,7 @@
       "service": "DesignService",
       "action": "iconUpgrade",
       "params": {},
-      "description": "图标升级：扫描 JSX/TSX 文件，将 Material Symbols (<span>icon</span>) 替换为 lucide-react 组件（所有主题生效）"
+      "description": "图标升级：扫描 JSX/TSX 文件，将 Material Symbols (<span>icon</span>) 替换为 lucide-react"
     },
     {
       "step": 9,
@@ -346,7 +346,7 @@
       "service": "DesignService",
       "action": "addAnimations",
       "params": {},
-      "description": "自定义 CSS 动画注入（替代 animate.css）：注入 keyframes + 扫描 JSX/TSX 给页面根元素添加自定义动画类（animate-in/slide-in-from-bottom）"
+      "description": "自定义 CSS 动画注入（替代 animate.css）：注入 keyframes + 扫描 JSX/TSX"
     },
     {
       "step": 9.2,
@@ -354,7 +354,7 @@
       "service": "DesignService",
       "action": "microInteractions",
       "params": {},
-      "description": "微交互注入：扫描 JSX/TSX 给可点击元素添加 hover:-translate-y-0.5 / hover:shadow-lg / active:scale-[0.98] / transition-colors（禁止 transition-all）"
+      "description": "微交互注入：扫描 JSX/TSX 给可点击元素添加 hover:-translate-y-0.5 / hover:shadow-lg /"
     },
     {
       "step": 9.21,
@@ -445,7 +445,7 @@
         "command": "colorize",
         "target": "current project"
       },
-      "description": "Impeccable colorize: 策略性色彩注入 — 检测单色调界面 → 注入品牌配色策略（Restrained/Committed/Full Palette/Drenched），打破灰白单调感",
+      "description": "Impeccable colorize: 策略性色彩注入 — 检测单色调界面 → 注入品牌配色策略（Restrained/Committed/Full",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort",
       "timeout": 300
@@ -475,7 +475,7 @@
         "command": "typeset",
         "target": "current project"
       },
-      "description": "Impeccable typeset: 排版层次优化 — font-family 上限 3 个、字号阶梯 ≥1.25、正文行长 65-75ch、text-wrap: balance 标题",
+      "description": "Impeccable typeset: 排版层次优化 — font-family 上限 3 个、字号阶梯 ≥1.25、正文行长",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort",
       "timeout": 180
@@ -490,7 +490,7 @@
         "command": "animate",
         "target": "current project"
       },
-      "description": "Impeccable animate: 用 purposeful motion 替代浅层 animate.css 入场动画 — 遵循 prefers-reduced-motion，使用 exponential easing curves",
+      "description": "Impeccable animate: 用 purposeful motion 替代浅层 animate.css 入场动画 — 遵循",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort",
       "timeout": 180
@@ -520,7 +520,7 @@
         "command": "harden",
         "target": "current project"
       },
-      "description": "Impeccable harden: 生产就绪 — 加载/空/错误/边缘状态 + i18n 字符串提取 + 表单验证 + 键盘可操作性，确保美化后的 UI 覆盖所有交互状态",
+      "description": "Impeccable harden: 生产就绪 — 加载/空/错误/边缘状态 + i18n 字符串提取 + 表单验证 + 键盘可操作性，",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort",
       "timeout": 300
@@ -580,7 +580,7 @@
         "command": "optimize",
         "target": "current project"
       },
-      "description": "Impeccable optimize: CSS/渲染性能诊断 — CLS 布局偏移/未使用 CSS/选择器开销/合成层提升/Font Load 策略，消除卡顿让设计流畅",
+      "description": "Impeccable optimize: CSS/渲染性能诊断 — CLS 布局偏移/未使用 CSS/选择器开销/合成层提升/Font Load 策略，",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort",
       "timeout": 300
@@ -609,7 +609,7 @@
           "no-glassmorphism-default"
         ]
       },
-      "description": "Impeccable 设计打磨（CLI）: 12 条反AI模式规则 — 纯黑→neutral-900 / 纯白→neutral-50 / 侧边描边 / 渐变文字 / 玻璃态 / 小字眼眉 / 编号标记 / 英雄指标模板 / 嵌套卡片 / 硬编码颜色 / 交互缺过渡",
+      "description": "Impeccable 设计打磨（CLI）: 12 条反AI模式规则 — 纯黑→neutral-900 / 纯白→neutral-50 / 侧边描边 / 渐变文字",
       "condition": "!conversation_mode"
     },
     {
@@ -622,7 +622,7 @@
         "command": "critique",
         "target": "current project"
       },
-      "description": "Impeccable critique（第二轮）：Skill 深度设计批判验证 — 复检所有修复步骤（Skill 打磨 + CLI 自动修复）的实际效果，确认品味提升可感知，发现残留问题",
+      "description": "Impeccable critique（第二轮）：Skill 深度设计批判验证 — 复检所有修复步骤（Skill 打磨 + CLI 自动修复）的实际效果，",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort",
       "timeout": 300
@@ -678,7 +678,7 @@
       "service": "HuashuService",
       "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu 5 维度专家评审（第二轮，最终质量确认）：philosophy/hierarchy/craft/functionality/originality 复评，与第一轮对比验证设计质量提升可量化，确保美化不破坏设计结构",
+      "description": "Huashu 5 维度专家评审（第二轮，最终质量确认）：philosophy/hierarchy/craft/functionality/originality",
       "condition": "enh_huashu_expert_review"
     },
     {
@@ -718,9 +718,13 @@
       "action": "browser_screenshot",
       "params": {
         "fullPage": true,
-        "viewports": ["desktop", "tablet", "mobile"]
+        "viewports": [
+          "desktop",
+          "tablet",
+          "mobile"
+        ]
       },
-      "description": "Playwright MCP 浏览器截图：真实浏览器渲染截图（Desktop 1440×900 / Tablet 768×1024 / Mobile 375×812），用于视觉回归基线对比",
+      "description": "Playwright MCP 浏览器截图：真实浏览器渲染截图（Desktop 1440×900 / Tablet 768×1024 / Mobile",
       "condition": "playwright_mcp_available"
     },
     {

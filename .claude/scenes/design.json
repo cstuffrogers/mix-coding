@@ -2,7 +2,7 @@
   "scene_id": "design",
   "workflow": "design",
   "name": "AI 辅助 UI 设计",
-  "description": "一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复，双轮品控+残留修复，55步）",
+  "description": "一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique",
   "trigger_keywords": [
     "设计",
     "UI设计",
@@ -20,7 +20,7 @@
       "params": {
         "skill": "web-design-engineer"
       },
-      "description": "Pre-flight: 声明设计系统基准（Palette/Typography/Spacing/Motion/Radius/Shadows），加载 150 品牌系统",
+      "description": "Pre-flight: 声明设计系统基准（Palette/Typography/Spacing/Motion/Radius/Shadows），",
       "condition": "conversation_mode"
     },
     {
@@ -60,7 +60,7 @@
         "skill": "impeccable",
         "subcommand": "shape"
       },
-      "description": "Impeccable shape: 设计发现访谈 → 10 节设计简报（mood/references/color strategy/design direction/bold move），在生成设计前建立品味方向约束",
+      "description": "Impeccable shape: 设计发现访谈 → 10 节设计简报（mood/references/color strategy/design",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort"
     },
@@ -98,7 +98,7 @@
       "service": "BrandService",
       "action": "od-brand-import",
       "params": {},
-      "description": "Open Design: 导入选中品牌 tokens.css + DESIGN.md + components.html → context.od_brand_css"
+      "description": "Open Design: 导入选中品牌 tokens.css + DESIGN.md + components.html →"
     },
     {
       "step": 1.47,
@@ -114,7 +114,7 @@
       "service": "TemplateService",
       "action": "od-template-preview",
       "params": {},
-      "description": "Open Design: 预览选中模板（example.html 在浏览器中打开，template + references 注入 context 供 Claude 参考）"
+      "description": "Open Design: 预览选中模板（example.html 在浏览器中打开，template + references 注入 context 供"
     },
     {
       "step": 1.49,
@@ -130,7 +130,7 @@
       "service": "FrameService",
       "action": "od-frame-list",
       "params": {},
-      "description": "Open Design: 列出可用设备框架（iPhone/MacBook/iPad/Android/Browser），存入 context.od_available_frames"
+      "description": "Open Design: 列出可用设备框架（iPhone/MacBook/iPad/Android/Browser），"
     },
     {
       "step": 1.52,
@@ -146,7 +146,7 @@
       "service": "DeckService",
       "action": "od-deck-list",
       "params": {},
-      "description": "Open Design: 列出演示文稿模板（deck-framework / kami-deck / live-artifacts），存入 context.od_available_decks"
+      "description": "Open Design: 列出演示文稿模板（deck-framework / kami-deck / live-artifacts），"
     },
     {
       "step": 1.54,
@@ -162,7 +162,7 @@
       "service": "PromptService",
       "action": "od-prompt-list",
       "params": {},
-      "description": "Open Design: 列出 AI 图像/视频提示词模板（45 image + 57 video），存入 context.od_available_prompts"
+      "description": "Open Design: 列出 AI 图像/视频提示词模板（45 image + 57 video），"
     },
     {
       "step": 1.56,
@@ -250,7 +250,7 @@
       "service": "HuashuService",
       "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu 5 维度专家评审: philosophy/hierarchy/craft/functionality/originality — UI 设计质量评分"
+      "description": "Huashu 5 维度专家评审: philosophy/hierarchy/craft/functionality/originality — UI"
     },
     {
       "step": 3.5,
@@ -261,7 +261,7 @@
         "skill": "impeccable",
         "subcommand": "critique"
       },
-      "description": "Impeccable 设计批判（第一轮）：27 条反 AI 模式规则 + 12 条 LLM 批判规则，在打磨前检测 AI 塑料感，建立问题清单供后续步骤针对性修复",
+      "description": "Impeccable 设计批判（第一轮）：27 条反 AI 模式规则 + 12 条 LLM 批判规则，在打磨前检测 AI 塑料感，",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort"
     },
@@ -300,7 +300,7 @@
         "skill": "impeccable",
         "subcommand": "colorize"
       },
-      "description": "Impeccable colorize: 策略性色彩注入 — 检测单色调 → 注入品牌配色策略（Restrained/Committed/Full Palette/Drenched）",
+      "description": "Impeccable colorize: 策略性色彩注入 — 检测单色调 → 注入品牌配色策略（Restrained/Committed/Full",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort"
     },
@@ -326,7 +326,7 @@
         "skill": "impeccable",
         "subcommand": "typeset"
       },
-      "description": "Impeccable typeset: 排版层次优化 — font-family ≤3、字号阶梯 ≥1.25、正文行长 65-75ch、标题 text-wrap: balance",
+      "description": "Impeccable typeset: 排版层次优化 — font-family ≤3、字号阶梯 ≥1.25、正文行长 65-75ch、标题",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort"
     },
@@ -339,7 +339,7 @@
         "skill": "impeccable",
         "subcommand": "animate"
       },
-      "description": "Impeccable animate: purposeful motion — spring physics + reduced-motion 遵循 + exponential easing curves",
+      "description": "Impeccable animate: purposeful motion — spring physics + reduced-motion 遵循 +",
       "condition": "impeccable_available && conversation_mode",
       "on_error": "abort"
     },
@@ -479,7 +479,7 @@
       "service": "HuashuService",
       "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu 5 维度专家评审（第二轮）：最终验证 — philosophy/hierarchy/craft/functionality/originality 复评，与第一轮评审对比确认设计质量提升可量化"
+      "description": "Huashu 5 维度专家评审（第二轮）：最终验证 — philosophy/hierarchy/craft/functionality/originality"
     },
     {
       "step": 4.0997,
@@ -498,7 +498,7 @@
       "service": "AccessibilityScanner",
       "action": "ai-friendly-review",
       "params": {},
-      "description": "CLI 无障碍扫描: img-alt/input-label/html-lang/contrast-risk/clickable-div 5项检查 — CLI 模式补充",
+      "description": "CLI 无障碍扫描: img-alt/input-label/html-lang/contrast-risk/clickable-div 5项检查 — CLI",
       "condition": "!conversation_mode"
     },
     {
@@ -527,7 +527,7 @@
       "params": {
         "command": "npx @google/design.md lint"
       },
-      "description": "Google DESIGN.md CLI: 校验生成的 DESIGN.md 格式正确性 + WCAG 对比度检查，失败则输出报告到 .claude/designs/lint-report.md 供审查",
+      "description": "Google DESIGN.md CLI: 校验生成的 DESIGN.md 格式正确性 + WCAG 对比度检查，",
       "condition": "conversation_mode"
     },
     {
