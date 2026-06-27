@@ -18,7 +18,7 @@ A **three-layer architecture + Scene engine** intelligent development system:
 - ✅ **Load testing**: Artillery integration — smoke/load/stress, 3-tier performance gates
 - ✅ **Security vulnerability scanning**: ESLint security rules + OWASP Top-10 + npm audit + security headers + build leak detection + dead link detection + open redirect detection + state management audit + ReDoS scanning + log sanitization + CORS check + sensitive file check + supply chain security
 - ✅ **External toolchain**: 16 tools (noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / Lighthouse CI / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / prototype-pollution)
-- ✅ **Memory system**: 7 memory backends working in concert
+- ✅ **Memory system**: 6 memory backends working in concert
 - ✅ **Competitive analysis**: OpenDigger data-driven decisions
 - ✅ **Zero-conflict architecture**: strict tool isolation and deduplication
 - ✅ **AI/Model switching**: switch AI providers via config files — supports Claude, Gemini, Qwen, and more
@@ -397,7 +397,7 @@ claude plugins install compound-engineering@anthropic
 | **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 curated brand DESIGN.md files (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
 | **MCP Servers** | `claude mcp install github playwright supabase` | AI context enhancement extensions |
 | **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` | GitHub spec-driven development engine (11 speckit skills) |
-| **Memory Tools** | `git clone https://github.com/claude-mem %USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 7 memory backends (project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory) |
+| **Memory Tools** | `git clone https://github.com/claude-mem %USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 6 memory backends (project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace) |
 | **Security Toolchain** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli knip` + `pip install seraphim-audit` + Socket.dev API Key | Build leak detection / security headers / dead links / a11y / ReDoS / performance gates / dead code / supply chain |
 | **App Store** | [Claude App Store](https://github.com/topics/claude-app-store) | More Claude extensions |
 

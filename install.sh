@@ -16,7 +16,7 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; DIM='\033[2m'; NC='\033[0m'
 
 # ----- 参数解析 -----
-SKIP_MCP=false; SKIP_OPENDIGGER=false; SKIP_OPENDESIGN=false; SKIP_ECC=false; SKIP_CODEGRAPH=false; WITH_SUPERMEMORY=false
+SKIP_MCP=false; SKIP_OPENDIGGER=false; SKIP_OPENDESIGN=false; SKIP_ECC=false; SKIP_CODEGRAPH=false
 for arg in "$@"; do
   case $arg in
     --skip-mcp) SKIP_MCP=true ;;
@@ -24,8 +24,7 @@ for arg in "$@"; do
     --skip-opendesign) SKIP_OPENDESIGN=true ;;
     --skip-ecc) SKIP_ECC=true ;;
     --skip-codegraph) SKIP_CODEGRAPH=true ;;
-    --with-supermemory) WITH_SUPERMEMORY=true ;;
-    --help|-h) echo "用法: ./install.sh [--skip-mcp] [--skip-opendigger] [--skip-opendesign] [--skip-ecc] [--skip-codegraph] [--with-supermemory]"; exit 0 ;;
+    --help|-h) echo "用法: ./install.sh [--skip-mcp] [--skip-opendigger] [--skip-opendesign] [--skip-ecc] [--skip-codegraph]"; exit 0 ;;
   esac
 done
 
@@ -244,27 +243,7 @@ install_npm_if_needed "$PROJECT_DIR/open-digger" "open-digger"
 install_npm_if_needed "$PROJECT_DIR/ecc/source" "ecc"
 
 # ============================================================
-#  8. Supermemory (云端语义记忆，可选)
-# ============================================================
-echo ""
-echo -e "${CYAN}[8/11] Supermemory (云端语义记忆)${NC}"
-
-if [ "$WITH_SUPERMEMORY" = true ]; then
-  if [ -d "$PROJECT_DIR/claude-scene" ]; then
-    step_doing "安装 supermemory npm 包..."
-    (cd "$PROJECT_DIR/claude-scene" && npm install supermemory 2>&1 | tail -1) && \
-      step_ok "supermemory (SDK 已安装，需在 .env 中配置 SUPERMEMORY_API_KEY)" || \
-      echo -e "  ${YELLOW}⚠ supermemory 安装失败（可选组件）${NC}"
-  else
-    echo -e "  ${YELLOW}⚠ claude-scene 目录不存在，跳过${NC}"
-  fi
-else
-  echo -e "  ${DIM}⏭ 未启用（用 --with-supermemory 开启）${NC}"
-  echo -e "  ${DIM}   不安装不影响本地 6 后端正常工作${NC}"
-fi
-
-# ============================================================
-#  9. OpenDigger CLI (竞品分析)
+#  8. OpenDigger CLI (竞品分析)
 # ============================================================
 echo ""
 echo -e "${CYAN}[9/11] OpenDigger (竞品分析引擎)${NC}"
@@ -350,7 +329,6 @@ echo -e "    Claude Code:  $(claude --version 2>/dev/null || echo '未安装')"
 echo -e "    TypeScript:   $(tsc --version 2>/dev/null || echo '未安装')"
 echo -e "    ESLint:       $(npx eslint --version 2>/dev/null || echo '未安装')"
 echo -e "    Playwright:   $(npx playwright --version 2>/dev/null || echo '未安装')"
-echo -e "    Supermemory:  $([ "$WITH_SUPERMEMORY" = true ] && echo '已安装 (需配置 SUPERMEMORY_API_KEY)' || echo '未安装 (可选, 用 --with-supermemory 开启)')"
 echo ""
 echo -e "  启动方式:"
 echo -e "    ${YELLOW}claude-scene list${NC}          # 查看所有工作流"

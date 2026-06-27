@@ -17,6 +17,8 @@
   },
   "devDependencies": {
     "@browserbasehq/stagehand": "^3.6.0",
+    "@critiq/cli": "^0.4.0",
+    "@critiq/rules": "^0.4.0",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.61.1",
     "@vitest/coverage-v8": "^4.1.9",

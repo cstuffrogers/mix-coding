@@ -50,8 +50,7 @@
       "openapi-typescript",
       "playwright",
       "runme",
-      "js-yaml",
-      "supermemory"
+      "js-yaml"
     ],
     "ignore": [
       "src/actions.test.js",

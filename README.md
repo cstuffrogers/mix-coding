@@ -17,8 +17,8 @@
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
 - ✅ **浏览器功能测试**：Stagehand 集成，act/extract/observe API + 自愈选择器，AI 驱动用户关键路径验证（10 个工作流可选增强）
 - ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计 + mythos-agent 假设驱动推理（变量分析 + PoC 生成，8 个工作流可选增强）+ 安全响应头扫描 + 构建泄露检测 + 死链检测 + 开放重定向检测 + 状态管理审计 + 正则 ReDoS 扫描 + 日志脱敏 + CORS 检查 + 敏感文件检查 + 供应链安全扫描
-- ✅ **外部工具链**：18 个工具（Stagehand / mythos-agent / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— AI 浏览器功能测试、假设驱动安全推理、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
-- ✅ **记忆组件组合**：7 种记忆工具协同工作
+- ✅ **外部工具链**：19 个工具（Critiq / Stagehand / mythos-agent / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— 确定性安全规则扫描（1,243 条规则 9 语言）、AI 浏览器功能测试、假设驱动安全推理、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
+- ✅ **记忆组件组合**：6 种记忆工具协同工作
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
 - ✅ **AI/Model 无缝切换**：通过配置文件快速切换 AI 服务提供商，支持 Claude、Gemini、Qwen 等主流模型
@@ -549,7 +549,7 @@ claude plugins install compound-engineering@anthropic
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: 语义HTML/ARIA可访问性 |
 | **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md`（同上，注意前序元数据格式） | 5 精选品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为 Open Design 152 品牌库直接文件读取 |
 | **MCP服务器** | `claude mcp install github playwright supabase` | AI上下文增强扩展 |
-| **记忆工具** | `git clone https://github.com/claude-mem \`%USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 7种记忆组件组合使用（project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace / Supermemory） |
+| **记忆工具** | `git clone https://github.com/claude-mem \`%USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 6种记忆组件组合使用（project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace） |
 | **安全工具链** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli knip` + `pip install seraphim-audit` + Socket.dev API Key 配置 | 构建泄露检测 / 安全响应头 / 死链 / 无障碍 / ReDoS / 性能门禁 / AST 死代码检测 / 日志脱敏 / CORS / 敏感文件 / 供应链安全 / 技术债务 |
 | **App Store** | [claude代码商店](https://github.com/topics/claude-app-store) | 更多Claude扩展工具 |
 

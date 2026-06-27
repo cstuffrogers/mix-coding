@@ -31,13 +31,6 @@ vi.mock('../lib/fs-utils.js', () => ({
   ensureDir: vi.fn(),
 }));
 
-// Supermemory is cloud-only, no API key in tests → always returns []
-vi.mock('./memory/supermemory.js', () => ({
-  recallFromSupermemory: vi.fn(() => Promise.resolve([])),
-  saveToSupermemory: vi.fn(() => Promise.resolve(null)),
-  supermemoryStatus: vi.fn(() => ({ available: false, configured: false, error: null })),
-  shouldSkipSave: vi.fn(() => false),
-}));
 
 import {
   handleMemoryRecall,
@@ -45,7 +38,6 @@ import {
   handleConsolidate,
   handleListMemories,
 } from './memory.js';
-import { supermemoryStatus, recallFromSupermemory, saveToSupermemory } from './memory/supermemory.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -153,50 +145,5 @@ describe('handleListMemories', () => {
   it('returns a string', () => {
     const result = handleListMemories('listMemories', {}, '/tmp');
     expect(typeof result).toBe('string');
-  });
-});
-
-describe('Supermemory integration', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('calls supermemory recall when available', async () => {
-    supermemoryStatus.mockReturnValue({ available: true, configured: true, error: null });
-    recallFromSupermemory.mockResolvedValue([
-      { source: 'supermemory', kind: 'profile-static', type: 'general', data: ['fact1'] },
-    ]);
-
-    const context = {};
-    const result = await handleMemoryRecall('memoryRecall', {}, '/tmp', context);
-
-    expect(recallFromSupermemory).toHaveBeenCalledTimes(1);
-    expect(result).toContain('项目记忆已召回');
-    expect(result).toContain('Supermemory');
-    expect(context.recalled_memories.some(m => m.source === 'supermemory')).toBe(true);
-  });
-
-  it('calls supermemory save when available', async () => {
-    supermemoryStatus.mockReturnValue({ available: true, configured: true, error: null });
-    saveToSupermemory.mockResolvedValue({ id: 'sm_123', type: 'test', ok: true });
-
-    const result = await handleMemoryRemember(
-      'memoryRemember',
-      { type: 'test', data: 'hello' },
-      '/tmp'
-    );
-
-    expect(saveToSupermemory).toHaveBeenCalledTimes(1);
-    expect(result).toContain('已保存到记忆');
-  });
-
-  it('skips supermemory when not available', async () => {
-    supermemoryStatus.mockReturnValue({ available: false, configured: false, error: null });
-
-    const context = {};
-    const result = await handleMemoryRecall('memoryRecall', {}, '/tmp', context);
-
-    expect(recallFromSupermemory).not.toHaveBeenCalled();
-    expect(result).not.toContain('Supermemory');
   });
 });

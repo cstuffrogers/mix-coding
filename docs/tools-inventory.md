@@ -692,7 +692,7 @@ recall → listMemories → analyzeUI → web-design-declare-system
 
 ## 记忆系统
 
-### 7 种记忆工具
+### 6 种记忆工具
 
 | 工具 | 类型 | 存储 | 命名空间 | 用途 |
 |------|------|------|---------|------|
@@ -702,7 +702,6 @@ recall → listMemories → analyzeUI → web-design-declare-system
 | **NEXO Brain** | CLI | SQLite `~/.nexo/` + GPT-4 | `memory-nexo_*` | 语义记忆图 |
 | **CodeGraph** | CLI | SQLite `.codegraph/codegraph.db`(130MB) | `memory-codegraph_*` | 代码关系知识图谱 |
 | **MemPalace** | CLI | Markdown `~/.claude/projects/` | 逐字归档 | 对话原文逐字归档与智能召回 |
-| **Supermemory** | SaaS | 云端向量数据库 | 语义搜索 | 语义搜索 + 自动事实提取（需 API Key） |
 
 ### 记忆 Action 处理器
 

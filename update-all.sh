@@ -22,7 +22,7 @@ echo -e "${CYAN}[1/7]${NC} npm 依赖更新..."
 cd "$SCRIPT_DIR/claude-scene"
 npm update --legacy-peer-deps 2>&1 && echo -e "  ${GREEN}[OK]${NC} claude-scene npm 依赖更新完成" || echo -e "  ${YELLOW}[WARN]${NC} npm update 有错误，跳过"
 
-echo -e "${CYAN}[2/7]${NC} 项目根依赖安装 (Stagehand + zod)..."
+echo -e "${CYAN}[2/7]${NC} 项目根依赖安装 (Stagehand + zod + Critiq)..."
 cd "$SCRIPT_DIR"
 npm install --legacy-peer-deps 2>&1 && echo -e "  ${GREEN}[OK]${NC} 根依赖安装完成" || echo -e "  ${YELLOW}[WARN]${NC} 根依赖安装有错误"
 
@@ -114,6 +114,8 @@ check_bin "restic" "restic version"
 echo ""
 echo -e "${CYAN}[7/7]${NC} npx 零安装工具（aislop/dependency-cruiser/jscpd/size-limit/Stryker/Spectral/markdownlint/knip）"
 echo -e "  ${GREEN}[OK]${NC} 每次执行自动拉最新版，无需手动更新"
+echo ""
+echo -e "  Critiq 已通过根依赖安装（npx critiq check .）"
 
 echo ""
 echo "=============================================="

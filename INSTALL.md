@@ -269,21 +269,7 @@ npx nexo-brain@latest init
 
 ---
 
-### 9. Supermemory（云端语义记忆） - 可选安装 ⭐⭐
-**作用：** 云端语义搜索 + 用户画像 + 自动事实提取，增强跨会话记忆召回精度
-
-**安装：**
-```bash
-cd e:\auto-coding\claude-scene
-npm install supermemory
-```
-
-**配置：**
-设置环境变量（不设置则不影响本地 6 后端）：
-
----
-
-### 10. MemPalace（对话原文记忆） - 推荐安装 ⭐⭐⭐⭐
+### 9. MemPalace（对话原文记忆） - 推荐安装 ⭐⭐⭐⭐
 **作用：** 对话原文自动归档 + 跨会话历史召回，通过 **MCP 工具调用**（不走 hook，避免 Windows 路径转义假死）
 
 **安装 CLI：**

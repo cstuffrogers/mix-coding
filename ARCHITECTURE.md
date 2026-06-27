@@ -82,7 +82,7 @@ This project implements a **three-layer architecture** following the **12-factor
 
 ### 1. Memory Service
 
-**Purpose**: Unified memory management combining 7 complementary backends
+**Purpose**: Unified memory management combining 6 complementary backends
 
 **Components**:
 - **project-memory**: JSON-file-based structured memory, type-tagged (security/bugfix/architecture/…)
@@ -91,12 +91,10 @@ This project implements a **three-layer architecture** following the **12-factor
 - **NEXO Brain**: Graph-based semantic memory with GPT-4
 - **CodeGraph**: Code relationship knowledge graph (SQLite)
 - **MemPalace**: Verbatim conversation archiving and recall (v3.3.5, 2026-06-06) — **通过 MCP 工具调用**（不走 hook）
-- **Supermemory**: Cloud-based semantic memory + user profiles (`supermemoryai/supermemory`, 26K+ stars, 2026-06-09, optional via `SUPERMEMORY_API_KEY`)
 
 **Isolation Strategy**:
 - Tool name prefixes: `memory-agentmemory_*`, `memory-nexo_*`, `memory-codegraph_*`
 - Separate SQLite databases in ~/.agentmemory/, ~/.nexo/, ~/.codegraph/
-- Supermemory is cloud-only, disabled by default (no API key → zero impact on local backends)
 
 **API**:
 ```typescript
@@ -243,6 +241,7 @@ Deploy
 | **DaisyUI** | Theme system | Tailwind plugin (zero runtime) |
 | **Animate.css** | Animations | CSS import (zero runtime) |
 | **Lucide React** | Icons | React component (tree-shakeable) |
+| **Critiq** | Security | `npx critiq check .` — 1,243 条确定性安全规则 |
 
 ---
 

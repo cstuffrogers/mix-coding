@@ -22,7 +22,7 @@ if %errorlevel% equ 0 (
     echo   [WARN] npm update 有错误，跳过
 )
 
-echo   [2/7] 项目根依赖安装 (Stagehand + zod)...
+echo   [2/7] 项目根依赖安装 (Stagehand + zod + Critiq)...
 cd /d "%SCRIPT_DIR%"
 call npm install --legacy-peer-deps 2>&1
 if %errorlevel% equ 0 (
@@ -128,6 +128,8 @@ REM ── 5. npx 工具 ──
 echo.
 echo [7/7] npx 零安装工具 ^(aislop/dependency-cruiser/jscpd/size-limit/Stryker/Spectral/markdownlint/knip^)
 echo   [OK] 每次执行自动拉最新版，无需手动更新
+echo.
+echo   Critiq 已通过根依赖安装 ^(npx critiq check .^)
 
 echo.
 echo ==============================================

@@ -68,6 +68,15 @@ const DETECTORS = {
       return true;
     } catch { return false; }
   },
+  critiq: (root) => {
+    try {
+      const pkgPath = join(root, 'package.json');
+      if (!existsSync(pkgPath)) return false;
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      return '@critiq/cli' in deps;
+    } catch { return false; }
+  },
 };
 
 /**
@@ -143,6 +152,12 @@ const REGISTRY = {
       default: false,
       when: () => DETECTORS.mythosAgent(),
     },
+    {
+      key: 'critiq_security_scan',
+      label: 'Critiq 确定性安全扫描 — 1,243 条规则 (SQLi/SSRF/路径遍历/反序列化)，零成本秒级',
+      default: true,
+      when: (ctx) => DETECTORS.critiq(ctx.targetPath),
+    },
   ],
   release: [
     {
@@ -196,6 +211,12 @@ const REGISTRY = {
       label: 'mythos-agent 安全审计 — 假设驱动全库扫描 + 数据流推理',
       default: true,
       when: () => DETECTORS.mythosAgent(),
+    },
+    {
+      key: 'critiq_full_audit',
+      label: 'Critiq 全量安全审计 — 9 语言 21 类别 1,243 条规则 + secret 专项扫描',
+      default: true,
+      when: (ctx) => DETECTORS.critiq(ctx.targetPath),
     },
   ],
   analyze: [
@@ -264,6 +285,12 @@ const REGISTRY = {
       label: 'mythos-agent 假设驱动扫描 — AI 推理未知漏洞 + 变量分析 + PoC 生成',
       default: true,
       when: () => DETECTORS.mythosAgent(),
+    },
+    {
+      key: 'critiq_vulnerability_scan',
+      label: 'Critiq 确定性漏洞扫描 — SQLi/SSRF/路径遍历/不安全反序列化/硬编码密钥',
+      default: true,
+      when: (ctx) => DETECTORS.critiq(ctx.targetPath),
     },
   ],
   monitor: [

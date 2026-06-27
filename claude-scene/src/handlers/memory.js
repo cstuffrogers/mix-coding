@@ -4,7 +4,6 @@ import { readAgentmemory, writeAgentmemory, getAgentmemoryStats } from './memory
 import { readNexoData, writeNexoEvent } from './memory/nexo.js';
 import { queryCodeGraph } from './memory/codegraph.js';
 import { loadProjectMemories, loadAllProjectMemories, saveProjectMemory, matchFilter, deduplicateProjectMemories } from './memory/project-memory.js';
-import { recallFromSupermemory, saveToSupermemory, supermemoryStatus, shouldSkipSave } from './memory/supermemory.js';
 
 // ── Public handlers ──────────────────────────────────────────────
 export async function handleMemoryRecall(_action, params, _targetPath, context) {
@@ -13,8 +12,7 @@ export async function handleMemoryRecall(_action, params, _targetPath, context) 
   const limit = params?.limit ?? 10;
   const filters = params?.filters;
 
-  const smStatus = supermemoryStatus();
-  const backendCount = smStatus.available ? 6 : 5;
+  const backendCount = 5;
 
   const allMemories = [];
 
@@ -44,15 +42,7 @@ export async function handleMemoryRecall(_action, params, _targetPath, context) 
   const cg = queryCodeGraph(perSourceLimit);
   allMemories.push({ source: 'codegraph', summary: cg });
 
-  // 7th backend: Supermemory (cloud, optional)
-  if (smStatus.available) {
-    const smMemories = await recallFromSupermemory({
-      type: category || 'general',
-      query: filters?.query || params?.query || '',
-      limit: perSourceLimit,
-    });
-    allMemories.push(...smMemories);
-  }
+  // 6 backends total (project-memory, claude-mem, agentmemory, NEXO, CodeGraph, MemPalace)
 
   const recalled = filters
     ? allMemories.filter(m => matchFilter(m, filters)).slice(0, limit)
@@ -62,12 +52,10 @@ export async function handleMemoryRecall(_action, params, _targetPath, context) 
 
   const total = recalled.length;
   const sources = ['项目', 'Claude-Mem', 'agentmemory', 'NEXO', 'CodeGraph'];
-  if (smStatus.available) sources.push('Supermemory');
   return `项目记忆已召回（${total} 条，来源: ${sources.join('/')}）`;
 }
 
 export async function handleMemoryRemember(_action, params, _targetPath, context) {
-  const smStatus = supermemoryStatus();
   const type = params?.type || 'general';
   const baseData = params?.data || params?.content || (context?.recalled_memories?.length ? context.recalled_memories : null) || {};
 
@@ -135,18 +123,6 @@ export async function handleMemoryRemember(_action, params, _targetPath, context
     console.log(chalk.yellow(`  ⚠ NEXO 写入失败: ${e.message}`));
   }
 
-  // 7th backend: Supermemory (cloud, optional)
-  if (smStatus.available && !shouldSkipSave(type, data)) {
-    try {
-      const smResult = await saveToSupermemory(type, data);
-      if (smResult?.ok) {
-        count++;
-      }
-    } catch (e) {
-      console.log(chalk.yellow(`  ⚠ Supermemory 写入失败: ${e.message}`));
-    }
-  }
-
   if (context) context._memorySaved = true;
   return `已保存到记忆（${count} 后端）`;
 }
@@ -170,13 +146,7 @@ export function handleConsolidate(_action, _params, _targetPath) {
   const cg = queryCodeGraph();
   stats.codegraph = { nodes: cg.nodes, edges: cg.edges, files: cg.files };
 
-  const smStatus = supermemoryStatus();
-  stats.supermemory = smStatus;
-
-  if (smStatus.configured) console.error(chalk.yellow(`  ☁️  Supermemory: ${smStatus.error || '未连接'}`));
-
-  const smPart = smStatus.available ? ' / Supermemory' : '';
-  return `记忆整理完成（项目 ${stats.projectMemory.kept} / Claude-Mem ${stats.claudeMem.entries} / agentmemory ${amStats.count} / CodeGraph ${cg.nodes} 节点${smPart}）`;
+  return `记忆整理完成（项目 ${stats.projectMemory.kept} / Claude-Mem ${stats.claudeMem.entries} / agentmemory ${amStats.count} / CodeGraph ${cg.nodes} 节点）`;
 }
 
 export function handleListMemories(_action, _params, _targetPath) {
@@ -184,7 +154,6 @@ export function handleListMemories(_action, _params, _targetPath) {
   const cmAll = ['general', 'architecture', 'decision', 'pattern'].flatMap(c => readClaudeMemItems(c));
   const amStats = getAgentmemoryStats();
   const cg = queryCodeGraph();
-  const smStatus = supermemoryStatus();
 
   if (memories.length) {
     memories.slice(0, 10).forEach((m, i) => {
@@ -193,8 +162,7 @@ export function handleListMemories(_action, _params, _targetPath) {
   } else {
     console.log(chalk.dim('  （暂无）'));
   }
-  const smInfo = smStatus.available ? ' / Supermemory' : '';
-  return `记忆列表: ${memories.length} 条（project-memory）+ ${cmAll.length}（claude-mem）+ ${amStats.count}（agentmemory）+ ${cg.nodes}（codegraph）${smInfo}`;
+  return `记忆列表: ${memories.length} 条（project-memory）+ ${cmAll.length}（claude-mem）+ ${amStats.count}（agentmemory）+ ${cg.nodes}（codegraph）`;
 }
 
 export function handleAutoRemember(_action, _params, _targetPath, context) {

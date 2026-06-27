@@ -60,7 +60,6 @@ handlers/
     codegraph.js
     nexo.js
     project-memory.js
-    supermemory.js
   memory.js
   memory.test.js
   migration.js

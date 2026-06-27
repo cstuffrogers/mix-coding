@@ -14,6 +14,7 @@
 | Stagehand | 存在 `@browserbasehq/stagehand` 依赖 | review、bugfix、feature、ui-polish、release、refactor、design、e2e、new-project、monitor |
 | mythos-agent | `mythos-agent --version` 成功 | hunt、review、feature、release、bugfix、audit、deps、refactor |
 | GEPA | `python -c "import gepa"` 成功 | optimize、loop |
+| Critiq | 存在 `@critiq/cli` 依赖 | review、audit、hunt |
 
 ## 菜单规则
 
@@ -42,6 +43,7 @@
 | 4 | Stagehand 行为验证 — git diff → 受影响页面自动操作验证（自愈选择器，页面改版不中断） | — | 检测到 Stagehand |
 | 5 | 迁移审查 — 扫描迁移文件，检测 DROP/NOT NULL 无默认值等危险模式 | ✓ | 检测到数据库 |
 | 6 | mythos-agent 安全深度推理 — 基于 diff 推理新攻击面（注入点/数据流/权限绕过） | — | 检测到 mythos-agent |
+| 7 | Critiq 确定性安全扫描 — 1,243 条规则 (SQLi/SSRF/路径遍历/反序列化)，零成本秒级 | ✓ | 检测到 Critiq |
 
 ### `/release`
 
@@ -73,6 +75,7 @@
 
 - LLM 代理审计 — 三层防线检测工具调用注入（LobsterTrap + AgentShield + egress-bench，默认启用）
 - mythos-agent 假设驱动扫描 — AI 推理未知漏洞 + 变量分析 + PoC 生成，与三层防线组成四层（检测到 mythos-agent 时默认启用）
+- Critiq 确定性漏洞扫描 — SQLi/SSRF/路径遍历/不安全反序列化/硬编码密钥（检测到 Critiq 时默认启用）
 
 ### `/optimize`
 
@@ -92,6 +95,7 @@
 - 架构深度审计 — 分层合规 + 复杂度热点图（始终可选）
 - Stagehand 行为回归 — 重构前后浏览器功能一致性验证（检测到 Stagehand 时默认启用）
 - mythos-agent 安全审计 — 假设驱动全库扫描 + 数据流变化推理（检测到 mythos-agent 时默认启用）
+- Critiq 全量安全审计 — 9 语言 21 类别 1,243 条确定性规则 + secret 专项扫描（检测到 Critiq 时默认启用）
 
 ### `/bugfix`
 

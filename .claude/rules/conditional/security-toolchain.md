@@ -28,11 +28,13 @@
 | **Spectral** | npx CLI | `/review`, `/audit` | API lint（OpenAPI/Swagger） |
 | **markdownlint** | npx CLI | `/review`, `/audit` | Markdown 格式检查 |
 | **codeguardian** | Python MCP | `/optimize`, `/refactor`, `/loop` | AI 代码优化守护者 |
+| **critiq** | npm CLI | `/review`, `/audit`, `/hunt` | 确定性安全规则扫描：1,243 条规则 9 语言 (SQLi/SSRF/路径遍历/反序列化/硬编码密钥) |
 
 ## 工具安装
 
 ```bash
 npm install -D noleak pa11y-ci recheck-cli knip jscpd size-limit markdownlint-cli
+npm install -D @critiq/cli @critiq/rules
 pip install git+https://github.com/seraphimhub/seraphim-audit.git
 pip install git+https://github.com/NVIDIA/skillspector.git
 # lychee: https://github.com/lycheeverse/lychee/releases
