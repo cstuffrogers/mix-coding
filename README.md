@@ -17,7 +17,7 @@
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
 - ✅ **浏览器功能测试**：Stagehand 集成，act/extract/observe API + 自愈选择器，AI 驱动用户关键路径验证（10 个工作流可选增强）
 - ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计 + mythos-agent 假设驱动推理（变量分析 + PoC 生成，8 个工作流可选增强）+ 安全响应头扫描 + 构建泄露检测 + 死链检测 + 开放重定向检测 + 状态管理审计 + 正则 ReDoS 扫描 + 日志脱敏 + CORS 检查 + 敏感文件检查 + 供应链安全扫描
-- ✅ **外部工具链**：19 个工具（Critiq / Stagehand / mythos-agent / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— 确定性安全规则扫描（1,243 条规则 9 语言）、AI 浏览器功能测试、假设驱动安全推理、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
+- ✅ **外部工具链**：23 个工具（Critiq / Stagehand / mythos-agent / trivy / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / shellcheck / sqlfluff / bruno / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— 容器/文件系统/IaC 安全扫描 + Shell 脚本分析 + SQL lint + API 交互测试 + 确定性安全规则扫描（1,243 条规则 9 语言）、AI 浏览器功能测试、假设驱动安全推理、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
 - ✅ **记忆组件组合**：6 种记忆工具协同工作
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
@@ -313,6 +313,10 @@ node src/index.js start hunt --auto --target "./your-project"
 | **aislop** | npx CLI | `/review` (step 2.9), `/audit` (step 3.19) | AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper（子秒级确定性） | — |
 | **dependency-cruiser** | npx CLI | `/audit` (step 3.20) | 依赖架构验证：循环依赖检测/孤儿模块识别/架构分层合规/调用图生成（6.7k+ stars） | — |
 | **prototype-pollution** | ESLint 规则 | `/audit` (step 1, 2), `/hunt` (step 3), `/review` (step 2 lint) | no-prototype-builtins 原型链污染检测 | — |
+| **trivy** | Go 二进制 | `/hunt`, `/audit` | 容器镜像/文件系统/IaC 全量安全扫描：CVE + 密钥 + 配置错误（Aqua Security, 25k+ stars） | — |
+| **shellcheck** | Haskell 二进制 | `/audit`, `/cicd` | Shell 脚本静态分析：语法错误/不良实践/安全风险（37k+ stars） | — |
+| **sqlfluff** | Python CLI | `/review`, `/audit` | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言（8k+ stars, MIT） | — |
+| **bruno** | npm CLI | `/e2e`, `/review` | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本（31k+ stars, MIT） | — |
 
 ### 工具安装
 
@@ -323,6 +327,18 @@ npm install -D noleak pa11y-ci recheck-cli knip
 # Python 工具（macOS/Linux/Windows 均支持）
 pip install git+https://github.com/seraphimhub/seraphim-audit.git
 pip install git+https://github.com/NVIDIA/skillspector.git
+pip install sqlfluff
+
+# trivy — 容器/文件系统安全扫描
+# winget install AquaSecurity.Trivy  (Windows)
+# brew install trivy                   (macOS)
+
+# shellcheck — Shell 脚本静态分析
+# winget install koalaman.shellcheck   (Windows)
+# brew install shellcheck              (macOS)
+
+# bruno — API 交互测试
+npm install -g @usebruno/cli
 
 # lychee 死链检测 — 按平台下载二进制
 # https://github.com/lycheeverse/lychee/releases
@@ -560,7 +576,7 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **80+ 个外部组件**：Skills 21 个 + MCP 14 个 + npm 包 23 个 + 外部工具 18 个 + MemPalace 工具 1 个
+> 共集成 **80+ 个外部组件**：Skills 21 个 + MCP 14 个 + npm 包 23 个 + 外部工具 22 个 + MemPalace 工具 1 个
 
 ### 本地 Skills（21 个，`.claude/skills/`）
 
@@ -603,15 +619,17 @@ claude plugins install compound-engineering@anthropic
 
 | 类型 | 数量 | 工具 | 安装方式 |
 |------|------|------|---------|
-| **uv/Python** | 3 | `specify-cli`（spec-kit）、`seraphim-audit`、`skillspector` | uv tool install / pip install |
+| **uv/Python** | 4 | `specify-cli`（spec-kit）、`seraphim-audit`、`skillspector`、`sqlfluff` | uv tool install / pip install |
 | **Rust 二进制** | 1 | `lychee` | brew / cargo / 下载 exe |
-| **Go 二进制** | 2 | `act`、`restic` | winget / brew / 下载 |
+| **Go 二进制** | 3 | `act`、`restic`、`trivy` | winget / brew / 下载 |
+| **Haskell 二进制** | 1 | `shellcheck` | winget / brew / 下载 |
+| **npm 全局** | 1 | `bruno`（`@usebruno/cli`） | npm install -g |
 | **npx 零安装** | 8 | `aislop`、`dependency-cruiser`、`jscpd`、`size-limit`、`Stryker`、`Spectral`、`markdownlint`、`knip` | 无需安装 |
 | **内置 grep** | 4 | `log-sanitizer`、`cors-checker`、`env-leak-scanner`、`sensitive-file-check` | 已内置 |
 
-### 集成 GitHub 项目（18 个）
+### 集成 GitHub 项目（22 个）
 
-`seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
+`aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
 
 ---
 
