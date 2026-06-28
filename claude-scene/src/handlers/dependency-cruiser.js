@@ -53,7 +53,7 @@ export function handleDepcruiseArchitecture(_action, params, targetPath, context
   }
 
   if (context) {
-    context.depcruisePassed = violationCount === 0;
+    context.depCruiserPassed = violationCount === 0;
     context.depcruise_violations = violationCount;
     if (callGraphPath && existsSync(callGraphPath)) {
       context.depgraph_path = callGraphPath;

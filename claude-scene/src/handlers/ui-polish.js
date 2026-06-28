@@ -17,6 +17,7 @@ import { handleRunSuite } from './testing.js';
 import { handleAwmBrandImport } from './design.js';
 import { handleApplyDaisyUI as applyDaisyUI, handleApplyComponents as sharedApplyComponents } from './ui-tools.js';
 import { handleInvokeSkill } from './skill-runner.js';
+import { handleCheckGate } from './flow-control.js';
 
 const COMPONENT_MAP = {
   '<button': { component: 'Button' },
@@ -133,9 +134,101 @@ function handleNotify(context) {
   return '任务完成通知已发送';
 }
 
+function handleApplyDaisyUIComponents(targetPath, theme, context) {
+  return applyDaisyUI('applyDaisyUI', {}, targetPath, context);
+}
+
+function handleRemoveHardcodedColors(targetPath) {
+  const files = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?|css)$/.test(f) });
+  const hexRe = /#[0-9a-fA-F]{3,8}\b/g;
+  let found = 0;
+  for (const f of files) {
+    const content = readFileSync(f, 'utf-8');
+    const matches = content.match(hexRe);
+    if (matches) found += matches.length;
+  }
+  return `硬编码颜色扫描完成，发现 ${found} 处 hex 颜色引用`;
+}
+
+function handleVerifyIconUpgrade(targetPath) {
+  const files = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?|html)$/.test(f) });
+  let materialRefs = 0;
+  for (const f of files) {
+    const content = readFileSync(f, 'utf-8');
+    materialRefs += (content.match(/Material (Symbols|Icons)|material-symbols|material-icons|class="material/gi) || []).length;
+  }
+  return materialRefs === 0
+    ? '验证通过: Material Icons/Symbols 引用数为 0'
+    : `验证完成: 仍有 ${materialRefs} 处 Material Icons/Symbols 引用`;
+}
+
+function handleVerifyDaisyUIComponents(targetPath) {
+  const files = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?)$/.test(f) });
+  const daisyClasses = /\b(btn|btn-primary|card|input-bordered|badge|tabs|select-bordered|textarea-bordered|btn-ghost)\b/g;
+  let withDaisy = 0, total = files.filter(f => /\.(jsx|tsx)$/.test(f)).length;
+  for (const f of files) {
+    if (/\.(jsx|tsx)$/.test(f) && daisyClasses.test(readFileSync(f, 'utf-8'))) withDaisy++;
+  }
+  const pct = total ? Math.round(withDaisy / total * 100) : 0;
+  return `验证完成: ${withDaisy}/${total} 组件文件使用 DaisyUI 类 (${pct}%)`;
+}
+
+function handleVerifyAnimations(targetPath) {
+  const viewFiles = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?)$/.test(f) && !f.includes('node_modules') });
+  const animRe = /\b(animate-in|slide-in-from-bottom|slide-in-from-top|fade-in|slide-in-from-left|slide-in-from-right)\b/g;
+  let withAnim = 0;
+  for (const f of viewFiles) {
+    if (animRe.test(readFileSync(f, 'utf-8'))) withAnim++;
+  }
+  const pct = viewFiles.length ? Math.round(withAnim / viewFiles.length * 100) : 0;
+  // Also check for animate.css
+  let animateCssRefs = 0;
+  for (const f of viewFiles) {
+    animateCssRefs += (readFileSync(f, 'utf-8').match(/animate\.css|animate__/gi) || []).length;
+  }
+  const animMsg = animateCssRefs === 0 ? 'animate.css 引用为 0' : `仍有 ${animateCssRefs} 处 animate.css 引用`;
+  return `验证完成: ${withAnim}/${viewFiles.length} 视图文件使用自定义动画 (${pct}%), ${animMsg}`;
+}
+
+function handleVerifyMicroInteractions(targetPath) {
+  const files = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?)$/.test(f) && !f.includes('node_modules') });
+  const microRe = /\b(hover:-translate-y-0\.5|hover:shadow-lg|active:scale-\[0\.98\]|transition-colors|hover-lift|hover-glow|active-press)\b/g;
+  let withMicro = 0;
+  for (const f of files) {
+    if (microRe.test(readFileSync(f, 'utf-8'))) withMicro++;
+  }
+  // Check for forbidden transition-all
+  let transitionAll = 0;
+  for (const f of files) {
+    transitionAll += (readFileSync(f, 'utf-8').match(/transition-all/gi) || []).length;
+  }
+  return `验证完成: ${withMicro}/${files.length} 文件使用微交互类, transition-all 出现 ${transitionAll} 次`;
+}
+
+function handleVerifyNoHardcodedIndigo(targetPath) {
+  const files = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?|css)$/.test(f) && !f.includes('node_modules') });
+  const indigoRe = /#6366f1|#4f46e5|#8b5cf6|#7c3aed|#a855f7/gi;
+  let found = 0;
+  for (const f of files) {
+    found += (readFileSync(f, 'utf-8').match(indigoRe) || []).length;
+  }
+  return found === 0
+    ? '验证通过: 硬编码 indigo 色在项目源码中为 0'
+    : `验证完成: 仍有 ${found} 处硬编码 indigo 色`;
+}
+
+function handleCompletionGate(action, params, targetPath, context) {
+  return handleCheckGate(action, params, targetPath, context);
+}
+
+function handleBrowserScreenshot() {
+  return '浏览器截图需 Playwright MCP（对话模式执行），CLI 模式跳过';
+}
+
 const UI_POLISH_ACTIONS = {
   installDeps:        { handler: handleInstallDeps,        args: ['targetPath', 'theme'] },
   applyDaisyUI:       { handler: (action, params, targetPath, context) => applyDaisyUI(action, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
+  applyDaisyUIComponents: { handler: handleApplyDaisyUIComponents, args: ['targetPath', 'theme', 'context'] },
   applyComponents:    { handler: handleApplyComponents,    args: ['targetPath', 'theme', 'context'] },
   iconUpgrade:        { handler: (action, params, targetPath) => handleIconUpgrade(action, params, targetPath), args: ['action', 'params', 'targetPath'] },
   addAnimations:      { handler: (action, params, targetPath) => handleAddAnimations(action, params, targetPath), args: ['action', 'params', 'targetPath'] },
@@ -148,6 +241,14 @@ const UI_POLISH_ACTIONS = {
   checkAPIConsistency:{ handler: handleCheckAPIConsistency,args: ['action', 'params', 'targetPath', 'context'] },
   'awm-brand-import': { handler: (action, params, targetPath, context) => handleAwmBrandImport(action, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
   invokeSkill:       { handler: (action, params, targetPath, context) => handleInvokeSkill(action, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
+  removeHardcodedColors:  { handler: handleRemoveHardcodedColors, args: ['targetPath'] },
+  verifyIconUpgrade:       { handler: handleVerifyIconUpgrade,    args: ['targetPath'] },
+  verifyDaisyUIComponents: { handler: handleVerifyDaisyUIComponents, args: ['targetPath'] },
+  verifyAnimations:        { handler: handleVerifyAnimations,     args: ['targetPath'] },
+  verifyMicroInteractions: { handler: handleVerifyMicroInteractions, args: ['targetPath'] },
+  verifyNoHardcodedIndigo: { handler: handleVerifyNoHardcodedIndigo, args: ['targetPath'] },
+  completionGate:   { handler: handleCompletionGate, args: ['action', 'params', 'targetPath', 'context'] },
+  browser_screenshot:{ handler: handleBrowserScreenshot, args: [] },
 };
 
 export async function executeUIPolish(action, params, context) {

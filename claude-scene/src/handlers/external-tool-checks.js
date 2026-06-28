@@ -746,3 +746,55 @@ export function handleSizeLimit(_action, _params, targetPath, context) {
   if (context) context.sizeLimitPassed = isPassed;
   return `包体积检查完成: ${isPassed ? '通过' : failures.join('; ')}`;
 }
+
+// ── pa11y-ci — WCAG 无障碍扫描 ──
+
+export function handlePa11yCi(_action, _params, targetPath, context) {
+  try {
+    const raw = safeExec('npx pa11y-ci 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
+    if (context) context.pa11yPassed = !raw.includes('Error:');
+    return `pa11y-ci 无障碍扫描完成`;
+  } catch {
+    console.log(chalk.dim('  ℹ pa11y-ci 不可用'));
+    return 'pa11y-ci 不可用，跳过无障碍扫描';
+  }
+}
+
+// ── DESIGN.md lint — Google DESIGN.md CLI 格式校验 ──
+
+export function handleDesignMdLint(_action, _params, targetPath, context) {
+  try {
+    const raw = safeExec('npx @google/design.md lint 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
+    if (context) context.designMdPassed = !raw.includes('error') && !raw.includes('FAIL');
+    return `DESIGN.md lint 完成`;
+  } catch {
+    console.log(chalk.dim('  ℹ @google/design.md lint 不可用'));
+    return 'DESIGN.md lint 不可用，跳过';
+  }
+}
+
+// ── DESIGN.md export — Google DESIGN.md CLI Tailwind 导出 ──
+
+export function handleDesignMdExport(_action, _params, targetPath) {
+  try {
+    safeExec('npx @google/design.md export --format tailwind 2>&1', targetPath, { stdio: 'pipe' });
+    return 'DESIGN.md Tailwind 配置导出完成';
+  } catch {
+    console.log(chalk.dim('  ℹ @google/design.md export 不可用'));
+    return 'DESIGN.md export 不可用，跳过';
+  }
+}
+
+// ── CodeGraph / CodeGuardian — MCP 工具（仅对话模式可用）──
+
+export function handleCodeGraphImpact() {
+  return 'CodeGraph 影响分析仅对话模式可用（需 codegraph MCP），CLI 模式跳过';
+}
+
+export function handleCodeGraphTrace() {
+  return 'CodeGraph 依赖追踪仅对话模式可用（需 codegraph MCP），CLI 模式跳过';
+}
+
+export function handleCodeGuardianOptimize() {
+  return 'CodeGuardian 优化仅对话模式可用（需 codeguardian MCP），CLI 模式跳过';
+}
