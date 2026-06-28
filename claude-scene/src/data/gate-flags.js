@@ -57,4 +57,10 @@ export default Object.assign(Object.create(null), {
     shellcheck: 'shellCheckPassed',
     sqlfluff: 'sqlFluffPassed',
     bruno: 'brunoPassed',
+    gitleaks: 'gitleaksPassed',
+    gitleaks_detect: 'gitleaksPassed',
+    semgrep: 'semgrepPassed',
+    semgrep_scan: 'semgrepPassed',
+    commitlint: 'commitlintPassed',
+    commitlint_check: 'commitlintPassed',
 });

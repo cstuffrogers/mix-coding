@@ -17,7 +17,7 @@ A **three-layer architecture + Scene engine** intelligent development system:
 - ✅ **Database migration review**: scans migration files, detects 8 dangerous patterns (DROP TABLE / NOT NULL without DEFAULT, etc.), blocks high-risk changes
 - ✅ **Load testing**: Artillery integration — smoke/load/stress, 3-tier performance gates
 - ✅ **Security vulnerability scanning**: ESLint security rules + OWASP Top-10 + npm audit + security headers + build leak detection + dead link detection + open redirect detection + state management audit + ReDoS scanning + log sanitization + CORS check + sensitive file check + supply chain security
-- ✅ **External toolchain**: 23 tools (Critiq / Stagehand / mythos-agent / trivy / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / shellcheck / sqlfluff / bruno / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution) — container/filesystem/IaC security scanning + Shell script analysis + SQL lint + API interaction testing + deterministic security rules (1,243 rules, 9 languages) + AI browser functional testing + hypothesis-driven security reasoning + build leak blocking + dead link detection + log sanitization + CORS config + environment variable leaks + supply chain security + dead code detection + AI skill security + code smell + dependency architecture + performance gates + prototype pollution
+- ✅ **External toolchain**: 26 tools (Critiq / Stagehand / mythos-agent / trivy / gitleaks / semgrep / commitlint / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / shellcheck / sqlfluff / bruno / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution) — container/filesystem/IaC security scanning + Git history secret detection + multi-language AST-level SAST + commit format validation + Shell script analysis + SQL lint + API interaction testing + deterministic security rules (1,243 rules, 9 languages) + AI browser functional testing + hypothesis-driven security reasoning + build leak blocking + dead link detection + log sanitization + CORS config + environment variable leaks + supply chain security + dead code detection + AI skill security + code smell + dependency architecture + performance gates + prototype pollution
 - ✅ **Memory system**: 6 memory backends working in concert
 - ✅ **Competitive analysis**: OpenDigger data-driven decisions
 - ✅ **Zero-conflict architecture**: strict tool isolation and deduplication
@@ -258,6 +258,9 @@ These tools are integrated into corresponding workflows, executing automatically
 | **shellcheck** | Haskell binary | `/audit`, `/cicd` | Shell script static analysis: syntax errors/bad practices/security risks (37k+ stars) | — |
 | **sqlfluff** | Python CLI | `/review`, `/audit` | SQL linter + formatter: 200+ rules, 8 SQL dialects (8k+ stars, MIT) | — |
 | **bruno** | npm CLI | `/e2e`, `/review` | API interaction testing: REST/GraphQL/WebSocket collection runner, Git-friendly plain text (31k+ stars, MIT) | — |
+| **gitleaks** | Go binary | `/hunt`, `/audit` | Git history secret leak detection: 120+ built-in rules, detect/describe/git subcommands (18k+ stars, MIT) | — |
+| **semgrep** | Python CLI | `/hunt`, `/audit`, `/review` | Multi-language AST-level SAST: 2,500+ community rules, custom rule support (11k+ stars, LGPL) | — |
+| **commitlint** | npm CLI | `/review`, `/cicd` | Conventional Commits format validation: `@commitlint/config-conventional` + extensible rules (18k+ stars, MIT) | — |
 
 ---
 
@@ -412,7 +415,7 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 Integration Overview
 
-> **76+ external components**: 21 Skills + 14 MCP servers + 23 npm packages + 22 external tools
+> **76+ external components**: 21 Skills + 14 MCP servers + 23 npm packages + 25 external tools
 
 ### Local Skills (21, `.claude/skills/`)
 
@@ -451,21 +454,21 @@ claude plugins install compound-engineering@anthropic
 
 **dependencies (4)**: `chalk`, `commander`, `inquirer`, `ora`
 
-### External Tools (22, by type)
+### External Tools (25, by type)
 
 | Type | Count | Tools | Install |
 |------|-------|-------|---------|
-| **uv/Python** | 4 | `specify-cli` (spec-kit), `seraphim-audit`, `skillspector`, `sqlfluff` | uv tool install / pip install |
+| **uv/Python** | 5 | `specify-cli` (spec-kit), `seraphim-audit`, `skillspector`, `sqlfluff`, `semgrep` | uv tool install / pip install |
 | **Rust binary** | 1 | `lychee` | brew / cargo / .exe |
-| **Go binary** | 3 | `act`, `restic`, `trivy` | winget / brew / download |
+| **Go binary** | 4 | `act`, `restic`, `trivy`, `gitleaks` | winget / brew / download |
 | **Haskell binary** | 1 | `shellcheck` | winget / brew / download |
 | **npm global** | 1 | `bruno` (`@usebruno/cli`) | npm install -g |
-| **npx zero-install** | 8 | `aislop`, `dependency-cruiser`, `jscpd`, `size-limit`, `Stryker`, `Spectral`, `markdownlint`, `knip` | None needed |
+| **npx zero-install** | 9 | `aislop`, `dependency-cruiser`, `jscpd`, `size-limit`, `Stryker`, `Spectral`, `markdownlint`, `commitlint`, `knip` | None needed |
 | **Built-in grep** | 4 | `log-sanitizer`, `cors-checker`, `env-leak-scanner`, `sensitive-file-check` | Built-in |
 
-### Integrated GitHub Projects (22)
+### Integrated GitHub Projects (25)
 
-`aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
+`gitleaks/gitleaks` · `semgrep/semgrep` · `conventional-changelog/commitlint` · `aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
 
 ---
 

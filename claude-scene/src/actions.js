@@ -70,6 +70,7 @@ import { handleCheckPrerequisites } from './handlers/prerequisites.js';
 import { handleVerifyHandlers } from './handlers/handler-verify.js';
 import { handleCheckSmoke, handleCheckActionMessages, handleCheckGateFlags, handleFixActionMessages, handleFixGateFlags, handleSelfCheckReport } from './handlers/engine-check.js';
 import { handleTrivyScan, handleShellCheck, handleSqlFluff, handleBrunoRun } from './handlers/new-external-tools.js';
+import { handleGitleaks, handleSemgrep, handleCommitlint } from './handlers/gitleaks-semgrep-commitlint.js';
 
 // Mobile handlers
 import {
@@ -338,6 +339,15 @@ export const ACTION_REGISTRY = {
   brunoRun: handleBrunoRun,
   'bruno-run': handleBrunoRun,
   bruno: handleBrunoRun,
+  gitleaks: handleGitleaks,
+  'gitleaks-detect': handleGitleaks,
+  gitleaksDetect: handleGitleaks,
+  semgrep: handleSemgrep,
+  'semgrep-scan': handleSemgrep,
+  semgrepScan: handleSemgrep,
+  commitlint: handleCommitlint,
+  'commitlint-check': handleCommitlint,
+  commitlintCheck: handleCommitlint,
 
 	// GitHub Actions lint & security (actionlint + zizmor)
 	actionlint: handleActionlint,

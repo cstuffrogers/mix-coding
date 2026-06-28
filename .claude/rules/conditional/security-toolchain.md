@@ -33,6 +33,9 @@
 | **shellcheck** | Haskell 二进制 | `/audit`, `/cicd` | Shell 脚本静态分析 (37k+ stars) |
 | **sqlfluff** | Python CLI | `/review`, `/audit` | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言 (MIT) |
 | **bruno** | npm CLI | `/e2e`, `/review` | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本 (31k+ stars, MIT) |
+| **gitleaks** | Go 二进制 | `/hunt`, `/audit` | Git 历史 + 实时密钥泄露检测：120+ 内置规则 (18k+ stars) |
+| **semgrep** | Python CLI | `/hunt`, `/audit`, `/review` | 多语言 AST 级 SAST：2,500+ 社区规则 (11k+ stars) |
+| **commitlint** | npm CLI | `/review`, `/cicd` | Conventional Commits 格式校验 (18k+ stars) |
 
 ## 工具安装
 
@@ -42,6 +45,9 @@ npm install -D @critiq/cli @critiq/rules
 pip install git+https://github.com/seraphimhub/seraphim-audit.git
 pip install git+https://github.com/NVIDIA/skillspector.git
 pip install sqlfluff
+pip install semgrep
+npm install -D @commitlint/cli @commitlint/config-conventional
+# gitleaks: https://github.com/gitleaks/gitleaks/releases (winget install Gitleaks.Gitleaks / brew install gitleaks)
 # lychee: https://github.com/lycheeverse/lychee/releases
 # trivy: https://github.com/aquasecurity/trivy/releases (winget install AquaSecurity.Trivy / brew install trivy)
 # shellcheck: https://github.com/koalaman/shellcheck/releases (winget install koalaman.shellcheck / brew install shellcheck)
