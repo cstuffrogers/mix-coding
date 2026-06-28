@@ -37,7 +37,7 @@ import { getActionMessage } from './data/action-messages.js';
 import { handleMemoryRecall, handleMemoryRemember, handleConsolidate, handleListMemories, handleAutoRemember } from './handlers/memory.js';
 import { handleCodeScan, handlePerformanceProfile, handleCodeMetrics, handleDetectAntiPatterns, handleGenerateReport } from './handlers/code-metrics.js';
 import { handleSecurityScan, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecurityVulnerabilities, handleLogSanitization, handleCorsCheck, handleEnvVarLeak, handleSensitiveFileCheck, handleDeprecatedDeps } from './handlers/security-scanning.js';
-import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan, handleActionlint, handleZizmor, handleJscpd, handleSizeLimit, handleStryker, handleSpectral, handleMarkdownlint } from './handlers/external-tool-checks.js';
+import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan, handleActionlint, handleZizmor, handleJscpd, handleSizeLimit, handleStryker, handleSpectral, handleMarkdownlint, handlePa11yCi, handleDesignMdLint, handleDesignMdExport, handleCodeGraphImpact, handleCodeGraphTrace, handleCodeGuardianOptimize } from './handlers/external-tool-checks.js';
 import { handleLighthouseGate } from './handlers/lighthouse.js';
 import { handleOpenRedirectScan } from './handlers/open-redirect.js';
 import { handleI18nAudit } from './handlers/i18n.js';
@@ -68,6 +68,8 @@ import {
 } from './handlers/flow-control.js';
 import { handleCheckPrerequisites } from './handlers/prerequisites.js';
 import { handleVerifyHandlers } from './handlers/handler-verify.js';
+import { handleCheckSmoke, handleCheckActionMessages, handleCheckGateFlags, handleFixActionMessages, handleFixGateFlags, handleSelfCheckReport } from './handlers/engine-check.js';
+import { handleTrivyScan, handleShellCheck, handleSqlFluff, handleBrunoRun } from './handlers/new-external-tools.js';
 
 // Mobile handlers
 import {
@@ -309,6 +311,34 @@ export const ACTION_REGISTRY = {
   verifyHandlers: handleVerifyHandlers,
   'verify-handlers': handleVerifyHandlers,
 
+  // Engine self-check
+  checkSmoke: handleCheckSmoke,
+  'check-smoke': handleCheckSmoke,
+  checkActionMessages: handleCheckActionMessages,
+  'check-action-messages': handleCheckActionMessages,
+  checkGateFlags: handleCheckGateFlags,
+  'check-gate-flags': handleCheckGateFlags,
+  fixActionMessages: handleFixActionMessages,
+  'fix-action-messages': handleFixActionMessages,
+  fixGateFlags: handleFixGateFlags,
+  'fix-gate-flags': handleFixGateFlags,
+  selfCheckReport: handleSelfCheckReport,
+  'self-check-report': handleSelfCheckReport,
+
+  // New external tools
+  trivyScan: handleTrivyScan,
+  'trivy-scan': handleTrivyScan,
+  trivy: handleTrivyScan,
+  shellCheck: handleShellCheck,
+  'shell-check': handleShellCheck,
+  shellcheck: handleShellCheck,
+  sqlFluff: handleSqlFluff,
+  'sql-fluff': handleSqlFluff,
+  sqlfluff: handleSqlFluff,
+  brunoRun: handleBrunoRun,
+  'bruno-run': handleBrunoRun,
+  bruno: handleBrunoRun,
+
 	// GitHub Actions lint & security (actionlint + zizmor)
 	actionlint: handleActionlint,
 	'actionlint-check': handleActionlint,
@@ -326,6 +356,12 @@ export const ACTION_REGISTRY = {
 	'spectral-lint': handleSpectral,
 	markdownlint: handleMarkdownlint,
 	'markdownlint-check': handleMarkdownlint,
+	'pa11y-ci': handlePa11yCi,
+	pa11yCi: handlePa11yCi,
+	'design-md-lint': handleDesignMdLint,
+	designMdLint: handleDesignMdLint,
+	'design-md-export': handleDesignMdExport,
+	designMdExport: handleDesignMdExport,
 
   aiFriendlyReview: handleAiFriendlyReview,
   'ai-friendly-review': handleAiFriendlyReview,
@@ -543,6 +579,11 @@ export const ACTION_REGISTRY = {
   'ce-debug': handleCeAction,
   'ce-brainstorm': handleCeAction,
   'ce-work': handleCeAction,
+  // CodeGraph / CodeGuardian MCP
+  codegraph_impact: handleCodeGraphImpact,
+  codegraph_trace: handleCodeGraphTrace,
+  codeguardian_optimize: handleCodeGuardianOptimize,
+
 
   // ── Skill ──
   invokeSkill: handleInvokeSkill,

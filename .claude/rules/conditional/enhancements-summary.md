@@ -48,4 +48,4 @@
 
 ## 无增强场景
 
-`analyze` `mobile-audit` `mobile-e2e` `mobile-onboard` `mobile-optimize` `mobile-release` `mobile-review` `onboard` `plan-ceo-review` `qa` `rollback` `simplify`
+`analyze` `check` `mobile-audit` `mobile-e2e` `mobile-onboard` `mobile-optimize` `mobile-release` `mobile-review` `onboard` `plan-ceo-review` `qa` `rollback` `simplify`

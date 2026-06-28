@@ -13,7 +13,8 @@
     "scan:memory": "node scripts/check-memory-system.cjs",
     "scan:all": "node scripts/find-deadcode-full.cjs && node scripts/check-memory-system.cjs",
     "setup:mempalace": "node scripts/setup-mempalace.cjs",
-    "mcp:switch": "node scripts/switch-mcp.cjs"
+    "mcp:switch": "node scripts/switch-mcp.cjs",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@browserbasehq/stagehand": "^3.6.0",

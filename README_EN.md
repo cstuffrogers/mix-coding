@@ -9,7 +9,7 @@ Designed for non-technical users — integrates the hottest GitHub projects with
 
 A **three-layer architecture + Scene engine** intelligent development system:
 
-- ✅ **35 automated workflows** (729 steps total):| **review** | 33 Web + 6 Mobile + 1 LLM proxy audit — code review, security scanning, performance optimization, E2E testing, release deployment, environment setup, and more
+- ✅ **29 automated workflows** (23 Web + 6 Mobile) — code review, security scanning, performance optimization, E2E testing, release deployment, environment setup, engine self-check, and more
 - ✅ **Multi-round auto review & fix**: iterate until issues are cleared
 - ✅ **AI-driven design**: Open Design fully integrated (152 brands + 111 templates + 137 skills + 6 device frames + 3 decks + 102 prompt templates + 11 craft principles)
 - ✅ **Frontend polish toolchain**: DaisyUI (35+ themes) + Animal Island UI + Animate.css + Lucide React + Playwright + Impeccable critique (27 anti-AI-pattern rules) + web-design-engineer + ai-friendly-web-design + awesome-design-md (5 brand DESIGN.md: Vercel/Linear/Stripe/Notion/Apple)
@@ -74,7 +74,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ---
 
-## 📋 28 Workflow Scenes
+## 📋 29 Workflow Scenes
 
 > 9 features merged as enhancements: backup/docker→cicd, sbom→deps, loadtest→e2e, log/incident→monitor, changelog→release, migration→review, llm-proxy-audit→hunt. Triggered on-demand in parent workflows.
 
@@ -86,7 +86,6 @@ node src/index.js start ui-polish --auto    # Execute workflow
 | **review** | 33 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic) + migration/QA/i18n/a11y enhancements | `/review` |
 | **refactor** | 23 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
 | **optimize** | 17 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
-| **mobile-release** | 18 | App release (quality gate → cert check → version bump → CHANGELOG → TestFlight/Play Store + 4-layer gates) | `/mobile-release` |
 | **simplify** | 15 | Code simplification (readability-first, incremental simplify + test safety) | `/simplify` |
 | **hunt** | 24 | Security vulnerability scan & fix (12 external tools + CE) + LLM proxy audit enhancement | `/hunt` |
 | **design** | 53 | AI-driven design (full conversation mode, Open Design 152 brands + shape design brief → 3-direction proposal → Huashu prototype → expert review → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu verification) | `/design` |
@@ -103,6 +102,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 | **monitor** | 9 | Website monitoring (Upptime + GitHub Actions + status page) + log/incident enhancements | `/monitor` |
 | **qa** | 12 | Browser QA verification (git diff → browser test → bug report), also /review enhancement | `/qa` |
 | **plan-ceo-review** | 11 | Founder-mode product review (10x analysis + simplify + user value), also /feature enhancement | `/plan-ceo-review` |
+| **check** | 10 | Engine self-check + self-heal: dead action detection / orphan gate flags / missing action messages, auto-fix data files | `/check` |
 | **mobile-audit** | 24 | App security audit (MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5-layer gates) | `/mobile-audit` |
 | **mobile-review** | 17 | Mobile code review (ESLint → mobsfscan SAST → UI screenshots → mobile-ui-review → AI semantic + a11y → aggregate report) | `/mobile-review` |
 | **mobile-release** | 18 | App release (quality gate → cert check → version bump → CHANGELOG → TestFlight/Play Store + 4-layer gates) | `/mobile-release` |
@@ -114,7 +114,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ## 🔧 Action Handler Completeness
 
-The system registers **333 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 28 workflows.
+The system registers **354 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 29 workflows.
 
 | Action | Purpose | Status |
 |--------|---------|--------|
@@ -127,6 +127,8 @@ The system registers **333 action handlers** (see `claude-scene/src/actions.js` 
 | `check-api-consistency` | OpenAPI standard pipeline (Redocly lint + cross-validation + openapi-typescript) | ✅ |
 | `sec-bug-hunt` / `gitLeaks` / `npm-audit` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `state-audit` / `i18n-audit` | Security + Performance + Architecture + i18n | ✅ |
 | `verify-handlers` | Handler verification: 10-pass stub detection | ✅ |
+| `check-smoke` / `check-action-messages` / `check-gate-flags` | Engine self-check: smoke test / action message integrity / gate flag integrity | ✅ |
+| `fix-action-messages` / `fix-gate-flags` | Engine self-heal: auto-fill missing action messages and gate flag mappings | ✅ |
 | `migration-review` / `load-test` | Migration review / Load testing | ✅ |
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | One-click infrastructure config | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | Incident/Changelog/SBOM automation | ✅ |
@@ -300,7 +302,7 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # Scene definitions (28 JSON files)
+│   ├── scenes/               # Scene definitions (29 JSON files)
 │   │   ├── ui-polish.json    bugfix.json     feature.json
 │   │   ├── review.json       refactor.json   optimize.json
 │   │   ├── simplify.json     hunt.json       design.json
@@ -308,10 +310,10 @@ mix-coding/
 │   │   ├── release.json      audit.json      deps.json
 │   │   ├── rollback.json     onboard.json    cicd.json
 │   │   ├── e2e.json          monitor.json
-│   │   ├── qa.json           plan-ceo-review.json
+│   │   ├── qa.json           plan-ceo-review.json  check.json
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
-│   ├── commands/             # Slash commands (28 workflows + jvn /spec /design /build /report etc.)
+│   ├── commands/             # Slash commands (29 workflows + jvn /spec /design /build /report etc.)
 │   ├── rules/                # Project rules (conditional/ on-demand: core-rules / workflows / enhancements / 9 files)
 │   ├── skills/               # Claude Skills (21: 10 core + 11 speckit)
 │   └── agents/               # 8 Agents (PM/Architect/UX/Reviewer/Constitutional-validator + mobile-reviewer/mobile-security/mobile-perf)

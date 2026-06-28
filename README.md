@@ -8,7 +8,7 @@
 
 这是一个基于 **三层架构 + Scene 引擎** 的智能开发系统，支持：
 
-- ✅ **28 个自动化工作流**：覆盖 Web 前端（22 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建等。另有 9 个功能已融入增强菜单（cicd/deps/monitor/hunt/release/e2e/review/feature 内按需弹出）
+- ✅ **29 个自动化工作流**：覆盖 Web 前端（23 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建、引擎自检等。另有 9 个功能已融入增强菜单（cicd/deps/monitor/hunt/release/e2e/review/feature 内按需弹出）
 - ✅ **多轮自动审查与修复**：直到问题清零
 - ✅ **AI 驱动设计**：Open Design 完整集成（152 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词模板 + 11 craft 设计铁律），零设计门槛
 - ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 全维度设计打磨（shape 设计简报 + 27 条反AI模式规则 + 12 条 LLM 批判规则 + 双轮品控 + 3 项精准残留修复）+ web-design-engineer Skill（OKLCH 色彩系统 + 反AI套路规则 + 设计基准声明，所有模式必须执行）
@@ -77,7 +77,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ---
 
-## 📋 28 个工作流场景
+## 📋 29 个工作流场景
 
 > 另有 9 个功能已融入增强菜单（backup/docker→cicd、sbom→deps、loadtest→e2e、log/incident→monitor、changelog→release、migration→review、llm-proxy-audit→hunt），对应父工作流中按需弹出。
 
@@ -111,12 +111,13 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **monitor** | 9 步 | 网站监控（Upptime + GitHub Actions + 状态页）+ 日志/Incident Runbook 可选增强 | `/monitor` |
 | **qa** | 12 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级报告），也作为 /review 增强 | `/qa` |
 | **plan-ceo-review** | 11 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值三桶），也作为 /feature 增强 | `/plan-ceo-review` |
+| **check** | 10 步 | 引擎自检+自愈：dead action 检测 / orphan gate flag / missing action message，自动修复数据文件 | `/check` |
 
 ---
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **333 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 28 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **354 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 29 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|
@@ -129,6 +130,8 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | `check-api-consistency` | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | ✅ |
 | `sec-bug-hunt` / `gitLeaks` / `npm-audit` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `state-audit` / `i18n-audit` | 安全扫描 + 性能 + 架构 + i18n | ✅ |
 | `verify-handlers` | Handler 功能验证：10 Pass 空转桩检测（内联桩/CE桩/逻辑密度/工具健康/依赖/导入链/场景交叉/静态安全/MCP配置） | ✅ |
+| `check-smoke` / `check-action-messages` / `check-gate-flags` | 引擎自检：冒烟测试 / Action 消息完整性 / Gate 映射完整性 | ✅ |
+| `fix-action-messages` / `fix-gate-flags` | 引擎自愈：自动补全缺失的 action message 和 gate flag 映射 | ✅ |
 | `migration-review` / `load-test` | 迁移审查 / 负载测试 | ✅ |
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | 一键基础设施配置 | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | 事故/变更/SBOM 自动化 | ✅ |
@@ -374,7 +377,7 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # 场景定义（28 个 JSON）
+│   ├── scenes/               # 场景定义（29 个 JSON）
 │   │   ├── ui-polish.json    bugfix.json     feature.json
 │   │   ├── review.json       refactor.json   optimize.json
 │   │   ├── simplify.json     hunt.json       design.json
@@ -382,10 +385,10 @@ mix-coding/
 │   │   ├── release.json      audit.json
 │   │   ├── deps.json         rollback.json   onboard.json
 │   │   ├── cicd.json         e2e.json        monitor.json
-│   │   ├── qa.json           plan-ceo-review.json
+│   │   ├── qa.json           plan-ceo-review.json  check.json
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
-│   ├── commands/             # Slash commands（28 个工作流 + jvn /spec /design /build /report 等）
+│   ├── commands/             # Slash commands（29 个工作流 + jvn /spec /design /build /report 等）
 │   ├── rules/                # 项目规则（conditional/ 按需加载：core-rules / workflows / enhancements 等 9 个）
 │   ├── skills/               # Claude Skills（21 个：10 核心 + 11 speckit）
 │   └── agents/               # 8 个 Agent（PM/架构师/UX/审查/宪法校验 + mobile-reviewer/mobile-security/mobile-perf）

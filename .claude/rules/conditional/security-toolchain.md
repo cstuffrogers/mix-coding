@@ -29,6 +29,10 @@
 | **markdownlint** | npx CLI | `/review`, `/audit` | Markdown 格式检查 |
 | **codeguardian** | Python MCP | `/optimize`, `/refactor`, `/loop` | AI 代码优化守护者 |
 | **critiq** | npm CLI | `/review`, `/audit`, `/hunt` | 确定性安全规则扫描：1,243 条规则 9 语言 (SQLi/SSRF/路径遍历/反序列化/硬编码密钥) |
+| **trivy** | Go 二进制 | `/hunt`, `/audit` | 容器镜像/文件系统/IaC 全量扫描：CVE + 密钥 + 配置错误 (25k+ stars, Aqua Security) |
+| **shellcheck** | Haskell 二进制 | `/audit`, `/cicd` | Shell 脚本静态分析 (37k+ stars) |
+| **sqlfluff** | Python CLI | `/review`, `/audit` | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言 (MIT) |
+| **bruno** | npm CLI | `/e2e`, `/review` | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本 (31k+ stars, MIT) |
 
 ## 工具安装
 
@@ -37,7 +41,11 @@ npm install -D noleak pa11y-ci recheck-cli knip jscpd size-limit markdownlint-cl
 npm install -D @critiq/cli @critiq/rules
 pip install git+https://github.com/seraphimhub/seraphim-audit.git
 pip install git+https://github.com/NVIDIA/skillspector.git
+pip install sqlfluff
 # lychee: https://github.com/lycheeverse/lychee/releases
+# trivy: https://github.com/aquasecurity/trivy/releases (winget install AquaSecurity.Trivy / brew install trivy)
+# shellcheck: https://github.com/koalaman/shellcheck/releases (winget install koalaman.shellcheck / brew install shellcheck)
+# bruno: npm install -g @usebruno/cli
 # aislop/dependency-cruiser/spectral/stryker: npx 零安装
 ```
 

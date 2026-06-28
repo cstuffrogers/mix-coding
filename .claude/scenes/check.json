@@ -1,0 +1,117 @@
+{
+  "scene_id": "check",
+  "workflow": "check",
+  "name": "引擎自检 + 自愈",
+  "description": "引擎功能完整性检查：检测 dead actions / orphan gate flags / missing action messages，自动修复数据文件",
+  "trigger_keywords": [
+    "自检",
+    "check",
+    "完整性检查",
+    "引擎检查",
+    "自愈"
+  ],
+  "flow": [
+    {
+      "step": 0.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["check", "quality", "audit"]
+        }
+      },
+      "description": "注入历史自检上下文和已知数据完整性问题"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MetaCheckService",
+      "action": "verify-handlers",
+      "params": {},
+      "description": "Handler 功能性验证：扫描 ACTION_REGISTRY + CE dispatch + handler 文件，检测空转桩"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "SelfCheckService",
+      "action": "check-smoke",
+      "params": {},
+      "description": "Vitest 冒烟测试：dead action 检测 / handler smoke / await-safeExec 反模式 / scene JSON 完整性"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "SelfCheckService",
+      "action": "check-action-messages",
+      "params": {},
+      "description": "交叉对比 ACTION_REGISTRY 与 action-messages.js，检测缺少 action message 的 handler"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "SelfCheckService",
+      "action": "check-gate-flags",
+      "params": {},
+      "description": "扫描 handler 文件 context.flag 写入，与 gate-flags.js 交叉对比，检测孤儿 flag"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "SelfCheckService",
+      "action": "fix-action-messages",
+      "params": {},
+      "description": "自动修复缺失 action message：为 handler 生成消息并插入 action-messages.js"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "SelfCheckService",
+      "action": "fix-gate-flags",
+      "params": {},
+      "description": "自动修复缺失 gate flag 映射：推断检查名并插入 gate-flags.js"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "SelfCheckService",
+      "action": "self-check-report",
+      "params": {},
+      "description": "生成结构化自检报告（发现数 + 修复数 + 遗留问题）"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "check",
+        "data": {
+          "source": "check_workflow"
+        }
+      },
+      "description": "保存自检结果到记忆（缺失项/修复项/遗留问题）"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性"
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "引擎自检完成"
+      },
+      "description": "通知自检结果（含修复统计与遗留问题）"
+    }
+  ],
+  "status": "active"
+}

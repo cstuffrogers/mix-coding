@@ -28,7 +28,7 @@ MemPalace MCP：`mcp__mempalace__search` 查历史，`mcp__mempalace__remember` 
 
 ## 引擎
 
-Scene 引擎在对话内执行工作流。28 个场景。`node src/index.js start <场景ID> --auto [参数]`
+Scene 引擎在对话内执行工作流。29 个场景。`node src/index.js start <场景ID> --auto [参数]`
 
 ## 工作流速查
 
@@ -40,6 +40,7 @@ Scene 引擎在对话内执行工作流。28 个场景。`node src/index.js star
 | `/ui-polish` | 前端美化 | `/design` | AI 辅助 UI 设计 |
 | `/refactor` | 重构 | `/new-project` | 新建项目 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
+| `/check` | 引擎自检+自愈 | | |
 
 > 已融入增强菜单：`/qa`（review 前端变更）、`/plan-ceo-review`（feature 长需求）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（e2e）、`/log` `/incident`（monitor）、`/migration`（review/feature 检测到 DB）、`/llm-proxy-audit`（hunt）。也可独立调用。
 > 新增增强工具：`Stagehand`（浏览器功能测试，10 工作流）、`mythos-agent`（假设驱动安全扫描，8 工作流）、`GEPA`（prompt 进化，/optimize + /loop）、`Critiq`（确定性安全规则，3 工作流，零成本）。检测到安装即自动弹菜单。
