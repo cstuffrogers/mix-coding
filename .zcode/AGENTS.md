@@ -50,22 +50,20 @@ node claude-scene/src/index.js memory remember   # 保存当前会话要点
 
 ---
 
-## 工作流清单(29 个)
+## 工作流清单(26 个)
 
 | 场景 | 用途 | 场景 | 用途 |
 |------|------|------|------|
 | `/feature` | 新功能开发 | `/bugfix` | Bug 修复 |
-| `/review` | 代码审查 + 安全审计 | `/audit` | 全面项目健康检查 |
-| `/refactor` | 代码重构 | `/simplify` | 代码简化 |
-| `/optimize` | 性能优化 | `/design` | AI 辅助 UI 设计 |
-| `/ui-polish` | 前端美化(DaisyUI) | `/new-project` | 从零新建项目 |
-| `/release` | 发布部署 | `/rollback` | 快速回滚 |
-| `/deps` | 依赖更新 | `/check` | 引擎自检 + 自愈 |
-| `/hunt` | 安全漏洞审查 | `/analyze` | 代码分析 |
+| `/review` | 代码审查 + 安全审计(含 audit/analyze 模式) | `/refactor` | 代码重构 + 简化 + 架构优化 |
+| `/optimize` | 性能优化 | `/ui-polish` | 前端美化(DaisyUI) |
+| `/new-project` | 从零新建项目 | `/release` | 发布部署 |
+| `/rollback` | 快速回滚 | `/deps` | 依赖更新 |
+| `/check` | 引擎自检 + 自愈 | `/hunt` | 安全漏洞审查 |
 | `/qa` | 浏览器 QA 验证 | `/loop` | 自动迭代循环 |
 | `/onboard` | 开发环境搭建 | `/e2e` | E2E 测试配置 |
 | `/cicd` | CI/CD 流水线 | `/monitor` | 监控配置 |
-| `/plan-ceo-review` | 创始人策略审查 | | |
+| `/plan` | Manus 持久规划(会话恢复+SHA256) | `/plan-ceo-review` | 创始人策略审查 |
 | `/mobile-*` | 移动端系列(audit/e2e/onboard/optimize/release/review) | | |
 
 完整定义见 `.claude/scenes/*.json`,命令说明见 `.claude/commands/*.md`。
@@ -78,7 +76,7 @@ node claude-scene/src/index.js memory remember   # 保存当前会话要点
 
 | 资源 | 位置 | 说明 |
 |------|------|------|
-| 场景定义 | `.claude/scenes/` | 29 个工作流 JSON,引擎核心 |
+| 场景定义 | `.claude/scenes/` | 26 个工作流 JSON,引擎核心 |
 | Skills | `.claude/skills/` | review-checklist / sec-bug-hunt / huashu 等 |
 | 规则 | `.claude/rules/` | 条件规则(核心/移动端/React/设计) |
 | 记忆 | `.claude/memory/` | 项目记忆(JSON,按类型分目录) |

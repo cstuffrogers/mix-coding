@@ -8,8 +8,8 @@
 
 | 平台 | 环境变量 | 配置目录 | 命令源 |
 |------|---------|---------|--------|
-| Claude Code | `CLAUDECODE=1` | `.claude/` | `.claude/commands/*.md` (38 工作流) |
-| opencode | `OPENCODE=1` | `.opencode/` + 全局 `~/.config/opencode/opencode.json` | 全局面板 (108 命令, 38 工作流对齐) |
+| Claude Code | `CLAUDECODE=1` | `.claude/` | `.claude/commands/*.md` (35 工作流) |
+| opencode | `OPENCODE=1` | `.opencode/` + 全局 `~/.config/opencode/opencode.json` | 全局面板 (命令对齐 35 工作流) |
 | Codex | `CODEX=1` | `.codex/` | prompt 文件 |
 | ZCode | `ZCODE=1` | `.zcode/` | (待填充) |
 | CLI (无宿主) | 无 | `.claude/` (回退) | — |
@@ -19,16 +19,16 @@
 ## 目录结构
 
 ```
-~/.config/opencode/opencode.json  ← opencode 全局配置 (108 命令 · 17 MCP · 4 Provider)
+~/.config/opencode/opencode.json  ← opencode 全局配置 (命令对齐 35 工作流 · 17 MCP · 4 Provider)
 
 auto-coding/
 ├── .claude/              ← 共享资源宿主 (各平台共用)
-│   ├── scenes/           ★ 引擎场景 (29 个)
+│   ├── scenes/           ★ 引擎场景 (26 个)
 │   ├── skills/           ★ 引擎技能 (21 个)
 │   ├── rules/            ★ 引擎规则
 │   ├── memory/           ★ 引擎记忆
 │   ├── plugins/          ★ 引擎插件
-│   ├── commands/         ★ 工作流源文件 (38 个 .md, 所有平台共用)
+│   ├── commands/         ★ 工作流源文件 (35 个 .md, 所有平台共用)
 │   ├── agents/           Claude Code 专属子代理
 │   ├── mcp.json          MCP 配置定义
 │   ├── mcp-enable.json   工作流-MCP 动态启用映射
@@ -69,7 +69,7 @@ auto-coding/
 
 opencode 采用 **全局配置 + 项目配置** 双层架构：
 
-- **全局配置** (`~/.config/opencode/opencode.json`): 108 命令 + 17 MCP + 4 Provider，所有项目共享
+- **全局配置** (`~/.config/opencode/opencode.json`): 命令对齐 35 工作流 + 17 MCP + 4 Provider，所有项目共享
 - **项目配置** (`opencode.jsonc`): 仅 `instructions` 和 `skills.paths`，保持最小
 
 添加新命令的步骤：
@@ -80,7 +80,7 @@ opencode 采用 **全局配置 + 项目配置** 双层架构：
    - 或 `./scripts/setup-opencode-global.sh` （shell 版本，支持更多 API Key 传递方式）
 3. 重启 opencode 桌面版
 
-> 全局配置将 38 个 `.claude/commands/*.md` 工作流全部引用到模板中，行为与 Claude Code 一致。
+> 全局配置将 35 个 `.claude/commands/*.md` 工作流全部引用到模板中，行为与 Claude Code 一致。
 
 ## 为 Codex 添加新命令
 

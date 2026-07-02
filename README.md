@@ -408,8 +408,8 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # 场景定义（29 个 JSON）
-│   ├── commands/             # Slash commands 工作流（38 个 .md）
+│   ├── scenes/               # 场景定义（26 个 JSON）
+│   ├── commands/             # Slash commands 工作流（35 个 .md）
 │   ├── rules/                # 项目规则（conditional/ 按需加载）
 │   ├── skills/               # Claude Skills（21 个）
 │   ├── agents/               # 8 个 Agent
