@@ -1,0 +1,8 @@
+{
+  "name": "auto-coding",
+  "version": "0.1.0",
+  "description": "Mix-Coding System 工作流技能：通过 scene-runner 调用 /review /feature /bugfix /refactor /plan 等场景。",
+  "author": { "name": "cstuffrogers" },
+  "license": "MIT",
+  "skills": "skills"
+}

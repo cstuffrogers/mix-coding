@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@mix-coding/auto-coding-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Mix-Coding System 工作流技能插件，提供 scene-runner 等 skill。"
+}
