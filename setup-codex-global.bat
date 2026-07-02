@@ -1,66 +1,98 @@
- @echo off
- REM Setup Codex global skills (Windows)
- REM Run as Administrator
+@echo off
+REM setup-codex-global.bat - Deploy Mix-Coding System skills to Codex desktop (Windows)
+REM Usage: setup-codex-global.bat           deploy
+REM        setup-codex-global.bat --check  check only
+REM Mirrors setup-codex-global.sh. Uses copy (not symlink).
 
- set CODEX_SKILLS=C:\Users\Administrator\.codex\skills
- set PROJECT_SKILLS=E:\auto-coding\.agents\skills
- set LINK_NAME=auto-coding
+setlocal enabledelayedexpansion
 
- echo === Codex Global Setup ===
+set CODEX_HOME=%USERPROFILE%\.codex
+set DST_SKILLS=%CODEX_HOME%\skills\auto-coding
+set SCRIPT_DIR=%~dp0
+set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
+set SRC_SKILLS=%SCRIPT_DIR%\.agents\skills
+set ERR=0
 
- REM Create target directory
- if not exist "%CODEX_SKILLS%" mkdir "%CODEX_SKILLS%"
+set CHECK_ONLY=0
+if "%~1"=="--check" set CHECK_ONLY=1
 
- REM Create symbolic link (requires Admin)
- if exist "%CODEX_SKILLS%\%LINK_NAME%" (
-     echo Symlink already exists, skipping
- ) else (
-     mklink /D "%CODEX_SKILLS%\%LINK_NAME%" "%PROJECT_SKILLS%"
-     if errorlevel 1 (
-         echo ERROR: Failed to create symlink. Run as Administrator.
-         pause
-         exit /b 1
-     )
-     echo SUCCESS: Skills link created
- )
+echo.
+echo === Codex Skills Deploy - Mix-Coding System ===
+echo.
 
- REM Generate agents/openai.yaml for each skill
- echo.
- echo Generating agents/openai.yaml files...
+echo -- 1. Check source skills --
+if not exist "%SRC_SKILLS%\scene-runner\SKILL.md" (
+    echo   [FAIL] Source skills missing
+    exit /b 1
+)
+echo   [OK] Source skills ready: .agents\skills\
 
- REM Scene Runner (core workflow skill)
- if exist "%PROJECT_SKILLS%\scene-runner\SKILL.md" (
-     if not exist "%PROJECT_SKILLS%\scene-runner\agents" mkdir "%PROJECT_SKILLS%\scene-runner\agents"
-     echo skill: scene-runner > "%PROJECT_SKILLS%\scene-runner\agents\openai.yaml"
-     echo display_name: Scene Runner >> "%PROJECT_SKILLS%\scene-runner\agents\openai.yaml"
-     echo short_description: Execute Mix-Coding workflows (/audit, /review, /feature, etc.) >> "%PROJECT_SKILLS%\scene-runner\agents\openai.yaml"
-     echo default_prompt: Use scene-runner to execute workflow commands like /audit or /review. >> "%PROJECT_SKILLS%\scene-runner\agents\openai.yaml"
-     echo Created: scene-runner/agents/openai.yaml
- )
+echo.
+echo -- 2. Check Codex home --
+if not exist "%CODEX_HOME%" (
+    echo   [FAIL] Codex home not found - install Codex desktop first
+    exit /b 1
+)
+echo   [OK] Codex home exists: %CODEX_HOME%
 
- REM Main skills
- for %%s in (ai-friendly-web-design awesome-design-md constitution-reference impeccable mobile-ui-review review-checklist sec-bug-hunt source-command-check source-command-mobile-review source-command-others source-command-plan-ceo-review source-command-qa source-command-recall speckit-agent-context-update speckit-analyze speckit-checklist speckit-clarify speckit-constitution speckit-converge speckit-implement speckit-plan speckit-specify speckit-tasks speckit-taskstoissues stack-knowledge web-design-engineer) do (
-     if exist "%PROJECT_SKILLS%\%%s\SKILL.md" (
-         if not exist "%PROJECT_SKILLS%\%%s\agents" mkdir "%PROJECT_SKILLS%\%%s\agents"
-         if not exist "%PROJECT_SKILLS%\%%s\agents\openai.yaml" (
-             echo skill: %%s > "%PROJECT_SKILLS%\%%s\agents\openai.yaml"
-             echo display_name: %%s >> "%PROJECT_SKILLS%\%%s\agents\openai.yaml"
-             echo short_description: Auto-coding skill >> "%PROJECT_SKILLS%\%%s\agents\openai.yaml"
-             echo default_prompt: Use the %%s skill to help with this task. >> "%PROJECT_SKILLS%\%%s\agents\openai.yaml"
-             echo Created: %%s/agents/openai.yaml
-         )
-     )
- )
+if "%CHECK_ONLY%"=="1" (
+    echo.
+    echo --check mode, no deployment
+    exit /b %ERR%
+)
 
- REM Count total skills
- set COUNT=0
- for /d %%d in ("%PROJECT_SKILLS%\*") do (
-     if exist "%%d\SKILL.md" set /a COUNT+=1
- )
+echo.
+echo -- 3. Deploy skills to Codex global --
+if not exist "%DST_SKILLS%" mkdir "%DST_SKILLS%"
+xcopy /e /y /i /q "%SRC_SKILLS%" "%DST_SKILLS%" >nul
+if errorlevel 1 (
+    echo   [FAIL] Copy failed
+    set ERR=1
+    goto summary
+)
+echo   [OK] Skills copied to: %DST_SKILLS%
 
- echo.
- echo === Setup Complete ===
- echo %COUNT% skills configured
- echo Key skill: scene-runner (workflows: /audit, /review, /feature, etc.)
- echo Restart Codex to apply changes.
- pause
+echo.
+echo -- 4. Generate openai.yaml metadata --
+set YAML_COUNT=0
+for /d %%D in ("%DST_SKILLS%\*") do (
+    set SKILL_NAME=%%~nxD
+    set YAML_DIR=%%D\agents
+    set YAML_FILE=!YAML_DIR!\openai.yaml
+    if not exist "!YAML_FILE!" (
+        if not exist "!YAML_DIR!" mkdir "!YAML_DIR!"
+        echo skill: !SKILL_NAME!> "!YAML_FILE!"
+        echo display_name: !SKILL_NAME!>> "!YAML_FILE!"
+        echo short_description: Auto-coding skill>> "!YAML_FILE!"
+        echo default_prompt: Use the !SKILL_NAME! skill to help with this task.>> "!YAML_FILE!"
+        set /a YAML_COUNT+=1
+    )
+)
+echo   [OK] openai.yaml metadata confirmed (%YAML_COUNT% new)
+
+echo.
+echo -- 5. Verify key skill --
+if not exist "%DST_SKILLS%\scene-runner\SKILL.md" (
+    echo   [FAIL] scene-runner skill missing
+    set ERR=1
+    goto summary
+)
+echo   [OK] scene-runner skill ready (maps /review /plan /refactor etc.)
+
+:summary
+echo.
+if not "%ERR%"=="0" goto fail
+echo === [DONE] Codex Skills Deploy Complete ===
+echo Next:
+echo   1. Restart Codex desktop
+echo   2. Say /review or /plan in Codex
+echo   3. scene-runner skill maps commands to engine CLI
+echo.
+echo Commands: /review /feature /bugfix /refactor /plan /optimize
+echo            /ui-polish /hunt /release /deps /check /qa /loop etc.
+echo Merged: /audit-^>/review /simplify-^>/refactor /design-^>/ui-polish
+goto end
+:fail
+echo === [FAIL] %ERR% problem(s) found ===
+:end
+exit /b %ERR%
