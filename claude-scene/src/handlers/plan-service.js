@@ -401,10 +401,10 @@ export function handleUpdatePhaseStatus(action, params, targetPath) {
 			// Update status line within the phase
 			if (isInTargetPhase && line.includes('**Status:**')) {
 				const statusRegex = /\*\*Status:\*\*\s*(pending|in_progress|complete)/;
-					const statusMatch = statusRegex.exec(line);
-					if (statusMatch) {
-						lines[i] = line.slice(0, statusMatch.index) + '**Status:** ' + String(status) + line.slice(statusMatch.index + statusMatch[0].length);
-					}
+				const statusMatch = statusRegex.exec(line);
+				if (statusMatch) {
+					lines[i] = line.slice(0, statusMatch.index) + '**Status:** ' + String(status) + line.slice(statusMatch.index + statusMatch[0].length);
+				}
 				isFound = true;
 				break;
 			}
@@ -486,9 +486,9 @@ ${files?.length ? `- **Files Changed:** ${files.join(', ')}` : ''}
 		const content = readFileSync(progressFile, 'utf-8');
 		// Append before Session End if exists, otherwise at end
 		const sessionEndRegex = /## Session End/;
-		if (sessionEndRegex.test(content)) {
-		// eslint-disable-next-line unicorn/no-unsafe-string-replacement
-				const updated = content.replace(sessionEndRegex, `${entry}\n## Session End`);
+		const match = sessionEndRegex.exec(content);
+		if (match) {
+			const updated = content.slice(0, match.index) + entry + '\n## Session End' + content.slice(match.index + match[0].length);
 			writeFileSync(progressFile, updated);
 		} else {
 			writeFileSync(progressFile, content + entry);
