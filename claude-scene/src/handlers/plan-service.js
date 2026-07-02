@@ -4,8 +4,8 @@
  */
 
 import { execSync } from 'child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'fs';
-import { resolve, join } from 'path';
+import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'fs';
+import { resolve } from 'path';
 
 /**
  * Run session-catchup.py to detect unsynced context from previous session
@@ -103,8 +103,8 @@ export function handleReadSpec(action, params, targetPath) {
 
 	try {
 		const content = readFileSync(fullPath, 'utf-8');
-		const goalMatch = content.match(/##\s*Goal\s*\n([^\n]+)/i);
-		const titleMatch = content.match(/^#\s*(.+)$/m);
+		const goalMatch = /^## Goal[^\n]*\n([^\n]+)/im.exec(content);
+		const titleMatch = /^# ([^\n]+)/m.exec(content);
 
 		return {
 			status: 'success',
@@ -123,7 +123,7 @@ export function handleReadSpec(action, params, targetPath) {
  * @param {object} params - { prompt: question to ask }
  * @returns {object} Prompt for user input
  */
-export function handleGatherRequirements(action, params, targetPath) {
+export function handleGatherRequirements(action, params, _targetPath) {
 	return {
 		status: 'interactive',
 		prompt: params?.prompt || '请描述任务目标（一句话）和预期阶段（3-7个）：',
@@ -146,12 +146,7 @@ export function handleCreatePlan(action, params, targetPath) {
 	}
 
 	const templatePath = resolve(targetPath, params?.template || '.claude/templates/plan.md');
-	let content = '';
-
-	if (existsSync(templatePath)) {
-		content = readFileSync(templatePath, 'utf-8');
-	} else {
-		content = `# Plan: Task Plan
+	const content = existsSync(templatePath) ? readFileSync(templatePath, 'utf-8') : `# Plan: Task Plan
 
 ## Goal
 [One sentence describing the end state]
@@ -195,7 +190,6 @@ Phase 1
 |-------|---------|------------|
 |       | 1       |            |
 `;
-	}
 
 	try {
 		writeFileSync(planFile, content);
@@ -218,12 +212,7 @@ export function handleCreateFindings(action, params, targetPath) {
 	}
 
 	const templatePath = resolve(targetPath, params?.template || '.claude/templates/findings.md');
-	let content = '';
-
-	if (existsSync(templatePath)) {
-		content = readFileSync(templatePath, 'utf-8');
-	} else {
-		content = `# Findings: [Task Name]
+	const content = existsSync(templatePath) ? readFileSync(templatePath, 'utf-8') : `# Findings: [Task Name]
 
 ## Research Summary
 [Summary of research findings]
@@ -244,7 +233,6 @@ export function handleCreateFindings(action, params, targetPath) {
 ## Open Questions
 1. [Question] — Status: unresolved
 `;
-	}
 
 	try {
 		writeFileSync(findingsFile, content);
@@ -268,12 +256,7 @@ export function handleCreateProgress(action, params, targetPath) {
 
 	const templatePath = resolve(targetPath, params?.template || '.claude/templates/progress.md');
 	const timestamp = new Date().toISOString();
-	let content = '';
-
-	if (existsSync(templatePath)) {
-		content = readFileSync(templatePath, 'utf-8');
-	} else {
-		content = `# Progress: [Task Name]
+	const content = existsSync(templatePath) ? readFileSync(templatePath, 'utf-8') : `# Progress: [Task Name]
 
 ## Session Info
 - **Started:** ${timestamp}
@@ -295,7 +278,6 @@ export function handleCreateProgress(action, params, targetPath) {
 |-------|--------------|------------------|
 |       |              |                  |
 `;
-	}
 
 	try {
 		writeFileSync(progressFile, content);
@@ -309,7 +291,7 @@ export function handleCreateProgress(action, params, targetPath) {
  * Confirm attestation (interactive prompt)
  * @param {object} params - { prompt, default }
  */
-export function handleConfirmAttestation(action, params, targetPath) {
+export function handleConfirmAttestation(action, params, _targetPath) {
 	return {
 		status: 'interactive',
 		prompt: params?.prompt || '是否启用 SHA256 认证？（多 Agent 协作时推荐）',
@@ -360,7 +342,7 @@ export function handleAttestPlan(action, params, targetPath) {
  * Display summary message
  * @param {object} params - { message }
  */
-export function handleDisplaySummary(action, params, targetPath) {
+export function handleDisplaySummary(action, params, _targetPath) {
 	const defaultMessage = `📋 规划文件已创建：
 - plan.md (阶段规划)
 - findings.md (研究发现)
@@ -382,6 +364,7 @@ export function handleDisplaySummary(action, params, targetPath) {
  * @param {object} params - { phase: number, status: 'pending'|'in_progress'|'complete' }
  * @param {string} targetPath - Project directory
  */
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export function handleUpdatePhaseStatus(action, params, targetPath) {
 	const planFile = resolve(targetPath, 'plan.md');
 
@@ -397,33 +380,37 @@ export function handleUpdatePhaseStatus(action, params, targetPath) {
 	try {
 		let content = readFileSync(planFile, 'utf-8');
 		const lines = content.split('\n');
-		let inTargetPhase = false;
-		let found = false;
+		let isInTargetPhase = false;
+		let isFound = false;
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
 
 			// Check if entering the target phase
 			if (line.match(new RegExp(`^### Phase ${phase}:`))) {
-				inTargetPhase = true;
+				isInTargetPhase = true;
 				continue;
 			}
 
 			// Check if leaving phase (another phase)
-			if (inTargetPhase && line.match(/^### Phase \d+:/)) {
-				inTargetPhase = false;
+			if (isInTargetPhase && line.match(/^### Phase \d+:/)) {
+				isInTargetPhase = false;
 				continue;
 			}
 
 			// Update status line within the phase
-			if (inTargetPhase && line.includes('**Status:**')) {
-				lines[i] = line.replace(/\*\*Status:\*\*\s*(pending|in_progress|complete)/, `**Status:** ${status}`);
-				found = true;
+			if (isInTargetPhase && line.includes('**Status:**')) {
+				const statusRegex = /\*\*Status:\*\*\s*(pending|in_progress|complete)/;
+					const statusMatch = statusRegex.exec(line);
+					if (statusMatch) {
+						lines[i] = line.slice(0, statusMatch.index) + '**Status:** ' + String(status) + line.slice(statusMatch.index + statusMatch[0].length);
+					}
+				isFound = true;
 				break;
 			}
 		}
 
-		if (found) {
+		if (isFound) {
 			writeFileSync(planFile, lines.join('\n'));
 			return { status: 'success', phase, newStatus: status };
 		}
@@ -456,7 +443,10 @@ export function handleLogError(action, params, targetPath) {
 		const errorsRegex = /(## Errors Encountered\s*\n\|[^\n]+\|\n\|[^\n]+\|\n)/;
 
 		if (errorsRegex.test(content)) {
-			content = content.replace(errorsRegex, `$1${errorEntry}`);
+			const match = errorsRegex.exec(content);
+			if (match) {
+				content = content.slice(0, match.index + match[0].length) + errorEntry + content.slice(match.index + match[0].length);
+			}
 		} else {
 			// Add section if not exists
 			content += `\n## Errors Encountered\n| Error | Attempt | Resolution |\n|-------|---------|------------|\n${errorEntry}`;
@@ -497,7 +487,8 @@ ${files?.length ? `- **Files Changed:** ${files.join(', ')}` : ''}
 		// Append before Session End if exists, otherwise at end
 		const sessionEndRegex = /## Session End/;
 		if (sessionEndRegex.test(content)) {
-			const updated = content.replace(sessionEndRegex, `${entry}\n## Session End`);
+		// eslint-disable-next-line unicorn/no-unsafe-string-replacement
+				const updated = content.replace(sessionEndRegex, `${entry}\n## Session End`);
 			writeFileSync(progressFile, updated);
 		} else {
 			writeFileSync(progressFile, content + entry);
