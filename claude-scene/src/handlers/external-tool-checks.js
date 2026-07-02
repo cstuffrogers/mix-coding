@@ -127,8 +127,8 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
     } else {
       console.log(chalk.green('  ✅ noleak 扫描完成，未发现泄露'));
     }
-  } catch {
-    console.log(chalk.dim('  ℹ noleak 不可用，跳过泄露检查'));
+  } catch (e) {
+    console.log(chalk.dim('  ℹ noleak 不可用，跳过泄露检查'), e.message);
   }
 
   if (context) context.buildLeakPassed = isPassed;
@@ -167,8 +167,8 @@ export function handleDeadLinkCheck(_action, _params, targetPath, context) {
     } else {
       console.log(chalk.green('  ✅ 未发现死链接'));
     }
-  } catch {
-    console.log(chalk.dim('  ℹ lychee 不可用，跳过死链检测'));
+  } catch (e) {
+    console.log(chalk.dim('  ℹ lychee 不可用，跳过死链检测'), e.message);
   }
 
   if (context) context.deadLinkPassed = brokenCount === 0;
@@ -202,8 +202,8 @@ export function handleSecurityHeaders(_action, _params, targetPath, context) {
       } else {
         console.log(chalk.dim(`  ✓ ${check.name}: 已配置`));
       }
-    } catch {
-      findings.push(`${check.name}: 检查失败`);
+    } catch (e) {
+      findings.push(`${check.name}: 检查失败 (${e.message})`);
     }
   }
 
@@ -264,7 +264,8 @@ export function handleRecheckCli(_action, _params, targetPath, context) {
     ).toString();
 
     // recheck-cli outputs findings as lines with file:line:column
-    const lines = raw.split('\n').filter(l => /^(WARN|ERROR|VULN|✗|×)\b/i.test(l) || /\d+:\d+.*(redos|backtrack|catastroph)/i.test(l));
+    // eslint-disable-next-line sonarjs/super-linear-regex
+    const lines = raw.split('\n').filter(l => /^(WARN|ERROR|VULN|✗|×)\b/i.test(l) || /\d+:\d+.*?(redos|backtrack|catastroph)/i.test(l));
     issueCount = lines.length;
 
     if (issueCount > 0) {
@@ -277,67 +278,44 @@ export function handleRecheckCli(_action, _params, targetPath, context) {
     } else {
       console.log(chalk.dim('  ℹ recheck-cli 扫描完成（无匹配项）'));
     }
-  } catch {
-    console.log(chalk.dim('  ℹ recheck-cli 不可用或超时，跳过 ReDoS 扫描'));
+  } catch (e) {
+    console.log(chalk.dim('  ℹ recheck-cli 不可用或超时，跳过 ReDoS 扫描'), e.message);
   }
 
   if (context) context.recheckPassed = issueCount === 0;
   return `ReDoS 扫描完成: ${issueCount > 0 ? `${issueCount} 处可疑` : '无问题'}`;
 }
 
-export function handleSkillspectorScan(_action, _params, targetPath, context) {
+function buildScanTargets(targetPath) {
+  const targets = [];
   const skillsDir = join(targetPath, '.claude', 'skills');
   const commandsDir = join(targetPath, '.claude', 'commands');
-
-  if (!existsSync(skillsDir) && !existsSync(commandsDir)) {
-    // Don't set Passed — let gate report as skipped
-    return 'SkillSpector 扫描完成: 无技能目录';
-  }
-
-  const targets = [];
   if (existsSync(skillsDir)) targets.push('.claude/skills/');
   if (existsSync(commandsDir)) targets.push('.claude/commands/');
+  return targets;
+}
 
-  // skillspector only accepts one path per invocation — scan each separately
-  const skillspectorCmd = _resolvePythonTool('skillspector', null);
-  const hasLlmKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
-  const llmFlag = hasLlmKey ? '' : ' --no-llm';
-
-  const allFindings = [];
-  let isScanFailed = false;
-
-  for (const target of targets) {
-    try {
-      const cmd = `${skillspectorCmd} scan ${target} --format json${llmFlag} 2>&1`;
-      const raw = safeExec(cmd, targetPath, { stdio: 'pipe', timeout: 60000 }).toString();
-
-      try {
-        const result = JSON.parse(raw);
-        const findings = result.findings || result.results || [];
-        allFindings.push(...findings);
-      } catch {
-        // Non-JSON output — check for text indicators
-        if (raw.toLowerCase().includes('vulnerability') || raw.toLowerCase().includes('malicious')) {
-          isScanFailed = true;
-        } else if (raw.includes('No issues') || raw.includes('no issues') || raw.includes('clean')) {
-          console.log(chalk.dim(`  ✓ ${target}: 未发现问题`));
-        } else {
-          console.log(chalk.dim(`  ℹ ${target}: 输出无法解析`));
-        }
-      }
-    } catch (e) {
-      if (e.message && e.message.includes('NOT_FOUND')) {
-        return 'SkillSpector 扫描完成: 跳过（不可用）';
-      }
-      isScanFailed = true;
+function scanSingleTarget(cmd, targetPath, allFindings) {
+  const raw = safeExec(cmd, targetPath, { stdio: 'pipe', timeout: 60000 }).toString();
+  try {
+    const result = JSON.parse(raw);
+    const findings = result.findings || result.results || [];
+    allFindings.push(...findings);
+    return { isScanFailed: false };
+  } catch {
+    if (raw.toLowerCase().includes('vulnerability') || raw.toLowerCase().includes('malicious')) {
+      return { isScanFailed: true };
     }
+    if (raw.includes('No issues') || raw.includes('no issues') || raw.includes('clean')) {
+      console.log(chalk.dim(`  ✓ ${targetPath}: 未发现问题`));
+    } else {
+      console.log(chalk.dim(`  ℹ ${targetPath}: 输出无法解析`));
+    }
+    return { isScanFailed: false };
   }
+}
 
-  if (isScanFailed && allFindings.length === 0) {
-    // Don't set Passed — let gate report as skipped
-    return 'SkillSpector 扫描完成: 部分失败';
-  }
-
+function reportSkillspectorFindings(allFindings, context) {
   const critical = allFindings.filter(f => f.severity === 'CRITICAL' || f.severity === 'critical');
   const high = allFindings.filter(f => f.severity === 'HIGH' || f.severity === 'high');
   const total = allFindings.length;
@@ -357,6 +335,35 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
   return 'SkillSpector 扫描完成: 无问题';
 }
 
+export function handleSkillspectorScan(_action, _params, targetPath, context) {
+  const targets = buildScanTargets(targetPath);
+  if (targets.length === 0) return 'SkillSpector 扫描完成: 无技能目录';
+
+  const skillspectorCmd = _resolvePythonTool('skillspector', null);
+  const hasLlmKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+  const llmFlag = hasLlmKey ? '' : ' --no-llm';
+
+  const allFindings = [];
+  let isScanFailed = false;
+
+  for (const target of targets) {
+    try {
+      const cmd = `${skillspectorCmd} scan ${target} --format json${llmFlag} 2>&1`;
+      const result = scanSingleTarget(cmd, targetPath, allFindings);
+      if (result.isScanFailed) isScanFailed = true;
+    } catch (e) {
+      if (e.message && e.message.includes('NOT_FOUND')) {
+        return 'SkillSpector 扫描完成: 跳过（不可用）';
+      }
+      isScanFailed = true;
+    }
+  }
+
+  if (isScanFailed && allFindings.length === 0) return 'SkillSpector 扫描完成: 部分失败';
+
+  return reportSkillspectorFindings(allFindings, context);
+}
+
 // ── actionlint — GitHub Actions workflow syntax checker (3k+ stars) ──
 
 export function handleActionlint(_action, _params, targetPath, context) {
@@ -368,7 +375,6 @@ export function handleActionlint(_action, _params, targetPath, context) {
   }
 
   let issueCount = 0;
-  const issues = [];
 
   try {
     const raw = safeExec(
@@ -382,9 +388,7 @@ export function handleActionlint(_action, _params, targetPath, context) {
 
     if (issueCount > 0) {
       lines.filter(l => /^::error\b/.test(l)).slice(0, 15).forEach(l => {
-        const clean = l.replace(/^::error\s+/, '').slice(0, 200);
-        issues.push(clean);
-        console.log(chalk.yellow(`    ⚠ ${clean}`));
+        console.log(chalk.yellow(`    ${l.replace(/^::error\s+/, '').slice(0, 200)}`));
       });
     } else if (raw.includes('no lint errors') || raw.trim() === '') {
       console.log(chalk.green('  ✅ actionlint: 工作流语法无问题'));
@@ -399,16 +403,43 @@ export function handleActionlint(_action, _params, targetPath, context) {
 
 // ── zizmor — GitHub Actions security auditor (2.5k+ stars) ──
 
+function parseZizmorJson(raw) {
+  try {
+    const results = JSON.parse(raw);
+    const allFindings = Array.isArray(results) ? results : (results.findings || []);
+    if (allFindings.length === 0) {
+      return { findingCount: 0 };
+    }
+    const bySeverity = {};
+    for (const f of allFindings) {
+      const sev = f.severity || 'unknown';
+      bySeverity[sev] = (bySeverity[sev] || 0) + 1;
+    }
+    console.log(chalk.dim(`  ℹ 发现 ${allFindings.length} 项 (${Object.entries(bySeverity).map(([k, v]) => `${k}: ${v}`).join(', ')})`));
+    return { findingCount: allFindings.length };
+  } catch {
+    return null;
+  }
+}
+
+function parseZizmorText(raw) {
+  if (raw.toLowerCase().includes('vulnerability') || raw.toLowerCase().includes('error')) {
+    return { findingCount: (raw.match(/\b(ERROR|WARN|FAIL)\b/g) || []).length };
+  }
+  if (raw.includes('no issues') || raw.includes('clean') || raw.trim() === '') {
+    console.log(chalk.green('  ✅ zizmor: 工作流安全无问题'));
+  }
+  return { findingCount: 0 };
+}
+
 export function handleZizmor(_action, _params, targetPath, context) {
   const workflowsDir = join(targetPath, '.github', 'workflows');
-
   if (!existsSync(workflowsDir)) {
     if (context) context.zizmorPassed = true;
     return 'zizmor 检查完成: 无 GitHub Actions 工作流目录';
   }
 
   let findingCount = 0;
-
   try {
     const raw = safeExec(
       'npx zizmor --format json .github/workflows/ 2>&1 || true',
@@ -416,37 +447,9 @@ export function handleZizmor(_action, _params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
     ).toString();
 
-    try {
-      const results = JSON.parse(raw);
-      // zizmor outputs an array of findings per file
-      const allFindings = Array.isArray(results) ? results : (results.findings || []);
-      findingCount = allFindings.length;
-
-      if (findingCount > 0) {
-        const bySeverity = {};
-        for (const f of allFindings) {
-          const sev = f.severity || 'unknown';
-          bySeverity[sev] = (bySeverity[sev] || 0) + 1;
-        }
-        const summary = Object.entries(bySeverity).map(([k, v]) => `${k}: ${v}`).join(', ');
-        console.log(chalk.red(`  🔴 zizmor 发现 ${findingCount} 个安全问题 (${summary})`));
-
-        for (const f of allFindings.slice(0, 10)) {
-          const loc = f.location || f.file || '';
-          const msg = f.message || f.description || f.title || '';
-          console.log(chalk.yellow(`    ⚠ [${f.severity || 'unknown'}] ${loc}: ${msg.slice(0, 150)}`));
-        }
-      } else {
-        console.log(chalk.green('  ✅ zizmor: 工作流安全无问题'));
-      }
-    } catch {
-      // Non-JSON output — check for text indicators
-      if (raw.toLowerCase().includes('vulnerability') || raw.toLowerCase().includes('error')) {
-        findingCount = (raw.match(/\b(ERROR|WARN|FAIL)\b/g) || []).length;
-      } else if (raw.includes('no issues') || raw.includes('clean') || raw.trim() === '') {
-        console.log(chalk.green('  ✅ zizmor: 工作流安全无问题'));
-      }
-    }
+    const jsonResult = parseZizmorJson(raw);
+    const result = jsonResult || parseZizmorText(raw);
+    findingCount = result.findingCount;
   } catch {
     console.log(chalk.dim('  ℹ zizmor 不可用，跳过工作流安全审计'));
   }
@@ -457,68 +460,116 @@ export function handleZizmor(_action, _params, targetPath, context) {
 
 // ── jscpd — code duplication detector (4.7k+ stars) ──
 
-export function handleJscpd(_action, _params, targetPath, context) {
-  let raw = '';
+function runJscpd(targetPath) {
   try {
-    raw = safeExec(
+    return safeExec(
       'npx jscpd --format json --min-tokens 50 --min-lines 5 --ignore "node_modules,.git,.claude,dist,build,coverage,.next" . 2>&1',
       targetPath,
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
     ).toString();
   } catch (e) {
-    // jscpd exits 1 when clones found — merged stdout+stderr is on e.stdout
-    raw = (e.stdout || '').toString();
+    return (e.stdout || '').toString();
   }
+}
 
+function parseJscpdResult(raw) {
+  const cloneMatch = raw.match(/Found\s+(\d+)\s*clones?/i);
+  const pctMatch = raw.match(/\b(\d+)\s*\(\s*(\d+(?:\.\d+)?)%\s*\)/) || raw.match(/Duplicated lines[^\d]*(\d+(?:\.\d+)?)%/i);
+  if (!cloneMatch && !pctMatch) return null;
+  const clones = cloneMatch ? parseInt(cloneMatch[1], 10) : 0;
+  const pct = pctMatch ? parseFloat(pctMatch[2] || pctMatch[1]) : 0;
+  return { clones, pct };
+}
+
+function reportJscpdFound(clones, pct, context) {
+  if (pct > 5) {
+    if (context) context.jscpdPassed = false;
+  } else {
+    if (context) context.jscpdPassed = true;
+  }
+  return `代码重复检测完成: ${clones} 处重复，重复率 ${pct.toFixed(1)}%`;
+}
+
+export function handleJscpd(_action, _params, targetPath, context) {
+  const raw = runJscpd(targetPath);
   if (!raw) {
-    console.log(chalk.dim('  ℹ jscpd 不可用'));
     return '代码重复检测完成（jscpd 不可用）';
   }
 
-  // Parse: Found 70 clones. / 1227 (3.41%) in summary table
-  const cloneMatch = raw.match(/Found\s+(\d+)\s*clones?/i);
-  const pctMatch = raw.match(/\b(\d+)\s*\(\s*([\d.]+)%\s*\)/) || raw.match(/Duplicated lines[^\d]*([\d.]+)%/i);
-
-  if (cloneMatch || pctMatch) {
-    const clones = cloneMatch ? parseInt(cloneMatch[1], 10) : 0;
-    // First regex has 2 groups (lines, pct), fallback has 1 (pct)
-    const pct = pctMatch ? parseFloat(pctMatch[2] || pctMatch[1]) : 0;
-
-    if (clones > 0 || pct > 0) {
-      if (pct > 5) {
-        console.log(chalk.red(`  🔴 代码重复率 ${pct.toFixed(1)}%，${clones} 处重复（阈值 5%）`));
-        if (context) context.jscpdPassed = false;
-        return `代码重复检测完成: ${clones} 处重复，重复率 ${pct.toFixed(1)}%`;
-      }
-      console.log(chalk.green(`  ✅ 代码重复率 ${pct.toFixed(1)}%（阈值 5%）`));
-      if (context) context.jscpdPassed = true;
-      return `代码重复检测完成: ${clones} 处重复，重复率 ${pct.toFixed(1)}%`;
-    }
+  const parsed = parseJscpdResult(raw);
+  if (parsed && (parsed.clones > 0 || parsed.pct > 0)) {
+    return reportJscpdFound(parsed.clones, parsed.pct, context);
   }
 
   if (/no clones|no duplicates|0 clones/i.test(raw)) {
-    console.log(chalk.green('  ✅ jscpd: 未发现代码重复'));
     if (context) context.jscpdPassed = true;
     return '代码重复检测完成: 无重复';
   }
 
-  console.log(chalk.dim('  ℹ jscpd: 无法解析输出'));
-  return `代码重复检测完成: 无法解析输出`;
+  return '代码重复检测完成: 无法解析输出';
 }
 
 // ── Stryker — mutation testing (2.9k+ stars) ──
 
-export function handleStryker(_action, _params, targetPath, context) {
+function hasStrykerConfig(targetPath) {
   const configFiles = ['stryker.config.js', 'stryker.config.mjs', 'stryker.config.json', 'stryker.config.ts'];
-  const isConfigExists = configFiles.some(f => existsSync(join(targetPath, f)));
-  const hasConfigInPkg = (() => {
-    try {
-      const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
-      return !!(pkg.stryker || pkg['@stryker-mutator/core']);
-    } catch { return false; }
-  })();
+  if (configFiles.some(f => existsSync(join(targetPath, f)))) return true;
+  try {
+    const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
+    return !!(pkg.stryker || pkg['@stryker-mutator/core']);
+  } catch { return false; }
+}
 
-  if (!isConfigExists && !hasConfigInPkg) {
+function parseStrykerJson(raw) {
+  try {
+    const result = JSON.parse(raw);
+    const report = result.mutationScore || result.report;
+    if (report) {
+      return {
+        score: report.mutationScore || report.percentage || 0,
+        killed: report.killed || 0,
+        survived: report.survived || 0,
+      };
+    }
+    return {
+      score: result.mutationScore || 0,
+      killed: result.killed || 0,
+      survived: result.survived || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseStrykerText(raw) {
+  const scoreMatch = raw.match(/mutation\s+score[^\d]*(\d+(?:\.\d+)?)\s*%/i);
+  if (scoreMatch) {
+    const killedMatch = raw.match(/killed.*?(\d+)/i);
+    const survivedMatch = raw.match(/survived.*?(\d+)/i);
+    return {
+      score: parseFloat(scoreMatch[1]),
+      killed: killedMatch ? parseInt(killedMatch[1], 10) : 0,
+      survived: survivedMatch ? parseInt(survivedMatch[1], 10) : 0,
+    };
+  }
+  if (raw.includes('No mutants') || raw.includes('no mutants')) {
+    console.log(chalk.green('  ✅ Stryker: 无变异体'));
+  }
+  return null;
+}
+
+function logStrykerScore(score) {
+  if (score >= 80) {
+    return true;
+  }
+  if (score >= 60) {
+    return true;
+  }
+  return false;
+}
+
+export function handleStryker(_action, _params, targetPath, context) {
+  if (!hasStrykerConfig(targetPath)) {
     if (context) context.strykerPassed = true;
     return 'Stryker 变异测试完成: 无 stryker 配置，已跳过';
   }
@@ -535,42 +586,19 @@ export function handleStryker(_action, _params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 4 * 1024 * 1024, timeout: 300000 }
     ).toString();
 
-    try {
-      const result = JSON.parse(raw);
-      const report = result.mutationScore || result.report;
-      if (report) {
-        score = report.mutationScore || report.percentage || 0;
-        killed = report.killed || 0;
-        survived = report.survived || 0;
-      } else {
-        score = result.mutationScore || 0;
-        killed = result.killed || 0;
-        survived = result.survived || 0;
-      }
-    } catch {
-      // Try to extract score from text output
-      const scoreMatch = raw.match(/mutation\s*score.*?(\d+(?:\.\d+)?)\s*%/i);
-      if (scoreMatch) {
-        score = parseFloat(scoreMatch[1]);
-        const killedMatch = raw.match(/killed.*?(\d+)/i);
-        const survivedMatch = raw.match(/survived.*?(\d+)/i);
-        if (killedMatch) killed = parseInt(killedMatch[1], 10);
-        if (survivedMatch) survived = parseInt(survivedMatch[1], 10);
-      } else if (raw.includes('No mutants') || raw.includes('no mutants')) {
-        console.log(chalk.green('  ✅ Stryker: 无变异体'));
-        isPassed = true;
-      }
+    const jsonResult = parseStrykerJson(raw);
+    const textResult = jsonResult || parseStrykerText(raw);
+
+    if (textResult) {
+      score = textResult.score;
+      killed = textResult.killed;
+      survived = textResult.survived;
     }
 
     if (score > 0) {
-      if (score >= 80) {
-        console.log(chalk.green(`  ✅ Stryker 变异测试分数: ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}）`));
-      } else if (score >= 60) {
-        console.log(chalk.yellow(`  ⚠ Stryker 变异测试分数: ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}，阈值 80%）`));
-      } else {
-        isPassed = false;
-        console.log(chalk.red(`  🔴 Stryker 变异测试分数过低: ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}，阈值 80%）`));
-      }
+      isPassed = logStrykerScore(score, killed, survived);
+    } else if (!textResult) {
+      console.log(chalk.dim('  ℹ Stryker 不可用，跳过变异测试'));
     }
   } catch {
     console.log(chalk.dim('  ℹ Stryker 不可用，跳过变异测试'));
@@ -582,24 +610,50 @@ export function handleStryker(_action, _params, targetPath, context) {
 
 // ── Spectral — API/OpenAPI linting (2.5k+ stars) ──
 
-export function handleSpectral(_action, _params, targetPath, context) {
-  const hasConfig = existsSync(join(targetPath, '.spectral.yaml')) ||
+function hasSpectralConfig(targetPath) {
+  return existsSync(join(targetPath, '.spectral.yaml')) ||
     existsSync(join(targetPath, '.spectral.json')) ||
     existsSync(join(targetPath, '.spectral.js'));
+}
 
-  // Find OpenAPI spec files (non-hidden)
+function parseSpectralJson(raw) {
+  try {
+    const results = JSON.parse(raw);
+    if (!Array.isArray(results)) return null;
+    const errors = results.filter(r => r.severity === 0).map(r =>
+      `${r.code || 'unknown'}: ${(r.message || '').slice(0, 150)}`
+    );
+    if (results.length > 0) {
+      console.error(chalk[errors.length > 0 ? 'red' : 'yellow'](
+        `  ${errors.length > 0 ? '🔴' : '⚠'} Spectral: ${results.length} 个问题（error: ${errors.length}）`
+      ));
+    } else {
+      console.log(chalk.green('  ✅ Spectral: API lint 无问题'));
+    }
+    return { issueCount: results.length };
+  } catch {
+    return null;
+  }
+}
+
+function parseSpectralText(raw) {
+  if (raw.trim() === '' || raw.includes('No errors') || raw.includes('no results')) {
+    return { issueCount: 0 };
+  }
+  return { issueCount: (raw.match(/\berror\b/gi) || []).length };
+}
+
+export function handleSpectral(_action, _params, targetPath, context) {
   const specFiles = scanDir(targetPath, {
     filter: f => /(openapi|swagger).*\.(yaml|yml|json)$/i.test(f) && !f.includes('node_modules'),
   });
 
-  if (!hasConfig && specFiles.length === 0) {
+  if (!hasSpectralConfig(targetPath) && specFiles.length === 0) {
     if (context) context.spectralPassed = true;
     return 'Spectral API lint 完成: 无 OpenAPI/Spec 文件，已跳过';
   }
 
   let issueCount = 0;
-  const issues = [];
-
   try {
     const targets = specFiles.length > 0 ? specFiles.join(' ') : '.';
     const raw = safeExec(
@@ -608,31 +662,8 @@ export function handleSpectral(_action, _params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
     ).toString();
 
-    try {
-      const results = JSON.parse(raw);
-      if (Array.isArray(results)) {
-        issueCount = results.length;
-        for (const r of results) {
-          if (r.severity === 0) {
-            issues.push(`${r.code || 'unknown'}: ${(r.message || '').slice(0, 150)}`);
-          }
-        }
-        if (issueCount > 0) {
-          console.log(chalk[issues.length > 0 ? 'red' : 'yellow'](
-            `  ${issues.length > 0 ? '🔴' : '⚠'} Spectral: ${issueCount} 个问题（error: ${issues.length}）`
-          ));
-          issues.slice(0, 5).forEach(i => console.log(chalk.dim(`    ${i.slice(0, 200)}`)));
-        } else {
-          console.log(chalk.green('  ✅ Spectral: API lint 无问题'));
-        }
-      }
-    } catch {
-      if (raw.trim() === '' || raw.includes('No errors') || raw.includes('no results')) {
-        console.log(chalk.green('  ✅ Spectral: API lint 无问题'));
-      } else {
-        issueCount = (raw.match(/\berror\b/gi) || []).length;
-      }
-    }
+    const result = parseSpectralJson(raw) || parseSpectralText(raw);
+    issueCount = result.issueCount;
   } catch {
     console.log(chalk.dim('  ℹ Spectral 不可用，跳过 API lint'));
   }
@@ -643,9 +674,28 @@ export function handleSpectral(_action, _params, targetPath, context) {
 
 // ── markdownlint — Markdown file linting (5k+ stars) ──
 
+function countMdJsonErrors(results) {
+  let count = 0;
+  if (Array.isArray(results)) {
+    for (const r of results) {
+      count += Array.isArray(r.errors) ? r.errors.length : (r.errorCount || 0);
+    }
+  } else if (typeof results === 'object') {
+    for (const errors of Object.values(results)) {
+      count += Array.isArray(errors) ? errors.length : 0;
+    }
+  }
+  return count;
+}
+
+function countMdTextErrors(raw) {
+  return raw.split('\n').filter(Boolean).filter(l =>
+    /^[^:]+:\d+:\d+\s+(MD\d+|\w+-)/i.test(l)
+  ).length;
+}
+
 export function handleMarkdownlint(_action, _params, targetPath, context) {
   let issueCount = 0;
-
   try {
     const raw = safeExec(
       'npx markdownlint "**/*.md" --ignore node_modules --ignore ".git" --ignore ".claude/worktrees" --json 2>&1 || true',
@@ -654,19 +704,9 @@ export function handleMarkdownlint(_action, _params, targetPath, context) {
     ).toString();
 
     try {
-      const results = JSON.parse(raw);
-      if (Array.isArray(results)) {
-        for (const r of results) {
-          issueCount += Array.isArray(r.errors) ? r.errors.length : (r.errorCount || 0);
-        }
-      } else if (typeof results === 'object') {
-        for (const errors of Object.values(results)) {
-          issueCount += Array.isArray(errors) ? errors.length : 0;
-        }
-      }
+      issueCount = countMdJsonErrors(JSON.parse(raw));
     } catch {
-      const lines = raw.split('\n').filter(Boolean);
-      issueCount = lines.filter(l => /^[^:]+:\d+:\d+\s+(MD\d+|\w+-)/i.test(l)).length;
+      issueCount = countMdTextErrors(raw);
     }
 
     if (issueCount > 0) {
@@ -684,26 +724,60 @@ export function handleMarkdownlint(_action, _params, targetPath, context) {
 
 // ── size-limit — bundle size budgeting (6.5k+ stars) ──
 
-export function handleSizeLimit(_action, _params, targetPath, context) {
-  const hasConfig = existsSync(join(targetPath, '.size-limit.json')) ||
-    existsSync(join(targetPath, '.size-limit.cjs')) ||
-    existsSync(join(targetPath, '.size-limit.mjs'));
+function hasSizeLimitConfig(targetPath) {
+  if (existsSync(join(targetPath, '.size-limit.json')) ||
+      existsSync(join(targetPath, '.size-limit.cjs')) ||
+      existsSync(join(targetPath, '.size-limit.mjs'))) return true;
+  try {
+    const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
+    return !!(pkg['size-limit'] || pkg.sizeLimit);
+  } catch { return false; }
+}
 
-  if (!hasConfig) {
-    try {
-      const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
-      if (!pkg['size-limit'] && !pkg.sizeLimit) {
-        if (context) context.sizeLimitPassed = true;
-        return '包体积检查完成: 无 size-limit 配置，已跳过';
-      }
-    } catch {
-      if (context) context.sizeLimitPassed = true;
-      return '包体积检查完成: 无 package.json，已跳过';
+function parseSizeLimitResults(results) {
+  const items = Array.isArray(results) ? results : (results.results || []);
+  const failures = [];
+  for (const item of items) {
+    const name = item.name || 'unknown';
+    const size = item.size || 0;
+    const limit = item.limit || item.maxSize || 0;
+    if (limit > 0 && size > limit) {
+      const sizeKB = (size / 1024).toFixed(1);
+      const limitKB = (limit / 1024).toFixed(1);
+      failures.push(`${name}: ${sizeKB} KB > 限制 ${limitKB} KB`);
     }
+  }
+  return { failures, isEmpty: items.length === 0 };
+}
+
+function logSizeLimitOutcome(failures, itemsEmpty) {
+  if (failures.length > 0) {
+    return false;
+  }
+  if (!itemsEmpty) {
+    console.log(chalk.green('  ✅ size-limit: 所有包体积符合预算'));
+  }
+  return true;
+}
+
+function logSizeLimitText(raw) {
+  if (raw.includes('FAIL') || raw.includes('exceed')) {
+    return false;
+  }
+  if (raw.trim()) {
+    console.log(chalk.green('  ✅ size-limit 检查通过'));
+  }
+  return true;
+}
+
+export function handleSizeLimit(_action, _params, targetPath, context) {
+  if (!hasSizeLimitConfig(targetPath)) {
+    if (context) context.sizeLimitPassed = true;
+    return '包体积检查完成: 无 size-limit 配置，已跳过';
   }
 
   let isPassed = true;
-  const failures = [];
+  let failures = [];
 
   try {
     const raw = safeExec(
@@ -713,31 +787,11 @@ export function handleSizeLimit(_action, _params, targetPath, context) {
     ).toString();
 
     try {
-      const results = JSON.parse(raw);
-      const items = Array.isArray(results) ? results : (results.results || []);
-      for (const item of items) {
-        const name = item.name || 'unknown';
-        const size = item.size || 0;
-        const limit = item.limit || item.maxSize || 0;
-        if (limit > 0 && size > limit) {
-          isPassed = false;
-          const sizeKB = (size / 1024).toFixed(1);
-          const limitKB = (limit / 1024).toFixed(1);
-          failures.push(`${name}: ${sizeKB} KB > 限制 ${limitKB} KB`);
-        }
-      }
-      if (failures.length > 0) {
-        console.log(chalk.red(`  🔴 size-limit 超限: ${failures.join('; ')}`));
-      } else if (items.length > 0) {
-        console.log(chalk.green('  ✅ size-limit: 所有包体积符合预算'));
-      }
+      const parsed = parseSizeLimitResults(JSON.parse(raw));
+      failures = parsed.failures;
+      isPassed = logSizeLimitOutcome(parsed.failures, parsed.isEmpty);
     } catch {
-      if (raw.includes('FAIL') || raw.includes('exceed')) {
-        isPassed = false;
-        console.log(chalk.red('  🔴 size-limit 检查失败（超出预算）'));
-      } else if (raw.trim()) {
-        console.log(chalk.green('  ✅ size-limit 检查通过'));
-      }
+      isPassed = logSizeLimitText(raw);
     }
   } catch {
     console.log(chalk.dim('  ℹ size-limit 不可用，跳过包体积检查'));
@@ -755,7 +809,6 @@ export function handlePa11yCi(_action, _params, targetPath, context) {
     if (context) context.pa11yPassed = !raw.includes('Error:');
     return `pa11y-ci 无障碍扫描完成`;
   } catch {
-    console.log(chalk.dim('  ℹ pa11y-ci 不可用'));
     return 'pa11y-ci 不可用，跳过无障碍扫描';
   }
 }
@@ -768,7 +821,6 @@ export function handleDesignMdLint(_action, _params, targetPath, context) {
     if (context) context.designMdPassed = !raw.includes('error') && !raw.includes('FAIL');
     return `DESIGN.md lint 完成`;
   } catch {
-    console.log(chalk.dim('  ℹ @google/design.md lint 不可用'));
     return 'DESIGN.md lint 不可用，跳过';
   }
 }
@@ -780,7 +832,6 @@ export function handleDesignMdExport(_action, _params, targetPath) {
     safeExec('npx @google/design.md export --format tailwind 2>&1', targetPath, { stdio: 'pipe' });
     return 'DESIGN.md Tailwind 配置导出完成';
   } catch {
-    console.log(chalk.dim('  ℹ @google/design.md export 不可用'));
     return 'DESIGN.md export 不可用，跳过';
   }
 }

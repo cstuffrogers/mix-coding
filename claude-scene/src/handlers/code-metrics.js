@@ -94,10 +94,10 @@ export function handleDetectAntiPatterns(_action, params, targetPath, context) {
 
     if (patterns.includes('god_object')) {
       // Only flag files with class/function declarations AND significant method count
-      const hasClassOrFunc = /^\s*(?:export\s+)?(?:class|function)\s+\w+/m.test(content);
+      const hasClassOrFunc = /^(?:export\s+)?(?:class|function)\s+\w+/m.test(content);
       const isDataFile = /(?:^|[\\/])(?:data|config|constants|messages|i18n|locales)[\\/]/.test(file.path)
         || /(?:action-messages|messages|constants|i18n|config)\.(?:js|ts|mjs|mts)$/.test(file.path);
-      const methodsRe = /^\s*(?:async\s+)?(?:static\s+)?(\w+)\s*\(/gm;
+      const methodsRe = /^(?:async\s)?(?:static\s)?(\w+)\s*\(/gm;
       let methods = 0;
       let rm;
       while ((rm = methodsRe.exec(content)) !== null) {
@@ -113,7 +113,8 @@ export function handleDetectAntiPatterns(_action, params, targetPath, context) {
       const checkLong = patterns.includes('long_method');
       const checkDup = patterns.includes('duplicate_code');
       const funcStartRe = checkLong
-        ? /(?:function\s+\w+\s*\([^)]*\)|(?:\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>)\s*\{/
+        ? [/(?:function\s+\w+\s*\([^)]*\))/, // eslint-disable-next-line sonarjs/super-linear-regex
+          /(?:\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>/]
         : null;
       const lineCount = checkDup ? {} : null;
       let braceDepth = 0;
@@ -126,7 +127,7 @@ export function handleDetectAntiPatterns(_action, params, targetPath, context) {
           const close = (braceLine.match(/\}/g) || []).length;
           braceDepth += open - close;
           // Only mark funcStart when the line actually has a function/arrow declaration
-          if (open > 0 && funcStart === -1 && funcStartRe.test(braceLine)) funcStart = i;
+          if (open > 0 && funcStart === -1 && funcStartRe.some(re => re.test(braceLine))) funcStart = i;
           if (braceDepth <= 0 && funcStart >= 0) {
             const len = i - funcStart;
             if (len > 50) found.long_method.push({ file: file.path, line: funcStart + 1, length: len });

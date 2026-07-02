@@ -3,12 +3,6 @@ import { join } from 'path';
 import chalk from 'chalk';
 import { SCENES_DIR } from '../lib/paths.js';
 
-const LAYER_ICONS = {
-  capability: '⚙️',
-  interactive: '💬',
-  runtime: '🚀',
-};
-
 function printTriggerKeywords(scene) {
   if (!scene.trigger_keywords?.length) return;
 }
@@ -45,14 +39,7 @@ function printSteps(steps) {
   if (steps.length === 0) return;
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
-    const idx = chalk.yellow(`${i + 1}`.padStart(2));
-    const stepId = step.id || `step-${i}`;
-    const layerIcon = LAYER_ICONS[step.layer] || '';
-    const autoBadge = step.auto_execute ? chalk.green('[自动]') : chalk.yellow('[需确认]');
 
-    let line = `   ${idx}. ${stepId}`;
-    if (layerIcon) line += ` ${layerIcon}`;
-    line += ` ${autoBadge}`;
     printStepDetail(step);
   }
 }

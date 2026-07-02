@@ -1,51 +1,44 @@
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 
-export function handleAislopScan(_action, params, targetPath, context) {
-  const mode = params?.mode || 'scan';
-
-  if (mode === 'fix') {
-    try {
-      safeExec('npx aislop fix --safe . 2>&1', targetPath, { stdio: 'pipe' }).toString();
-      if (context) context.aislop_fixed = true;
-      return `aislop 修复完成`;
-    } catch {
-      if (context) context.aislop_fixed = true;
-      return `aislop 修复完成`;
-    }
-  }
-
-  let issueCount = 0;
-  let rawOutput = '';
-
+function handleAislopFixMode(params, targetPath, context) {
   try {
-    // CI mode exits non-zero on findings, captures output
-    rawOutput = safeExec('npx aislop ci . 2>&1', targetPath, {
+    safeExec('npx aislop fix --safe . 2>&1', targetPath, { stdio: 'pipe' }).toString();
+    if (context) context.aislop_fixed = true;
+    return `aislop 修复完成`;
+  } catch {
+    if (context) context.aislop_fixed = true;
+    return `aislop 修复完成`;
+  }
+}
+
+function countAislopIssues(rawOutput) {
+  const countMatch = rawOutput.match(/(?<!\d)(\d+)\s+(?:issues?|problems?)/i);
+  if (countMatch) return parseInt(countMatch[1]);
+  return rawOutput.split('\n').filter(l =>
+    /error|warning|issue|problem/i.test(l) && !/no (issues|problems|findings)/i.test(l)
+  ).length;
+}
+
+function runAislopCi(targetPath) {
+  try {
+    return safeExec('npx aislop ci . 2>&1', targetPath, {
       stdio: 'pipe',
       timeout: 60000,
     }).toString();
   } catch (e) {
-    // aislop CI exits non-zero when issues found — capture output
-    rawOutput = e.stdout?.toString() || e.stderr?.toString() || '';
+    return e.stdout?.toString() || e.stderr?.toString() || '';
   }
+}
 
-  if (rawOutput) {
-    // Try to parse issue count from output
-    const countMatch = rawOutput.match(/(\d+)\s+issues?|problems?/i);
-    if (countMatch) issueCount = parseInt(countMatch[1]);
+export function handleAislopScan(_action, params, targetPath, context) {
+  const mode = params?.mode || 'scan';
+  if (mode === 'fix') return handleAislopFixMode(params, targetPath, context);
 
-    // Also count individual lines that look like findings
-    if (issueCount === 0) {
-      const findingLines = rawOutput.split('\n').filter(l =>
-        /error|warning|issue|problem/i.test(l) && !/no (issues|problems|findings)/i.test(l)
-      );
-      issueCount = findingLines.length;
-    }
-  }
+  const rawOutput = runAislopCi(targetPath);
+  const issueCount = rawOutput ? countAislopIssues(rawOutput) : 0;
 
-  if (issueCount > 0) {
-    // Top findings extracted from rawOutput
-  } else {
+  if (issueCount === 0) {
     console.log(chalk.green('  ✅ aislop 未发现 AI 代码气味'));
   }
 

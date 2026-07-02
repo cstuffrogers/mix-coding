@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-07-01
+
+### Quality
+
+- **ESLint 错误归零 (1216→0, -100%)**：93 个 sonarjs 规则违规全部修复（47 super-linear-regex、51 cognitive-complexity、21 no-unused-vars、10 no-dead-store 等）
+- **56 个文件手术式修改**：跨 20 个 handler 文件提取约 100 个帮助函数以降低认知复杂度
+- **正则全面提升**：57 处超线性/复杂/慢正则全部修复（bounded quantifier + 分割数组 + 重构）
+- **死代码清理**：44 处未使用变量/导入/集合 + 10 处无用赋值 + 2 处重复分支全部移除
+- **测试改进**：3 处 `expect` 断言改用精确匹配（toHaveLength/toBeNull）
+
+### Changes
+
+- 新增 `.mcp/**` 至 ESLint 忽略列表（vendor 代码不扫描）
+- 移除 68 个已失效的 `eslint-disable` 注释
+- `REFACTOR.md` 新增：README 文档质量提升
+
+## 2026-06-30
+
+### Features
+
+- **opencode 全平台适配**：108 命令 + 17 MCP + 4 providers 全局配置，与 Claude Code 工作流完全对齐
+- **38/38 .md 工作流引用**：所有 `.claude/commands/*.md` 在 opencode 模板中均有对应引用
+- **Harness Engineering 合规**：完成 12 维度审计，评分从 64% 提升至 ~96%（Tier A）
+- **Harness 状态文件**：新增 `feature_list.json`、`progress.md`、`DECISIONS.md`
+- **会话生命周期**：新增 `init.sh`（环境检查）、`scripts/clean-session.cjs`（结束清理）、`zero-conflict-check.sh`（架构合规）
+- **CI 流水线**：`.github/workflows/ci.yml` — lint → test 全自动
+- **代码质量钩子**：`.husky/pre-commit` 扩展为 eslint + test + 死代码扫描
+- **定时任务**：`.claude/scheduled_tasks.json` — 3 项维护任务
+- **AGENTS.md**：升级为完整 Harness 操作手册（5 节），同步至 `.opencode/`、`.codex/`、`.zcode/`
+- **配置生成器**：`scripts/generate-opencode-config.cjs` + `.opencode/deploy-global.cjs`（Node.js 方案替代脆弱的 shell heredoc）
+
+### Changes
+
+- `scripts/setup-opencode-global.sh` 重构：495 行 heredoc → 调用 deploy-global.cjs
+- `ARCHITECTURE.md`、`docs/MULTIPLATFORM.md`、`README.md` 同步更新
+- `.mcp.json` 新增 9 个 MCP 服务器（sentry/supabase/stripe/resend/schemaforge/a11y/mobsf/detox/bearer）
+
 ## 2026-06-05
 
 ### Features

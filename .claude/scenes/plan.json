@@ -1,0 +1,146 @@
+{
+  "scene_id": "plan",
+  "workflow": "plan",
+  "name": "Manus 风格持久规划",
+  "description": "基于文件的持久化任务规划，支持会话恢复、SHA256认证、多阶段追踪",
+  "trigger_keywords": [
+    "规划任务",
+    "制定计划",
+    "分解任务",
+    "plan",
+    "任务拆解",
+    "多步骤任务"
+  ],
+  "flow": [
+    {
+      "step": 0,
+      "layer": "capability",
+      "service": "PlanService",
+      "action": "sessionCatchup",
+      "params": {
+        "script": ".claude/scripts/session-catchup.py"
+      },
+      "description": "检测上一会话未同步上下文，支持 /clear 后恢复",
+      "condition": "planning_files_exist"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "PlanService",
+      "action": "initPlanningFiles",
+      "params": {
+        "files": ["plan.md", "findings.md", "progress.md"],
+        "templates_dir": ".claude/templates"
+      },
+      "description": "初始化规划文件（如不存在则从模板创建）"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "PlanService",
+      "action": "readSpec",
+      "params": {
+        "file": "spec.md"
+      },
+      "description": "读取项目级需求规格（如存在）",
+      "condition": "spec_file_exists"
+    },
+    {
+      "step": 3,
+      "layer": "interactive",
+      "service": "PlanService",
+      "action": "gatherRequirements",
+      "params": {
+        "prompt": "请描述任务目标（一句话）和预期阶段（3-7个）："
+      },
+      "description": "收集任务目标与阶段划分",
+      "condition": "spec_file_not_exists"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "PlanService",
+      "action": "createPlan",
+      "params": {
+        "template": "plan.md",
+        "sections": ["goal", "phases", "key_questions", "decisions_made", "errors_encountered"]
+      },
+      "description": "生成阶段规划文件 plan.md"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "PlanService",
+      "action": "createFindings",
+      "params": {
+        "template": "findings.md"
+      },
+      "description": "创建研究发现文件 findings.md"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "PlanService",
+      "action": "createProgress",
+      "params": {
+        "template": "progress.md"
+      },
+      "description": "创建会话日志文件 progress.md"
+    },
+    {
+      "step": 7,
+      "layer": "interactive",
+      "service": "PlanService",
+      "action": "confirmAttestation",
+      "params": {
+        "prompt": "是否启用 SHA256 认证？（多 Agent 协作时推荐）",
+        "default": false
+      },
+      "description": "可选启用 SHA256 认证防注入"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "PlanService",
+      "action": "attestPlan",
+      "params": {
+        "script": ".claude/scripts/attest-plan.sh"
+      },
+      "description": "运行 SHA256 认证脚本",
+      "condition": "attestation_enabled"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "PlanService",
+      "action": "displaySummary",
+      "params": {
+        "message": "📋 规划文件已创建：\n- plan.md (阶段规划)\n- findings.md (研究发现)\n- progress.md (会话日志)\n\n📌 核心规则：\n- 2-Action Rule: 每 2 次视图/搜索操作后保存发现\n- 3-Strike Protocol: 失败 3 次后上报用户\n- 决策前重读 plan.md 保持目标清晰"
+      },
+      "description": "显示规划摘要和核心规则提醒"
+    }
+  ],
+  "hooks": {
+    "pre_tool_use": {
+      "matcher": "Write|Edit|Bash|Read|Glob|Grep",
+      "action": "inject_plan_context",
+      "description": "工具调用前注入当前规划上下文"
+    },
+    "post_tool_use": {
+      "matcher": "Write|Edit",
+      "action": "remind_update_progress",
+      "description": "文件修改后提醒更新 progress.md"
+    },
+    "stop": {
+      "action": "check_complete",
+      "script": ".claude/scripts/check-complete.sh",
+      "description": "会话结束时检查所有阶段是否完成"
+    },
+    "pre_compact": {
+      "action": "save_context_before_compact",
+      "description": "上下文压缩前保存状态到规划文件"
+    }
+  },
+  "rules_file": "conditional/planning-with-files.md",
+  "status": "active"
+}

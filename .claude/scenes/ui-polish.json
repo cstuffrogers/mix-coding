@@ -1,19 +1,50 @@
 {
   "scene_id": "ui-polish",
   "workflow": "ui-polish",
-  "name": "前端美化",
-  "description": "全对话模式 59 步混合工作流。前置检测→Phase 0 设计基准→Phase 1 机械步骤（安装依赖/主题注入/图标升级/DaisyUI组件类/Animal Island组件替换/自定义keyframe动画/微交互/硬编码颜色清除+每步验证）",
+  "name": "前端美化 + 设计",
+  "description": "前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统",
   "trigger_keywords": [
     "美化",
     "UI优化",
     "界面优化",
     "样式",
     "polish",
-    "DaisyUI"
+    "DaisyUI",
+    "设计",
+    "design",
+    "品牌"
   ],
+  "mode_selection": {
+    "prompt": "选择美化/设计模式（可多选）：",
+    "options": [
+      { "id": "ui_polish", "label": "UI 美化", "description": "主题注入/图标升级/DaisyUI/动画/微交互/硬编码颜色清除", "default": true },
+      { "id": "design_only", "label": "仅设计", "description": "Open Design 品牌+模板 → Huashu 原型 → 专家评审", "default": false },
+      { "id": "brand_system", "label": "品牌系统", "description": "AWM/Open Design 品牌导入 → 设计令牌同步", "default": false },
+      { "id": "impeccable", "label": "Impeccable 打磨", "description": "27 条反 AI 模式 + 12 条 LLM 批判", "default": true }
+    ],
+    "multi_select": true,
+    "timeout_seconds": 3
+  },
   "flow": [
     {
       "step": 0,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "selectModes",
+      "params": {
+        "prompt": "选择美化/设计模式（可多选，3秒无操作使用默认）：",
+        "options": [
+          { "id": "ui_polish", "label": "UI 美化", "default": true },
+          { "id": "design_only", "label": "仅设计", "default": false },
+          { "id": "brand_system", "label": "品牌系统", "default": false },
+          { "id": "impeccable", "label": "Impeccable 打磨", "default": true }
+        ],
+        "multi_select": true
+      },
+      "description": "交互式选择美化模式"
+    },
+    {
+      "step": 0.05,
       "layer": "design-intelligence",
       "service": "SkillRunner",
       "action": "invokeSkill",

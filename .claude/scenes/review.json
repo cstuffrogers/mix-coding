@@ -2,24 +2,88 @@
   "scene_id": "review",
   "workflow": "review",
   "name": "代码审查 + 安全审计",
-  "description": "全面代码质量审查 + 自动化安全漏洞扫描（集成CE多Agent深度审查 + sec-bug-hunt + 8项工具链）",
+  "description": "全面代码质量审查，可选模式：代码审查 / 全量审计 / 仅分析",
   "trigger_keywords": [
     "审查",
     "review",
     "检查代码",
     "安全审计",
-    "security"
+    "security",
+    "审计",
+    "健康检查",
+    "分析",
+    "代码分析"
   ],
+  "mode_selection": {
+    "prompt": "选择审查模式（可多选）：",
+    "options": [
+      {
+        "id": "code_review",
+        "label": "代码审查",
+        "description": "ESLint + TypeScript + npm audit + PR 审查 + 多 Agent 审查",
+        "default": true
+      },
+      {
+        "id": "full_audit",
+        "label": "全量审计",
+        "description": "安全扫描 + 依赖审计 + 性能基线 + 覆盖率 + 质量门禁汇总",
+        "default": false
+      },
+      {
+        "id": "analyze_only",
+        "label": "仅分析",
+        "description": "代码质量 + 性能瓶颈 + 可维护性分析，生成改进建议",
+        "default": false
+      },
+      {
+        "id": "security_deep",
+        "label": "安全深度扫描",
+        "description": "sec-bug-hunt + ReDoS + 开放重定向 + 日志脱敏 + CORS + 环境变量泄露",
+        "default": true
+      },
+      {
+        "id": "quality_tools",
+        "label": "质量工具链",
+        "description": "Knip 死代码 + dependency-cruiser + jscpd 重复 + size-limit + Stryker 变异",
+        "default": false
+      },
+      {
+        "id": "ai_design",
+        "label": "AI/设计审查",
+        "description": "aislop 代码气味 + Huashu 专家评审 + Impeccable 设计批判",
+        "default": false
+      }
+    ],
+    "multi_select": true,
+    "timeout_seconds": 3
+  },
   "flow": [
+    {
+      "step": 0,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "selectModes",
+      "params": {
+        "prompt": "选择审查模式（可多选，3秒无操作使用默认）：",
+        "options": [
+          { "id": "code_review", "label": "代码审查", "default": true },
+          { "id": "full_audit", "label": "全量审计", "default": false },
+          { "id": "analyze_only", "label": "仅分析", "default": false },
+          { "id": "security_deep", "label": "安全深度扫描", "default": true },
+          { "id": "quality_tools", "label": "质量工具链", "default": false },
+          { "id": "ai_design", "label": "AI/设计审查", "default": false }
+        ],
+        "multi_select": true
+      },
+      "description": "交互式选择审查模式，存入 context.selected_modes"
+    },
     {
       "step": 0.3,
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
-      "params": {
-        "skill": "review-checklist"
-      },
-      "description": "预加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立审查基准",
+      "params": { "skill": "review-checklist" },
+      "description": "Pre-flight: 加载 23 项审查清单",
       "condition": "conversation_mode"
     },
     {
@@ -27,50 +91,35 @@
       "layer": "capability",
       "service": "MemoryService",
       "action": "recall",
-      "params": {
-        "mode": "full",
-        "filters": {
-          "type": [
-            "review",
-            "quality",
-            "security"
-          ]
-        }
-      },
-      "description": "注入历史审查上下文和已知代码质量问题"
+      "params": { "mode": "full", "filters": { "type": ["review", "quality", "security"] } },
+      "description": "注入历史审查上下文"
     },
     {
       "step": 1,
       "layer": "capability",
       "service": "GitHubMCP",
       "action": "listPullRequests",
-      "params": {
-        "state": "open",
-        "limit": 5
-      },
-      "description": "使用 GitHub MCP 列出待审查的 Pull Requests",
-      "condition": "github_mcp_available"
+      "params": { "state": "open", "limit": 5 },
+      "description": "列出待审查的 PR",
+      "condition": "github_mcp_available && selected_modes.includes('code_review')"
     },
     {
       "step": 1.1,
       "layer": "capability",
       "service": "Context7MCP",
       "action": "getDocumentation",
-      "params": {
-        "topic": "code review best practices"
-      },
-      "description": "使用 Context7 MCP 获取代码审查最佳实践",
-      "condition": "context7_mcp_available"
+      "params": { "topic": "code review best practices" },
+      "description": "获取审查最佳实践",
+      "condition": "context7_mcp_available && selected_modes.includes('code_review')"
     },
     {
       "step": 2,
       "layer": "capability",
       "service": "ReviewEngine",
       "action": "runReview",
-      "params": {
-        "mode": "full"
-      },
-      "description": "ESLint → TypeScript → npm audit 静态分析，五层审查引擎核心",
+      "params": { "mode": "full" },
+      "description": "ESLint → TypeScript → npm audit 静态分析",
+      "condition": "selected_modes.includes('code_review') || selected_modes.includes('full_audit')",
       "on_error": "retry"
     },
     {
@@ -79,20 +128,17 @@
       "service": "AccessibilityService",
       "action": "ai-friendly-review",
       "params": {},
-      "description": "无障碍静态扫描：img-alt / input-label / html-lang / contrast-risk / clickable-div — 5 项检查"
+      "description": "无障碍静态扫描",
+      "condition": "selected_modes.includes('full_audit')"
     },
     {
       "step": 2.35,
       "layer": "capability",
       "service": "SecurityTool",
       "action": "pa11y-ci",
-      "params": {
-        "standard": "WCAG2AA",
-        "includeNotices": true,
-        "includeWarnings": true
-      },
-      "description": "pa11y-ci WCAG 2.1 AA 无障碍 CLI 扫描：HTML 文件时运行 pa11y-ci，JSX/TSX 回退到代码级 aria/alt/label 检查",
-      "condition": "frontend_involved"
+      "params": { "standard": "WCAG2AA" },
+      "description": "pa11y-ci WCAG 扫描",
+      "condition": "frontend_involved && selected_modes.includes('full_audit')"
     },
     {
       "step": 2.5,
@@ -100,158 +146,80 @@
       "service": "HuashuService",
       "action": "huashu-expert-review",
       "params": {},
-      "description": "Huashu 5 维度专家评审: philosophy/hierarchy/craft/functionality/originality — UI 设计质量评分",
-      "condition": "enh_huashu_expert_review"
+      "description": "Huashu 5 维度专家评审",
+      "condition": "selected_modes.includes('ai_design') && frontend_involved"
     },
     {
       "step": 2.6,
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "knip-check",
-      "params": {
-        "strict": true,
-        "production": true
-      },
-      "description": "Knip 死代码检测：未使用文件 / 未使用导出 / 未使用依赖 / 未解析导入"
+      "params": { "strict": true },
+      "description": "Knip 死代码检测",
+      "condition": "selected_modes.includes('quality_tools') || selected_modes.includes('full_audit')"
     },
     {
       "step": 2.65,
       "layer": "capability",
       "service": "ArchitectureService",
       "action": "depcruise-architecture",
-      "params": {
-        "rules": ".dependency-cruiser.js",
-        "outputType": "err"
-      },
-      "description": "Dependency-cruiser 架构验证：循环依赖检测 / 孤儿模块 / 分层合规"
-    },
-    {
-      "step": 2.8,
-      "layer": "capability",
-      "service": "MetaCheckService",
-      "action": "verify-handlers",
-      "params": {},
-      "description": "Handler 功能性验证：扫描 ACTION_REGISTRY + CE dispatch + handler 文件，检测空转桩（MCP/MP/CE/伪桩）"
+      "params": { "rules": ".dependency-cruiser.js" },
+      "description": "架构验证：循环依赖 / 孤儿模块",
+      "condition": "selected_modes.includes('quality_tools') || selected_modes.includes('full_audit')"
     },
     {
       "step": 2.9,
       "layer": "capability",
       "service": "AISlopService",
       "action": "aislop-scan",
-      "params": {
-        "mode": "scan"
-      },
-      "description": "AI 代码气味扫描（aislop）：50+ 规则 — 叙事注释、吞异常、死代码、as any 滥用、重复 helper、过多抽象层级"
+      "params": { "mode": "scan" },
+      "description": "AI 代码气味扫描",
+      "condition": "selected_modes.includes('ai_design')"
     },
     {
       "step": 2.95,
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "jscpd",
-      "params": {
-        "minTokens": 50,
-        "minLines": 5,
-        "threshold": 0.05
-      },
-      "description": "代码重复检测（jscpd）：AST 级 copy-paste 检测，重复率 > 5% 告警"
+      "params": { "minTokens": 50, "threshold": 0.05 },
+      "description": "代码重复检测",
+      "condition": "selected_modes.includes('quality_tools')"
     },
     {
       "step": 2.96,
       "layer": "capability",
       "service": "BundleSizeService",
       "action": "size_limit",
-      "params": {
-        "config": ".size-limit.json",
-        "running": true
-      },
-      "description": "包体积预算检查（size-limit）：JS bundle 体积是否超出预算"
-    },
-    {
-      "step": 2.97,
-      "layer": "capability",
-      "service": "MutationTestService",
-      "action": "stryker",
-      "params": {
-        "incremental": true,
-        "timeoutMS": 60000,
-        "thresholds": {
-          "high": 80,
-          "low": 60
-        }
-      },
-      "description": "Stryker 变异测试：运行变异测试框架，计算变异体杀死率（≥80% 通过），检测测试套件质量"
-    },
-    {
-      "step": 2.98,
-      "layer": "capability",
-      "service": "SecurityTool",
-      "action": "spectral",
-      "params": {
-        "ruleset": ".spectral.yaml",
-        "failSeverity": "error"
-      },
-      "description": "Spectral API lint：扫描 OpenAPI/Swagger 规范文件，检测 API 设计违规（error 级别阻断）"
-    },
-    {
-      "step": 2.99,
-      "layer": "capability",
-      "service": "CodeQualityService",
-      "action": "markdownlint",
-      "params": {
-        "config": ".markdownlint.json"
-      },
-      "description": "markdownlint 检查：扫描项目 Markdown 文件，检测格式问题（MD 规则）"
-    },
-    {
-      "step": 3,
-      "layer": "capability",
-      "service": "ECC",
-      "action": "ce-review",
-      "params": {
-        "scope": "all",
-        "agent_count": 9
-      },
-      "description": "CE Plugin 多Agent深度审查：架构、安全、性能、代码规范、可维护性、文档、测试、国际化、最佳实践",
-      "condition": "plugin_ce_available"
+      "params": {},
+      "description": "包体积预算检查",
+      "condition": "selected_modes.includes('quality_tools') && frontend_involved"
     },
     {
       "step": 3.2,
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
-      "params": {
-        "skill": "review"
-      },
-      "description": "Matt Pocock 双轴审查：标准轴（编码规范）+ 规范轴（原始 issue/PRD 对照）",
-      "condition": "conversation_mode"
+      "params": { "skill": "review" },
+      "description": "Matt Pocock 双轴审查",
+      "condition": "conversation_mode && selected_modes.includes('code_review')"
     },
     {
       "step": 3.5,
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
-      "params": {
-        "skill": "impeccable",
-        "subcommand": "critique"
-      },
-      "description": "Impeccable 设计批判：27 条反 AI 模式规则 + 12 条 LLM 批判规则，检测 AI 塑料感",
-      "condition": "impeccable_available && conversation_mode"
+      "params": { "skill": "impeccable", "subcommand": "critique" },
+      "description": "Impeccable 设计批判",
+      "condition": "impeccable_available && selected_modes.includes('ai_design')"
     },
     {
       "step": 4,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "sec-bug-hunt",
-      "params": {
-        "scope": "current_diffs",
-        "min_confidence": 0.85,
-        "block_merge_on_critical": true,
-        "risk_levels": [
-          "HIGH",
-          "CRITICAL"
-        ]
-      },
-      "description": "代码安全深度审计：执行高置信度 (>=0.85) 的漏洞扫描，阻断高危漏洞（SQLi、XSS、命令注入等）",
+      "params": { "scope": "current_diffs", "min_confidence": 0.85, "block_merge_on_critical": true },
+      "description": "代码安全深度审计",
+      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')",
       "timeout": 600,
       "criticality": "BLOCK-MERGE"
     },
@@ -260,11 +228,9 @@
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "recheck-cli",
-      "params": {
-        "maxSteps": 10000,
-        "timeout": 5000
-      },
-      "description": "ReDoS 正则灾难性回溯扫描：检测 exponential backtracking 漏洞"
+      "params": { "maxSteps": 10000 },
+      "description": "ReDoS 正则扫描",
+      "condition": "selected_modes.includes('security_deep')"
     },
     {
       "step": 4.2,
@@ -272,7 +238,8 @@
       "service": "SecuritySkill",
       "action": "open-redirect-scan",
       "params": {},
-      "description": "开放重定向检测：URL 参数注入、重定向跳转安全风险"
+      "description": "开放重定向检测",
+      "condition": "selected_modes.includes('security_deep')"
     },
     {
       "step": 4.3,
@@ -280,7 +247,8 @@
       "service": "SecuritySkill",
       "action": "log-sanitization",
       "params": {},
-      "description": "日志脱敏扫描：console.log 中 Token/密码/身份证号/手机号/邮箱泄露检测"
+      "description": "日志脱敏扫描",
+      "condition": "selected_modes.includes('security_deep')"
     },
     {
       "step": 4.4,
@@ -288,7 +256,8 @@
       "service": "SecuritySkill",
       "action": "cors-check",
       "params": {},
-      "description": "CORS 配置检测：Access-Control-Allow-Origin: * / credentials + 通配符 / cors() 无配置"
+      "description": "CORS 配置检测",
+      "condition": "selected_modes.includes('security_deep')"
     },
     {
       "step": 4.5,
@@ -296,7 +265,8 @@
       "service": "SecuritySkill",
       "action": "env-var-leak",
       "params": {},
-      "description": "前端环境变量泄露检测：Vite import.meta.env 非 VITE_ 前缀 / process.env 浏览器端泄露"
+      "description": "环境变量泄露检测",
+      "condition": "selected_modes.includes('security_deep') && frontend_involved"
     },
     {
       "step": 4.6,
@@ -304,94 +274,60 @@
       "service": "SecuritySkill",
       "action": "sensitive-file-check",
       "params": {},
-      "description": "敏感文件暴露检查：.env/*.pem/*.key/credentials.json 的 gitignore 规则与 git 追踪状态"
-    },
-    {
-      "step": 4.7,
-      "layer": "capability",
-      "service": "QualityService",
-      "action": "checkGate",
-      "params": {
-        "checks": [
-          "lint",
-          "typecheck",
-          "security",
-          "a11y",
-          "pa11y",
-          "knip",
-          "dependency_cruiser",
-          "dead_code",
-          "recheck",
-          "state_audit",
-          "open_redirect",
-          "log_sanitization",
-          "cors_check",
-          "env_var_leak",
-          "sensitive_file",
-          "aislop",
-          "jscpd",
-          "size_limit",
-          "stryker",
-          "spectral",
-          "markdownlint"
-        ],
-        "mode": "strict",
-        "block_merge": true
-      },
-      "description": "质量门禁：汇总五层审查+安全审计+工具链结果（20 项检查），关键问题阻断合并",
-      "on_error": "abort"
-    },
-    {
-      "step": 4.8,
-      "layer": "capability",
-      "service": "ReportService",
-      "action": "generateReviewReport",
-      "params": {},
-      "description": "生成结构化审查报告（.claude/reviews/review-report-<timestamp>.md）+ 审查指标信息图"
+      "description": "敏感文件暴露检查",
+      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
       "step": 5,
       "layer": "capability",
-      "service": "ECC",
-      "action": "ce-compound",
-      "params": {
-        "type": "review",
-        "source": "auto"
-      },
-      "description": "将审查 + 安全审计知识沉淀到项目知识库 CLAUDE.md",
-      "condition": "plugin_ce_available"
+      "service": "PerformanceService",
+      "action": "profile",
+      "params": { "mode": "baseline" },
+      "description": "性能基线测量",
+      "condition": "selected_modes.includes('analyze_only') || selected_modes.includes('full_audit')"
+    },
+    {
+      "step": 5.5,
+      "layer": "capability",
+      "service": "CodeMetricsService",
+      "action": "analyze",
+      "params": { "metrics": ["complexity", "maintainability", "coupling"] },
+      "description": "代码质量指标分析",
+      "condition": "selected_modes.includes('analyze_only')"
     },
     {
       "step": 6,
       "layer": "capability",
-      "service": "MemoryService",
-      "action": "remember",
-      "params": {
-        "type": "review",
-        "data": {
-          "source": "review_workflow"
-        }
-      },
-      "description": "保存审查结果到记忆（安全问题/代码质量问题/审查通过项）"
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": { "mode": "strict", "block_merge": true },
+      "description": "质量门禁汇总",
+      "condition": "selected_modes.includes('full_audit')",
+      "on_error": "abort"
     },
     {
       "step": 6.5,
       "layer": "capability",
-      "service": "MemoryService",
-      "action": "consolidate",
+      "service": "ReportService",
+      "action": "generateReviewReport",
       "params": {},
-      "description": "整理跨后端记忆一致性"
+      "description": "生成结构化审查报告"
     },
     {
       "step": 7,
       "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": { "type": "review" },
+      "description": "保存审查结果到记忆"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
       "service": "NotificationService",
       "action": "notify",
-      "params": {
-        "type": "info",
-        "message": "代码审查 + 安全审计完成"
-      },
-      "description": "通知审计结果（含漏洞统计与合规状态）"
+      "params": { "type": "info", "message": "审查完成" },
+      "description": "通知审查结果"
     }
   ],
   "status": "active"

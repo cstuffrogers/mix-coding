@@ -1,0 +1,15 @@
+{
+  "id": "bb1f8f5b3aea",
+  "type": "general",
+  "data": {
+    "source": "auto_remember",
+    "workflow": "general",
+    "timestamp": "2026-06-27T15:50:45.213Z",
+    "prompt": "",
+    "completedSteps": [],
+    "findings": {
+      "security": {}
+    }
+  },
+  "timestamp": "2026-06-27T15:50:45.217Z"
+}

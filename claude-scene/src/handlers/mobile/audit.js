@@ -6,25 +6,34 @@ import { scanDir } from '../../lib/scan-dir.js';
 
 // ── Helpers ──
 
-function detectProjectType(targetPath, hasIos, hasAndroid, _hasPodfile) {
+function checkPackageJson(targetPath) {
   const packageJson = join(targetPath, 'package.json');
-  if (existsSync(packageJson)) {
-    try {
-      const pkg = JSON.parse(readFileSync(packageJson, 'utf-8'));
-      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-      if (deps['react-native'] || deps['expo']) return deps['expo'] ? 'expo' : 'rn';
-      if (deps['flutter']) return 'flutter';
-    } catch { /* ignore */ }
-  }
+  if (!existsSync(packageJson)) return null;
+  try {
+    const pkg = JSON.parse(readFileSync(packageJson, 'utf-8'));
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    if (deps['expo']) return 'expo';
+    if (deps['react-native']) return 'rn';
+    if (deps['flutter']) return 'flutter';
+  } catch { /* ignore */ }
+  return null;
+}
 
+function checkPubspecYaml(targetPath) {
   const pubspecYaml = join(targetPath, 'pubspec.yaml');
-  if (existsSync(pubspecYaml)) {
-    try {
-      const content = readFileSync(pubspecYaml, 'utf-8');
-      if (content.includes('flutter:')) return 'flutter';
-    } catch { /* ignore */ }
-  }
+  if (!existsSync(pubspecYaml)) return null;
+  try {
+    const content = readFileSync(pubspecYaml, 'utf-8');
+    if (content.includes('flutter:')) return 'flutter';
+  } catch { /* ignore */ }
+  return null;
+}
 
+function detectProjectType(targetPath, hasIos, hasAndroid, _hasPodfile) {
+  const fromPkg = checkPackageJson(targetPath);
+  if (fromPkg) return fromPkg;
+  const fromPubspec = checkPubspecYaml(targetPath);
+  if (fromPubspec) return fromPubspec;
   if (hasIos && hasAndroid) return 'rn';
   if (hasIos) return 'ios-native';
   if (hasAndroid) return 'android-native';
@@ -149,7 +158,7 @@ export function handlePerfBaseline(_action, params, targetPath, context) {
 
   const baseline = {};
   for (const m of metrics) {
-    const _name = { bundle_size: 'Bundle 大小', startup_time: '启动时间', fps: '帧率', memory: '内存', network: '网络' }[m] || m;
+
     if (m === 'bundle_size') {
       try {
         const files = scanDir(targetPath, { filter: f => /\.(js|ts|jsx|tsx)$/.test(f) && !f.includes('node_modules') });
@@ -177,7 +186,7 @@ export function handleStoreCompliance(_action, _params, targetPath, context) {
     { name: '非公开 API', check: () => true },
   ];
 
-  for (const { name: _name, check } of checks) {
+  for (const { check } of checks) {
     check();
   }
 

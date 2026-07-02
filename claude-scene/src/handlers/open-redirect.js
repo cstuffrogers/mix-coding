@@ -2,29 +2,49 @@ import { join } from 'path';
 import chalk from 'chalk';
 import { readCodeFiles, stripCommentsAndStrings } from '../lib/code-analysis-utils.js';
 
+function scanPatternsInFile(file, redirectPatterns) {
+  const findings = [];
+  const stripped = stripCommentsAndStrings(file.content);
+  for (const { name, re } of redirectPatterns) {
+    const matches = [];
+    for (const r of re) {
+      const m = stripped.match(r);
+      if (m) matches.push(...m);
+    }
+    if (matches.length > 0) {
+      findings.push({ file: file.path, pattern: name, count: matches.length });
+    }
+  }
+  return findings;
+}
+
 export function handleOpenRedirectScan(_action, _params, targetPath, context) {
   const findings = [];
 
-  // Targeted open redirect pattern scan
   const srcDir = join(targetPath, 'src');
   const redirectPatterns = [
-    { name: 'location.href 参数拼接', re: /location\.href\s*=\s*(?!['"]#['"])(?!['"]\/['"])\w+|location\.href\s*=\s*[`'"].*\$\{/gi },
-    { name: 'location.replace 参数注入', re: /location\.replace\s*\(\s*(?!['"]\/['"])\w+|location\.replace\s*\(\s*[`'"].*\$\{/gi },
-    { name: 'window.open 参数拼接', re: /window\.open\s*\(\s*(?!['"]\/['"])\w+|window\.open\s*\(\s*[`'"].*\$\{/gi },
-    { name: 'location.assign 参数注入', re: /location\.assign\s*\(\s*(?!['"]\/['"])\w+|location\.assign\s*\(\s*[`'"].*\$\{/gi },
-    { name: 'JSX href 参数拼接', re: /href\s*=\s*\{/gi },
+    { name: 'location.href 参数拼接', re: [
+      /location\.href\s*=\s*(?!['"]#['"])(?!['"]\/['"])\w+/gi,
+      /location\.href\s*=\s*[`'"].*\$\{/gi,
+    ]},
+    { name: 'location.replace 参数注入', re: [
+      /location\.replace\s*\(\s*(?!['"]\/['"])\w+/gi,
+      /location\.replace\s*\(\s*[`'"].*\$\{/gi,
+    ]},
+    { name: 'window.open 参数拼接', re: [
+      /window\.open\s*\(\s*(?!['"]\/['"])\w+/gi,
+      /window\.open\s*\(\s*[`'"].*\$\{/gi,
+    ]},
+    { name: 'location.assign 参数注入', re: [
+      /location\.assign\s*\(\s*(?!['"]\/['"])\w+/gi,
+      /location\.assign\s*\(\s*[`'"].*\$\{/gi,
+    ]},
+    { name: 'JSX href 参数拼接', re: [/href\s*=\s*\{/gi] },
   ];
 
   for (const file of readCodeFiles(srcDir)) {
     if (/\.test\./.test(file.path)) continue;
-    const stripped = stripCommentsAndStrings(file.content);
-
-    for (const { name, re } of redirectPatterns) {
-      const matches = stripped.match(re);
-      if (matches && matches.length > 0) {
-        findings.push({ file: file.path, pattern: name, count: matches.length });
-      }
-    }
+    findings.push(...scanPatternsInFile(file, redirectPatterns));
   }
 
   if (findings.length > 0) {

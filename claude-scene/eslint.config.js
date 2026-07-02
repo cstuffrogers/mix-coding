@@ -5,7 +5,7 @@ import sonarjs from "eslint-plugin-sonarjs";
 
 export default [
   {
-    ignores: ["coverage/**", "node_modules/**", "dist/**"],
+    ignores: ["coverage/**", "node_modules/**", "dist/**", "../.huashu-extract/**", "../assets/huashu/**", "../.claude/skills/impeccable/**", "../.specify/**", "**/*.umd.js", "**/*.min.js"],
   },
   js.configs.recommended,
   importPlugin.flatConfigs.recommended,

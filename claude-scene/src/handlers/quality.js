@@ -19,7 +19,7 @@ export function handleApplyTemplate(_action, params, targetPath) {
   const template = params?.template || 'component';
   const templatesDir = join(targetPath, '.claude', 'harness-templates');
   if (existsSync(templatesDir)) {
-    const _files = readdirSync(templatesDir).filter(f => f.endsWith('.js') || f.endsWith('.ts') || f.endsWith('.tsx'));
+    readdirSync(templatesDir).filter(f => f.endsWith('.js') || f.endsWith('.ts') || f.endsWith('.tsx'));
   } else {
     console.log(chalk.dim('  无模板目录，模板应用需 Claude Code 对话上下文'));
   }
@@ -31,28 +31,32 @@ export function handleImplementLogic(_action, _params, _targetPath, context) {
   return '核心逻辑实现完成（CLI 轻量模式）';
 }
 
+function cleanNodeModules(targetPath, cleaned) {
+  const nmPath = join(targetPath, 'node_modules');
+  if (!existsSync(nmPath)) return;
+  rmSync(nmPath, { recursive: true, force: true });
+  cleaned.push('node_modules');
+}
+
+function cleanBuildDirs(targetPath, cleaned) {
+  for (const dir of ['dist', 'build', '.next', '.turbo', '.cache']) {
+    const dirPath = join(targetPath, dir);
+    if (!existsSync(dirPath)) continue;
+    rmSync(dirPath, { recursive: true, force: true });
+    cleaned.push(dir);
+  }
+}
+
 export function handleCleanup(_action, params, targetPath, context) {
   const tasks = params?.cleanup || ['temp_files', 'build_cache'];
 
   const cleaned = [];
   for (const task of tasks) {
     try {
-      if (task === 'temp_files' || task === 'node_modules') {
-        const nmPath = join(targetPath, 'node_modules');
-        if (task === 'node_modules' && existsSync(nmPath)) {
-          rmSync(nmPath, { recursive: true, force: true });
-          cleaned.push('node_modules');
-        }
-      }
-      if (task === 'build_cache' || task === 'dist') {
-        for (const dir of ['dist', 'build', '.next', '.turbo', '.cache']) {
-          const dirPath = join(targetPath, dir);
-          if (existsSync(dirPath)) {
-            rmSync(dirPath, { recursive: true, force: true });
-            cleaned.push(dir);
-          }
-        }
-      }
+      const isNodeModules = task === 'node_modules';
+      if (isNodeModules) cleanNodeModules(targetPath, cleaned);
+      const isDist = task === 'dist';
+      if (isDist) cleanBuildDirs(targetPath, cleaned);
     } catch (e) {
       console.log(chalk.dim(`  ⚠ ${task} 清理失败: ${e.message?.slice(0, 80)}`));
     }

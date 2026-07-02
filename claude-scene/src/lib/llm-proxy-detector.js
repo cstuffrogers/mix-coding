@@ -24,7 +24,7 @@ const EXFIL_PATTERNS = [
   { pattern: /\bprocess\.env\.(?!NODE_ENV|CI|VERCEL|NETLIFY)[A-Z_]{3,}/, label: 'env var access' },
   // File exfiltration patterns
   { pattern: /\breadFileSync\(.*\.env/i, label: '.env file read' },
-  { pattern: /\bcat\s+.*\.env/i, label: 'cat .env' },
+  { pattern: /\bcat\s+[^\s]*?\.env/i, label: 'cat .env' },
   { pattern: /\.pem\b|private.*key|secret.*key/i, label: 'private key reference' },
   // Data exfiltration function names
   { pattern: /\b(sendTo|uploadTo|exfiltrate|steal|leak|dump_)\w*/i, label: 'exfiltration function name' },
@@ -131,71 +131,6 @@ async function callLLM(apiUrl, apiKey, body, provider, timeoutMs) {
 
 // ---- Diff engine ----
 
-function deepDiff(a, b, path = '') {
-  /** @type {Difference[]} */
-  const diffs = [];
-
-  if (a === b) return diffs;
-  if (a == null || b == null) {
-    diffs.push({ severity: 'HIGH', category: 'structure', description: `${path}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`, directValue: a, proxyValue: b });
-    return diffs;
-  }
-  if (typeof a !== typeof b) {
-    diffs.push({ severity: 'HIGH', category: 'structure', description: `${path}: type mismatch ${typeof a} vs ${typeof b}`, directValue: a, proxyValue: b });
-    return diffs;
-  }
-  if (typeof a !== 'object') {
-    diffs.push({ severity: 'LOW', category: 'content', description: `${path}: "${a}" vs "${b}"`, directValue: a, proxyValue: b });
-    return diffs;
-  }
-
-  const aIsArr = Array.isArray(a), bIsArr = Array.isArray(b);
-  if (aIsArr !== bIsArr) {
-    diffs.push({ severity: 'HIGH', category: 'structure', description: `${path}: array vs object mismatch`, directValue: a, proxyValue: b });
-    return diffs;
-  }
-
-  if (aIsArr) {
-    if (a.length !== b.length) {
-      diffs.push({
-        severity: 'CRITICAL',
-        category: 'tool_calls',
-        description: `${path}: length differs (${a.length} vs ${b.length}) — possible injection`,
-        directValue: a,
-        proxyValue: b,
-      });
-    }
-    const len = Math.max(a.length, b.length);
-    for (let i = 0; i < len; i++) {
-      diffs.push(...deepDiff(a[i], b[i], `${path}[${i}]`));
-    }
-    return diffs;
-  }
-
-  const allKeys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  for (const k of allKeys) {
-    if (!(k in a)) {
-      diffs.push({
-        severity: 'CRITICAL',
-        category: 'tool_calls',
-        description: `${path}.${k}: key only in proxy — possible injection`,
-        directValue: undefined,
-        proxyValue: b[k],
-      });
-    } else if (!(k in b)) {
-      diffs.push({
-        severity: 'MEDIUM',
-        category: 'structure',
-        description: `${path}.${k}: key only in direct — possible suppression`,
-        directValue: a[k],
-        proxyValue: undefined,
-      });
-    } else {
-      diffs.push(...deepDiff(a[k], b[k], `${path}.${k}`));
-    }
-  }
-  return diffs;
-}
 
 function diffResponses(direct, proxy) {
   const diffs = [];
@@ -291,7 +226,6 @@ function compareToolCalls(directTools, proxyTools) {
         proxyValue: pt,
       });
     }
-    // Check for exfiltration patterns in parameters
     const paramStr = JSON.stringify(pt.input || {});
     for (const ep of EXFIL_PATTERNS) {
       if (ep.pattern.test(paramStr)) {
@@ -386,17 +320,9 @@ export async function detectProxyTampering(config) {
   };
 }
 
-/**
- * Quick single-round check. Returns true if proxy appears tampered.
- */
-export async function quickCheck(config) {
-  const report = await detectProxyTampering({ ...config, rounds: 1 });
-  return {
-    suspicious: report.tamperingDetected,
-    verdict: report.verdict,
-    summary: report.summary,
-    criticalCount: report.allDifferences.filter(d => d.severity === 'CRITICAL').length,
-  };
-}
 
+/**
+ * @public
+ * Exfiltration patterns for LLM proxy detection.
+ */
 export { EXFIL_PATTERNS };

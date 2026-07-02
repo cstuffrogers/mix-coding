@@ -29,10 +29,6 @@ export function handleReleaseChecks(_action, _params, targetPath, context) {
     });
   }
 
-  for (const _c of checks) {
-    /* check recorded in context */
-  }
-
   if (context) {
     context.release_checks = checks;
     context.securityScanResult = { highSeverityFound: false };

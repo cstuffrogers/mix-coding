@@ -1,0 +1,15 @@
+{
+  "id": "3556ecec748a",
+  "type": "general",
+  "data": {
+    "source": "auto_remember",
+    "workflow": "general",
+    "timestamp": "2026-06-27T15:59:36.340Z",
+    "prompt": "",
+    "completedSteps": [],
+    "findings": {
+      "security": {}
+    }
+  },
+  "timestamp": "2026-06-27T15:59:36.345Z"
+}

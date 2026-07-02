@@ -1,18 +1,19 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', 'data');
 
-function extractObjectKeys(source, objectName) {
-  const re = /^\s*(?:'([^']+)'|"([^"]+)"|(\w+))\s*:/gm;
+function extractObjectKeys(source, _objectName) {
+  const sigRes = [/^[ \t]*'([^']+)'[ \t]*:/gm, /^[ \t]*"([^"]+)"[ \t]*:/gm, /^[ \t]*(\w+)[ \t]*:/gm];
   const keys = new Set();
+  for (const sigRe of sigRes) {
   let m;
-  while ((m = re.exec(source)) !== null) {
-    keys.add(m[1] || m[2] || m[3]);
+  while ((m = sigRe.exec(source)) !== null) {
+    keys.add(m[1]);
+  }
   }
   return keys;
 }
@@ -35,7 +36,7 @@ function collectContextFlags(handlersDir) {
       const name = m[1];
       if (name === 'lastStepFailed') continue;
       // Only flags that look like gate results
-      if (/Passed|Configured|Generated|Created$/.test(name)) {
+      if (/(?:Passed|Configured|Generated|Created)$/.test(name)) {
         flags.add(name);
       }
     }
@@ -57,7 +58,7 @@ export function handleCheckSmoke(_action, _params, targetPath, context) {
     }).toString();
 
     const passed = /All \d+ tests? passed/.test(raw) || /Tests\s+\d+ passed/.test(raw);
-    const failMatch = raw.match(/(\d+)\s+failed/);
+    const failMatch = raw.match(/(?<!\d)(\d+)\s+failed/);
     const failedCount = failMatch ? parseInt(failMatch[1], 10) : 0;
 
     if (context) {
@@ -67,14 +68,11 @@ export function handleCheckSmoke(_action, _params, targetPath, context) {
     }
 
     if (passed) {
-      console.log(chalk.green('  ✅ 冒烟测试全部通过'));
       return '冒烟测试全部通过';
     }
-    console.log(chalk.red(`  ❌ 冒烟测试 ${failedCount} 个失败`));
     return `冒烟测试: ${failedCount} 个失败`;
   } catch {
     if (context) context.smokePassed = false;
-    console.log(chalk.red('  ❌ 冒烟测试执行失败'));
     return '冒烟测试执行失败';
   }
 }
@@ -111,12 +109,9 @@ export function handleCheckActionMessages(_action, _params, targetPath, context)
   }
 
   if (orphanKeys.length === 0) {
-    console.log(chalk.green('  ✅ 所有已注册 handler 都有对应的 action message'));
     return 'action-messages 完整性检查通过';
   }
 
-  console.log(chalk.yellow(`  ⚠ 发现 ${orphanKeys.length} 个缺少 action message 的 handler:`));
-  orphanKeys.forEach(k => console.log(chalk.dim(`    - ${k}`)));
   return `发现 ${orphanKeys.length} 个缺少 action message 的 handler`;
 }
 
@@ -150,12 +145,9 @@ export function handleCheckGateFlags(_action, _params, targetPath, context) {
   }
 
   if (orphanFlags.length === 0) {
-    console.log(chalk.green('  ✅ 所有 context flag 都有对应的 gate 映射'));
     return 'gate-flags 完整性检查通过';
   }
 
-  console.log(chalk.yellow(`  ⚠ 发现 ${orphanFlags.length} 个未映射的 context flag:`));
-  orphanFlags.forEach(f => console.log(chalk.dim(`    - context.${f}`)));
   return `发现 ${orphanFlags.length} 个未映射的 context flag`;
 }
 
@@ -203,8 +195,6 @@ export function handleFixActionMessages(_action, _params, _targetPath, context) 
   writeFileSync(messagesFile, src, 'utf-8');
   if (context) context.fixedActionMessages = stillMissing.length;
 
-  console.log(chalk.green(`  ✅ 已添加 ${stillMissing.length} 个缺失的 action message`));
-  stillMissing.forEach(k => console.log(chalk.dim(`    + ${k}`)));
   return `已修复 ${stillMissing.length} 个缺失的 action message`;
 }
 
@@ -259,8 +249,6 @@ export function handleFixGateFlags(_action, _params, _targetPath, context) {
     context.fixedGateFlagDetails = stillMissing.map(f => `${inferCheckName(f)} → ${f}`);
   }
 
-  console.log(chalk.green(`  ✅ 已添加 ${stillMissing.length} 个缺失的 gate flag 映射`));
-  stillMissing.forEach(f => console.log(chalk.dim(`    + ${inferCheckName(f)}: '${f}'`)));
   return `已修复 ${stillMissing.length} 个缺失的 gate flag 映射`;
 }
 
@@ -297,7 +285,6 @@ export function handleSelfCheckReport(_action, _params, _targetPath, context) {
   lines.push('═══════════════════════════════════════');
 
   const report = lines.join('\n');
-  console.log(chalk.cyan(report));
 
   if (context) context.checkReport = report;
   return report;

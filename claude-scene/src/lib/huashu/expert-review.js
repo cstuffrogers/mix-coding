@@ -67,9 +67,7 @@ export function review({ targetPath, context = {} } = {}) {
   const max = DIMENSIONS.length * 10;
   const percent = Math.round((total / max) * 100);
 
-  for (const _d of DIMENSIONS) {
-    /* aggregate scores used for percentile calculation */
-  }
+
 
   const keepFixSuggestions = generateSuggestions(aggregate);
   const reportFile = writeReport(targetPath, { aggregate, total, percent, suggestions: keepFixSuggestions, fileCount: candidates.length });

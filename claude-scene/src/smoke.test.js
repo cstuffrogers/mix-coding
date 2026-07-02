@@ -113,6 +113,24 @@ const OVERRIDES = {
   checkGate: [null, { checks: [] }, '/test', {}],
 };
 
+function validateHandlerResult(name, result, failures) {
+  if (typeof result === 'object' && result !== null && !Array.isArray(result)) {
+    if (Object.keys(result).length === 0) failures.push(`${name}: empty object`);
+  } else if (typeof result !== 'string') {
+    failures.push(`${name}: ${typeof result} — ${JSON.stringify(result).slice(0, 60)}`);
+  } else if (result.length === 0) {
+    failures.push(`${name}: empty string`);
+  }
+}
+
+async function runHandler(name, handler, tempDir) {
+  const ctx = { targetPath: tempDir };
+  const overrides = OVERRIDES[name];
+  let result = overrides ? handler(...overrides) : handler(null, {}, tempDir, ctx);
+  if (result instanceof Promise) result = await result;
+  return result;
+}
+
 describe('handler smoke tests', () => {
   it('all ACTION_REGISTRY handlers return a value without throwing', async () => {
     const { ACTION_REGISTRY } = await import('./actions.js');
@@ -125,18 +143,8 @@ describe('handler smoke tests', () => {
       for (const [name, handler] of entries) {
         if (SMOKE_SKIP.has(name)) continue;
         try {
-          const ctx = { targetPath: tempDir };
-          const overrides = OVERRIDES[name];
-          let result = overrides ? handler(...overrides) : handler(null, {}, tempDir, ctx);
-          if (result instanceof Promise) result = await result;
-
-          if (typeof result === 'object' && result !== null && !Array.isArray(result)) {
-            if (Object.keys(result).length === 0) failures.push(`${name}: empty object`);
-          } else if (typeof result !== 'string') {
-            failures.push(`${name}: ${typeof result} — ${JSON.stringify(result).slice(0, 60)}`);
-          } else if (result.length === 0) {
-            failures.push(`${name}: empty string`);
-          }
+          const result = await runHandler(name, handler, tempDir);
+          validateHandlerResult(name, result, failures);
         } catch (e) {
           failures.push(`${name}: THREW — ${e.message?.slice(0, 150)}`);
         }

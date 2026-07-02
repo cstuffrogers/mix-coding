@@ -1,16 +1,43 @@
 {
   "scene_id": "refactor",
   "workflow": "refactor",
-  "name": "代码重构",
-  "description": "自动执行重构流程：分析重构点、生成重构方案、执行重构、验证效果",
+  "name": "代码重构 + 简化",
+  "description": "代码重构与简化合并。可选模式：重构 / 简化（不改变行为）/ 架构优化",
   "trigger_keywords": [
     "重构",
     "refactor",
     "代码重构",
     "clean code",
-    "重构代码"
+    "简化",
+    "simplify"
   ],
+  "mode_selection": {
+    "prompt": "选择重构模式（可多选）：",
+    "options": [
+      { "id": "refactor", "label": "代码重构", "description": "分析重构点 → 生成方案 → 执行重构 → 验证效果", "default": true },
+      { "id": "simplify", "label": "代码简化", "description": "简化代码提高可读性，不改变行为", "default": false },
+      { "id": "architecture", "label": "架构优化", "description": "分层合规 / 循环依赖 / 模块边界", "default": false }
+    ],
+    "multi_select": true,
+    "timeout_seconds": 3
+  },
   "flow": [
+    {
+      "step": 0,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "selectModes",
+      "params": {
+        "prompt": "选择重构模式（可多选，3秒无操作使用默认）：",
+        "options": [
+          { "id": "refactor", "label": "代码重构", "default": true },
+          { "id": "simplify", "label": "代码简化", "default": false },
+          { "id": "architecture", "label": "架构优化", "default": false }
+        ],
+        "multi_select": true
+      },
+      "description": "交互式选择重构模式"
+    },
     {
       "step": 1,
       "layer": "capability",

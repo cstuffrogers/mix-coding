@@ -3,6 +3,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
+import { isConversationMode } from '../lib/platform.js';
 
 /**
  * Run a command that may exit non-zero (e.g. linter finding issues).
@@ -23,8 +24,8 @@ function runSecurityEslint(targetPath, autoFix) {
   let cmd = 'npx eslint src --ext .js,.jsx,.ts,.tsx';
   if (autoFix) cmd += ' --fix';
   const result = runDiagnostic(cmd, targetPath);
-  // eslint-disable-next-line sonarjs/slow-regex -- matches known CLI output format (file:line:col)
-  const hasFileIssues = /[^\s:]+:\d+:\d+/.test(result);
+  // eslint-disable-next-line sonarjs/super-linear-regex -- matches known CLI output format (file:line:col)
+  const hasFileIssues = /[^\s:]+:\d+:\d+\b/.test(result);
   // Only treat security-rule violations as security findings, not arbitrary lint errors.
   const securityRulePattern = /\b(security|sonarjs\/(?:hardcoded-credentials|os-command|code-eval|no-clear-text-protocols|no-weak-cipher|no-weak-hash|insecure-jwt-token|x-frame-options|cors|sql-queries|disabled-auto-escaping|content-length|production-debug|hashing|publicly-writable-directories))\b/i;
   if (securityRulePattern.test(result) && hasFileIssues) {
@@ -66,8 +67,8 @@ function runEslintCheck(targetPath, autoFix) {
   const result = runDiagnostic(cmd, targetPath);
   // Distinguish config/runtime errors from actual lint issues — only
   // file:line:column patterns count as real code problems.
-  // eslint-disable-next-line sonarjs/slow-regex -- matches known CLI output format (file:line:col)
-  const hasFileIssues = /[^\s:]+:\d+:\d+/.test(result);
+  // eslint-disable-next-line sonarjs/super-linear-regex -- matches known CLI output format (file:line:col)
+  const hasFileIssues = /[^\s:]+:\d+:\d+\b/.test(result);
   if (hasFileIssues) {
     return true;
   }
@@ -93,85 +94,64 @@ function runTypeCheck(targetPath) {
   return false;
 }
 
-function runA11yCheck(targetPath) {
-  let issueCount = 0;
-
+function runPa11yCheck(targetPath) {
   const htmlFiles = safeExec(
     `find . -name "*.html" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -20 || true`,
     targetPath,
     { stdio: 'pipe', timeout: 10000 }
   ).toString().trim();
+  if (!htmlFiles) return null;
 
-  if (htmlFiles) {
-    const urls = htmlFiles.split('\n').filter(Boolean).map(f => {
-      const abs = `${targetPath.replace(/\\/g, '/')}/${f.replace(/^\.\//, '')}`;
-      return `file://${abs}`;
-    });
+  const urls = htmlFiles.split('\n').filter(Boolean).map(f => {
+    const abs = `${targetPath.replace(/\\/g, '/')}/${f.replace(/^\.\//, '')}`;
+    return `file://${abs}`;
+  });
+  if (urls.length === 0) return null;
 
-    if (urls.length > 0) {
-      try {
-        const pa11yCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-        const pa11yRaw = safeExec(
-          `${pa11yCmd} pa11y-ci ${urls.join(' ')} 2>&1 || true`,
-          targetPath,
-          { stdio: 'pipe', maxBuffer: 5 * 1024 * 1024, timeout: 120000 }
-        ).toString();
+  try {
+    const pa11yCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    const pa11yRaw = safeExec(
+      `${pa11yCmd} pa11y-ci ${urls.join(' ')} 2>&1 || true`,
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 5 * 1024 * 1024, timeout: 120000 }
+    ).toString();
 
-        const errMatch = pa11yRaw.match(/(\d+)\s+errors?/i);
-        if (errMatch) {
-          issueCount += parseInt(errMatch[1]);
-        }
-        // Count individual WCAG violations
-        const violations = pa11yRaw.split('\n').filter(l =>
-          /error:/i.test(l) || /^\s*•/.test(l)
-        );
-        if (violations.length > 0 && issueCount === 0) {
-          issueCount = violations.length;
-        }
+    let issueCount = 0;
+    const errMatch = pa11yRaw.match(/(?<!\d)(\d+)\s+errors?/i);
+    if (errMatch) issueCount += parseInt(errMatch[1]);
+    const violations = pa11yRaw.split('\n').filter(l => /error:/i.test(l) || /^\s*•/.test(l));
+    if (violations.length > 0 && issueCount === 0) issueCount = violations.length;
 
-        if (issueCount > 0) {
-          console.log(chalk.yellow(`  ⚠ pa11y-ci: ${issueCount} 个 WCAG 问题`));
-          violations.slice(0, 8).forEach(v => console.log(chalk.dim(`    ${v.trim().slice(0, 140)}`)));
-        } else {
-          console.log(chalk.green('  ✅ pa11y-ci: WCAG 2.1 AA 通过'));
-        }
-        return issueCount;
-      } catch {
-        console.log(chalk.dim('  ℹ pa11y-ci 执行失败，回退到代码级检查'));
-      }
+    if (issueCount > 0) {
+      console.log(chalk.yellow(`  ⚠ pa11y-ci: ${issueCount} 个 WCAG 问题`));
+      violations.slice(0, 8).forEach(v => console.log(chalk.dim(`    ${v.trim().slice(0, 140)}`)));
+    } else {
+      console.log(chalk.green('  ✅ pa11y-ci: WCAG 2.1 AA 通过'));
     }
+    return issueCount;
+  } catch {
+    return null;
   }
+}
 
-  let grepIssues = 0;
+function grepA11yIssue(targetPath, grepCmd) {
+  const result = runDiagnostic(grepCmd, targetPath).trim();
+  if (!result) return 0;
+  return result.split('\n').filter(Boolean).length;
+}
 
-  const imgNoAlt = runDiagnostic(
-    'grep -rn "<img[^>]*>" --include="*.tsx" --include="*.jsx" --include="*.html" . | grep -v "alt=" || true',
-    targetPath
-  ).trim();
-  if (imgNoAlt) {
-    const lines = imgNoAlt.split('\n').filter(Boolean);
-    grepIssues += lines.length;
-  }
+function runA11yCheck(targetPath) {
+  const pa11yIssues = runPa11yCheck(targetPath);
+  if (pa11yIssues !== null) return pa11yIssues;
 
-  const divOnClick = runDiagnostic(
-    'grep -rn "<div[^>]*onClick" --include="*.tsx" --include="*.jsx" . || true',
-    targetPath
-  ).trim();
-  if (divOnClick) {
-    const lines = divOnClick.split('\n').filter(Boolean);
-    grepIssues += lines.length;
-  }
+  const imgNoAlt = grepA11yIssue(targetPath,
+    'grep -rn "<img[^>]*>" --include="*.tsx" --include="*.jsx" --include="*.html" . | grep -v "alt=" || true');
+  const divOnClick = grepA11yIssue(targetPath,
+    'grep -rn "<div[^>]*onClick" --include="*.tsx" --include="*.jsx" . || true');
+  const emptyLinks = grepA11yIssue(targetPath,
+    'grep -rn "<a[^>]*></a>\\|<a[^>]*/>" --include="*.tsx" --include="*.jsx" . | grep -v "aria-label" || true');
 
-  const emptyLinks = runDiagnostic(
-    'grep -rn "<a[^>]*></a>\\|<a[^>]*/>" --include="*.tsx" --include="*.jsx" . | grep -v "aria-label" || true',
-    targetPath
-  ).trim();
-  if (emptyLinks) {
-    const lines = emptyLinks.split('\n').filter(Boolean);
-    grepIssues += lines.length;
-  }
-
-  issueCount = grepIssues;
+  const issueCount = imgNoAlt + divOnClick + emptyLinks;
   if (issueCount === 0) {
     console.log(chalk.green('  ✅ 无障碍基础检查通过'));
   } else {
@@ -283,7 +263,7 @@ export function handleRunReview(_action, params, targetPath, context) {
 }
 
 export function handleReviewFull(_action, _params, targetPath) {
-  const isInClaudeCode = process.env.CLAUDECODE === '1';
+  const isInClaudeCode = isConversationMode();
 
   if (isInClaudeCode) {
     return '代码审查就绪（对话模式 Skill 调用）';
@@ -313,7 +293,7 @@ export function handleReviewFull(_action, _params, targetPath) {
 }
 
 export function handleVerifyVisual(_action, _params, targetPath) {
-  const isInClaudeCode = process.env.CLAUDECODE === '1';
+  const isInClaudeCode = isConversationMode();
 
   if (isInClaudeCode) {
     return '视觉验证就绪（对话模式 Playwright 执行）';
@@ -341,48 +321,39 @@ export function handleVerifyVisual(_action, _params, targetPath) {
   return '视觉验证完成';
 }
 
-export function handleAiFriendlyReview(_action, _params, targetPath) {
-  const issues = [];
-  const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=build';
-
-  // 1. img tags without alt attribute
+function checkImgAlt(targetPath, excludeDirs) {
   try {
     const raw = safeExec(
       `grep -rn "${excludeDirs}" --include="*.jsx" --include="*.tsx" --include="*.html" "<img[^>]*>" . 2>&1 || true`,
-      targetPath,
-      { stdio: 'pipe', timeout: 15000 }
+      targetPath, { stdio: 'pipe', timeout: 15000 }
     ).toString();
     const lines = raw.split('\n').filter(l => l && !/alt\s*=/.test(l));
-    if (lines.length > 0) {
-      issues.push({ rule: 'img-alt', count: lines.length, desc: '图片缺少 alt 属性' });
-    }
-  } catch { /* skip */ }
+    return lines.length > 0 ? [{ rule: 'img-alt', count: lines.length, desc: '图片缺少 alt 属性' }] : [];
+  } catch { return []; }
+}
 
-  // 2. form inputs without associated label
+function checkInputLabel(targetPath, excludeDirs) {
   try {
     const inputRaw = safeExec(
       `grep -rn "${excludeDirs}" --include="*.jsx" --include="*.tsx" "<input[^>]*>" . 2>&1 || true`,
-      targetPath,
-      { stdio: 'pipe', timeout: 15000 }
+      targetPath, { stdio: 'pipe', timeout: 15000 }
     ).toString();
     const inputLines = inputRaw.split('\n').filter(l => l && !/aria-label|aria-labelledby|id\s*=/.test(l));
-    if (inputLines.length > 0) {
-      // Check for nearby <label> — rough heuristic
-      let unlabeledCount = 0;
-      for (const line of inputLines.slice(0, 50)) {
-        if (!/type\s*=\s*["']hidden["']/.test(line) && !/type\s*=\s*["']submit["']/.test(line)) {
-          unlabeledCount++;
-        }
-      }
-      if (unlabeledCount > 0) {
-        issues.push({ rule: 'input-label', count: unlabeledCount, desc: 'input 可能缺少 label 关联' });
+    if (!inputLines.length) return [];
+    let unlabeledCount = 0;
+    for (const line of inputLines.slice(0, 50)) {
+      if (!/type\s*=\s*["']hidden["']/.test(line) && !/type\s*=\s*["']submit["']/.test(line)) {
+        unlabeledCount++;
       }
     }
-  } catch { /* skip */ }
+    return unlabeledCount > 0 ? [{ rule: 'input-label', count: unlabeledCount, desc: 'input 可能缺少 label 关联' }] : [];
+  } catch { return []; }
+}
 
-  // 3. HTML element missing lang attribute
+function checkHtmlLang(targetPath) {
   try {
     const htmlFiles = scanDir(targetPath, { filter: f => f.endsWith('.html') && !f.includes('node_modules') });
+    const issues = [];
     for (const f of htmlFiles) {
       try {
         const content = readFileSync(f, 'utf-8');
@@ -391,33 +362,42 @@ export function handleAiFriendlyReview(_action, _params, targetPath) {
         }
       } catch { /* skip */ }
     }
-  } catch { /* skip */ }
+    return issues;
+  } catch { return []; }
+}
 
-  // 4. Hardcoded color contrast risk — light text on light bg, or vice versa
+function checkContrastRisk(targetPath, excludeDirs) {
   try {
     const textRaw = safeExec(
       `grep -rn "${excludeDirs}" --include="*.jsx" --include="*.tsx" --include="*.css" -E "(text-white|text-gray-[12]00|text-neutral-[12]00)" . 2>&1 || true`,
-      targetPath,
-      { stdio: 'pipe', timeout: 15000 }
+      targetPath, { stdio: 'pipe', timeout: 15000 }
     ).toString();
     const textLines = textRaw.split('\n').filter(Boolean);
-    if (textLines.length > 0) {
-      issues.push({ rule: 'contrast-risk', count: textLines.length, desc: '浅色文字可能存在对比度不足' });
-    }
-  } catch { /* skip */ }
+    return textLines.length > 0 ? [{ rule: 'contrast-risk', count: textLines.length, desc: '浅色文字可能存在对比度不足' }] : [];
+  } catch { return []; }
+}
 
-  // 5. onClick on non-interactive elements (div/span without role)
+function checkClickableDiv(targetPath, excludeDirs) {
   try {
     const clickRaw = safeExec(
       `grep -rn "${excludeDirs}" --include="*.jsx" --include="*.tsx" -E "<(div|span)[^>]*onClick" . 2>&1 || true`,
-      targetPath,
-      { stdio: 'pipe', timeout: 15000 }
+      targetPath, { stdio: 'pipe', timeout: 15000 }
     ).toString();
     const clickLines = clickRaw.split('\n').filter(l => l && !/role\s*=/.test(l) && !/tabIndex|tabindex/.test(l));
-    if (clickLines.length > 0) {
-      issues.push({ rule: 'clickable-div', count: clickLines.length, desc: '可点击元素缺少 role/tabIndex' });
-    }
-  } catch { /* skip */ }
+    return clickLines.length > 0 ? [{ rule: 'clickable-div', count: clickLines.length, desc: '可点击元素缺少 role/tabIndex' }] : [];
+  } catch { return []; }
+}
+
+export function handleAiFriendlyReview(_action, _params, targetPath) {
+  const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=build';
+
+  const issues = [
+    ...checkImgAlt(targetPath, excludeDirs),
+    ...checkInputLabel(targetPath, excludeDirs),
+    ...checkHtmlLang(targetPath),
+    ...checkContrastRisk(targetPath, excludeDirs),
+    ...checkClickableDiv(targetPath, excludeDirs),
+  ];
 
   const totalIssues = issues.reduce((s, i) => s + i.count, 0);
   if (totalIssues === 0) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, appendFileSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora from 'ora';
@@ -200,7 +200,7 @@ function applyPostStepContext(step, context, sceneId) {
 
 function printSummary(sceneId) {
   console.log(chalk.dim(`\n${'─'.repeat(40)}`));
-  const { total, pass, fail, skip, noop, warn } = LOG_SUMMARY;
+  const { pass, fail, skip, noop, warn } = LOG_SUMMARY;
   const failIcon = fail > 0 ? chalk.red(`  ✗ fail: ${fail}`) : chalk.green('  ✗ fail: 0');
   const warnIcon = warn > 0 ? chalk.yellow(`  ⚡ warn: ${warn}`) : chalk.green('  ⚡ warn: 0');
   const noopIcon = noop > 0 ? chalk.yellow(`  ⚠ noop: ${noop}`) : chalk.green('  ⚠ noop: 0');
@@ -332,12 +332,14 @@ async function runStep(sceneId, step, context, options) {
 
   // Auto-detect no-op steps: tool unavailable / nothing to check / config missing
   const resultStr = typeof result === 'string' ? result : '';
-  const isNoop = !context.lastStepFailed &&
-    /(不可用|无.*?[目录配置文件]|未安装|未找到|not found|not available|已?跳过|no .*?found)/i.test(resultStr);
+  // eslint-disable-next-line sonarjs/super-linear-regex
+  const noopRes = [/不可用/i, /无[^]*?[目录配置]/, /未安装/, /未找到/, /not found/i, /not available/i, /已?跳过/, /no\s+.*?found/i];
+  const isNoop = !context.lastStepFailed && noopRes.some(re => re.test(resultStr));
 
   // Auto-detect warn: passes but result indicates non-zero issues (aislop findings, vulnerabilities, etc.)
-  const isWarn = !context.lastStepFailed && !isNoop &&
-    /[1-9]\d*\s*([个处类].{0,30}?(问题|漏洞|警告|气味|发现|重复)|failed|failures?)/i.test(resultStr);
+  // eslint-disable-next-line sonarjs/super-linear-regex
+  const warnRes = [/\d+\s*[个处类].{0,30}?(?:问题|漏洞|警告|气味|发现|重复)/i, /\d+\s*(?:failed|failure)/i];
+  const isWarn = !context.lastStepFailed && !isNoop && warnRes.some(re => re.test(resultStr));
 
   LOG_SUMMARY.total++;
   const stepStatus = context.lastStepFailed ? 'fail' : (isNoop ? 'noop' : (isWarn ? 'warn' : 'pass'));
@@ -420,7 +422,6 @@ export async function startScene(sceneId, options) {
     context._sceneId = sceneId;
     await executeAction(sceneId, 'autoRemember', {}, context, context.targetPath || PROJECT_ROOT);
 
-    // Print execution summary
     printSummary(sceneId);
   }
 }

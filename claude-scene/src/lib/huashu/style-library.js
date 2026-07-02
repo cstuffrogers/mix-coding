@@ -337,6 +337,7 @@ export function rouletteThreeDirections(category = 'web') {
   const bold = pool.filter(s => s.temp === 'bold');
   const neutral = pool.filter(s => s.temp === 'neutral');
   const quiet = pool.filter(s => s.temp === 'quiet');
+  // eslint-disable-next-line sonarjs/pseudo-random
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   return {
     A_stable: pick(quiet),
@@ -349,52 +350,44 @@ export function styleSummary(style) {
   return `${style.name} [${style.temp}·还原${style.fidelity}%]\n  适配: ${style.fit}\n  DNA: ${style.dna}`;
 }
 
+function pushToken(lines, prefix, name, val) {
+  if (val) lines.push(`  --${prefix}-${name}: ${val};`);
+}
+
 export function generateCSSVariables(style, prefix = 'hs') {
   const t = style.cssTokens;
   if (!t) return '';
 
-  const palette = t.palette || {};
-  const typo = t.typography || {};
-  const spacing = t.spacing || {};
-  const radius = t.radius || {};
-  const shadows = t.shadows || {};
+  const { palette = {}, typography = {}, spacing = {}, radius = {}, shadows = {} } = t;
 
   const lines = [
-    '/* === Huashu Design Tokens === */',
     `/* Style: ${style.name} [${style.temp}] */`,
-    `/* DNA: ${style.dna} */`,
     '',
     ':root {',
   ];
 
-  // Palette
   for (const [key, val] of Object.entries(palette)) {
     lines.push(`  --${prefix}-${key}: ${val};`);
   }
 
-  // Typography
-  if (typo.family) lines.push(`  --${prefix}-font-family: ${typo.family};`);
-  if (typo.mono) lines.push(`  --${prefix}-font-mono: ${typo.mono};`);
-  if (typo.headingWeight) lines.push(`  --${prefix}-heading-weight: ${typo.headingWeight};`);
-  if (typo.bodySize) lines.push(`  --${prefix}-body-size: ${typo.bodySize};`);
-  if (typo.lineHeight) lines.push(`  --${prefix}-line-height: ${typo.lineHeight};`);
+  pushToken(lines, prefix, 'font-family', typography.family);
+  pushToken(lines, prefix, 'font-mono', typography.mono);
+  pushToken(lines, prefix, 'heading-weight', typography.headingWeight);
+  pushToken(lines, prefix, 'body-size', typography.bodySize);
+  pushToken(lines, prefix, 'line-height', typography.lineHeight);
 
-  // Spacing
-  if (spacing.section) lines.push(`  --${prefix}-section-spacing: ${spacing.section};`);
-  if (spacing.gap) lines.push(`  --${prefix}-element-gap: ${spacing.gap};`);
-  if (spacing.pageWidth) lines.push(`  --${prefix}-page-width: ${spacing.pageWidth};`);
+  pushToken(lines, prefix, 'section-spacing', spacing.section);
+  pushToken(lines, prefix, 'element-gap', spacing.gap);
+  pushToken(lines, prefix, 'page-width', spacing.pageWidth);
 
-  // Radius
-  if (radius.default) lines.push(`  --${prefix}-radius: ${radius.default};`);
-  if (radius.card) lines.push(`  --${prefix}-radius-card: ${radius.card};`);
-  if (radius.button) lines.push(`  --${prefix}-radius-button: ${radius.button};`);
+  pushToken(lines, prefix, 'radius', radius.default);
+  pushToken(lines, prefix, 'radius-card', radius.card);
+  pushToken(lines, prefix, 'radius-button', radius.button);
 
-  // Shadows
-  if (shadows.default) lines.push(`  --${prefix}-shadow: ${shadows.default};`);
-  if (shadows.card) lines.push(`  --${prefix}-shadow-card: ${shadows.card};`);
-  if (shadows.button) lines.push(`  --${prefix}-shadow-button: ${shadows.button};`);
+  pushToken(lines, prefix, 'shadow', shadows.default);
+  pushToken(lines, prefix, 'shadow-card', shadows.card);
+  pushToken(lines, prefix, 'shadow-button', shadows.button);
 
   lines.push('}', '');
-
   return lines.join('\n');
 }

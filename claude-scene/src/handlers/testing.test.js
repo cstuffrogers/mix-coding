@@ -33,7 +33,7 @@ describe('handleRunSuite', () => {
     const ctx = {};
     const result = handleRunSuite('run-suite', { mode: 'unit' }, '/tmp', ctx);
     expect(result).toContain('未找到 package.json');
-    expect(ctx.testPassed).toBe(null);
+    expect(ctx.testPassed).toBeNull();
   });
 
   it('sets testPassed=false when test output contains "failed"', () => {
@@ -111,7 +111,7 @@ describe('handleRunAffected', () => {
     const ctx = {};
     const result = handleRunAffected('run-affected', {}, '/tmp', ctx);
     expect(result).toContain('部分失败');
-    expect(ctx.affectedTestsPassed).toBe(null);
+    expect(ctx.affectedTestsPassed).toBeNull();
   });
 
   it('sets false when tests fail', () => {

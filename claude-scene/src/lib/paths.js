@@ -7,6 +7,7 @@ const __dirname = dirname(__filename);
 import { homedir } from 'os';
 
 // claude-scene/src/lib/ → up 3 = auto-coding/
+// 共享资源宿主目录 .claude/ — 各平台 (opencode/Codex/ZCode) 共用 scenes/skills/rules/memory
 export const PROJECT_ROOT = join(__dirname, '..', '..', '..');
 export const SCENES_DIR = join(PROJECT_ROOT, '.claude', 'scenes');
 export const MEMORY_DIR = join(PROJECT_ROOT, '.claude', 'memory');

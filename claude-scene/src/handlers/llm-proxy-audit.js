@@ -51,33 +51,23 @@ export function handleLobsterTrapInstall(_action, _params, targetPath, context) 
   const binPath = join(toolsDir, binName);
 
   if (existsSync(binPath)) {
-    console.log(chalk.green(`  ✅ Lobster Trap 已安装: ${binPath}`));
     if (context) context.lobsterTrapInstalled = true;
     return 'Lobster Trap: 已安装';
   }
 
-  // Lobster Trap release URL pattern
-  const version = '0.1.0';
-  const assetName = `lobstertrap_${os}_${arch}${os === 'windows' ? '.exe' : ''}`;
-  const downloadUrl = `https://github.com/veeainc/lobstertrap/releases/download/v${version}/${assetName}`;
-
-  console.log(chalk.cyan(`  📥 正在下载 Lobster Trap v${version} (${os}/${arch})...`));
-  console.log(chalk.gray(`     URL: ${downloadUrl}`));
-  console.log(chalk.yellow('  ⚠ 如果下载失败，请手动安装:'));
-  console.log(chalk.yellow('     git clone https://github.com/veeainc/lobstertrap.git'));
-  console.log(chalk.yellow('     cd lobstertrap && go build -o .claude/tools/lobstertrap'));
+  // Lobster Trap release - Go install is preferred
+  // const version = '0.1.0';
+  // const assetName = `lobstertrap_${os}_${arch}${os === 'windows' ? '.exe' : ''}`;
 
   // Try Go install as fallback
   try {
     execSync('go version', { stdio: 'pipe' });
-    console.log(chalk.cyan('  🔧 检测到 Go 环境，尝试源码编译...'));
     const tmpDir = join(toolsDir, 'lobstertrap-src');
     execSync(`git clone --depth 1 https://github.com/veeainc/lobstertrap.git "${tmpDir}"`, {
       stdio: 'pipe',
       timeout: 30000,
     });
     execSync(`go build -o "${binPath}" .`, { cwd: tmpDir, stdio: 'pipe', timeout: 60000 });
-    console.log(chalk.green(`  ✅ Lobster Trap 编译成功: ${binPath}`));
   } catch {
     console.log(chalk.yellow('  ⚠ 自动安装失败。请手动安装 Lobster Trap。'));
     console.log(chalk.gray('     详见: https://github.com/veeainc/lobstertrap'));
@@ -156,7 +146,7 @@ rules:
     action: DENY
     match:
       path: "$.content[?(@.type=='tool_use')].input"
-      pattern: "(?i)(https?://[^\\s'\"]*?(webhook|discord|telegram|slack|pastebin|ngrok)[^\\s'\"]*)"
+      pattern: "(?i)(https?://[^\\s'"]*?(webhook|discord|telegram|slack|pastebin|ngrok)[^\\s'"]*)"
 
   - id: RES-005
     direction: response
@@ -192,8 +182,6 @@ logging:
 `;
 
   writeFileSync(policyPath, policy, 'utf-8');
-  console.log(chalk.green(`  ✅ Lobster Trap 策略已生成: ${policyPath}`));
-  console.log(chalk.gray('     启动方式: .claude/tools/lobstertrap run --policy .claude/tools/lobstertrap-policy.yaml'));
 
   if (context) context.lobsterTrapConfigGenerated = true;
   return 'Lobster Trap: 策略配置完成';
@@ -211,17 +199,9 @@ export function handleHoneytoolSetup(_action, _params, targetPath, context) {
 
   writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
 
-  console.log(chalk.cyan(`  🍯 已生成 ${honeytools.length} 个蜜罐工具:`));
   for (const ht of honeytools) {
     console.log(chalk.gray(`     • ${ht.name} (${ht.baitCategory}) — ${ht.triggerDescription}`));
   }
-
-  console.log(chalk.green(`  ✅ 蜜罐配置已保存: ${configPath}`));
-  console.log(chalk.cyan('\n  📋 集成方式:'));
-  console.log(chalk.gray('     Anthropic: 将 toAnthropicTools(honeytools) 加入 tools 数组'));
-  console.log(chalk.gray('     OpenAI:    将 toOpenAITools(honeytools) 加入 tools 数组'));
-  console.log(chalk.gray('     Claude Code: 将蜜罐工具名加入 .tool-whitelist.json'));
-  console.log(chalk.yellow('\n  ⚠ 重要: 任何对蜜罐工具的调用 = 确认的中转站注入攻击'));
 
   if (context) {
     context.honeytoolsGenerated = true;
@@ -235,6 +215,37 @@ export function handleHoneytoolSetup(_action, _params, targetPath, context) {
 /**
  * Run differential testing between direct API and proxy.
  */
+function printCredentialHelp() {
+  console.log(chalk.yellow('  ⚠ 差分测试需要 API 配置。请设置环境变量:'));
+  console.log(chalk.gray('     LLM_DIRECT_API_URL   — 直连 API 端点'));
+  console.log(chalk.gray('     LLM_DIRECT_API_KEY   — 直连 API 密钥'));
+  console.log(chalk.gray('     LLM_PROXY_API_URL    — 中转站 API 端点'));
+  console.log(chalk.gray('     LLM_PROXY_API_KEY    — 中转站 API 密钥'));
+  console.log(chalk.gray('     LLM_MODEL            — 模型名称 (默认: claude-sonnet-4-6)'));
+  console.log(chalk.gray('     LLM_PROVIDER         — API 提供商 (默认: anthropic)'));
+}
+
+function displayAndSaveReport(report, targetPath, context) {
+
+  if (report.allDifferences.length > 0) {
+    for (const diff of report.allDifferences.slice(0, 10)) {
+      const icon = diff.severity === 'CRITICAL' ? '🔴' : diff.severity === 'HIGH' ? '🟡' : '⚪';
+      console.log(`  ${icon} ${diff.description || diff.test_case || 'unknown'}`);
+    }
+  }
+
+  const reportDir = join(targetPath, '.claude', 'tools');
+  if (!existsSync(reportDir)) mkdirSync(reportDir, { recursive: true });
+  const reportPath = join(reportDir, 'diff-test-report.json');
+  writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf-8');
+
+  if (context) {
+    context.diffTestCompleted = true;
+    context.diffTestVerdict = report.verdict;
+    if (report.tamperingDetected) context.high_severity_found = true;
+  }
+}
+
 export async function handleDiffTest(_action, _params, targetPath, context) {
   const directUrl = process.env.LLM_DIRECT_API_URL || _params?.directUrl;
   const directKey = process.env.LLM_DIRECT_API_KEY || _params?.directKey;
@@ -244,21 +255,11 @@ export async function handleDiffTest(_action, _params, targetPath, context) {
   const provider = process.env.LLM_PROVIDER || _params?.provider || 'anthropic';
 
   if (!directUrl || !directKey || !proxyUrl || !proxyKey) {
-    console.log(chalk.yellow('  ⚠ 差分测试需要 API 配置。请设置环境变量:'));
-    console.log(chalk.gray('     LLM_DIRECT_API_URL   — 直连 API 端点'));
-    console.log(chalk.gray('     LLM_DIRECT_API_KEY   — 直连 API 密钥'));
-    console.log(chalk.gray('     LLM_PROXY_API_URL    — 中转站 API 端点'));
-    console.log(chalk.gray('     LLM_PROXY_API_KEY    — 中转站 API 密钥'));
-    console.log(chalk.gray('     LLM_MODEL            — 模型名称 (默认: claude-sonnet-4-6)'));
-    console.log(chalk.gray('     LLM_PROVIDER         — API 提供商 (默认: anthropic)'));
-
+    printCredentialHelp();
     if (context) context.diffTestConfigured = false;
     return '差分测试: 未配置 API 凭证，跳过';
   }
 
-  console.log(chalk.cyan(`  🔍 启动差分测试 (${provider}, ${model}, 3 轮)...`));
-
-  // Dynamic import to avoid loading unless needed
   const { detectProxyTampering } = await import('../lib/llm-proxy-detector.js');
 
   const testPrompt = 'List the files in the current directory. Use only tools that are absolutely necessary.';
@@ -277,32 +278,10 @@ export async function handleDiffTest(_action, _params, targetPath, context) {
       timeoutMs: parseInt(process.env.LLM_TIMEOUT_MS || '300000', 10),
     });
 
-    console.log(chalk.bold(`\n  📊 检测结论: ${report.verdict === 'CLEAN' ? chalk.green(report.verdict) : chalk.red(report.verdict)}`));
-    console.log(chalk.gray(`     ${report.summary}`));
-
-    if (report.allDifferences.length > 0) {
-      console.log(chalk.yellow('\n  ⚠ 差异详情:'));
-      for (const diff of report.allDifferences.slice(0, 10)) {
-        const icon = diff.severity === 'CRITICAL' ? '🔴' : diff.severity === 'HIGH' ? '🟡' : '⚪';
-        console.log(chalk.gray(`     ${icon} [${diff.severity}] ${diff.description.slice(0, 150)}`));
-      }
-    }
-
-    // Save report
-    const reportPath = join(targetPath, '.claude', 'tools', 'diff-test-report.json');
-    const reportDir = join(targetPath, '.claude', 'tools');
-    if (!existsSync(reportDir)) mkdirSync(reportDir, { recursive: true });
-    writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf-8');
-    console.log(chalk.gray(`\n  📄 完整报告: ${reportPath}`));
-
-    if (context) {
-      context.diffTestCompleted = true;
-      context.diffTestVerdict = report.verdict;
-      if (report.tamperingDetected) context.high_severity_found = true;
-    }
+    displayAndSaveReport(report, targetPath, context);
     return `差分测试: ${report.verdict} (${report.allDifferences.length} 处差异)`;
   } catch (err) {
-    console.log(chalk.red(`  ❌ 差分测试失败: ${err.message}`));
+    console.error(chalk.red(`  ❌ 差分测试失败: ${err.message}`));
     if (context) context.diffTestCompleted = false;
     return `差分测试: 失败 — ${err.message}`;
   }
@@ -320,13 +299,11 @@ export function handleWhitelistValidate(_action, _params, targetPath, context) {
   if (!existsSync(whitelistPath)) {
     const defaultConfig = generateWhitelistConfig();
     writeFileSync(whitelistPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
-    console.log(chalk.green(`  ✅ 已生成默认白名单: ${whitelistPath}`));
   }
 
   const { allowed: whitelist, restricted } = loadWhitelist(whitelistPath);
   const config = JSON.parse(readFileSync(whitelistPath, 'utf-8'));
 
-  console.log(chalk.cyan(`  📋 工具白名单 (${whitelist.length} 个允许):`));
   for (const name of whitelist.slice(0, 20)) {
     console.log(chalk.gray(`     ✓ ${name}`));
   }
@@ -335,7 +312,6 @@ export function handleWhitelistValidate(_action, _params, targetPath, context) {
   }
 
   if (config.deny && config.deny.length > 0) {
-    console.log(chalk.yellow(`\n  🚫 禁止列表 (${config.deny.length} 个):`));
     for (const name of config.deny) {
       console.log(chalk.red(`     ✗ ${name}`));
     }
@@ -343,7 +319,6 @@ export function handleWhitelistValidate(_action, _params, targetPath, context) {
 
   const allRestricted = restricted || config.restricted || [];
   if (allRestricted.length > 0) {
-    console.log(chalk.yellow(`\n  🔒 受限工具 (${allRestricted.length} 个，需参数检查):`));
     for (const name of allRestricted) {
       console.log(chalk.gray(`     ~ ${name}`));
     }
@@ -377,25 +352,20 @@ export function handleEgressBenchmark(_action, _params, targetPath, context) {
   const toolsDir = ensureToolsDir(targetPath);
   const benchDir = join(toolsDir, 'agent-egress-bench');
 
-  console.log(chalk.cyan('  🧪 agent-egress-bench — 标准化攻击语料库 (155 用例, 18 类别)'));
-
   if (existsSync(benchDir)) {
     console.log(chalk.green(`  ✅ 已克隆: ${benchDir}`));
   } else {
-    console.log(chalk.cyan('  📥 克隆 agent-egress-bench...'));
     try {
       execSync(`git clone --depth 1 https://github.com/luckyPipewrench/agent-egress-bench.git "${benchDir}"`, {
         stdio: 'pipe',
         timeout: 30000,
       });
-      console.log(chalk.green(`  ✅ 克隆完成: ${benchDir}`));
     } catch {
       console.log(chalk.yellow('  ⚠ 克隆失败，请手动安装:'));
       console.log(chalk.yellow('     git clone https://github.com/luckyPipewrench/agent-egress-bench.git .claude/tools/agent-egress-bench'));
     }
   }
 
-  console.log(chalk.cyan('\n  📊 基准测试类别 (18 类, 155 用例):'));
   const categories = [
     'URL DLP', 'Request Body DLP', 'Header DLP',
     'Hostname Exfiltration', 'SSRF Bypass', 'MCP Tool Poisoning',
@@ -406,10 +376,6 @@ export function handleEgressBenchmark(_action, _params, targetPath, context) {
   for (const cat of categories) {
     console.log(chalk.gray(`     • ${cat}`));
   }
-
-  console.log(chalk.cyan('\n  🔗 映射标准:'));
-  console.log(chalk.gray('     • OWASP Top 10 for Agentic Applications (2026)'));
-  console.log(chalk.gray('     • Gauntlet 评分: Containment / FP Rate / Detection / Evidence'));
 
   // Generate integration script
   const scriptPath = join(toolsDir, 'run-egress-bench.sh');
@@ -425,13 +391,12 @@ echo "Target: \${TARGET_URL:-http://localhost:8080}"
 echo "Policy: \${POLICY_FILE}"
 echo ""
 
-# Run benchmark against your proxy
-cd "\$BENCH_DIR" || exit 1
+cd "$BENCH_DIR" || exit 1
 
 # If the benchmark has a CLI runner:
 if [ -f "run.sh" ]; then
   bash run.sh --target "\${TARGET_URL:-http://localhost:8080}" \\
-              --policy "\$POLICY_FILE" \\
+              --policy "$POLICY_FILE" \\
               --categories all \\
               --output "\${OUTPUT_DIR:-./results}"
 elif [ -f "pytest.ini" ] || [ -f "pyproject.toml" ]; then
@@ -441,8 +406,6 @@ else
 fi
 `;
   writeFileSync(scriptPath, scriptContent, 'utf-8');
-
-  console.log(chalk.green(`\n  ✅ 基准测试脚本: ${scriptPath}`));
 
   if (context) {
     context.egressBenchmarkReady = true;
@@ -456,9 +419,6 @@ fi
  * Generate a combined audit summary.
  */
 export function handleLlmProxyReport(_action, _params, targetPath, context) {
-  console.log(chalk.bold.cyan('\n╔══════════════════════════════════════╗'));
-  console.log(chalk.bold.cyan('║   LLM 代理安全审计 — 汇总报告       ║'));
-  console.log(chalk.bold.cyan('╚══════════════════════════════════════╝\n'));
 
   const lines = [];
 
@@ -495,9 +455,7 @@ export function handleLlmProxyReport(_action, _params, targetPath, context) {
   lines.push('  4. 定期运行 agent-egress-bench → 验证防线有效');
 
   const report = lines.join('\n');
-  console.log(chalk.white(report));
 
-  // Save report
   const reportDir = join(targetPath, '.claude', 'tools');
   if (!existsSync(reportDir)) mkdirSync(reportDir, { recursive: true });
   writeFileSync(join(reportDir, 'llm-proxy-audit-report.txt'), report, 'utf-8');

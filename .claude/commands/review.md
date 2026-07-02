@@ -1,53 +1,32 @@
 ---
-description: Five-layer code review with 8-tool chain: ESLint, TypeScript, a11y, knip, dependency-cruiser, aislop, Huashu, security scans. 28-step hybrid workflow.
-argument-hint: "[--mode pr|full|commit] [--base main] [--layers static,react,visual,ai]"
+description: 代码审查 + 安全审计（交互式模式选择）
+argument-hint: "[模式: code_review/full_audit/analyze_only/security_deep/quality_tools/ai_design]"
 ---
 
 # /review — 代码审查 + 安全审计
 
-33 步混合工作流：**Pre-flight Skill 设计智能（对话模式）→ CLI 机械步骤（lint/扫描/测试）→ Post-flight Skill 深度审查（对话模式）**
+全面代码质量审查，**交互式勾选模式**，3 秒无操作使用默认。
 
-## Usage
+## 模式选择菜单
 
-```text
-/review                          # Review uncommitted changes
-/review --mode pr                # Review current PR branch
-/review --mode full              # Full project review
-/review --mode commit            # Review HEAD commit
-/review --base main              # Review against base branch
-/review --layers static,ai       # Run only selected layers
+启动时自动弹出：
+
+```
+选择审查模式（可多选，3秒无操作使用默认）：
+☑ 代码审查 — ESLint + TypeScript + npm audit + PR 审查 + 多 Agent 审查
+☐ 全量审计 — 安全扫描 + 依赖审计 + 性能基线 + 覆盖率 + 质量门禁汇总
+☐ 仅分析 — 代码质量 + 性能瓶颈 + 可维护性分析，生成改进建议
+☑ 安全深度扫描 — sec-bug-hunt + ReDoS + 开放重定向 + 日志脱敏 + CORS + 环境变量泄露
+☐ 质量工具链 — Knip 死代码 + dependency-cruiser + jscpd 重复 + size-limit + Stryker 变异
+☐ AI/设计审查 — aislop 代码气味 + Huashu 专家评审 + Impeccable 设计批判
 ```
 
-## 执行流程
+## 已合并场景
 
-### Phase 0: Pre-flight 审查准备（对话模式，Skill() 调用）
-
-在代码分析前建立审查基准：
-
-1. **review-checklist Skill** (`step 0.3`) — 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），为后续分析提供结构化审查框架
-2. **Memory recall** (`step 0.5`) — 注入历史审查上下文和已知代码质量问题
-
-### Phase 1: CLI 静态分析 + 工具链
-
-CLI 执行具体扫描（通过 `node src/index.js start review --auto`）：
-
-- **Layer 1 — 静态分析** (`step 2`, `runReview`)：ESLint + TypeScript + npm audit
-- **无障碍扫描** (`step 2.3`, `ai-friendly-review`)：img-alt / input-label / html-lang / contrast-risk / clickable-div
-- **Huashu 专家评审** (`step 2.5`)：5 维度 UI 设计质量评分（可选增强）
-- **死代码检测** (`step 2.6`, `knip-check`)：未使用文件 / 未使用导出 / 未使用依赖
-- **架构验证** (`step 2.65`, `depcruise-architecture`)：循环依赖 / 孤儿模块 / 分层合规
-- **状态审计** (`step 2.7`)：Context 过度使用、组件耦合度
-- **Handler 验证** (`step 2.8`)：检测空转桩（MCP/MP/CE/伪桩）
-- **AI 代码气味扫描** (`step 2.9`, `aislop`)：50+ 规则 — 叙事注释、吞异常、as any 滥用等
-
-### Phase 2: Post-flight 深度审查（对话模式，Skill() 调用）
-
-CLI 机械步骤完成后，Skill 深度审查：
-
-3. **Matt Pocock 双轴审查** (`step 3.2`, `Skill("review")`) — 标准轴（编码规范）+ 规范轴（原始 issue/PRD 对照）
-4. **Impeccable 设计批判** (`step 3.5`, `Skill("impeccable", "critique")`) — 27 条反 AI 模式规则 + 12 条 LLM 批判规则
-
-### Phase 3: 安全深度扫描
+| 原场景 | 现入口 |
+|--------|--------|
+| `/audit` | `/review` + 勾选"全量审计" |
+| `/analyze` | `/review` + 勾选"仅分析" |
 
 - **安全漏洞扫描** (`step 4`, `sec-bug-hunt`)：SQLi / XSS / 命令注入（BLOCK-MERGE 级别）
 - **ReDoS 正则扫描** (`step 4.1`, `recheck-cli`)：灾难性回溯检测

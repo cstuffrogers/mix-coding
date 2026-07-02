@@ -46,7 +46,6 @@ function extractChecklist(content) {
   return items;
 }
 
-
 function extractSections(content) {
   const sections = [];
   const lines = content.split('\n');
@@ -59,52 +58,56 @@ function extractSections(content) {
   return sections;
 }
 
+function getDisplayName(content, skillName) {
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  const frontmatter = fmMatch ? fmMatch[1] : '';
+  const fmName = frontmatter.match(/^name:\s*(.+)/m);
+  return fmName ? fmName[1].trim() : skillName;
+}
+
+function printChecklist(content) {
+  const checklist = extractChecklist(content);
+  if (!checklist.length) return checklist;
+  const groups = new Map();
+  for (const item of checklist) {
+    if (!groups.has(item.section)) groups.set(item.section, []);
+    groups.get(item.section).push(item.text);
+  }
+  for (const [, items] of groups) {
+    for (const item of items.slice(0, 12)) {
+      console.log(chalk.dim(`      ☐ ${item}`));
+    }
+  }
+  return checklist;
+}
+
+function printSections(content) {
+  const sections = extractSections(content);
+  if (!sections.length) return sections;
+  for (const s of sections) {
+    console.log(chalk.dim(`      ${s}`));
+  }
+  return sections;
+}
+
 export function handleInvokeSkill(_action, params, targetPath, context) {
   const skillName = params?.skill || 'unknown';
 
-  // Skills with dedicated CLI handlers — these run fine, no need to display content
   const hasCliAlternative = ['sec-bug-hunt', 'ai-friendly-web-design', 'mobile-ui-review'].includes(skillName);
   if (hasCliAlternative) {
     return `Skill "${skillName}" 有 CLI 静态替代方案，已由对应 handler 执行`;
   }
 
   const skillPath = resolveSkillPath(skillName, targetPath);
-
   if (!skillPath || !existsSync(skillPath)) {
     return `Skill "${skillName}" 需要在对话模式中执行，CLI 模式跳过（无 SKILL.md）`;
   }
 
   const content = readFileSync(skillPath, 'utf-8');
+  const displayName = getDisplayName(content, skillName);
+  const checklist = printChecklist(content);
+  const sections = printSections(content);
 
-  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  const frontmatter = fmMatch ? fmMatch[1] : '';
-  const fmName = frontmatter.match(/^name:\s*(.+)/m);
-  const displayName = fmName ? fmName[1].trim() : skillName;
-
-  const checklist = extractChecklist(content);
-  if (checklist.length > 0) {
-    // Group by section
-    const groups = new Map();
-    for (const item of checklist) {
-      if (!groups.has(item.section)) groups.set(item.section, []);
-      groups.get(item.section).push(item.text);
-    }
-    for (const [_section, items] of groups) {
-      for (const item of items.slice(0, 12)) {
-        console.log(chalk.dim(`      ☐ ${item}`));
-      }
-    }
-  }
-
-  // Show section overview
-  const sections = extractSections(content);
-  if (sections.length > 0) {
-    for (const s of sections) {
-      console.log(chalk.dim(`      ${s}`));
-    }
-  }
-
-  // Store parsed skill data on context for downstream AI reference
   if (context) {
     context[`skill_${skillName}_checklist`] = checklist;
     context[`skill_${skillName}_sections`] = sections;

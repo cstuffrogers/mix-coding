@@ -41,7 +41,7 @@ export function handleCheckAndroidSDK(_action, _params, _targetPath, context) {
   const localProps = join(_targetPath, 'android', 'local.properties');
   if (existsSync(localProps)) {
     try {
-      const _content = readFileSync(localProps, 'utf-8');
+      readFileSync(localProps, 'utf-8');
   } catch { /* skip */ }
   }
 

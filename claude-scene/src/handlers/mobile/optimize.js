@@ -51,9 +51,6 @@ export function handleAnalyzeAssets(_action, _params, targetPath, context) {
 
 export function handleAnalyzeNetwork(_action, params, _targetPath, context) {
   const checks = params?.checks || ['duplicate_requests', 'batch_opportunity', 'prefetch_missing', 'offline_cache_missing'];
-
-  for (const _check of checks) {}
-
   if (context) context.network_analyzed = true;
   return `网络分析完成（${checks.length} 项检查）`;
 }

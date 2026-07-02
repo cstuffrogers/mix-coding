@@ -8,11 +8,12 @@
 
 这是一个基于 **三层架构 + Scene 引擎** 的智能开发系统，支持：
 
-- ✅ **29 个自动化工作流**：覆盖 Web 前端（23 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建、引擎自检等。另有 9 个功能已融入增强菜单（cicd/deps/monitor/hunt/release/e2e/review/feature 内按需弹出）
+- ✅ **26 个自动化工作流**：覆盖 Web 前端（20 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建、引擎自检等。另有 9 个功能已融入增强菜单（cicd/deps/monitor/hunt/release/e2e/review/feature 内按需弹出）
+- ✅ **交互式模式选择**：`/review`、`/refactor`、`/ui-polish` 启动时弹出勾选菜单，3秒无操作使用默认
 - ✅ **多轮自动审查与修复**：直到问题清零
 - ✅ **AI 驱动设计**：Open Design 完整集成（152 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词模板 + 11 craft 设计铁律），零设计门槛
 - ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 全维度设计打磨（shape 设计简报 + 27 条反AI模式规则 + 12 条 LLM 批判规则 + 双轮品控 + 3 项精准残留修复）+ web-design-engineer Skill（OKLCH 色彩系统 + 反AI套路规则 + 设计基准声明，所有模式必须执行）
-- ✅ **5 层代码审查**：ESLint + TypeScript + 安全扫描 + npm audit + AI 语义 + Handler 功能验证（10 Pass 空转桩检测）
+- ✅ **5 层代码审查**：ESLint（1216→0 错误归零）+ TypeScript + 安全扫描 + npm audit + AI 语义 + Handler 功能验证（10 Pass 空转桩检测）
 - ✅ **数据库迁移审查**：扫描迁移文件，检测 8 种危险模式（DROP TABLE / NOT NULL 无默认值等），自动阻断高风险变更
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
 - ✅ **浏览器功能测试**：Stagehand 集成，act/extract/observe API + 自愈选择器，AI 驱动用户关键路径验证（10 个工作流可选增强）
@@ -46,7 +47,11 @@
 
 | 工具 | 文件 | 功能 | 平台 |
 |------|------|------|------|
-| **Claude Code 启动器** | [start-claude.bat](./start-claude.bat) / [start-claude.sh](./start-claude.sh) | 一键启动 Claude Code | Windows / macOS / Linux |
+| **Claude Code 启动器** | [start-claude.bat](./start-claude.bat) / [start-claude.sh](./start-claude.sh) | 一键启动 Claude Code + 自动 init.sh 环境检查 | Windows / macOS / Linux |
+| **opencode 全局配置** | [scripts/setup-opencode-global.sh](./scripts/setup-opencode-global.sh) | 108 命令 + 17 MCP，38 工作流与 Claude Code 对齐 | Windows / macOS / Linux |
+| **会话初始化** | [init.sh](./init.sh) | Node/Git/依赖/测试/Harness 文件完整性检查 | macOS / Linux |
+| **架构合规检查** | [zero-conflict-check.sh](./zero-conflict-check.sh) | 工具前缀验证 + 层纯度 + Harness 文件完整性 | macOS / Linux |
+| **会话结束清理** | [scripts/clean-session.cjs](./scripts/clean-session.cjs) | Git 状态/测试/lint 检查，`--fix` 自动提交 | Windows / macOS / Linux |
 | **安全升级工具** | [upgrade.bat](./upgrade.bat) / [upgrade.sh](./upgrade.sh) | 备份→检查→升级→验证，零风险升级 | Windows / macOS / Linux |
 
 ---
@@ -77,47 +82,46 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ---
 
-## 📋 29 个工作流场景
+## 📋 26 个工作流场景
 
 > 另有 9 个功能已融入增强菜单（backup/docker→cicd、sbom→deps、loadtest→e2e、log/incident→monitor、changelog→release、migration→review、llm-proxy-audit→hunt），对应父工作流中按需弹出。
+>
+> **交互式模式选择**：`/review`、`/refactor`、`/ui-polish` 启动时弹出勾选菜单，3秒无操作使用默认。
 
 | 场景 | 步骤数 | 描述 | 命令 |
 |------|--------|------|------|
-| **ui-polish** | 69 步 | 前端美化（全对话模式：设计系统声明 → 主题注入 → Impeccable 全维度打磨 + AI-Friendly 审查） | `/ui-polish` |
-| **new-project** | 66 步 | 从零开始新项目（设计基准 → shape 简报 → 上下文收集 → CE 规划 → Open Design + Impeccable + AI-Friendly） | `/new-project` |
-| **design** | 53 步 | AI 辅助 UI 设计（设计系统 → 品牌选择 → 三方向提案 → 专家评审 → 验证） | `/design` |
-| **audit** | 47 步 | 全面项目健康检查（27 项质量门禁 + 信息图） | `/audit` |
-| **review** | 33 步 | 全面代码审查（ESLint + TypeScript + 安全 + AI 语义）+ 迁移审查/QA/i18n/无障碍可选增强 | `/review` |
+| **ui-polish** | 69 步 | 前端美化 + 设计（交互式模式：UI美化/仅设计/品牌系统/Impeccable） | `/ui-polish` |
+| **new-project** | 67 步 | 从零开始新项目（设计基准 → shape 简报 → Open Design + Impeccable） | `/new-project` |
+| **review** | 33 步 | 代码审查 + 安全审计（交互式模式：代码审查/全量审计/仅分析/安全深度/质量工具链/AI设计） | `/review` |
 | **bugfix** | 30 步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
 | **feature** | 26 步 | 新功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
 | **hunt** | 24 步 | 安全漏洞扫描与修复（12 项外部工具链 + CE 沉淀）+ LLM 代理审计可选增强 | `/hunt` |
-| **mobile-audit** | 24 步 | App 安全审计（MobSF + mobsfscan + Bearer + DependencyCheck + 5 层门禁） | `/mobile-audit` |
-| **refactor** | 23 步 | 代码重构（代码度量 + 反模式检测 + 增量重构 + 测试验证） | `/refactor` |
-| **release** | 24 步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 健康检查 + 监控）+ CHANGELOG 可选增强 | `/release` |
-| **mobile-optimize** | 19 步 | App 性能优化（Bundle 分析 + 启动优化 + 网络分析 + 反模式检测 + 4 层门禁） | `/mobile-optimize` |
-| **analyze** | 18 步 | 深度代码分析（复杂度 / 安全 / 性能 / CI + 自动修复） | `/analyze` |
-| **mobile-release** | 18 步 | App 发布部署（证书检查 → 质量门禁 → 版本号 → CHANGELOG → TestFlight/Play Store + 4 层门禁） | `/mobile-release` |
-| **deps** | 17 步 | 安全依赖更新（扫描过期 + 逐项更新 + Breaking Changes 检测 + 测试）+ SBOM 可选增强 | `/deps` |
-| **mobile-review** | 17 步 | 移动端代码审查（ESLint + mobsfscan SAST + UI 截图 + AI 语义+a11y + 聚合报告） | `/mobile-review` |
-| **optimize** | 17 步 | 性能优化（问题选择 → 基线 → 反模式 → 测量确认 → 增量测试） | `/optimize` |
-| **mobile-onboard** | 16 步 | App 开发环境搭建（平台感知前置条件 + RN Doctor + .env 模板 + 模拟器配置） | `/mobile-onboard` |
-| **onboard** | 16 步 | 开发环境搭建（检测语言 + 安装依赖 + 配置 .env + 启动服务） | `/onboard` |
-| **rollback** | 16 步 | 紧急回滚（版本选择 + 回滚 + 构建 + 健康检查 + 监控复原） | `/rollback` |
-| **simplify** | 15 步 | 代码简化（可读性优先，逐方向简化 + 测试保全） | `/simplify` |
+| **mobile-audit** | 24 步 | App 安全审计（MobSF + mobsfscan + Bearer + OWASP MASVS） | `/mobile-audit` |
+| **refactor** | 23 步 | 代码重构 + 简化（交互式模式：代码重构/代码简化/架构优化） | `/refactor` |
+| **release** | 24 步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 监控） | `/release` |
+| **mobile-optimize** | 19 步 | App 性能优化（Bundle 分析 + 启动优化 + 网络分析 + 反模式检测） | `/mobile-optimize` |
+| **mobile-release** | 18 步 | App 发布部署（证书检查 → 质量门禁 → TestFlight/Play Store） | `/mobile-release` |
+| **deps** | 17 步 | 安全依赖更新（扫描过期 + Breaking Changes 检测 + SBOM 可选增强） | `/deps` |
+| **mobile-review** | 17 步 | 移动端代码审查（ESLint + mobsfscan + UI 截图 + AI 语义） | `/mobile-review` |
+| **optimize** | 17 步 | 性能优化（问题选择 → 基线 → 反模式 → 增量测试） | `/optimize` |
+| **mobile-onboard** | 16 步 | App 开发环境搭建（RN Doctor + .env 模板 + 模拟器配置） | `/mobile-onboard` |
+| **onboard** | 16 步 | 开发环境搭建（检测语言 + 安装依赖 + 配置 .env） | `/onboard` |
+| **rollback** | 16 步 | 紧急回滚（版本选择 + 回滚 + 健康检查 + 监控复原） | `/rollback` |
 | **loop** | 13 步 | 自动迭代循环（无人值守，持续审查→修复→验证） | `/loop` |
-| **mobile-e2e** | 13 步 | 移动端 E2E 测试（Detox/Patrol 自动检测 + 配置生成 + CI 集成 + 3 层门禁） | `/mobile-e2e` |
-| **cicd** | 12 步 | CI/CD 配置（Act + Taskfile 本地流水线 + GitHub Actions 验证）+ Docker 化/备份可选增强 | `/cicd` |
-| **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + Schemathesis API fuzz）+ 负载测试可选增强 | `/e2e` |
-| **monitor** | 9 步 | 网站监控（Upptime + GitHub Actions + 状态页）+ 日志/Incident Runbook 可选增强 | `/monitor` |
-| **qa** | 12 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级报告），也作为 /review 增强 | `/qa` |
-| **plan-ceo-review** | 11 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值三桶），也作为 /feature 增强 | `/plan-ceo-review` |
-| **check** | 10 步 | 引擎自检+自愈：dead action 检测 / orphan gate flag / missing action message，自动修复数据文件 | `/check` |
+| **mobile-e2e** | 13 步 | 移动端 E2E 测试（Detox/Patrol + CI 集成） | `/mobile-e2e` |
+| **cicd** | 12 步 | CI/CD 配置（Act + Taskfile + Docker化/备份可选增强） | `/cicd` |
+| **qa** | 12 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级） | `/qa` |
+| **plan-ceo-review** | 11 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值） | `/plan-ceo-review` |
+| **check** | 10 步 | 引擎自检+自愈（dead action / orphan gate / 自动修复） | `/check` |
+| **plan** | 10 步 | Manus 持久规划（会话恢复 + SHA256认证 + 多阶段追踪） | `/plan` |
+| **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + 负载测试可选增强） | `/e2e` |
+| **monitor** | 9 步 | 网站监控（Upptime + 日志/Incident Runbook 可选增强） | `/monitor` |
 
 ---
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **354 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 29 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **370+ 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 26 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|
@@ -405,36 +409,37 @@ node src/index.js start hunt --auto
 mix-coding/
 ├── .claude/
 │   ├── scenes/               # 场景定义（29 个 JSON）
-│   │   ├── ui-polish.json    bugfix.json     feature.json
-│   │   ├── review.json       refactor.json   optimize.json
-│   │   ├── simplify.json     hunt.json       design.json
-│   │   ├── analyze.json      loop.json       new-project.json
-│   │   ├── release.json      audit.json
-│   │   ├── deps.json         rollback.json   onboard.json
-│   │   ├── cicd.json         e2e.json        monitor.json
-│   │   ├── qa.json           plan-ceo-review.json  check.json
-│   │   ├── mobile-audit.json mobile-review.json mobile-release.json
-│   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
-│   ├── commands/             # Slash commands（29 个工作流 + jvn /spec /design /build /report 等）
-│   ├── rules/                # 项目规则（conditional/ 按需加载：core-rules / workflows / enhancements 等 9 个）
-│   ├── skills/               # Claude Skills（21 个：10 核心 + 11 speckit）
-│   └── agents/               # 8 个 Agent（PM/架构师/UX/审查/宪法校验 + mobile-reviewer/mobile-security/mobile-perf）
+│   ├── commands/             # Slash commands 工作流（38 个 .md）
+│   ├── rules/                # 项目规则（conditional/ 按需加载）
+│   ├── skills/               # Claude Skills（21 个）
+│   ├── agents/               # 8 个 Agent
+│   ├── reports/              # 审计报告（含 harness-audit 12 维评分）
+│   ├── knowledge/            # 知识索引
+│   └── scheduled_tasks.json  # 定时任务配置
 │
-├── .specify/                 # Spec-Kit 配置（templates / scripts / memory）
+├── .opencode/                # opencode 专属配置
+│   ├── deploy-global.cjs     # 全局配置自动部署脚本
+│   └── opencode.jsonc        # 项目级配置（最小引用）
+│
+├── .github/workflows/        # CI 流水线（lint → test）
+├── .husky/pre-commit         # Git 钩子（eslint + test + 死代码扫描）
+├── .specify/                 # Spec-Kit 配置
 ├── claude-scene/             # CLI 工具（Scene 引擎）
-│   └── src/
-│       ├── commands/         # CLI 命令（list / show / start / fork）
-│       ├── handlers/         # 能力处理器
-│       └── lib/              # 工具库（含 huashu 设计集成）
-├── scripts/                  # 项目脚本（Node.js .cjs，跨平台不假死）
-│   ├── scan-scenes.cjs       # 扫描所有 scene 真实步骤数
-│   ├── find-deadcode.cjs     # 死代码扫描
-│   ├── check-memory-system.cjs # 记忆系统状态检查
-│   └── setup-mempalace.cjs   # MemPalace MCP 一键配置
-├── constitution.md           # 项目宪法（constitutional-validator Agent 强制执行）
-├── CLAUDE.md                 # 项目主指令（精简后 ~65 行，全量加载）
-├── ARCHITECTURE.md           # 完整架构文档
-├── upgrade.bat / start-claude.bat   # 一键工具
+├── scripts/                  # 项目脚本（Node.js .cjs）
+│   ├── generate-opencode-config.cjs  # opencode 全局配置生成器
+│   ├── clean-session.cjs     # 会话结束清理
+│   ├── setup-opencode-global.sh      # opencode 一键部署
+│   └── ...其他脚本
+├── feature_list.json         # WIP 特性跟踪（wip_limit: 1）
+├── progress.md               # 会话状态日志
+├── DECISIONS.md              # 架构决策记录
+├── constitution.md           # 项目宪法
+├── CLAUDE.md                 # 项目主指令（~65 行）
+├── AGENTS.md                 # Harness 操作手册（5 节）
+├── ARCHITECTURE.md           # 架构文档
+├── init.sh                   # 会话初始化检查
+├── zero-conflict-check.sh    # 架构合规检查
+├── upgrade.bat / start-claude.bat / start-claude.sh   # 一键工具
 └── README.md
 ```
 
@@ -587,7 +592,7 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **80+ 个外部组件**：Skills 21 个 + MCP 14 个 + npm 包 23 个 + 外部工具 25 个 + MemPalace 工具 1 个
+> 共集成 **80+ 个外部组件**：Skills 21 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 23 个 + 外部工具 25 个 + MemPalace 工具 1 个
 
 ### 本地 Skills（21 个，`.claude/skills/`）
 

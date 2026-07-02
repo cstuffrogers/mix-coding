@@ -39,40 +39,43 @@ const SECRET_SEARCHES = [
 
 const HASH_RE = /^[0-9a-f]{7,}\s/;
 
+function scanGitHistory(targetPath, name, needle) {
+  const raw = safeExec(
+    `git log --all --oneline --name-only -S "${needle}" 2>&1 || true`,
+    targetPath,
+    { stdio: 'pipe', maxBuffer: 5 * 1024 * 1024 }
+  ).toString().trim();
+  if (!raw) return null;
+
+  const lines = raw.split('\n');
+  const matchedFiles = new Set();
+  let commitCount = 0;
+
+  for (const line of lines) {
+    if (HASH_RE.test(line)) { commitCount++; continue; }
+    const f = line.trim();
+    if (f && f.includes('.') && !SAFE_FILES.has(f)) {
+      matchedFiles.add(f);
+    }
+  }
+
+  if (!matchedFiles.size) return null;
+  return { name, commits: commitCount };
+}
+
 export function handleGitLeaks(_action, _params, targetPath, context) {
   const findings = [];
 
   try {
     for (const { name, needle } of SECRET_SEARCHES) {
       try {
-        const raw = safeExec(
-          `git log --all --oneline --name-only -S "${needle}" 2>&1 || true`,
-          targetPath,
-          { stdio: 'pipe', maxBuffer: 5 * 1024 * 1024 }
-        ).toString().trim();
-
-        if (!raw) continue;
-
-        const lines = raw.split('\n');
-        const matchedFiles = new Set();
-        let commitCount = 0;
-
-        for (const line of lines) {
-          if (HASH_RE.test(line)) { commitCount++; continue; }
-          const f = line.trim();
-          if (f && f.includes('.') && !SAFE_FILES.has(f)) {
-            matchedFiles.add(f);
-          }
-        }
-
-        if (matchedFiles.size > 0) {
-          const existing = findings.find(f => f.name === name);
-          if (existing) {
-            existing.commits += commitCount;
-          } else {
-            findings.push({ name, commits: commitCount });
-          }
-          ;
+        const result = scanGitHistory(targetPath, name, needle);
+        if (!result) continue;
+        const existing = findings.find(f => f.name === name);
+        if (existing) {
+          existing.commits += result.commits;
+        } else {
+          findings.push(result);
         }
       } catch { /* search failed, skip */ }
     }
@@ -85,6 +88,32 @@ export function handleGitLeaks(_action, _params, targetPath, context) {
     return `Git 密钥扫描完成: ${hasLeaks ? findings.map(f => `${f.name}(${f.commits})`).join(', ') : '无泄露'}`;
   } catch { /* Git not available */ }
   return 'Git 密钥扫描完成（git 不可用）';
+}
+
+function checkGitignoreRules(targetPath, findings) {
+  const gitignore = join(targetPath, '.gitignore');
+  if (!existsSync(gitignore)) {
+    findings.push('.gitignore 文件不存在');
+    return null;
+  }
+  const content = readFileSync(gitignore, 'utf-8');
+  const mustIgnore = ['.env', '*.pem', '*.key', 'credentials.json'];
+  const missing = mustIgnore.filter(p => !content.includes(p));
+  if (missing.length > 0) {
+    findings.push(`.gitignore 缺失规则: ${missing.join(', ')}`);
+  }
+  return content;
+}
+
+function checkUnignoredEnvFiles(targetPath, gitignoreContent, findings) {
+  const envFiles = ['.env', '.env.local', '.env.production'];
+  for (const f of envFiles) {
+    const fp = join(targetPath, f);
+    const isNotReported = findings.every(fi => !fi.includes(f));
+    if (existsSync(fp) && isNotReported && gitignoreContent && !gitignoreContent.includes(f)) {
+      findings.push(`${f} 存在但未被 gitignore`);
+    }
+  }
 }
 
 export function handleSensitiveFileCheck(_action, _params, targetPath, context) {
@@ -110,33 +139,14 @@ export function handleSensitiveFileCheck(_action, _params, targetPath, context) 
         targetPath,
         { stdio: 'pipe', timeout: 10000 }
       ).toString().trim();
-
       if (raw) {
-        const files = raw.split('\n').filter(Boolean);
-        files.forEach(f => findings.push(`${name}: ${f}（已被 Git 追踪）`));
+        raw.split('\n').filter(Boolean).forEach(f => findings.push(`${name}: ${f}（已被 Git 追踪）`));
       }
     } catch { /* skip */ }
   }
 
-  const gitignore = join(targetPath, '.gitignore');
-  if (existsSync(gitignore)) {
-    const content = readFileSync(gitignore, 'utf-8');
-    const mustIgnore = ['.env', '*.pem', '*.key', 'credentials.json'];
-    const missing = mustIgnore.filter(p => !content.includes(p));
-    if (missing.length > 0) {
-      findings.push(`.gitignore 缺失规则: ${missing.join(', ')}`);
-    }
-  } else {
-    findings.push('.gitignore 文件不存在');
-  }
-
-  const envFiles = ['.env', '.env.local', '.env.production'];
-  for (const f of envFiles) {
-    const fp = join(targetPath, f);
-    if (existsSync(fp) && findings.every(fi => !fi.includes(f)) && existsSync(gitignore) && !readFileSync(gitignore, 'utf-8').includes(f)) {
-      findings.push(`${f} 存在但未被 gitignore`);
-    }
-  }
+  const gitignoreContent = checkGitignoreRules(targetPath, findings);
+  checkUnignoredEnvFiles(targetPath, gitignoreContent, findings);
 
   if (findings.length > 0) {
     console.log(chalk.red(`  🔴 发现 ${findings.length} 处敏感文件暴露风险`));

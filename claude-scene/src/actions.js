@@ -69,8 +69,6 @@ import {
 import { handleCheckPrerequisites } from './handlers/prerequisites.js';
 import { handleVerifyHandlers } from './handlers/handler-verify.js';
 import { handleCheckSmoke, handleCheckActionMessages, handleCheckGateFlags, handleFixActionMessages, handleFixGateFlags, handleSelfCheckReport } from './handlers/engine-check.js';
-import { handleTrivyScan, handleShellCheck, handleSqlFluff, handleBrunoRun } from './handlers/new-external-tools.js';
-import { handleGitleaks, handleSemgrep, handleCommitlint } from './handlers/gitleaks-semgrep-commitlint.js';
 
 // Mobile handlers
 import {
@@ -98,6 +96,12 @@ import {
   handleLobsterTrapInstall, handleLobsterTrapConfig, handleHoneytoolSetup,
   handleDiffTest, handleWhitelistValidate, handleEgressBenchmark, handleLlmProxyReport,
 } from './handlers/llm-proxy-audit.js';
+import {
+  handleSessionCatchup, handleInitPlanningFiles, handleReadSpec, handleGatherRequirements,
+  handleCreatePlan, handleCreateFindings, handleCreateProgress, handleConfirmAttestation,
+  handleAttestPlan, handleDisplaySummary, handleUpdatePhaseStatus, handleLogError,
+  handleAppendProgress, handleCheckComplete,
+} from './handlers/plan-service.js';
 
 // Re-export for direct consumers (ui-polish.js)
 export { handleCheckConsistency, handleVisualRegression, handleCheckAPIConsistency, handleAddAnimations, handleAnalyzeUI, handleIconUpgrade, handleMicroInteractions };
@@ -325,29 +329,6 @@ export const ACTION_REGISTRY = {
   'fix-gate-flags': handleFixGateFlags,
   selfCheckReport: handleSelfCheckReport,
   'self-check-report': handleSelfCheckReport,
-
-  // New external tools
-  trivyScan: handleTrivyScan,
-  'trivy-scan': handleTrivyScan,
-  trivy: handleTrivyScan,
-  shellCheck: handleShellCheck,
-  'shell-check': handleShellCheck,
-  shellcheck: handleShellCheck,
-  sqlFluff: handleSqlFluff,
-  'sql-fluff': handleSqlFluff,
-  sqlfluff: handleSqlFluff,
-  brunoRun: handleBrunoRun,
-  'bruno-run': handleBrunoRun,
-  bruno: handleBrunoRun,
-  gitleaks: handleGitleaks,
-  'gitleaks-detect': handleGitleaks,
-  gitleaksDetect: handleGitleaks,
-  semgrep: handleSemgrep,
-  'semgrep-scan': handleSemgrep,
-  semgrepScan: handleSemgrep,
-  commitlint: handleCommitlint,
-  'commitlint-check': handleCommitlint,
-  commitlintCheck: handleCommitlint,
 
 	// GitHub Actions lint & security (actionlint + zizmor)
 	actionlint: handleActionlint,
@@ -613,6 +594,36 @@ export const ACTION_REGISTRY = {
   'egress-benchmark': handleEgressBenchmark,
   llmProxyReport: handleLlmProxyReport,
   'llm-proxy-report': handleLlmProxyReport,
+
+  // ── PlanService (planning-with-files integration) ──
+  sessionCatchup: handleSessionCatchup,
+  'session-catchup': handleSessionCatchup,
+  initPlanningFiles: handleInitPlanningFiles,
+  'init-planning-files': handleInitPlanningFiles,
+  readSpec: handleReadSpec,
+  'read-spec': handleReadSpec,
+  gatherRequirements: handleGatherRequirements,
+  'gather-requirements': handleGatherRequirements,
+  createPlan: handleCreatePlan,
+  'create-plan': handleCreatePlan,
+  createFindings: handleCreateFindings,
+  'create-findings': handleCreateFindings,
+  createProgress: handleCreateProgress,
+  'create-progress': handleCreateProgress,
+  confirmAttestation: handleConfirmAttestation,
+  'confirm-attestation': handleConfirmAttestation,
+  attestPlan: handleAttestPlan,
+  'attest-plan': handleAttestPlan,
+  displaySummary: handleDisplaySummary,
+  'display-summary': handleDisplaySummary,
+  updatePhaseStatus: handleUpdatePhaseStatus,
+  'update-phase-status': handleUpdatePhaseStatus,
+  logError: handleLogError,
+  'log-error': handleLogError,
+  appendProgress: handleAppendProgress,
+  'append-progress': handleAppendProgress,
+  checkComplete: handleCheckComplete,
+  'check-complete': handleCheckComplete,
 };
 
 // ── Dispatch ──

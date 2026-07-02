@@ -50,7 +50,7 @@ describe('handleSetupBackup', () => {
     handleSetupBackup('setupBackup', {}, '/test/project', ctx);
     expect(ctx.backupScriptPath).toContain('backup.sh');
     const scriptCalls = mockWriteFileSync.mock.calls.filter(c => c[0].includes('backup.sh'));
-    expect(scriptCalls.length).toBe(1);
+    expect(scriptCalls).toHaveLength(1);
     Object.defineProperty(process, 'platform', { value: originalPlatform });
   });
 

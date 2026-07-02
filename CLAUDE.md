@@ -28,29 +28,45 @@ MemPalace MCP：`mcp__mempalace__search` 查历史，`mcp__mempalace__remember` 
 
 ## 引擎
 
-Scene 引擎在对话内执行工作流。29 个场景。`node src/index.js start <场景ID> --auto [参数]`
+Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js start <场景ID> --auto [参数]`
 
 ## 工作流速查
 
 | 常用 | 说明 | 常用 | 说明 |
 |------|------|------|------|
-| `/audit` | 全量健康检查 | `/bugfix` | Bug 修复 |
-| `/review` | 5 层代码审查 | `/feature` | 新功能开发 |
-| `/simplify` | 代码简化 | `/optimize` | 性能优化 |
-| `/ui-polish` | 前端美化 | `/design` | AI 辅助 UI 设计 |
-| `/refactor` | 重构 | `/new-project` | 新建项目 |
+| `/review` | 代码审查（含审计/分析） | `/bugfix` | Bug 修复 |
+| `/refactor` | 重构 + 简化 | `/feature` | 新功能开发 |
+| `/ui-polish` | 前端美化 + 设计 | `/optimize` | 性能优化 |
+| `/hunt` | 安全漏洞扫描 | `/new-project` | 新建项目 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
-| `/check` | 引擎自检+自愈 | | |
+| `/check` | 引擎自检+自愈 | `/plan` | Manus 持久规划 |
 
-> 已融入增强菜单：`/qa`（review 前端变更）、`/plan-ceo-review`（feature 长需求）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（e2e）、`/log` `/incident`（monitor）、`/migration`（review/feature 检测到 DB）、`/llm-proxy-audit`（hunt）。也可独立调用。
-> 新增增强工具：`Stagehand`（浏览器功能测试，10 工作流）、`mythos-agent`（假设驱动安全扫描，8 工作流）、`GEPA`（prompt 进化，/optimize + /loop）、`Critiq`（确定性安全规则，3 工作流，零成本）。检测到安装即自动弹菜单。
+> **交互式模式选择**：`/review` `/ui-polish` `/refactor` 启动时弹出勾选菜单，3秒无操作使用默认。
+>
+> 已融入增强：`/qa`（前端验证）、`/plan-ceo-review`（策略审查）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（e2e）、`/migration`（DB）、`/llm-proxy-audit`（hunt）。
+>
+> 增强工具：`Stagehand`（浏览器测试）、`mythos-agent`（安全扫描）、`GEPA`（prompt 进化）、`Critiq`（安全规则）。
 
 执行工作流时 Read `conditional/workflows.md`（完整列表）和 `conditional/enhancements-summary.md`（可选增强规则，精简版）。
 安全/审计/漏洞工作流额外 Read `conditional/security-toolchain.md`。
 
 ## Spec-Driven 开发
 
-`/spec "需求"` → `/design` → `/build`（GitHub Spec-Kit + 5 Agent）。宪法：`constitution.md`。
+`/spec "需求"` → `/plan` → `/build`（GitHub Spec-Kit + 5 Agent）。宪法：`constitution.md`。
+
+### 融合文件结构（Spec-Kit + planning-with-files）
+
+| 文件 | 用途 | 更新时机 |
+|------|------|----------|
+| `spec.md` | 需求规格 | 需求变更时 |
+| `plan.md` | 阶段规划 + 进度 | 每阶段完成后 |
+| `tasks.md` | 任务分解 | 任务状态变更时 |
+| `findings.md` | 研究/发现 | 任何发现后（2-Action Rule） |
+| `progress.md` | 会话日志 | 贯计更新 |
+
+**规划规则**：`/plan` 工作流自动 Read `conditional/planning-with-files.md`。
+
+**会话恢复**：`/clear` 后运行 `python .claude/scripts/session-catchup.py "$(pwd)"`
 
 ## 条件规则（按项目特征 Read）
 
@@ -61,9 +77,24 @@ Scene 引擎在对话内执行工作流。29 个场景。`node src/index.js star
 | `/ui-polish` / `/design` 工作流 | `conditional/visual-standards.md` + `../od-craft/index.md` |
 | 重构/优化 (`/refactor`/`/optimize`) | `conditional/core-rules.md`（完整 CodeGuardian 边界） |
 | 自动记忆触发（重要决策/bug/架构） | `conditional/memory-auto-save.md` |
+| `/plan` 工作流或复杂任务 (≥3步) | `conditional/planning-with-files.md` |
 
 ## 执行原则
 
 理解需求 → 收集参数 → 检测特征 → 弹增强菜单 → 执行 → 验证 → 报告。失败重试 3 次。
 
 工作流需在目标项目目录执行 · 删除/覆盖需用户确认 · 保持代码风格一致
+
+## 多平台支持
+
+本项目同时支持 Claude Code、opencode、Codex、ZCode 四个平台。配置目录互不冲突：
+
+| 平台 | 配置目录 | 入口文件 | 环境变量 |
+|------|---------|---------|---------|
+| Claude Code | `.claude/` | `CLAUDE.md` | `CLAUDECODE=1` |
+| opencode | `.opencode/` + `opencode.jsonc` | `AGENTS.md` → `CLAUDE.md` | `OPENCODE=1` |
+| Codex | `.codex/` | `AGENTS.md` → `CLAUDE.md` | `CODEX=1` |
+| ZCode | `.zcode/` | (待填充) | `ZCODE=1` |
+
+共享场景/skills/规则/记忆统一在 `.claude/`。各平台专属配置（命令格式、MCP 配置）在各自目录。
+详见 `MULTIPLATFORM.md`。

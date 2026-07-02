@@ -1,1 +1,54 @@
-{}
+{
+  "version": "1.0.0",
+  "last_updated": "2026-06-30T12:00:00Z",
+  "entries": [
+    {
+      "id": "KNOW-001",
+      "title": "系统架构",
+      "category": "architecture",
+      "content": "三层架构: 交互层(Scene引擎+CLI) → 能力层(Service) → 运行时层(AI+MCP+工具). Scene JSON 在 .claude/scenes/, 通过 node claude-scene/src/index.js start <scene> 触发."
+    },
+    {
+      "id": "KNOW-002",
+      "title": "多平台策略",
+      "category": "architecture",
+      "content": "Claude Code 用 .claude/commands/*.md, opencode 用全局 ~/.config/opencode/opencode.json (108命令+17MCP). 共享资源在 .claude/ (scenes/skills/rules/memory). 环境变量: CLAUDECODE/OPENCODE/CODEX/ZCODE."
+    },
+    {
+      "id": "KNOW-003",
+      "title": "命名规范",
+      "category": "conventions",
+      "content": "变量/函数: camelCase. 类/接口: PascalCase. 常量: UPPER_SNAKE_CASE. 文件: kebab-case. 一个文件一个主要导出. 测试文件: *.test.js 在同目录."
+    },
+    {
+      "id": "KNOW-004",
+      "title": "核心规则",
+      "category": "conventions",
+      "content": "决策阶梯: YAGNI → 标准库 → 原生 → 已安装依赖 → 一行 → 最少代码. 改后边界: ≤±50行·0新依赖·复杂度≤130%·测试/基准/质量全过(失败自动回滚)."
+    },
+    {
+      "id": "KNOW-005",
+      "title": "CodeGuardian 边界",
+      "category": "quality",
+      "content": ".codeguardian.yaml: max 1 opt round, 5000 tokens, 30s timeout, ±50 line delta, 0 new deps, 5% perf gain min, 130% complexity cap, 80% coverage min, human review required."
+    },
+    {
+      "id": "KNOW-006",
+      "title": "Review 工作流",
+      "category": "workflow",
+      "content": "5层审查: Layer1 ESLint → Layer2 react-doctor → Layer3 Playwright → Layer4 AI语义 → Layer5 聚合报告. 路径: .claude/commands/review.md (33步)."
+    },
+    {
+      "id": "KNOW-007",
+      "title": "记忆系统",
+      "category": "workflow",
+      "content": "MemPalace MCP: mcp__mempalace__search 查历史, mcp__mempalace__remember 保存. 验证: npm run scan:memory. 数据: .claude/memory/ (72 JSON)."
+    },
+    {
+      "id": "KNOW-008",
+      "title": "Scene 引擎",
+      "category": "architecture",
+      "content": "29个场景在 .claude/scenes/. 启动: node src/index.js start <sceneID> --auto [params]. 场景可链式调用 (分析→设计→审查→发布)."
+    }
+  ]
+}

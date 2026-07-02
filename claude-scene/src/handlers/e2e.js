@@ -174,10 +174,7 @@ function generateIntegrationTests(targetPath, endpoints, specPath) {
 function runSchemathesisFuzz(targetPath, specPath) {
   try {
     const result = safeExec(`npx schemathesis run "${specPath}" --checks all --max-examples 50 2>&1 || true`, targetPath, { stdio: 'pipe' }).toString();
-    if (result.includes('FAILED')) {
-      return false;
-    }
-    return true;
+    return !result.includes('FAILED');
   } catch {
     return false;
   }

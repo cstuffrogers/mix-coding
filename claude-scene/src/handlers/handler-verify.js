@@ -16,6 +16,15 @@ function readOrNull(filePath) {
 // ═══════════════════════════════════════════════════
 // Pass 1: inline arrow stubs in actions.js
 // ═══════════════════════════════════════════════════
+function classifyStub({ key, msg }, mcpNames, seenMCP, seenMP, mcp, mp) {
+  if (mcpNames.has(key)) {
+    if (!seenMCP.has(key)) { seenMCP.add(key); mcp.push({ key, msg }); }
+  } else {
+    const base = key.replace(/^mp-?/, '').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+    if (!seenMP.has(base)) { seenMP.add(base); mp.push({ key, msg }); }
+  }
+}
+
 function detectInlineStubs() {
   const actionsPath = join(SRC_DIR, 'actions.js');
   const src = readOrNull(actionsPath);
@@ -42,13 +51,8 @@ function detectInlineStubs() {
   const seenMCP = new Set();
   const seenMP = new Set();
 
-  for (const { key, msg } of stubs) {
-    if (mcpNames.has(key)) {
-      if (!seenMCP.has(key)) { seenMCP.add(key); mcp.push({ key, msg }); }
-    } else {
-      const base = key.replace(/^mp-?/, '').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-      if (!seenMP.has(base)) { seenMP.add(base); mp.push({ key, msg }); }
-    }
+  for (const stub of stubs) {
+    classifyStub(stub, mcpNames, seenMCP, seenMP, mcp, mp);
   }
 
   return { mcp, mp, rawCount: stubs.length };
@@ -88,7 +92,22 @@ function detectCeStub() {
 // Uses next-function-boundary extraction (avoids brace matching).
 // ═══════════════════════════════════════════════════
 
-const MEANINGFUL_LINE = /\b(readFileSync|writeFileSync|existsSync|mkdirSync|readdirSync|statSync|appendFileSync|writeSync|rmSync)\b|safeExec\b|\bexecSync\b|\bspawn\b|\bfetch\b|\.(map|filter|reduce|forEach|find|sort|some|every|flatMap)\s*\(|\bfor\s*\(|\bwhile\s*\(|\bif\s*\(|\btry\s*\{|await\s+\w+\(|import\s*\(|\bnew\s+\w+|JSON\.(parse|stringify)\b|\.(match|replace|split|join)\s*\(|\breturn\s+[^'"`\d]|Object\.(keys|values|entries|assign)\s*\(|\bprocess\.(chdir|cwd|env\.)|\brequire\s*\(|return\s+\w+\s*\(/;
+const MEANINGFUL_LINES = [
+  /\b(readFileSync|writeFileSync|existsSync|mkdirSync|readdirSync|statSync|appendFileSync|writeSync|rmSync|safeExec|execSync|spawn|fetch)\b/,
+  /\.(map|filter|reduce|forEach|find|sort|some|every|flatMap)\s*\(/,
+  /\b(for|while|if)\s*\(/,
+  /\btry\s*\{/,
+  /await\s+\w+\(/,
+  /import\s*\(/,
+  /\bnew\s+\w+/,
+  /JSON\.(parse|stringify)\b/,
+  /\.(match|replace|split|join)\s*\(/,
+  /\breturn\s+[^'"`\d)]/,
+  /Object\.(keys|values|entries|assign)\s*\(/,
+  /\bprocess\.(chdir|cwd|env\.)/,
+  /\brequire\s*\(/,
+  /\breturn\s+\w+\s*\(/,
+];
 
 function isTrivialLine(line) {
   const s = line.trim();
@@ -111,6 +130,23 @@ function extractFunctionBody(src, startIndex) {
   return src.slice(startIndex);
 }
 
+function analyzeExportedFunction(src, funcName, funcIndex, file) {
+  const braceIdx = src.indexOf('{', funcIndex + funcName.length + 15);
+  if (braceIdx === -1) return null;
+  const body = extractFunctionBody(src, braceIdx);
+  const lines = body.split('\n');
+  let meaningful = 0;
+  for (const line of lines) {
+    if (!isTrivialLine(line) && MEANINGFUL_LINES.some(re => re.test(line))) {
+      meaningful++;
+    }
+  }
+  if (meaningful < 1) {
+    return { name: funcName, file, snippet: body.replace(/[\r\n]/g, ' ').trim().slice(0, 140) };
+  }
+  return null;
+}
+
 function detectPseudoStubs() {
   const handlersDir = join(SRC_DIR, 'handlers');
   if (!existsSync(handlersDir)) return { stubs: [], total: 0 };
@@ -128,22 +164,8 @@ function detectPseudoStubs() {
     while ((m = funcRe.exec(src)) !== null) {
       const funcName = m[2];
       totalFuncs++;
-
-      const braceIdx = src.indexOf('{', m.index + m[0].length);
-      if (braceIdx === -1) continue;
-
-      const body = extractFunctionBody(src, braceIdx);
-      const lines = body.split('\n');
-      let meaningful = 0;
-      for (const line of lines) {
-        if (!isTrivialLine(line) && MEANINGFUL_LINE.test(line)) {
-          meaningful++;
-        }
-      }
-
-      if (meaningful < 1) {
-        allStubs.push({ name: funcName, file, snippet: body.replace(/[\r\n]/g, ' ').trim().slice(0, 140) });
-      }
+      const result = analyzeExportedFunction(src, funcName, m.index, file);
+      if (result) allStubs.push(result);
     }
   }
 
@@ -297,25 +319,41 @@ function detectImportIssuesFallback() {
 // every action referenced in scene JSON exists in
 // ACTION_REGISTRY or is a ce-* prefixed action
 // ═══════════════════════════════════════════════════
+function parseRegistryKeys(src) {
+  const keys = new Set();
+  const registryMatch = src.match(/const ACTION_REGISTRY\s*=\s*\{([\s\S]*?)\n\};/);
+  if (registryMatch) {
+    const keyRe = /^\s{0,100}['"]?([-\w]+)['"]?\s{0,100}:/gm;
+    let km;
+    while ((km = keyRe.exec(registryMatch[1])) !== null) {
+      keys.add(km[1]);
+    }
+  }
+  return keys;
+}
+
+function scanSceneFile(filePath, registryKeys, ceActions, file) {
+  try {
+    const scene = JSON.parse(readFileSync(filePath, 'utf-8'));
+    const flow = scene.flow || [];
+    const orphans = [];
+    for (const step of flow) {
+      const action = step.action;
+      if (!action) continue;
+      if (registryKeys.has(action)) continue;
+      if (action.startsWith('ce-') && ceActions.has(action)) continue;
+      orphans.push({ scene: scene.scene_id || file, step: step.step, action });
+    }
+    return { orphans, sceneFound: true };
+  } catch { return { orphans: [], sceneFound: true }; }
+}
+
 function detectOrphanActions() {
   const actionsPath = join(SRC_DIR, 'actions.js');
   const src = readOrNull(actionsPath);
   if (!src) return { orphans: [], sceneCount: 0, summary: 'actions.js 不可读' };
 
-  const registryKeys = new Set();
-  // Match all property keys in ACTION_REGISTRY object literal
-  const keyRe = /^\s*['"]?([-\w]+)['"]?\s*:/gm;
-  // Find the ACTION_REGISTRY block
-  const registryMatch = src.match(/const ACTION_REGISTRY\s*=\s*\{([\s\S]*?)\n\};/);
-  if (registryMatch) {
-    const block = registryMatch[1];
-    let km;
-    while ((km = keyRe.exec(block)) !== null) {
-      registryKeys.add(km[1]);
-    }
-  }
-
-  // Also include ce-* prefix (handled by dispatch bypass)
+  const registryKeys = parseRegistryKeys(src);
   const ceActions = new Set(['ce-compound', 'ce-plan', 'ce-review', 'ce-debug', 'ce-brainstorm', 'ce-work']);
 
   const scenesDir = join(PROJECT_ROOT, '.claude', 'scenes');
@@ -326,18 +364,9 @@ function detectOrphanActions() {
   const sceneFiles = readdirSync(scenesDir).filter(f => f.endsWith('.json'));
 
   for (const f of sceneFiles) {
-    try {
-      const scene = JSON.parse(readFileSync(join(scenesDir, f), 'utf-8'));
-      const flow = scene.flow || [];
-      sceneCount++;
-      for (const step of flow) {
-        const action = step.action;
-        if (!action) continue;
-        if (registryKeys.has(action)) continue;
-        if (action.startsWith('ce-') && ceActions.has(action)) continue;
-        orphans.push({ scene: scene.scene_id || f, step: step.step, action });
-      }
-    } catch { /* corrupt JSON, skip */ }
+    const { orphans: fileOrphans } = scanSceneFile(join(scenesDir, f), registryKeys, ceActions, f);
+    orphans.push(...fileOrphans);
+    sceneCount++;
   }
 
   return { orphans, sceneCount, ok: orphans.length === 0 };
@@ -348,6 +377,39 @@ function detectOrphanActions() {
 // function body is non-trivial (not just console.log)
 // Static-only to avoid triggering workflow side effects
 // ═══════════════════════════════════════════════════
+function checkRegistryEntry(handlerName, modPath, crashes) {
+  const modSrc = readOrNull(modPath);
+  if (!modSrc) {
+    crashes.push({ handler: handlerName, file: modPath.replace(SRC_DIR, '.'), error: '模块文件不可读' });
+    return;
+  }
+
+  const isDirectExport = new RegExp(`export\\s+(async\\s+)?function\\s+${handlerName}\\b`).test(modSrc);
+  const isBarrelExport = new RegExp(`export\\s*\\{[^}]*\\b${handlerName}\\b[^}]*\\}\\s*from\\s*'([^']+)'`).test(modSrc);
+  if (!isDirectExport && !isBarrelExport) {
+    crashes.push({ handler: handlerName, file: modPath.replace(SRC_DIR, '.'), error: '未找到导出函数' });
+    return;
+  }
+
+  if (!isDirectExport) return;
+
+  const fnBodyMatch = modSrc.match(new RegExp(
+    `export\\s+(?:async\\s+)?function\\s+${handlerName}\\s*\\([^)]*\\)\\s*\\{([^}]*(?:\\{[^}]*\\}[^}]*)*)\\}`, 's'
+  ));
+  if (!fnBodyMatch) return;
+
+  const code = fnBodyMatch[1]
+    .replace(/console\.(log|warn|error|info|debug)\s*\([^)]*\)/g, '')
+    .replace(/chalk\.\w+\s*\([^)]*\)/g, '')
+    .replace(/return\s+['"`][^'"`]*['"`]\s*;?/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+
+  if (code.length < 5) {
+    crashes.push({ handler: handlerName, file: modPath.replace(SRC_DIR, '.'), error: '函数体过于简单(疑似空转)' });
+  }
+}
+
 function detectHandlerCrashes() {
   const actionsPath = join(SRC_DIR, 'actions.js');
   const src = readOrNull(actionsPath);
@@ -365,61 +427,21 @@ function detectHandlerCrashes() {
     }
   }
 
-  // Find registry entries mapping action→handler
   const regMatch = src.match(/const ACTION_REGISTRY\s*=\s*\{([\s\S]*?)\n\};/);
   const crashes = [];
   if (!regMatch) return { crashes, summary: '未找到 ACTION_REGISTRY' };
-
-  const block = regMatch[1];
-  const entryRe = /^\s*['"]?([-\w]+)['"]?\s*:\s*(\w+)/gm;
+  const entryRe = /^\s{0,100}['"]?([-\w]+)['"]?\s{0,100}:\s{0,100}(\w+)/gm;
   let em;
   const testedHandlers = new Set();
-
-  // Skip handlers already covered by Pass 3 (pseudo-stub detection)
   const pseudoStubs = new Set(['handleReviewFull', 'handleVerifyVisual', 'handleAiFriendlyReview']);
 
-  while ((em = entryRe.exec(block)) !== null) {
+  while ((em = entryRe.exec(regMatch[1])) !== null) {
     const handlerName = em[2];
-    if (!handlerToModule.has(handlerName)) continue; // inline stub
+    if (!handlerToModule.has(handlerName)) continue;
     if (testedHandlers.has(handlerName)) continue;
-    if (pseudoStubs.has(handlerName)) continue; // covered by Pass 3
+    if (pseudoStubs.has(handlerName)) continue;
     testedHandlers.add(handlerName);
-
-    const modPath = handlerToModule.get(handlerName);
-    const modSrc = readOrNull(modPath);
-    if (!modSrc) {
-      crashes.push({ handler: handlerName, file: modPath.replace(SRC_DIR, '.'), error: '模块文件不可读' });
-      continue;
-    }
-
-    // Check: function is exported (directly or via barrel re-export)
-    const isDirectExport = new RegExp(`export\\s+(async\\s+)?function\\s+${handlerName}\\b`).test(modSrc);
-    const isBarrelExport = new RegExp(`export\\s*\\{[^}]*\\b${handlerName}\\b[^}]*\\}\\s*from\\s*'([^']+)'`).test(modSrc);
-    if (!isDirectExport && !isBarrelExport) {
-      crashes.push({ handler: handlerName, file: modPath.replace(SRC_DIR, '.'), error: '未找到导出函数' });
-      continue;
-    }
-
-    // Only analyze body for directly-exported functions, skip barrel re-exports
-    if (!isDirectExport) continue;
-
-    // Check: function body is non-trivial (more than just print+return)
-    const fnBodyMatch = modSrc.match(new RegExp(
-      `export\\s+(?:async\\s+)?function\\s+${handlerName}\\s*\\([^)]*\\)\\s*\\{([^}]*(?:\\{[^}]*\\}[^}]*)*)\\}`, 's'
-    ));
-    if (!fnBodyMatch) continue; // Can't parse, skip
-
-    const body = fnBodyMatch[1];
-    const code = body
-      .replace(/console\.(log|warn|error|info|debug)\s*\([^)]*\)/g, '')
-      .replace(/chalk\.\w+\s*\([^)]*\)/g, '')
-      .replace(/return\s+['"`][^'"`]*['"`]\s*;?/g, '')
-      .replace(/\s+/g, '')
-      .trim();
-
-    if (code.length < 5) {
-      crashes.push({ handler: handlerName, file: modPath.replace(SRC_DIR, '.'), error: '函数体过于简单(疑似空转)' });
-    }
+    checkRegistryEntry(handlerName, handlerToModule.get(handlerName), crashes);
   }
 
   return { crashes, ok: crashes.length === 0, tested: testedHandlers.size };
@@ -428,6 +450,69 @@ function detectHandlerCrashes() {
 // ═══════════════════════════════════════════════════
 // Pass 10: MCP config validation
 // ═══════════════════════════════════════════════════
+function checkCommandArgs(cfg) {
+  if (!cfg.args || !Array.isArray(cfg.args)) return [];
+  const errors = [];
+  for (const arg of cfg.args) {
+    if (typeof arg === 'string' && arg.startsWith('./')) {
+      const absPath = join(PROJECT_ROOT, arg);
+      if (!existsSync(absPath)) {
+        errors.push(`本地文件不存在: ${arg}`);
+      }
+    }
+  }
+  return errors;
+}
+
+function checkServerCommand(name, cfg) {
+  const warnings = [];
+  const errors = checkCommandArgs(cfg);
+  if (!cfg.command) {
+    errors.push('缺少 command 字段');
+    return { errors, warnings };
+  }
+  if (!cfg.args || cfg.args.every(a => !(typeof a === 'string' && a.startsWith('./')))) {
+    try {
+      safeExec(`${cfg.command} --version 2>&1 || echo PATH_MISSING`, SRC_DIR, { stdio: 'pipe', timeout: 10000 });
+    } catch {
+      warnings.push(`命令 '${cfg.command}' 不可用（可能未安装或未运行）`);
+    }
+  }
+  return { errors, warnings };
+}
+
+function checkServerEnv(cfg) {
+  const infos = [];
+  if (cfg.env) {
+    for (const envVal of Object.values(cfg.env)) {
+      const envName = typeof envVal === 'string' ? envVal.replace(/^\$\{env:/, '').replace(/\}$/, '') : '';
+      if (envName && !process.env[envName]) {
+        infos.push(`环境变量未设置: ${envName} (API Key 未配置)`);
+      }
+    }
+  }
+  return infos;
+}
+
+function pushServerIssues(name, serverErrors, serverWarnings, serverInfos, errors, warnings, infos) {
+  if (serverErrors.length) {
+    errors.push({ server: name, issues: serverErrors });
+    if (serverWarnings.length) warnings.push({ server: name, issues: serverWarnings });
+    if (serverInfos.length) infos.push({ server: name, issues: serverInfos });
+    return false;
+  }
+  if (serverWarnings.length) {
+    warnings.push({ server: name, issues: serverWarnings });
+    if (serverInfos.length) infos.push({ server: name, issues: serverInfos });
+    return false;
+  }
+  if (serverInfos.length) {
+    infos.push({ server: name, issues: serverInfos });
+    return false;
+  }
+  return true;
+}
+
 function detectMcpIssues(_targetPath) {
   const mcpPath = join(PROJECT_ROOT, '.claude', 'mcp.json');
   if (!existsSync(mcpPath)) return { errors: [], warnings: [], infos: [], summary: 'mcp.json 不存在', total: 0, okCount: 0, ok: true };
@@ -446,58 +531,10 @@ function detectMcpIssues(_targetPath) {
   let okCount = 0;
 
   for (const [name, cfg] of Object.entries(servers)) {
-    const serverErrors = [];
-    const serverWarnings = [];
-    const serverInfos = [];
-
-    if (!cfg.command) {
-      serverErrors.push('缺少 command 字段');
-    } else {
-      // Check local file references in args (these are real errors)
-      if (cfg.args && Array.isArray(cfg.args)) {
-        for (const arg of cfg.args) {
-          if (typeof arg === 'string' && arg.startsWith('./')) {
-            const absPath = join(PROJECT_ROOT, arg);
-            if (!existsSync(absPath)) {
-              serverErrors.push(`本地文件不存在: ${arg}`);
-            }
-          }
-        }
-      }
-
-      // Command existence check — warning only (Docker might not be running, etc.)
-      if (!cfg.args || cfg.args.every(a => !(typeof a === 'string' && a.startsWith('./')))) {
-        try {
-          safeExec(`${cfg.command} --version 2>&1 || echo PATH_MISSING`, SRC_DIR, { stdio: 'pipe', timeout: 10000 });
-        } catch {
-          // npx/Docker/gem commands may fail for env reasons — warning not error
-          serverWarnings.push(`命令 '${cfg.command}' 不可用（可能未安装或未运行）`);
-        }
-      }
-    }
-
-    // Env var checks — informational only (API keys are optional)
-    if (cfg.env) {
-      for (const envVal of Object.values(cfg.env)) {
-        const envName = typeof envVal === 'string' ? envVal.replace(/^\$\{env:/, '').replace(/\}$/, '') : '';
-        if (envName && !process.env[envName]) {
-          serverInfos.push(`环境变量未设置: ${envName} (API Key 未配置)`);
-        }
-      }
-    }
-
-    if (serverErrors.length) {
-      errors.push({ server: name, issues: serverErrors });
-      if (serverWarnings.length) warnings.push({ server: name, issues: serverWarnings });
-      if (serverInfos.length) infos.push({ server: name, issues: serverInfos });
-    } else if (serverWarnings.length) {
-      warnings.push({ server: name, issues: serverWarnings });
-      if (serverInfos.length) infos.push({ server: name, issues: serverInfos });
-    } else if (serverInfos.length) {
-      infos.push({ server: name, issues: serverInfos });
-    } else {
-      okCount++;
-    }
+    const { errors: serverErrors, warnings: serverWarnings } = checkServerCommand(name, cfg);
+    const serverInfos = checkServerEnv(cfg);
+    const isOk = pushServerIssues(name, serverErrors, serverWarnings, serverInfos, errors, warnings, infos);
+    if (isOk) okCount++;
   }
 
   const issueCount = errors.length + warnings.length;
@@ -515,7 +552,6 @@ const HONEYTOOL_NAMES = [
 function detectLlmProxyAuditHealth() {
   const result = { honeytoolOk: false, whitelistOk: false, denyCoverage: 0, issues: [] };
 
-  // Check .honeytools.json
   const htPath = join(PROJECT_ROOT, '.honeytools.json');
   if (!existsSync(htPath)) {
     result.issues.push({ level: 'error', file: '.honeytools.json', detail: '蜜罐配置文件不存在' });
@@ -535,7 +571,6 @@ function detectLlmProxyAuditHealth() {
     return result;
   }
 
-  // Check .tool-whitelist.json deny coverage
   const wlPath = join(PROJECT_ROOT, '.tool-whitelist.json');
   if (!existsSync(wlPath)) {
     result.issues.push({ level: 'warn', file: '.tool-whitelist.json', detail: '工具白名单配置文件不存在' });
@@ -624,13 +659,54 @@ function runToolAndDepHealth(targetPath) {
   } else if (depHealth.critical.length || depHealth.warning.length) {
     criticalDeps = depHealth.critical.length;
     warnDeps = depHealth.warning.length;
-    console.log(chalk.yellow(`  ⚠ Pass 5 — 依赖健康: ${depHealth.scanned} 包, ${criticalDeps}严重 ${warnDeps}警告`));
-    for (const d of depHealth.critical) console.log(chalk.yellow(`     🔴 ${d.name}: ${d.reason}`));
   } else {
     console.log(chalk.green(`  ✅ Pass 5 — 依赖健康: ${depHealth.scanned} 包全部健康`));
   }
 
   return { missCount, availCount, criticalDeps, warnDeps };
+}
+
+function displayKnipResults(importIssues) {
+  const { unusedExports, unresolved, unlisted, unusedDeps, unusedFiles } = importIssues;
+  const importBroken = unresolved.length + unlisted.length + unusedExports.length;
+  const unusedFilesCount = unusedFiles;
+  const unusedDepsCount = unusedDeps.length;
+  const knipUnresolved = unresolved.length;
+  const knipUnlisted = unlisted.length;
+  const hasIssues = unresolved.length || unlisted.length || unusedExports.length;
+  if (hasIssues) {
+    console.log(chalk.yellow(`  ⚠ Pass 7 — knip: ${unresolved.length}未解析 ${unlisted.length}未声明 ${unusedExports.length}未用导出 ${unusedDeps.length}未用依赖 ${unusedFiles}死文件`));
+    for (const u of unresolved.slice(0, 4)) console.log(chalk.yellow(`     🔴 ${u.target} ← ${u.file}`));
+    for (const u of unlisted.slice(0, 3)) console.log(chalk.yellow(`     🟡 ${u.name} (在 ${u.file} 中使用但未声明)`));
+    for (const u of unusedExports.slice(0, 3)) console.log(chalk.dim(`     ⬜ ${u.symbol} @ ${u.file}`));
+    if (importBroken > 7) console.log(chalk.dim(`     ... 共 ${importBroken} 项`));
+  } else {
+    console.log(chalk.green(`  ✅ Pass 7 — knip: 0未解析 0未声明 (${unusedFiles}死文件 ${unusedDeps.length}未用依赖)`));
+  }
+  const isDeadCodePassed = importBroken === 0 && unusedDepsCount === 0;
+  return { importBroken, unusedFilesCount, unusedDepsCount, knipUnresolved, knipUnlisted, deadCodePassed: isDeadCodePassed };
+}
+
+function displayMissingIssues(importIssues) {
+  if (!importIssues.missing || !importIssues.missing.length) return 0;
+  console.error(chalk.red(`  🔴 Pass 7 — 缺失文件: ${importIssues.missing.length}`));
+  for (const i of importIssues.missing) console.error(chalk.dim(`     ${i.file}: ${i.imported}`));
+  return importIssues.missing.length;
+}
+
+function displayBrokenIssues(importIssues) {
+  if (!importIssues.broken || !importIssues.broken.length) return 0;
+  return importIssues.broken.length;
+}
+
+function displayFallbackResults(importIssues) {
+  if (importIssues.ok) {
+    return { importBroken: 0, unusedFilesCount: 0, unusedDepsCount: 0, knipUnresolved: 0, knipUnlisted: 0, deadCodePassed: true };
+  }
+  const missingCount = displayMissingIssues(importIssues);
+  const brokenCount = displayBrokenIssues(importIssues);
+  const importBroken = missingCount + brokenCount;
+  return { importBroken, unusedFilesCount: 0, unusedDepsCount: 0, knipUnresolved: 0, knipUnlisted: 0, deadCodePassed: importBroken === 0 };
 }
 
 function runProjectHealth(targetPath) {
@@ -642,45 +718,7 @@ function runProjectHealth(targetPath) {
   }
 
   const importIssues = detectImportIssues(targetPath);
-  let importBroken = 0;
-  let unusedFilesCount = 0;
-  let unusedDepsCount = 0;
-  let knipUnresolved = 0;
-  let knipUnlisted = 0;
-  let isDeadCodePassed = true;
-
-  if (importIssues.knip) {
-    const { unusedExports, unresolved, unlisted, unusedDeps, unusedFiles } = importIssues;
-    importBroken = unresolved.length + unlisted.length + unusedExports.length;
-    unusedFilesCount = unusedFiles;
-    unusedDepsCount = unusedDeps.length;
-    knipUnresolved = unresolved.length;
-    knipUnlisted = unlisted.length;
-    const hasIssues = unresolved.length || unlisted.length || unusedExports.length;
-    if (hasIssues) {
-      console.log(chalk.yellow(`  ⚠ Pass 7 — knip: ${unresolved.length}未解析 ${unlisted.length}未声明 ${unusedExports.length}未用导出 ${unusedDeps.length}未用依赖 ${unusedFiles}死文件`));
-      for (const u of unresolved.slice(0, 4)) console.log(chalk.yellow(`     🔴 ${u.target} ← ${u.file}`));
-      for (const u of unlisted.slice(0, 3)) console.log(chalk.yellow(`     🟡 ${u.name} (在 ${u.file} 中使用但未声明)`));
-      for (const u of unusedExports.slice(0, 3)) console.log(chalk.dim(`     ⬜ ${u.symbol} @ ${u.file}`));
-      if (importBroken > 7) console.log(chalk.dim(`     ... 共 ${importBroken} 项`));
-    } else {
-      console.log(chalk.green(`  ✅ Pass 7 — knip: 0未解析 0未声明 (${unusedFiles}死文件 ${unusedDeps.length}未用依赖)`));
-    }
-    isDeadCodePassed = importBroken === 0 && unusedDepsCount === 0;
-  } else if (importIssues.ok) {
-    console.log(chalk.green('  ✅ Pass 7 — 导入链: 全部有效'));
-  } else {
-    if (importIssues.missing && importIssues.missing.length) {
-      console.error(chalk.red(`  🔴 Pass 7 — 缺失文件: ${importIssues.missing.length}`));
-      for (const i of importIssues.missing) console.error(chalk.dim(`     ${i.file}: ${i.imported}`));
-    }
-    if (importIssues.broken && importIssues.broken.length) {
-      console.log(chalk.red(`  🔴 Pass 7 — 导出断裂: ${importIssues.broken.length}`));
-      for (const i of importIssues.broken) console.log(chalk.dim(`     ${i.file}: ${i.missing_export}`));
-    }
-    importBroken = (importIssues.missing ? importIssues.missing.length : 0) + (importIssues.broken ? importIssues.broken.length : 0);
-    isDeadCodePassed = importBroken === 0;
-  }
+  const result = importIssues.knip ? displayKnipResults(importIssues) : displayFallbackResults(importIssues);
 
   const { orphans, sceneCount, ok: orphanOk } = detectOrphanActions();
   const orphanCount = orphans.length;
@@ -692,7 +730,7 @@ function runProjectHealth(targetPath) {
     }
   }
 
-  return { ceAvailable, importBroken, unusedFilesCount, unusedDepsCount, knipUnresolved, knipUnlisted, deadCodePassed: isDeadCodePassed, orphanCount };
+  return { ceAvailable, importBroken: result.importBroken, unusedFilesCount: result.unusedFilesCount, unusedDepsCount: result.unusedDepsCount, knipUnresolved: result.knipUnresolved, knipUnlisted: result.knipUnlisted, deadCodePassed: result.deadCodePassed, orphanCount };
 }
 
 function runSafetyChecks(targetPath) {
@@ -714,11 +752,6 @@ function runSafetyChecks(targetPath) {
     if (mcpConfig.infos.length) {
       for (const s of mcpConfig.infos) console.log(chalk.dim(`     ℹ ${s.server}: ${s.issues.join('; ')}`));
     }
-  } else {
-    const parts = [];
-    if (mcpConfig.errors.length) parts.push(`${mcpConfig.errors.length} 错误`);
-    if (mcpConfig.warnings.length) parts.push(`${mcpConfig.warnings.length} 警告`);
-    if (mcpConfig.infos.length) parts.push(`${mcpConfig.infos.length} 信息`);
   }
 
   return { crashCount, mcpIssueCount };
@@ -738,7 +771,7 @@ function runLlmProxyAuditHealth() {
 
   for (const iss of health.issues.slice(0, 4)) {
     const marker = iss.level === 'error' ? '🔴' : '🟡';
-    console.log(chalk.dim(`     ${marker} ${iss.file}: ${iss.detail}`));
+    console.log(`  ${marker} ${iss.message || iss.type || 'issue'}`);
   }
 
   return health;

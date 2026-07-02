@@ -1,0 +1,100 @@
+{
+  "$schema": ".claude/harness-templates/feature_list.schema.json",
+  "project": "Mix-Coding System",
+  "version": "1.0.0",
+  "last_updated": "2026-06-30T12:00:00Z",
+  "wip_limit": 1,
+  "features": [
+    {
+      "id": "F001",
+      "name": "Harness State Files",
+      "description": "Create feature_list.json, progress.md, DECISIONS.md for state tracking",
+      "status": "done",
+      "priority": "critical",
+      "definition_of_done": [
+        "feature_list.json exists with at least 1 feature entry",
+        "progress.md has initial session entries",
+        "DECISIONS.md has at least 3 ADR entries"
+      ],
+      "assigned_scene": "/feature"
+    },
+    {
+      "id": "F002",
+      "name": "CI/CD Pipeline",
+      "description": "GitHub Actions CI workflow: lint → test → coverage → build",
+      "status": "done",
+      "priority": "high",
+      "definition_of_done": [
+        ".github/workflows/ci.yml exists",
+        "Workflow runs lint, test on push and PR to main"
+      ],
+      "assigned_scene": "/cicd"
+    },
+    {
+      "id": "F003",
+      "name": "Knowledge Index",
+      "description": "Populate .claude/knowledge/index.json with project knowledge entries",
+      "status": "done",
+      "priority": "high",
+      "definition_of_done": [
+        "index.json contains at least 5 knowledge entries",
+        "Entries cover architecture, conventions, tools"
+      ],
+      "assigned_scene": "/feature"
+    },
+    {
+      "id": "F004",
+      "name": "AGENTS.md + Init + Husky",
+      "description": "Upgrade AGENTS.md to full Harness guide, create init.sh, integrate into scripts, extend husky",
+      "status": "done",
+      "priority": "high",
+      "definition_of_done": [
+        "AGENTS.md contains full Harness operating manual (5 sections)",
+        "init.sh exists and is integrated into start-claude.*",
+        "zero-conflict-check.sh created",
+        "husky pre-commit includes deadcode scan",
+        "scheduled_tasks.json pre-filled"
+      ],
+      "assigned_scene": "/feature"
+    },
+    {
+      "id": "F005",
+      "name": "Audit Scene Documentation",
+      "description": "Document audit.json phase breakdown for maintainability",
+      "status": "done",
+      "priority": "low",
+      "definition_of_done": [
+        "docs/audit-phases.md exists with 5-phase breakdown"
+      ],
+      "assigned_scene": "/refactor"
+    },
+    {
+      "id": "F006",
+      "name": "Session Cleanup Script",
+      "description": "Script to verify clean state at session end",
+      "status": "done",
+      "priority": "low",
+      "definition_of_done": [
+        "scripts/clean-session.cjs exists",
+        "Checks git state, tests, lint"
+      ],
+      "assigned_scene": "/feature"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M1",
+      "name": "Harness Foundation",
+      "status": "in_progress",
+      "feature_ids": ["F001", "F002", "F003"],
+      "target_date": "2026-07-07"
+    },
+    {
+      "id": "M2",
+      "name": "Session Lifecycle",
+      "status": "planned",
+      "feature_ids": ["F004", "F005", "F006"],
+      "target_date": "2026-07-21"
+    }
+  ]
+}

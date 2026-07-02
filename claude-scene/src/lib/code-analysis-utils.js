@@ -19,19 +19,17 @@ function preserveNewlines(match, replacement) {
 }
 
 export function stripCommentsAndStrings(code) {
-  /* eslint-disable sonarjs/slow-regex */
   // Order matters: strip strings first so path separators inside quotes
   // don't get mistaken for regex literals by the regex-stripping step.
   // Multi-line comments and template literals preserve newline count so
   // that line numbers computed from the stripped text match the original.
   return code
-    .replace(/\/\/.*$/gm, ' ')           // single-line comments
+    .replace(/\/\/[^\n]*/gm, ' ')           // single-line comments
     .replace(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, (m) => preserveNewlines(m, ' ')) // multi-line comments
     .replace(/'[^']*'/g, '""')           // single-quoted strings
     .replace(/"[^"]*"/g, '""')           // double-quoted strings
     .replace(/`[^`]*`/g, (m) => preserveNewlines(m, '""')) // template literals
     .replace(/\/(?:[^/\\\n\r]|\\.)+\/[gimsuy]*\b/g, ' '); // regex literals
-  /* eslint-enable sonarjs/slow-regex */
 }
 
 function findMatchingClose(text, openIdx, openCh, closeCh) {
@@ -64,35 +62,47 @@ function computeLoopBodyEnd(stripped, start, isMethod) {
 
 export const CTRL_FLOW = new Set(['if', 'else', 'for', 'while', 'switch', 'case', 'catch', 'try', 'finally', 'with', 'return', 'throw', 'new', 'delete', 'typeof', 'void', 'async', 'await', 'export', 'import', 'const', 'let', 'var', 'default', 'extends', 'implements']);
 
+function processFunctionMatch(m, stripped, threshold, results, seen) {
+  const name = m[1];
+  if (!name || CTRL_FLOW.has(name)) return;
+
+  const openBrace = stripped.indexOf('{', m.index + m[0].length - 1);
+  if (openBrace === -1) return;
+
+  const closeBrace = findMatchingClose(stripped, openBrace, '{', '}');
+  if (closeBrace === -1) return;
+
+  const posKey = `${openBrace}:${closeBrace}`;
+  if (seen.has(posKey)) return;
+  seen.add(posKey);
+
+  const body = stripped.slice(openBrace + 1, closeBrace);
+  const branches = (body.match(/\b(if|else|for|while|switch|case|catch)\b|\?(?![?.])/g) || []).length;
+
+  if (branches > threshold) {
+    const lineNum = stripped.slice(0, m.index).split('\n').length;
+    results.push({ name, line: lineNum, complexity: branches });
+  }
+}
+
 export function getFunctionComplexities(code, threshold) {
   const stripped = stripCommentsAndStrings(code);
   const results = [];
 
-  // Match: function name(  |  const/let/var name = (async) (params) =>  |  (async) (static) name(params) {
-  const funcRe = /(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>|(?:async\s+)?(?:static\s+)?\s*(\w+)\s*\([^)]*\)\s*\{)/g;
+  const funcRes = [
+    /function\s+(\w+)\s*\([^)]*\)/g,
+    /(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>/g,
+    /async\s+static\s+(\w+)\s*\([^)]*\)\s*\{/g,
+    /async\s+(\w+)\s*\([^)]*\)\s*\{/g,
+    /static\s+(\w+)\s*\([^)]*\)\s*\{/g,
+    /(\w{1,100})\s{0,20}\([^)]*?\)\s{0,20}\{/g,
+  ];
   const seen = new Set();
 
-  let m;
-  while ((m = funcRe.exec(stripped)) !== null) {
-    const name = m[1] || m[2] || m[3];
-    if (!name || CTRL_FLOW.has(name)) continue;
-
-    const openBrace = stripped.indexOf('{', m.index + m[0].length - 1);
-    if (openBrace === -1) continue;
-
-    const closeBrace = findMatchingClose(stripped, openBrace, '{', '}');
-    if (closeBrace === -1) continue;
-
-    const posKey = `${openBrace}:${closeBrace}`;
-    if (seen.has(posKey)) continue;
-    seen.add(posKey);
-
-    const body = stripped.slice(openBrace + 1, closeBrace);
-    const branches = (body.match(/\b(if|else|for|while|switch|case|catch)\b|\?(?![?.])/g) || []).length;
-
-    if (branches > threshold) {
-      const lineNum = stripped.slice(0, m.index).split('\n').length;
-      results.push({ name, line: lineNum, complexity: branches });
+  for (const funcRe of funcRes) {
+    let m;
+    while ((m = funcRe.exec(stripped)) !== null) {
+      processFunctionMatch(m, stripped, threshold, results, seen);
     }
   }
 

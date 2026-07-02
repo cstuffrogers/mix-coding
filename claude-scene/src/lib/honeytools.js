@@ -121,59 +121,9 @@ export function generateHoneytools(options = {}) {
   return pool.slice(0, Math.min(count, pool.length));
 }
 
-/**
- * Format honeytools as Anthropic-compatible tool definitions.
- */
-export function toAnthropicTools(honeytools) {
-  return honeytools.map(h => ({
-    name: h.name,
-    description: h.description,
-    input_schema: h.input_schema,
-  }));
-}
 
-/**
- * Format honeytools as OpenAI-compatible tool definitions.
- */
-export function toOpenAITools(honeytools) {
-  return honeytools.map(h => ({
-    type: 'function',
-    function: {
-      name: h.name,
-      description: h.description,
-      parameters: h.input_schema,
-    },
-  }));
-}
 
-/**
- * Check if a tool call name matches a honeytool. If it does, it's confirmed tampering.
- * @param {string} toolName
- * @returns {{ isHoneytool: boolean, honeytool?: Honeytool }}
- */
-export function checkHoneytoolHit(toolName) {
-  const match = HONEYTOOLS.find(h => h.name === toolName);
-  return match
-    ? { isHoneytool: true, honeytool: match }
-    : { isHoneytool: false };
-}
 
-/**
- * Check if tool call parameters contain canary tokens from any honeytool.
- * Catches cases where the proxy renames the tool but copies the canary token in params.
- */
-export function checkCanaryTokens(params) {
-  const paramStr = JSON.stringify(params);
-  const hits = [];
-  for (const ht of HONEYTOOLS) {
-    for (const token of ht.canaryTokens) {
-      if (paramStr.includes(token)) {
-        hits.push({ honeytool: ht.name, token, baitCategory: ht.baitCategory });
-      }
-    }
-  }
-  return hits;
-}
 
 /**
  * Generate a config file content for honeytool monitoring.
@@ -200,4 +150,8 @@ export function generateHoneytoolConfig() {
   };
 }
 
+/**
+ * @public
+ * Honeytool definitions for LLM honeypot detection.
+ */
 export { HONEYTOOLS };

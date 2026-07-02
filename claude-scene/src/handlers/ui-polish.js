@@ -2,7 +2,6 @@ import { readFileSync, writeFileSync } from "fs";
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
-import { PROJECT_ROOT } from '../lib/paths.js';
 import {
   handleCheckAPIConsistency,
   handleCheckConsistency as actionsCheckConsistency,
@@ -69,8 +68,8 @@ function replaceInFile(fullPath, componentsUsed, modifiedFiles) {
           if (className[1].match(/secondary|danger|warning/)) {
             type = className[1].match(/secondary|danger|warning/)[0];
           }
-          // eslint-disable-next-line sonarjs/slow-regex
-          preservedAttrs = preservedAttrs.replace(/\s*className=["'][^"']*["']/, '');
+          // eslint-disable-next-line sonarjs/super-linear-regex
+          preservedAttrs = preservedAttrs.replace(/\s+className=["'][^"']*["']/, '');
         }
         return `<Button type="${type}"${preservedAttrs}>`;
       });
@@ -197,7 +196,6 @@ function handleVerifyMicroInteractions(targetPath) {
   for (const f of files) {
     if (microRe.test(readFileSync(f, 'utf-8'))) withMicro++;
   }
-  // Check for forbidden transition-all
   let transitionAll = 0;
   for (const f of files) {
     transitionAll += (readFileSync(f, 'utf-8').match(/transition-all/gi) || []).length;

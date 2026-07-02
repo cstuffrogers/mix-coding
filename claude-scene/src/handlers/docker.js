@@ -197,11 +197,11 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
     safeExec('docker --version 2>&1', targetPath, { stdio: 'pipe' }).toString();
     try {
       safeExec('docker build --check . 2>&1', targetPath, { stdio: 'pipe' });
-    } catch {
-      console.log(chalk.yellow('  ⚠ Docker build --check 未通过（可能是首次构建缺少上下文）'));
+    } catch (e) {
+      console.log(chalk.yellow('  ⚠ Docker build --check 未通过（可能是首次构建缺少上下文）'), e.message);
     }
-  } catch {
-    console.log(chalk.dim('  ℹ Docker CLI 不可用，跳过语法验证'));
+  } catch (e) {
+    console.log(chalk.dim('  ℹ Docker CLI 不可用，跳过语法验证'), e.message);
   }
 
   if (context) {

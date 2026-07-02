@@ -3,6 +3,7 @@ import { join, dirname } from 'path';
 import chalk from 'chalk';
 import { safeExec, escapeArg } from '../lib/safe-exec.js';
 import GATE_FLAGS from '../data/gate-flags.js';
+import { isConversationMode } from '../lib/platform.js';
 
 const CE_DESCRIPTIONS = {
   plan: 'CE Plugin 生成详细实施方案：任务拆解、依赖分析、风险识别、时间预估',
@@ -164,7 +165,7 @@ export function handleCeAction(action, _params, targetPath, context) {
 
   const ceConfigPath = targetPath ? join(targetPath, '..', '.claude', 'plugins', 'compound-engineering.json') : null;
   const ceAvailable = ceConfigPath ? existsSync(ceConfigPath) : false;
-  const isInClaudeCode = process.env.CLAUDECODE === '1';
+  const isInClaudeCode = isConversationMode();
 
   if (ceAvailable && isInClaudeCode) {
     console.log(chalk.cyan(`\n🧠 CE ${ceAction}: ${desc}`));
@@ -226,7 +227,7 @@ export function handleAnalyze(_action, params, targetPath, context) {
 }
 
 export function handleChoose(_action, params, _targetPath, context) {
-  const { message: _message, options } = params || {};
+  const { options } = params || {};
   const choices = (options || []).map(opt => {
     if (typeof opt === 'object' && opt.label) return { label: opt.label, description: opt.description || '' };
     return { label: opt, description: '' };
@@ -242,28 +243,33 @@ export function handleChoose(_action, params, _targetPath, context) {
   return '无可用选项';
 }
 
-export function handleReport(_action, params, targetPath, context) {
+function buildReportSections(context) {
+  if (!context) return [];
+  const sections = [];
+  for (const [key, val] of Object.entries(context)) {
+    if (typeof val !== 'function' && key !== 'targetPath') {
+      sections.push(`- **${key}**: ${typeof val === 'object' ? JSON.stringify(val).slice(0, 200) : val}`);
+    }
+  }
+  return sections;
+}
 
-  // Write report summary to file if targetPath exists
+function writeReportFile(targetPath, sections) {
+  const reportDir = join(targetPath, '.claude', 'reports');
+  if (!existsSync(reportDir)) {
+    mkdirSync(reportDir, { recursive: true });
+  }
+  const reportPath = join(reportDir, `report-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.md`);
+  writeFileSync(reportPath, `# 报告\n\n生成时间: ${new Date().toISOString()}\n\n${sections.join('\n')}\n`);
+}
+
+export function handleReport(_action, params, targetPath, context) {
   if (targetPath) {
     try {
-      const reportDir = join(targetPath, '.claude', 'reports');
-      if (!existsSync(reportDir)) {
-        mkdirSync(reportDir, { recursive: true });
-      }
-      const reportPath = join(reportDir, `report-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.md`);
-      const sections = [];
-      if (context) {
-        for (const [key, val] of Object.entries(context)) {
-          if (typeof val !== 'function' && key !== 'targetPath') {
-            sections.push(`- **${key}**: ${typeof val === 'object' ? JSON.stringify(val).slice(0, 200) : val}`);
-          }
-        }
-      }
-      writeFileSync(reportPath, `# 报告\n\n生成时间: ${new Date().toISOString()}\n\n${sections.join('\n')}\n`);
+      const sections = buildReportSections(context);
+      writeReportFile(targetPath, sections);
     } catch { /* non-critical */ }
   }
-
   return '报告已生成';
 }
 
@@ -280,37 +286,49 @@ export function handleAskUser(_action, params, _targetPath, context) {
   return `用户应答: ${answer}`;
 }
 
+function evalSecurityGate(check, context) {
+  const secResult = context?.securityScanResult || {};
+  if (secResult.highSeverityFound) {
+    return { kind: 'blocked', label: `${check}: 发现高危漏洞` };
+  }
+  return { kind: 'passed', label: check };
+}
+
+function evalStandardGate(check, context) {
+  const flag = GATE_FLAGS[check];
+  if (!flag) return { kind: 'unknown', label: check };
+  if (context?.[flag] === undefined) return { kind: 'skipped', label: check };
+  if (context?.[flag] !== false) return { kind: 'passed', label: check };
+  return { kind: 'failed', label: check };
+}
+
+function evalSingleCheck(check, context) {
+  if (check === 'security' || check === 'security_scan') {
+    return evalSecurityGate(check, context);
+  }
+  return evalStandardGate(check, context);
+}
+
 export function handleCheckGate(_action, params, _targetPath, context) {
   const checks = params?.checks || ['lint', 'typecheck', 'security'];
   const results = { passed: [], failed: [], blocked: [], skipped: [], unknown: [] };
 
-  const boolPassed = (flag) => context?.[flag] !== false;
-  const hasResult = (flag) => context?.[flag] !== undefined;
-
   for (const check of checks) {
-    if (check === 'security' || check === 'security_scan') {
-      const secResult = context?.securityScanResult || {};
-      (secResult.highSeverityFound ? results.blocked : results.passed)
-        .push(secResult.highSeverityFound ? `${check}: 发现高危漏洞` : check);
-      continue;
-    }
-    const flag = GATE_FLAGS[check];
-    if (!flag) { results.unknown.push(check); continue; }
-    if (!hasResult(flag)) { results.skipped.push(check); continue; }
-    (boolPassed(flag) ? results.passed : results.failed).push(check);
+    const r = evalSingleCheck(check, context);
+    results[r.kind].push(r.label);
   }
 
   if (results.failed.length) console.error(chalk.yellow(`  ⚠ 失败: ${results.failed.join(', ')}`));
-  if ((results.failed.length || results.blocked.length) && context) {
-      context.lastStepFailed = true;
-      if (results.blocked.length) context.gateBlocked = true;
-    }
+  const hasFailures = results.failed.length > 0 || results.blocked.length > 0;
+  if (hasFailures && context) {
+    context.lastStepFailed = true;
+    if (results.blocked.length) context.gateBlocked = true;
+  }
 
   const effectiveTotal = checks.length - results.skipped.length;
-  const summary = results.blocked.length
+  return results.blocked.length
     ? `质量门禁阻断: ${results.blocked.join('; ')}`
     : results.failed.length
       ? `质量门禁未通过: ${results.failed.join('; ')}`
       : `质量门禁通过: ${results.passed.length}/${effectiveTotal}`;
-  return summary;
 }

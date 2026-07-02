@@ -123,10 +123,8 @@ export function handleAnalyzeConsistency(_action, _params, targetPath, context) 
         const hexCount = (content.match(/#[0-9a-fA-F]{3,6}/g) || []).length;
         const relPath = relative(targetPath, p);
         if (hexCount > varCount) {
-          console.log(chalk.yellow(`  ⚠ ${basename(p)}: 硬编码颜色(${hexCount}) > CSS变量(${varCount})，建议提取设计 Token`));
           findings.warn.push({ file: relPath, hexCount, varCount });
         } else if (varCount > 0) {
-          console.log(chalk.green(`  ✅ ${basename(p)}: ${varCount} CSS 变量引用, ${hexCount} 硬编码值`));
           findings.good.push({ file: relPath, varCount, hexCount });
         }
       } catch { /* skip unreadable */ }
@@ -146,7 +144,6 @@ export function handleAnalyzeConsistency(_action, _params, targetPath, context) 
 }
 
 function checkExistingTokens(targetPath) {
-  // Check for existing design token files
   const tokenFiles = ['.claude/designs/design-baseline.md', '.claude/designs/design-system.md',
     'src/assets/design-system/tokens.css', 'src/styles/tokens.css'];
   for (const f of tokenFiles) {
@@ -159,6 +156,7 @@ function checkExistingTokens(targetPath) {
     }).slice(0, 20)) {
       try {
         const content = readFileSync(cssFile, 'utf-8');
+        // eslint-disable-next-line sonarjs/super-linear-regex
         if ((content.match(/--[\w-]+:/g) || []).length >= 5) {
           return relative(targetPath, cssFile);
         }
@@ -168,106 +166,94 @@ function checkExistingTokens(targetPath) {
   return null;
 }
 
-export function handleExportAssets(_action, _params, targetPath, context) {
-  const designDir = join(targetPath, 'src', 'assets', 'design-system');
-  ensureDir(designDir);
+function buildDefaultTokensCss() {
+  const tokens = {
+    '--color-primary': '#3B82F6',
+    '--color-primary-light': '#60A5FA',
+    '--color-primary-dark': '#2563EB',
+    '--color-secondary': '#8B5CF6',
+    '--color-accent': '#F59E0B',
+    '--color-bg': '#F9FAFB',
+    '--color-surface': '#FFFFFF',
+    '--color-text': '#171717',
+    '--color-text-muted': '#6B7280',
+    '--color-border': '#E5E7EB',
+    '--color-success': '#10B981',
+    '--color-warning': '#F59E0B',
+    '--color-error': '#EF4444',
+    '--font-sans': 'system-ui, -apple-system, sans-serif',
+    '--font-mono': 'ui-monospace, monospace',
+    '--radius-sm': '0.25rem',
+    '--radius-md': '0.5rem',
+    '--radius-lg': '0.75rem',
+    '--shadow-sm': '0 1px 2px rgba(0,0,0,0.05)',
+    '--shadow-md': '0 4px 6px rgba(0,0,0,0.1)',
+    '--shadow-lg': '0 10px 15px rgba(0,0,0,0.1)',
+    '--spacing-xs': '0.25rem',
+    '--spacing-sm': '0.5rem',
+    '--spacing-md': '1rem',
+    '--spacing-lg': '1.5rem',
+    '--spacing-xl': '2rem',
+  };
+  let css = '/* Design Tokens — auto-generated */\n:root {\n';
+  for (const [key, value] of Object.entries(tokens)) {
+    css += `  ${key}: ${value};\n`;
+  }
+  css += '}\n';
+  return css;
+}
 
-  let exportedCount = 0;
+function loadTokensFromSkillFiles(targetPath) {
+  const baselinePath = join(targetPath, '.claude', 'designs', 'design-baseline.md');
+  const systemPath = join(targetPath, '.claude', 'designs', 'design-system.md');
+  for (const p of [baselinePath, systemPath]) {
+    if (!existsSync(p)) continue;
+    try {
+      const md = readFileSync(p, 'utf-8');
+      const cssMatch = md.match(/```css\n([\s\S]*?)```/);
+      if (cssMatch) return cssMatch[1];
+      const propLines = md.split('\n').filter(l => /^--[\w-]+:\s{0,100}[^;\n]+?;/.test(l));
+      if (propLines && propLines.length >= 5) {
+        return ':root {\n  ' + propLines.join('\n  ') + '\n}\n';
+      }
+    } catch { /* unreadable */ }
+  }
+  return null;
+}
 
-  // 1. Export CSS custom properties (design tokens)
-  const tokensCss = join(designDir, 'tokens.css');
-  let cssContent = '/* Design Tokens — auto-generated */\n:root {\n';
-
-  // Use Open Design brand CSS first (from od-brand-import), then AWM (from awm-brand-import)
+function exportDesignTokens(context, targetPath, tokensCss) {
   const brandCss = context?.od_brand_css || context?.awm_brand_css;
   if (brandCss) {
     writeFileSync(tokensCss, brandCss, 'utf-8');
-    exportedCount++;
-  } else {
-    // Try open-design Skill output first (.claude/designs/design-baseline.md)
-    const baselinePath = join(targetPath, '.claude', 'designs', 'design-baseline.md');
-    const systemPath = join(targetPath, '.claude', 'designs', 'design-system.md');
-    let tokensFromSkill = null;
-    for (const p of [baselinePath, systemPath]) {
-      if (existsSync(p)) {
-        try {
-          const md = readFileSync(p, 'utf-8');
-          const cssMatch = md.match(/```css\n([\s\S]*?)```/);
-          if (cssMatch) {
-            tokensFromSkill = cssMatch[1];
-          } else {
-            const propLines = md.match(/^--[\w-]+:\s*[^;]+;/gm);
-            if (propLines && propLines.length >= 5) {
-              tokensFromSkill = ':root {\n  ' + propLines.join('\n  ') + '\n}\n';
-            }
-          }
-          if (tokensFromSkill) {
-            break;
-          }
-        } catch { /* unreadable */ }
-      }
-    }
-
-    if (tokensFromSkill) {
-      writeFileSync(tokensCss, tokensFromSkill, 'utf-8');
-      exportedCount++;
-    } else {
-      // Check if project already has design tokens before writing defaults
-      const existingTokens = checkExistingTokens(targetPath);
-      if (existingTokens) {
-        console.log(chalk.yellow('  ⚠ 项目已有设计 Token，跳过默认 token 写入以防覆盖'));
-        console.log(chalk.dim(`    已有 token 文件: ${existingTokens}`));
-      } else {
-        // Fallback: generate default design tokens
-        const tokens = {
-          '--color-primary': '#3B82F6',
-          '--color-primary-light': '#60A5FA',
-          '--color-primary-dark': '#2563EB',
-          '--color-secondary': '#8B5CF6',
-          '--color-accent': '#F59E0B',
-          '--color-bg': '#F9FAFB',
-          '--color-surface': '#FFFFFF',
-          '--color-text': '#171717',
-          '--color-text-muted': '#6B7280',
-          '--color-border': '#E5E7EB',
-          '--color-success': '#10B981',
-          '--color-warning': '#F59E0B',
-          '--color-error': '#EF4444',
-          '--font-sans': 'system-ui, -apple-system, sans-serif',
-          '--font-mono': 'ui-monospace, monospace',
-          '--radius-sm': '0.25rem',
-          '--radius-md': '0.5rem',
-          '--radius-lg': '0.75rem',
-          '--shadow-sm': '0 1px 2px rgba(0,0,0,0.05)',
-          '--shadow-md': '0 4px 6px rgba(0,0,0,0.1)',
-          '--shadow-lg': '0 10px 15px rgba(0,0,0,0.1)',
-          '--spacing-xs': '0.25rem',
-          '--spacing-sm': '0.5rem',
-          '--spacing-md': '1rem',
-          '--spacing-lg': '1.5rem',
-          '--spacing-xl': '2rem',
-        };
-        for (const [key, value] of Object.entries(tokens)) {
-          cssContent += `  ${key}: ${value};\n`;
-        }
-        cssContent += '}\n';
-        writeFileSync(tokensCss, cssContent, 'utf-8');
-        exportedCount++;
-      }
-    }
+    return 1;
   }
+  const tokensFromSkill = loadTokensFromSkillFiles(targetPath);
+  if (tokensFromSkill) {
+    writeFileSync(tokensCss, tokensFromSkill, 'utf-8');
+    return 1;
+  }
+  const existingTokens = checkExistingTokens(targetPath);
+  if (existingTokens) {
+    return 0;
+  }
+  writeFileSync(tokensCss, buildDefaultTokensCss(), 'utf-8');
+  return 1;
+}
 
-  // 2. Export design spec markdown
+function exportDesignSpec(designDir, context) {
   const specFile = join(designDir, 'design-spec.md');
   const variant = context?.design_variant || context?.design_selected || '未选择';
   const timestamp = new Date().toISOString().slice(0, 19);
+  const proposalSection = context?.huashu_proposal
+    ? `\n## 设计提案\n\n\`\`\`json\n${JSON.stringify(context.huashu_proposal, null, 2)}\n\`\`\``
+    : '';
   writeFileSync(specFile, [
     '# Design Specification',
     '',
     `- **生成时间**: ${timestamp}`,
     `- **方案**: ${variant}`,
     `- **风格**: ${context?.huashu_applied_style?.name || '默认'}`,
-    context?.huashu_proposal ? `\n## 设计提案\n\n\`\`\`json\n${JSON.stringify(context.huashu_proposal, null, 2)}\n\`\`\`` : '',
+    proposalSection,
     '',
     '## 设计 Token',
     '',
@@ -277,9 +263,18 @@ export function handleExportAssets(_action, _params, targetPath, context) {
     "@import './tokens.css';",
     '```',
   ].join('\n'), 'utf-8');
-  exportedCount++;
+}
 
-  return `设计资源导出完成: ${exportedCount} 个文件`;
+export function handleExportAssets(_action, _params, targetPath, context) {
+  const designDir = join(targetPath, 'src', 'assets', 'design-system');
+  ensureDir(designDir);
+
+  const tokensCss = join(designDir, 'tokens.css');
+  const exportedCount = exportDesignTokens(context, targetPath, tokensCss);
+
+  exportDesignSpec(designDir, context);
+
+  return `设计资源导出完成: ${exportedCount + 1} 个文件`;
 }
 
 export function handlePersist(_action, _params, targetPath, context) {
@@ -294,7 +289,7 @@ export function handlePersist(_action, _params, targetPath, context) {
 }
 
 export function handleDesignInput(_action, params, _targetPath, context) {
-  const { message: _message, key } = params || {};
+  const { key } = params || {};
   if (key && context) context[key] = params?.default || '';
   return '设计输入已接收';
 }
@@ -353,9 +348,43 @@ export function handleAwmBrandImport(_action, params, _targetPath, context) {
 
 const OD_DESIGN_SYSTEMS_DIR = join(PROJECT_ROOT, 'open-design', 'design-systems');
 
+function readBrandFromEntry(entry) {
+  const designMd = join(OD_DESIGN_SYSTEMS_DIR, entry.name, 'DESIGN.md');
+  let category = '';
+  let displayName = entry.name;
+  if (existsSync(designMd)) {
+    try {
+      const content = readFileSync(designMd, 'utf-8');
+      const titleMatch = content.match(/^#\s*(.+)/m);
+      if (titleMatch) displayName = titleMatch[1].replace(/^Design System Inspired by /i, '').trim();
+      const catMatch = content.match(/^>\s*Category:\s*(.+)/m);
+      if (catMatch) category = catMatch[1].trim();
+    } catch { /* keep defaults */ }
+  }
+  return { key: entry.name, name: displayName, category };
+}
+
+function groupBrandsByCategory(brands) {
+  const groups = {};
+  for (const b of brands) {
+    const cat = b.category || 'Uncategorized';
+    if (!Object.hasOwn(groups, cat)) groups[cat] = [];
+    groups[cat].push(b);
+  }
+  return groups;
+}
+
+function printBrandGroups(brands, groups) {
+  for (const [cat, list] of Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))) {
+    console.log(chalk.dim(`  ${cat}`));
+    for (const b of list) {
+      console.log(`    ${chalk.green(b.key.padEnd(18))} ${b.name}`);
+    }
+  }
+}
+
 export function handleOdBrandList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_DESIGN_SYSTEMS_DIR)) {
-    console.log(chalk.yellow('  open-design 设计系统目录未找到，跳过'));
     return 'open-design 品牌列表跳过（目录不存在）';
   }
 
@@ -363,40 +392,14 @@ export function handleOdBrandList(_action, _params, _targetPath, context) {
   const brands = [];
 
   for (const entry of entries) {
-    if (!entry.isDirectory() || entry.name.startsWith('_') || entry.name.startsWith('.')) continue;
-    const designMd = join(OD_DESIGN_SYSTEMS_DIR, entry.name, 'DESIGN.md');
-    let category = '';
-    let displayName = entry.name;
-    if (existsSync(designMd)) {
-      try {
-        const content = readFileSync(designMd, 'utf-8');
-        const titleMatch = content.match(/^#\s*(.+)/m);
-        if (titleMatch) displayName = titleMatch[1].replace(/^Design System Inspired by /i, '').trim();
-        const catMatch = content.match(/^>\s*Category:\s*(.+)/m);
-        if (catMatch) category = catMatch[1].trim();
-      } catch { /* keep defaults */ }
-    }
-    brands.push({ key: entry.name, name: displayName, category });
+    const isHidden = !entry.isDirectory() || entry.name.startsWith('_') || entry.name.startsWith('.');
+    if (isHidden) continue;
+    brands.push(readBrandFromEntry(entry));
   }
 
   brands.sort((a, b) => a.key.localeCompare(b.key));
-
-  // Group by category
-  const groups = {};
-  for (const b of brands) {
-    const cat = b.category || 'Uncategorized';
-    if (!Object.hasOwn(groups, cat)) groups[cat] = [];
-    groups[cat].push(b);
-  }
-
-  console.log(chalk.cyan(`\n  open-design 品牌设计系统（${brands.length} 个）：\n`));
-  for (const [cat, list] of Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))) {
-    console.log(chalk.yellow(`  ${cat}`));
-    for (const b of list) {
-      console.log(`    ${chalk.green(b.key.padEnd(18))} ${b.name}`);
-    }
-    console.log('');
-  }
+  const groups = groupBrandsByCategory(brands);
+  printBrandGroups(brands, groups);
 
   if (context) {
     context.od_available_brands = brands.map(b => b.key);
@@ -430,20 +433,13 @@ export function handleOdBrandPick(_action, _params, _targetPath, context) {
   const availablePick = BRAND_SHORTLIST.filter(b => availableSet.has(b.key));
 
   if (availablePick.length === 0) {
-    console.log(chalk.yellow('  open-design: 精选品牌列表中无匹配品牌，回退到完整列表首项'));
     if (context) context.od_brand_shortlist = [];
     return '品牌精选列表为空（回退到自动选择）';
   }
 
-  console.log(chalk.cyan.bold(`\n  🎨 Open Design 精选品牌（${availablePick.length} 个配色方案）：\n`));
   availablePick.forEach((b, i) => {
-    const idx = chalk.dim(String(i + 1).padStart(2));
-    const key = chalk.green(b.key.padEnd(12));
-    const accent = chalk.hex(b.accent)('██');
-    console.log(`    ${idx}. ${key} ${accent}  ${chalk.white(b.desc)}`);
+    console.log(`${chalk.dim(String(i + 1).padStart(2))} ${chalk.green(b.key.padEnd(12))} ${b.name}`);
   });
-  console.log(chalk.dim(`\n  输入品牌 key（如 stripe、apple）或序号 1-${availablePick.length} 选择`));
-  console.log(chalk.dim('  直接回车 = 自动选第 1 个\n'));
 
   if (context) {
     context.od_brand_shortlist = availablePick;
@@ -455,24 +451,46 @@ export function handleOdBrandPick(_action, _params, _targetPath, context) {
   return `品牌精选列表已展示（${availablePick.length} 个，默认 ${availablePick[0].key}）`;
 }
 
+function autoSelectBrand(available, context) {
+  const prompt = (context?.prompt || '').toLowerCase();
+  const mentioned = available.find(b => prompt.includes(b));
+  if (mentioned) return mentioned;
+  const priority = ['stripe', 'apple', 'airbnb', 'vercel', 'notion', 'github', 'supabase', 'figma', 'spotify', 'shopify', 'discord', 'slack', 'uber'];
+  return priority.find(p => available.includes(p)) || available[0];
+}
+
+function importBrandFileToContext(context, brandDir, fileName, contextKey) {
+  const filePath = join(brandDir, fileName);
+  if (!existsSync(filePath)) return false;
+  try {
+    context[contextKey] = readFileSync(filePath, 'utf-8');
+    return true;
+  } catch { return false; }
+}
+
+function importBrandFiles(context, brandDir) {
+  let imported = 0;
+  const fileMap = [
+    ['tokens.css', 'od_brand_css'],
+    ['DESIGN.md', 'od_brand_design_md'],
+    ['components.html', 'od_brand_components'],
+  ];
+  for (const [fileName, contextKey] of fileMap) {
+    if (importBrandFileToContext(context, brandDir, fileName, contextKey)) {
+      imported++;
+    }
+  }
+  return imported;
+}
+
 export function handleOdBrandImport(_action, params, _targetPath, context) {
   let brand = params?.brand || context?.user_selected_brand || context?.od_selected_brand;
   if (!brand || brand.toLowerCase() === 'skip') {
-    // Auto-select: match project context → priority tier → first available brand
     const available = context?.od_available_brands || [];
     if (available.length === 0) {
       return 'open-design 品牌导入已跳过（无可用品牌）';
     }
-    const prompt = (context?.prompt || '').toLowerCase();
-    const mentioned = available.find(b => prompt.includes(b));
-    if (mentioned) {
-      brand = mentioned;
-    } else {
-      // Tiered priority: well-known brands with proven color palettes
-      const priority = ['stripe', 'apple', 'airbnb', 'vercel', 'notion', 'github', 'supabase', 'figma', 'spotify', 'shopify', 'discord', 'slack', 'uber'];
-      brand = priority.find(p => available.includes(p)) || available[0];
-    }
-    console.log(chalk.cyan(`  open-design: 自动选择品牌 "${brand}"（${available.length} 个可用，可设 user_selected_brand 覆盖）`));
+    brand = autoSelectBrand(available, context);
   }
 
   const brandKey = brand.toLowerCase().trim();
@@ -482,32 +500,8 @@ export function handleOdBrandImport(_action, params, _targetPath, context) {
     return `open-design 品牌 "${brand}" 未找到（目录: ${brandDir}）`;
   }
 
-  let imported = 0;
-  const tokensCss = join(brandDir, 'tokens.css');
-  const designMd = join(brandDir, 'DESIGN.md');
-  const componentsHtml = join(brandDir, 'components.html');
-
-  if (context) {
-    if (existsSync(tokensCss)) {
-      try {
-        context.od_brand_css = readFileSync(tokensCss, 'utf-8');
-        imported++;
-      } catch { /* skip */ }
-    }
-    if (existsSync(designMd)) {
-      try {
-        context.od_brand_design_md = readFileSync(designMd, 'utf-8');
-        imported++;
-      } catch { /* skip */ }
-    }
-    if (existsSync(componentsHtml)) {
-      try {
-        context.od_brand_components = readFileSync(componentsHtml, 'utf-8');
-        imported++;
-      } catch { /* skip */ }
-    }
-    context.od_selected_brand = brandKey;
-  }
+  const imported = context ? importBrandFiles(context, brandDir) : 0;
+  if (context) context.od_selected_brand = brandKey;
 
   return `open-design 品牌 "${brandKey}" 已导入（${imported} 个文件）`;
 }
@@ -532,9 +526,9 @@ function readTemplateSKILL(templateDir) {
     const desc = descMulti
       ? descMulti[1].trim()
       : (fm.match(/^description:\s*(.+)/m) || [])[1]?.trim() || '';
-    const mode = (fm.match(/^\s+mode:\s*(.+)/m) || [])[1]?.trim() || 'prototype';
-    const platform = (fm.match(/^\s+platform:\s*(.+)/m) || [])[1]?.trim() || 'desktop';
-    const scenario = (fm.match(/^\s+scenario:\s*(.+)/m) || [])[1]?.trim() || '';
+    const mode = (fm.match(/^[ \t]+mode:\s*(.+)/m) || [])[1]?.trim() || 'prototype';
+    const platform = (fm.match(/^[ \t]+platform:\s*(.+)/m) || [])[1]?.trim() || 'desktop';
+    const scenario = (fm.match(/^[ \t]+scenario:\s*(.+)/m) || [])[1]?.trim() || '';
     const hasExample = existsSync(join(templateDir, 'example.html'));
     const hasAssets = existsSync(join(templateDir, 'assets'));
     const hasReferences = existsSync(join(templateDir, 'references'));
@@ -551,18 +545,15 @@ function printTemplateList(templates) {
     if (!Object.hasOwn(groups, mode)) groups[mode] = [];
     groups[mode].push(t);
   }
-  console.log(chalk.cyan(`\n  open-design 设计模板（${templates.length} 个）：\n`));
   const modeLabels = { prototype: 'Web 原型', deck: 'PPT 演示', template: '页面模板', image: '图片', video: '视频', audio: '音频' };
   for (const [mode, list] of Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))) {
-    console.log(chalk.yellow(`  ${modeLabels[mode] || mode}（${list.length} 个）`));
+    console.log(chalk.dim(`  ${modeLabels[mode] || mode}`));
     for (const t of list) {
       const badges = [];
       if (t.hasExample) badges.push('\u{1F4C4}');
       if (t.hasAssets) badges.push('\u{1F4E6}');
       if (t.hasReferences) badges.push('\u{1F4CB}');
-      console.log(`    ${chalk.green(t.key.padEnd(28))} ${t.name}  ${badges.join(' ')}`);
     }
-    console.log('');
   }
 }
 
@@ -587,7 +578,6 @@ function loadTemplateContext(templateDir, templateId, context) {
 
 export function handleOdTemplateList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_TEMPLATES_DIR)) {
-    console.log(chalk.yellow('  open-design 模板目录未找到，跳过'));
     return 'open-design 模板列表跳过（目录不存在）';
   }
 
@@ -617,7 +607,6 @@ export function handleOdTemplatePreview(_action, params, targetPath, context) {
       return '模板预览已跳过（无可用模板）';
     }
     templateId = available[0];
-    console.log(chalk.cyan(`  open-design: 自动选择模板 "${templateId}"（${available.length} 个可用，可设 user_selected_template 覆盖）`));
   }
 
   const templateDir = join(OD_TEMPLATES_DIR, templateId.toLowerCase().trim());
@@ -682,7 +671,6 @@ export function handleOdSkillLoad(_action, params, _targetPath, context) {
     if (!skillName) {
       return 'open-design skill 加载已跳过（未找到核心 Skill）';
     }
-    console.log(chalk.cyan(`  open-design: 自动加载 Skill "${skillName}"（可设 od_selected_skill 覆盖）`));
   }
 
   const skillDir = join(OD_SKILLS_DIR, skillName.toLowerCase().trim());
@@ -710,7 +698,6 @@ const OD_FRAMES_DIR = join(PROJECT_ROOT, 'open-design', 'assets', 'frames');
 
 export function handleOdFrameList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_FRAMES_DIR)) {
-    console.log(chalk.yellow('  open-design frames 目录未找到，跳过'));
     return 'open-design 设备框架列表跳过（目录不存在）';
   }
   const frameFiles = readdirSync(OD_FRAMES_DIR).filter(f => f.endsWith('.html'));
@@ -722,9 +709,6 @@ export function handleOdFrameList(_action, _params, _targetPath, context) {
       return { key: name, title: titleMatch ? titleMatch[1] : name };
     } catch { return { key: name, title: name }; }
   });
-
-  console.log(chalk.cyan(`\n  open-design 设备框架（${frames.length} 个）：\n`));
-  frames.forEach(f => console.log(`    ${chalk.green(f.key.padEnd(20))} ${f.title}`));
 
   if (context) {
     context.od_available_frames = frames.map(f => f.key);
@@ -743,7 +727,6 @@ export function handleOdFrameApply(_action, params, targetPath, context) {
       return '设备框架应用已跳过（无可用框架）';
     }
     frameId = available.includes('iphone-15-pro') ? 'iphone-15-pro' : available[0];
-    console.log(chalk.cyan(`  open-design: 自动选择框架 "${frameId}"（${available.length} 个可用）`));
   }
 
   const frameFile = join(OD_FRAMES_DIR, `${frameId}.html`);
@@ -791,7 +774,6 @@ export function handleOdPromptTemplateList(_action, _params, _targetPath, contex
   }
 
   const total = Object.values(groups).reduce((sum, arr) => sum + arr.length, 0);
-  console.log(chalk.cyan(`\n  open-design 提示词模板（${total} 个）：\n`));
   for (const [type, list] of Object.entries(groups)) {
     console.log(chalk.yellow(`  [${type}] (${list.length} 个)`));
     list.slice(0, 8).forEach(t => console.log(`    ${chalk.green(t.key.padEnd(40))} ${t.title}`));
@@ -815,7 +797,6 @@ export function handleOdPromptTemplateLoad(_action, params, _targetPath, context
       return '提示词模板加载已跳过（无可用模板）';
     }
     promptId = available[0];
-    console.log(chalk.cyan(`  open-design: 自动选择提示词模板 "${promptId}"（${available.length} 个可用，可设 od_selected_prompt 覆盖）`));
   }
 
   for (const type of ['image', 'video']) {
@@ -840,7 +821,6 @@ const OD_DECKS_DIR = join(PROJECT_ROOT, 'open-design', 'templates');
 
 export function handleOdDeckList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_DECKS_DIR)) {
-    console.log(chalk.yellow('  open-design decks 目录未找到，跳过'));
     return 'open-design 演示文稿模板列表跳过（目录不存在）';
   }
   const decks = [];
@@ -862,9 +842,6 @@ export function handleOdDeckList(_action, _params, _targetPath, context) {
     });
   }
 
-  console.log(chalk.cyan(`\n  open-design 演示文稿模板（${decks.length} 个）：\n`));
-  for (const d of decks) console.log(`    ${chalk.green(d.key.padEnd(30))} ${d.title}  [${d.type}]`);
-
   if (context) {
     context.od_available_decks = decks.map(d => d.key);
     context.od_deck_count = decks.length;
@@ -880,7 +857,6 @@ export function handleOdDeckLoad(_action, params, targetPath, context) {
       return '演示文稿加载已跳过（无可用模板）';
     }
     deckId = available[0];
-    console.log(chalk.cyan(`  open-design: 自动选择演示文稿 "${deckId}"`));
   }
 
   // Validate deckId doesn't contain shell metacharacters or path traversal

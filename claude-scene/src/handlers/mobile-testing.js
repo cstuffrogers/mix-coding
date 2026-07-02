@@ -65,9 +65,7 @@ export function handleVerifySetup(_action, _params, targetPath, context) {
     detail: configFile,
   });
 
-  for (const _c of checks) {
-    /* check recorded in context */
-  }
+
 
   if (context) context.e2e_verified = checks.every(c => c.status === 'ok');
   return `测试环境验证完成: ${checks.filter(c => c.status === 'ok').length}/${checks.length} 通过`;

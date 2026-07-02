@@ -3,19 +3,12 @@ import { join } from 'path';
 import chalk from 'chalk';
 import { readCodeFiles } from '../lib/code-analysis-utils.js';
 
-export function handleI18nAudit(_action, params, targetPath, context) {
-  const mode = params?.mode || 'check';
-
-  const srcDir = join(targetPath, 'src');
-  const findings = [];
-
-  const chineseRe = /['"`][^'"`]*[一-鿿][^'"`]*['"`]/g;
+function scanHardcodedChinese(srcDir, chineseRe) {
   let hardcodedChinese = 0;
+  const findings = [];
   for (const file of readCodeFiles(srcDir)) {
     if (/\.test\./.test(file.path)) continue;
-    // Skip i18n config/locale files
     if (/locale|i18n|lang|translat/.test(file.path)) continue;
-
     const matches = file.content.match(chineseRe) || [];
     if (matches.length > 0) {
       hardcodedChinese += matches.length;
@@ -24,6 +17,67 @@ export function handleI18nAudit(_action, params, targetPath, context) {
       }
     }
   }
+  return { findings, hardcodedChinese };
+}
+
+function detectI18nConfig(targetPath) {
+  const configs = ['i18n.js', 'i18n.ts', 'i18next.js', 'react-i18next.js', 'next-i18next.config.js'];
+  for (const cfg of configs) {
+    if (existsSync(join(targetPath, cfg)) || existsSync(join(targetPath, 'src', cfg))) {
+      return true;
+    }
+  }
+  try {
+    const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
+    const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+    if (allDeps['i18next'] || allDeps['react-i18next'] || allDeps['vue-i18n'] || allDeps['next-i18next']) {
+      return true;
+    }
+  } catch { /* no package.json */ }
+  return false;
+}
+
+function scanCssRtlIssues(content, filePath) {
+  const issues = [];
+  if (/text-align\s*:\s*left(?!\s*\/)/i.test(content) && !/\[dir\s*=\s*["']rtl["']\]/i.test(content)) {
+    issues.push({ file: filePath, issue: 'text-align: left 未适配 RTL' });
+  }
+  if (/float\s*:\s*left(?!\s*\/)/i.test(content) && !/\[dir\s*=\s*["']rtl["']\]/i.test(content)) {
+    issues.push({ file: filePath, issue: 'float: left 未适配 RTL' });
+  }
+  if (/margin-left|padding-left|border-left(?!-)/i.test(content) && !/\[dir\s*=\s*["']rtl["']\]|margin-inline|padding-inline|border-inline/i.test(content)) {
+    issues.push({ file: filePath, issue: '使用 left 侧物理属性而非 logical 属性' });
+  }
+  return issues;
+}
+
+function scanJsxRtlIssues(content, filePath) {
+  const issues = [];
+  if (/(?:marginLeft|paddingLeft|borderLeft|marginRight|paddingRight|borderRight)\s*:/g.test(content)) {
+    issues.push({ file: filePath, issue: 'JSX style 使用 left/right 物理属性' });
+  }
+  return issues;
+}
+
+function scanRtlIssues(srcDir) {
+  const rtlIssues = [];
+  for (const file of readCodeFiles(srcDir)) {
+    if (/\.css$|\.scss$|\.less$/.test(file.path)) {
+      rtlIssues.push(...scanCssRtlIssues(file.content, file.path));
+    }
+    if (/\.tsx$|\.jsx$/.test(file.path)) {
+      rtlIssues.push(...scanJsxRtlIssues(file.content, file.path));
+    }
+  }
+  return rtlIssues;
+}
+
+export function handleI18nAudit(_action, params, targetPath, context) {
+  const mode = params?.mode || 'check';
+  const srcDir = join(targetPath, 'src');
+  const chineseRe = /['"`][^'"`\u4e00-\u9fff]*[\u4e00-\u9fff][^'"`]*['"`]/g;
+
+  const { findings, hardcodedChinese } = scanHardcodedChinese(srcDir, chineseRe);
 
   if (hardcodedChinese > 0) {
     findings.filter(f => f.issue === '硬编码中文').slice(0, 5).forEach(f => {
@@ -33,50 +87,13 @@ export function handleI18nAudit(_action, params, targetPath, context) {
     console.log(chalk.green('  ✅ 未发现硬编码中文字符串'));
   }
 
-  const i18nConfigs = ['i18n.js', 'i18n.ts', 'i18next.js', 'react-i18next.js', 'next-i18next.config.js'];
-  let hasI18nConfig = false;
-  for (const cfg of i18nConfigs) {
-    if (existsSync(join(targetPath, cfg)) || existsSync(join(targetPath, 'src', cfg))) {
-      hasI18nConfig = true;
-      break;
-    }
-  }
-  // Also check package.json for i18n deps
-  try {
-    const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
-    const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
-    if (allDeps['i18next'] || allDeps['react-i18next'] || allDeps['vue-i18n'] || allDeps['next-i18next']) {
-      hasI18nConfig = true;
-    }
-  } catch { /* no package.json */ }
+  const hasI18nConfig = detectI18nConfig(targetPath);
 
   if (!hasI18nConfig && hardcodedChinese > 0) {
     console.log(chalk.yellow('  ⚠ 未检测到 i18n 配置，建议接入 react-i18next / vue-i18n'));
   }
 
-  const rtlIssues = [];
-  for (const file of readCodeFiles(srcDir)) {
-    if (/\.css$|\.scss$|\.less$/.test(file.path)) {
-      const content = file.content;
-      // Check for LTR-only patterns that would break in RTL
-      if (/text-align\s*:\s*left(?!\s*\/)/i.test(content) && !/\[dir\s*=\s*["']rtl["']\]/i.test(content)) {
-        rtlIssues.push({ file: file.path, issue: 'text-align: left 未适配 RTL' });
-      }
-      if (/float\s*:\s*left(?!\s*\/)/i.test(content) && !/\[dir\s*=\s*["']rtl["']\]/i.test(content)) {
-        rtlIssues.push({ file: file.path, issue: 'float: left 未适配 RTL' });
-      }
-      if (/margin-left|padding-left|border-left(?!-)/i.test(content) && !/\[dir\s*=\s*["']rtl["']\]|margin-inline|padding-inline|border-inline/i.test(content)) {
-        rtlIssues.push({ file: file.path, issue: '使用 left 侧物理属性而非 logical 属性' });
-      }
-    }
-    if (/\.tsx$|\.jsx$/.test(file.path)) {
-      const content = file.content;
-      // Check for style objects in JSX using left/right instead of start/end
-      if (/(?:marginLeft|paddingLeft|borderLeft|marginRight|paddingRight|borderRight)\s*:/g.test(content)) {
-        rtlIssues.push({ file: file.path, issue: 'JSX style 使用 left/right 物理属性' });
-      }
-    }
-  }
+  const rtlIssues = scanRtlIssues(srcDir);
 
   if (rtlIssues.length > 0) {
     rtlIssues.slice(0, 5).forEach(f => {
@@ -86,15 +103,12 @@ export function handleI18nAudit(_action, params, targetPath, context) {
     console.log(chalk.green('  ✅ RTL 布局适配检查通过'));
   }
 
-  // Check 4: Pseudo-localization overflow test (if mode includes it)
   if (mode === 'full') {
     console.log(chalk.dim('  ℹ 伪本地化溢出测试需手动运行: npx pseudo-localization'));
   }
 
   const totalIssues = findings.length + rtlIssues.length;
   if (context) {
-    // For projects without i18n config, hardcoded strings in the project's
-    // native language are expected — not a failure.
     context.i18nPassed = hasI18nConfig ? totalIssues === 0 : true;
     context.i18nFindings = totalIssues;
   }

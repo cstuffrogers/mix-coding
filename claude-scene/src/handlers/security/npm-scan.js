@@ -19,8 +19,7 @@ export function handleSecurityScan(_action, _params, targetPath, context) {
   } catch {
     try {
       const audit2 = safeExec('npm audit 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-      // eslint-disable-next-line sonarjs/slow-regex
-      const foundMatch = audit2.match(/(\d+)\s+vulnerabilities/);
+      const foundMatch = audit2.match(/(?<!\d)(\d+)\s+vulnerabilities/);
       if (foundMatch && parseInt(foundMatch[1]) > 0) {
         issues.push(`npm: ${foundMatch[1]} 漏洞`);
       }

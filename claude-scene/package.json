@@ -21,7 +21,7 @@
     "artillery": "^2.0.33",
     "eslint": "^10.5.0",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-sonarjs": "^4.0.3",
+    "eslint-plugin-sonarjs": "^4.1.0",
     "eslint-plugin-unicorn": "^67.0.0",
     "knip": "^6.17.1",
     "license-checker": "^25.0.1",

@@ -551,31 +551,6 @@ const ACTION_MESSAGES = {
     'egress-benchmark': 'egress benchmark 检查完成',
     llmProxyReport: 'llmProxyReport 检查完成',
     'llm-proxy-report': 'llm proxy report 检查完成',
-
-    // New external tools (trivy / ShellCheck / SQLFluff / Bruno)
-    trivyScan: 'trivy 安全扫描完成（容器/文件系统/IaC：CVE + 密钥 + 配置错误）',
-    'trivy-scan': 'trivy 安全扫描完成（容器/文件系统/IaC：CVE + 密钥 + 配置错误）',
-    trivy: 'trivy 安全扫描完成（容器/文件系统/IaC）',
-    shellCheck: 'ShellCheck shell 脚本静态分析完成',
-    'shell-check': 'ShellCheck shell 脚本静态分析完成',
-    shellcheck: 'ShellCheck shell 脚本静态分析完成',
-    sqlFluff: 'SQLFluff SQL lint 检查完成',
-    'sql-fluff': 'SQLFluff SQL lint 检查完成',
-    sqlfluff: 'SQLFluff SQL lint 检查完成',
-    brunoRun: 'Bruno API 测试集合运行完成',
-    'bruno-run': 'Bruno API 测试集合运行完成',
-    bruno: 'Bruno API 测试集合运行完成',
-
-    // New external tools (Gitleaks / Semgrep / Commitlint)
-    gitleaks: 'Gitleaks Git 历史密钥扫描完成',
-    'gitleaks-detect': 'Gitleaks Git 历史密钥扫描完成',
-    gitleaksDetect: 'Gitleaks Git 历史密钥扫描完成',
-    semgrep: 'Semgrep 多语言 AST 级 SAST 扫描完成',
-    'semgrep-scan': 'Semgrep 多语言 AST 级 SAST 扫描完成',
-    semgrepScan: 'Semgrep 多语言 AST 级 SAST 扫描完成',
-    commitlint: 'Commitlint Conventional Commits 格式校验完成',
-    'commitlint-check': 'Commitlint Conventional Commits 格式校验完成',
-    commitlintCheck: 'Commitlint Conventional Commits 格式校验完成',
 };
 
 export function getActionMessage(action) {

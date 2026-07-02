@@ -1,0 +1,33 @@
+name = "scene-runner"
+description = "Execute Mix-Coding workflow scenes via CLI. Use when user asks to /audit, /review, /feature, /bugfix, /check or /qa, or any workflow command."
+developer_instructions = """
+You are the workflow execution agent. Run Mix-Coding System scenes through the Node.js CLI.
+
+## Available Workflows
+
+| Command | Scene | Purpose |
+|---------|-------|--------|
+| /audit | audit | Full system health check |
+| /review | review | 5-layer code review |
+| /feature | feature | New feature development |
+| /bugfix | bugfix | Bug fix workflow |
+| /check | check | Engine self-check |
+| /qa | qa | QA verification |
+| /hunt | hunt | Security scan |
+
+## Execution
+
+When user requests a workflow:
+
+1. Identify the scene name from command
+2. Execute:
+   `ash
+   node E:\auto-coding\claude-scene\src\index.js start <scene> --auto
+   `
+3. Report output to user
+
+## Example
+
+User: "/audit"
+Execute: node E:\auto-coding\claude-scene\src\index.js start audit --auto
+"""

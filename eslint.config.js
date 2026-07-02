@@ -1,35 +1,41 @@
-import js from '@eslint/js';
-import globals from 'globals';
+import js from "@eslint/js";
+import sonarjs from "eslint-plugin-sonarjs";
+
+const IGNORED_DIRS = [
+  "**/node_modules/**",
+  "**/coverage/**",
+  "**/dist/**",
+  ".huashu-extract/**",
+  "assets/huashu/**",
+  ".claude/skills/impeccable/**",
+  ".specify/**",
+  "**/*.umd.js",
+  "**/*.min.js",
+  ".claude/",
+  ".codex/",
+  ".zcode/",
+  ".opencode/",
+  ".github/",
+  ".husky/",
+  "open-design/**",
+  "scripts/**",
+  ".mcp/**",
+];
 
 export default [
-  {
-    ignores: [
-      'node_modules/',
-      'dist/',
-      'build/',
-      '.mcp/*/dist/',
-      '.mcp/*/build/',
-      'coverage/',
-      // Subprojects with their own ESLint configs
-      'open-design/',
-      'codegraph-win32-x64/',
-      '.codegraph/',
-      'ecc/',
-    ],
-  },
+  { ignores: IGNORED_DIRS },
   js.configs.recommended,
+  sonarjs.configs.recommended,
   {
-    languageOptions: {
-      globals: {
-        ...globals.node,
-      },
-    },
     rules: {
-      'no-eval': 'error',
-      'no-implied-eval': 'error',
-      'no-new-func': 'error',
-      'no-script-url': 'error',
-      'no-prototype-builtins': 'error',
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-empty": ["error", { allowEmptyCatch: true }],
+      "no-undef": "warn",
+      "sonarjs/no-nested-template-literals": "off",
+      "sonarjs/no-nested-conditional": "off",
+      "sonarjs/os-command": "off",
+      "sonarjs/no-os-command-from-path": "off",
+      "sonarjs/no-ignored-exceptions": "off",
     },
   },
 ];

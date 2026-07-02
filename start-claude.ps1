@@ -19,6 +19,15 @@ Write-Host "Commands: /audit /bugfix /feature /review /design /analyze /hunt /op
 Write-Host "=============================================="
 Write-Host ""
 
+# 运行 init 检查
+$InitScript = Join-Path $ProjectDir "init.sh"
+if (Test-Path $InitScript) {
+    Write-Host "[INFO] Running init.sh..." -ForegroundColor DarkGray
+    & "C:\Program Files\Git\bin\bash.exe" $InitScript
+    Write-Host "[INFO] init.sh completed" -ForegroundColor DarkGray
+    Write-Host ""
+}
+
 # 读取 system prompt（UTF-8 编码）
 $PromptFile = Join-Path $ProjectDir ".claude\system-prompt.txt"
 if (Test-Path $PromptFile) {
