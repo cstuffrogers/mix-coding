@@ -30,12 +30,6 @@ function detectOS() {
   return 'linux';
 }
 
-function detectArch() {
-  const arch = process.arch;
-  if (arch === 'x64') return 'amd64';
-  if (arch === 'arm64') return 'arm64';
-  return arch;
-}
 
 // ── Layer 1: Lobster Trap ──
 
@@ -46,7 +40,6 @@ function detectArch() {
 export function handleLobsterTrapInstall(_action, _params, targetPath, context) {
   const toolsDir = ensureToolsDir(targetPath);
   const os = detectOS();
-  const arch = detectArch();
   const binName = os === 'windows' ? 'lobstertrap.exe' : 'lobstertrap';
   const binPath = join(toolsDir, binName);
 

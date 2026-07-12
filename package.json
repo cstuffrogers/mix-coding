@@ -8,6 +8,13 @@
     "test": "vitest",
     "visual-test": "playwright test",
     "lint": "eslint .",
+    "lint:biome": "biome check .",
+    "format:biome": "biome check --write .",
+    "ci:biome": "biome ci .",
+    "lint:ruff": "ruff check .",
+    "format:ruff": "ruff format .",
+    "test:api": "hurl --test --glob 'tests/api/**/*.hurl'",
+    "test:api:report": "hurl --test --report-html target/hurl-report --glob 'tests/api/**/*.hurl'",
     "start": "node claude-scene/src/index.js",
     "scan:deadcode": "node scripts/find-deadcode-full.cjs",
     "scan:memory": "node scripts/check-memory-system.cjs",
@@ -17,6 +24,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.3",
     "@browserbasehq/stagehand": "^3.6.0",
     "@critiq/cli": "^0.4.0",
     "@critiq/rules": "^0.4.0",

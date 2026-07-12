@@ -549,10 +549,12 @@ function printTemplateList(templates) {
   for (const [mode, list] of Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))) {
     console.log(chalk.dim(`  ${modeLabels[mode] || mode}`));
     for (const t of list) {
-      const badges = [];
-      if (t.hasExample) badges.push('\u{1F4C4}');
-      if (t.hasAssets) badges.push('\u{1F4E6}');
-      if (t.hasReferences) badges.push('\u{1F4CB}');
+      const parts = [
+        t.hasExample && '\u{1F4C4}',
+        t.hasAssets && '\u{1F4E6}',
+        t.hasReferences && '\u{1F4CB}',
+      ].filter(Boolean);
+      console.log(chalk.gray(`    ${t.key}${t.desc ? ` - ${t.desc}` : ''} ${parts.join(' ')}`));
     }
   }
 }
@@ -592,7 +594,7 @@ export function handleOdTemplateList(_action, _params, _targetPath, context) {
   printTemplateList(templates);
 
   if (context) {
-    context.od_available_templates = templates.map(t => t.key);
+    context.od_available_templates = templates.map((t) => t.key);
     context.od_template_count = templates.length;
     context.od_templates_detail = templates;
   }

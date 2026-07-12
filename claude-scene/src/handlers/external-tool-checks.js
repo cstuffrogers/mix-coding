@@ -596,7 +596,7 @@ export function handleStryker(_action, _params, targetPath, context) {
     }
 
     if (score > 0) {
-      isPassed = logStrykerScore(score, killed, survived);
+      isPassed = logStrykerScore(score);
     } else if (!textResult) {
       console.log(chalk.dim('  ℹ Stryker 不可用，跳过变异测试'));
     }

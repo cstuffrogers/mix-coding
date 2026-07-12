@@ -36,6 +36,9 @@
 | **gitleaks** | Go 二进制 | `/hunt`, `/audit` | Git 历史 + 实时密钥泄露检测：120+ 内置规则 (18k+ stars) |
 | **semgrep** | Python CLI | `/hunt`, `/audit`, `/review` | 多语言 AST 级 SAST：2,500+ 社区规则 (11k+ stars) |
 | **commitlint** | npm CLI | `/review`, `/cicd` | Conventional Commits 格式校验 (18k+ stars) |
+| **biome** | npm CLI | `/review`, `/audit`, `/refactor` | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier (50k+ stars) |
+| **ruff** | Python CLI | `/review`, `/audit`, `/refactor` | Rust 编写 Python linter + formatter，替代 Flake8+isort+black (35k+ stars) |
+| **hurl** | Rust 二进制 | `/e2e`, `/review`, `/cicd` | 纯文本 API 测试 CLI，替代 bruno 做 CI 集成 (13k+ stars) |
 
 ## 工具安装
 
@@ -47,6 +50,9 @@ pip install git+https://github.com/NVIDIA/skillspector.git
 pip install sqlfluff
 pip install semgrep
 npm install -D @commitlint/cli @commitlint/config-conventional
+npm install -D @biomejs/biome
+pip install ruff
+# hurl: https://github.com/Orange-OpenSource/hurl/releases (winget install Orange-OpenSource.Hurl / brew install hurl)
 # gitleaks: https://github.com/gitleaks/gitleaks/releases (winget install Gitleaks.Gitleaks / brew install gitleaks)
 # lychee: https://github.com/lycheeverse/lychee/releases
 # trivy: https://github.com/aquasecurity/trivy/releases (winget install AquaSecurity.Trivy / brew install trivy)

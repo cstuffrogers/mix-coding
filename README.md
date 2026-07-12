@@ -18,7 +18,7 @@
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
 - ✅ **浏览器功能测试**：Stagehand 集成，act/extract/observe API + 自愈选择器，AI 驱动用户关键路径验证（10 个工作流可选增强）
 - ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计 + mythos-agent 假设驱动推理（变量分析 + PoC 生成，8 个工作流可选增强）+ 安全响应头扫描 + 构建泄露检测 + 死链检测 + 开放重定向检测 + 状态管理审计 + 正则 ReDoS 扫描 + 日志脱敏 + CORS 检查 + 敏感文件检查 + 供应链安全扫描
-- ✅ **外部工具链**：26 个工具（Critiq / Stagehand / mythos-agent / trivy / gitleaks / semgrep / commitlint / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / shellcheck / sqlfluff / bruno / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— 容器/文件系统/IaC 安全扫描 + Git 历史密钥检测 + 多语言 AST 级 SAST + Commit 规范校验 + Shell 脚本分析 + SQL lint + API 交互测试 + 确定性安全规则扫描（1,243 条规则 9 语言）、AI 浏览器功能测试、假设驱动安全推理、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
+- ✅ **外部工具链**：29 个工具（Biome / Ruff / Hurl / Critiq / Stagehand / mythos-agent / trivy / gitleaks / semgrep / commitlint / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / shellcheck / sqlfluff / bruno / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— JS/TS lint+format / Python lint+format / API 测试 / 容器/文件系统/IaC 安全扫描 + Git 历史密钥检测 + 多语言 AST 级 SAST + Commit 规范校验 + Shell 脚本分析 + SQL lint + API 交互测试 + 确定性安全规则扫描（1,243 条规则 9 语言）、AI 浏览器功能测试、假设驱动安全推理、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
 - ✅ **记忆组件组合**：6 种记忆工具协同工作
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
@@ -457,6 +457,9 @@ node src/index.js start hunt --auto --target "./your-project"
 | **gitleaks** | Go 二进制 | `/hunt`, `/audit` | Git 历史密钥泄露检测：120+ 内置规则，detect/describe/git 子命令（18k+ stars, MIT） | — |
 | **semgrep** | Python CLI | `/hunt`, `/audit`, `/review` | 多语言 AST 级 SAST：2,500+ 社区规则，支持自定义规则，跨语言模式匹配（11k+ stars, LGPL） | — |
 | **commitlint** | npm CLI | `/review`, `/cicd` | Conventional Commits 格式校验：`@commitlint/config-conventional` + 可扩展规则（18k+ stars, MIT） | — |
+| **biome** | npm CLI | `/review`, `/audit`, `/refactor` | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier，零配置高性能（50k+ stars, MIT/Apache-2.0） | — |
+| **ruff** | Python CLI | `/review`, `/audit`, `/refactor` | Rust 编写 Python linter + formatter，替代 Flake8+isort+black，10-100x 更快（35k+ stars, MIT） | — |
+| **hurl** | Rust 二进制 | `/e2e`, `/review`, `/cicd` | 纯文本 API 测试 CLI，Git 友好，CI/CD 原生支持（13k+ stars, Apache-2.0） | — |
 
 ### 工具安装
 
@@ -487,6 +490,16 @@ npm install -g @usebruno/cli
 
 # commitlint — Commit 规范校验
 npm install -D @commitlint/cli @commitlint/config-conventional
+
+# biome — JS/TS linter + formatter (Rust, 50k+ stars)
+npm install -D @biomejs/biome
+
+# ruff — Python linter + formatter (Rust, 35k+ stars)
+pip install ruff
+
+# hurl — API 测试 CLI (Rust, 13k+ stars)
+# winget install Orange-OpenSource.Hurl  (Windows, 需管理员)
+# brew install hurl                       (macOS)
 
 # lychee 死链检测 — 按平台下载二进制
 # https://github.com/lycheeverse/lychee/releases
@@ -725,7 +738,7 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **80+ 个外部组件**：Skills 21 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 23 个 + 外部工具 25 个 + MemPalace 工具 1 个
+> 共集成 **83+ 个外部组件**：Skills 21 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个 + MemPalace 工具 1 个
 
 ### 本地 Skills（21 个，`.claude/skills/`）
 
@@ -764,21 +777,21 @@ claude plugins install compound-engineering@anthropic
 
 **dependencies（4）**：`chalk`、`commander`、`inquirer`、`ora`
 
-### 外部工具（25 个，按类型）
+### 外部工具（28 个，按类型）
 
 | 类型 | 数量 | 工具 | 安装方式 |
 |------|------|------|---------|
-| **uv/Python** | 5 | `specify-cli`（spec-kit）、`seraphim-audit`、`skillspector`、`sqlfluff`、`semgrep` | uv tool install / pip install |
-| **Rust 二进制** | 1 | `lychee` | brew / cargo / 下载 exe |
+| **uv/Python** | 6 | `specify-cli`（spec-kit）、`seraphim-audit`、`skillspector`、`sqlfluff`、`semgrep`、`ruff` | uv tool install / pip install |
+| **Rust 二进制** | 2 | `lychee`、`hurl` | brew / cargo / winget / 下载 exe |
 | **Go 二进制** | 4 | `act`、`restic`、`trivy`、`gitleaks` | winget / brew / 下载 |
 | **Haskell 二进制** | 1 | `shellcheck` | winget / brew / 下载 |
 | **npm 全局** | 1 | `bruno`（`@usebruno/cli`） | npm install -g |
-| **npx 零安装** | 9 | `aislop`、`dependency-cruiser`、`jscpd`、`size-limit`、`Stryker`、`Spectral`、`markdownlint`、`commitlint`、`knip` | 无需安装 |
+| **npx 零安装** | 10 | `biome`、`aislop`、`dependency-cruiser`、`jscpd`、`size-limit`、`Stryker`、`Spectral`、`markdownlint`、`commitlint`、`knip` | 无需安装 |
 | **内置 grep** | 4 | `log-sanitizer`、`cors-checker`、`env-leak-scanner`、`sensitive-file-check` | 已内置 |
 
 ### 集成 GitHub 项目（25 个）
 
-`gitleaks/gitleaks` · `semgrep/semgrep` · `conventional-changelog/commitlint` · `aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
+`gitleaks/gitleaks` · `semgrep/semgrep` · `conventional-changelog/commitlint` · `biomejs/biome` · `astral-sh/ruff` · `Orange-OpenSource/hurl` · `aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
 
 ---
 

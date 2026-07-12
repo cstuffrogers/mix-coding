@@ -1,0 +1,11 @@
+target-version = "py312"
+line-length = 120
+
+[lint]
+select = ["E", "F", "I", "N", "W", "UP", "SIM", "C4", "T20"]
+ignore = ["E501"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
