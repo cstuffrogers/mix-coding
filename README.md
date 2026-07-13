@@ -8,11 +8,11 @@
 
 这是一个基于 **三层架构 + Scene 引擎** 的智能开发系统，支持：
 
-- ✅ **26 个自动化工作流**：覆盖 Web 前端（20 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建、引擎自检等。另有 9 个功能已融入增强菜单（cicd/deps/monitor/hunt/release/e2e/review/feature 内按需弹出）
+- ✅ **27 个自动化工作流**：覆盖 Web 前端（21 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建、引擎自检、UI prompt 精炼等。另有 9 个功能已融入增强菜单（cicd/deps/monitor/hunt/release/e2e/review/feature 内按需弹出）
 - ✅ **交互式模式选择**：`/review`、`/refactor`、`/ui-polish` 启动时弹出勾选菜单，3秒无操作使用默认
 - ✅ **多轮自动审查与修复**：直到问题清零
 - ✅ **AI 驱动设计**：Open Design 完整集成（152 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词模板 + 11 craft 设计铁律），零设计门槛
-- ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 全维度设计打磨（shape 设计简报 + 27 条反AI模式规则 + 12 条 LLM 批判规则 + 双轮品控 + 3 项精准残留修复）+ web-design-engineer Skill（OKLCH 色彩系统 + 反AI套路规则 + 设计基准声明，所有模式必须执行）
+- ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 全维度设计打磨（shape 设计简报 + 27 条反AI模式规则 + 12 条 LLM 批判规则 + 双轮品控 + 3 项精准残留修复）+ web-design-engineer Skill（OKLCH 色彩系统 + 反AI套路规则 + 设计基准声明，所有模式必须执行）+ anti-slop 反套娃设计标准（4 维决策 + 颜色/排版/组件/动效规则 + 27 条 AI 禁止清单）
 - ✅ **5 层代码审查**：ESLint（1216→0 错误归零）+ TypeScript + 安全扫描 + npm audit + AI 语义 + Handler 功能验证（10 Pass 空转桩检测）
 - ✅ **数据库迁移审查**：扫描迁移文件，检测 8 种危险模式（DROP TABLE / NOT NULL 无默认值等），自动阻断高风险变更
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
@@ -26,6 +26,8 @@
 - ✅ **编码原则四重防线**：Ponytail（写之前阻断）+ Karpathy（写之时约束）+ CodeGuardian（改之后验证）+ `/simplify`（写之后清理），合并为 `conditional/core-rules.md` 按需加载
 - ✅ **Prompt 自动进化**：GEPA 集成 — LLM 反思执行轨迹 → Pareto 进化搜索 → 自动优化场景 prompt（`/optimize`、`/loop` 可选增强）
 - ✅ **jvn Spec-Driven 开发**：`/spec` → `/design` → `/build` 规范驱动开发，底层由 [GitHub Spec-Kit](https://github.com/github/spec-kit)（11 speckit 技能）驱动，5 Agent 增强审查（PM + 架构师 + UX + 代码审查 + 宪法校验）
+- ✅ **多页站点自动生成**：Baton 接力模式 — `next-prompt.md` 接力棒 + SITE.md 路线图 + DESIGN.md 设计系统，配合 `/loop` 全自动逐页生成完整站点（`/feature` `/new-project` 多页站点时自动加载）
+- ✅ **UI Prompt 精炼器**：`/enhance-prompt` — 模糊 UI 想法 → 结构化 prompt，含 UI/UX 关键词参考 + 形容词调色板 + 色彩角色术语，提升设计工具生成质量
 
 ---
 
@@ -113,6 +115,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **qa** | 12 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级） | `/qa` |
 | **plan-ceo-review** | 11 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值） | `/plan-ceo-review` |
 | **check** | 10 步 | 引擎自检+自愈（dead action / orphan gate / 自动修复） | `/check` |
+| **enhance-prompt** | — | UI prompt 精炼（模糊 UI 想法 → 结构化 prompt，含关键词参考 + 形容词调色板） | `/enhance-prompt` |
 | **plan** | 10 步 | Manus 持久规划（会话恢复 + SHA256认证 + 多阶段追踪） | `/plan` |
 | **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + 负载测试可选增强） | `/e2e` |
 | **monitor** | 9 步 | 网站监控（Upptime + 日志/Incident Runbook 可选增强） | `/monitor` |
@@ -249,6 +252,22 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | 场景 | 工作流 | 说明 |
 |------|--------|------|
 | 无人值守优化 | `/loop` | 分析→计划→实现→验证循环，最多 10 轮 |
+
+### UI Prompt 精炼
+
+| 阶段 | 工作流 | 说明 |
+|------|--------|------|
+| 模糊想法 → 精炼 | `/enhance-prompt <描述>` | 注入平台/配色/排版/结构，输出结构化 prompt |
+| 已有 DESIGN.md | `/enhance-prompt` | 自动提取设计系统块嵌入 prompt |
+| 结果不满意 | `/enhance-prompt` | 增强特异性 + UI/UX 关键词 + 形容词调色板 |
+
+### 多页站点自动生成
+
+| 阶段 | 工作流 | 说明 |
+|------|--------|------|
+| 初始化 | 创建 `.site/SITE.md` + `.site/DESIGN.md` + `.site/next-prompt.md` | 站点愿景 + 设计系统 + 首页接力棒 |
+| 逐页生成 | `/feature` 或手动触发 | 读接力棒 → 生成页面 → 集成 → 写下一个接力棒 |
+| 全自动 | `/loop 3m "读取 .site/next-prompt.md，生成页面，更新接力棒"` | baton 接力模式全自动跑完整站 |
 
 ---
 
@@ -555,8 +574,8 @@ node src/index.js start hunt --auto
 mix-coding/
 ├── .claude/
 │   ├── scenes/               # 场景定义（26 个 JSON）
-│   ├── commands/             # Slash commands 工作流（35 个 .md）
-│   ├── rules/                # 项目规则（conditional/ 按需加载）
+│   ├── commands/             # Slash commands 工作流（36 个 .md）
+│   ├── rules/                # 项目规则（conditional/ 按需加载，含 anti-slop 反套娃设计标准 + baton-loop 多页站点接力模式）
 │   ├── skills/               # Claude Skills（21 个）
 │   ├── agents/               # 8 个 Agent
 │   ├── reports/              # 审计报告（含 harness-audit 12 维评分）

@@ -40,6 +40,7 @@ Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js star
 | `/hunt` | 安全漏洞扫描 | `/new-project` | 新建项目 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
 | `/check` | 引擎自检+自愈 | `/plan` | Manus 持久规划 |
+| `/enhance-prompt` | UI prompt 精炼 | — | — |
 
 > **交互式模式选择**：`/review` `/ui-polish` `/refactor` 启动时弹出勾选菜单，3秒无操作使用默认。
 >
@@ -74,10 +75,12 @@ Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js star
 |----------|----------|
 | 移动端项目 (RN/Expo/.apk/.ipa) | `conditional/mobile-coding.md` + `conditional/mobile-security-rules.md` |
 | React Web 项目 | `conditional/react-doctor.md` |
-| `/ui-polish` / `/design` 工作流 | `conditional/visual-standards.md` + `../od-craft/index.md` |
+| `/ui-polish` / `/design` 工作流 | `conditional/visual-standards.md` + `conditional/anti-slop-design.md` + `../od-craft/index.md` |
 | 重构/优化 (`/refactor`/`/optimize`) | `conditional/core-rules.md`（完整 CodeGuardian 边界） |
 | 自动记忆触发（重要决策/bug/架构） | `conditional/memory-auto-save.md` |
 | `/plan` 工作流或复杂任务 (≥3步) | `conditional/planning-with-files.md` |
+| `/feature` / `/new-project` 多页站点 | `conditional/baton-loop.md`（baton 接力模式） |
+| 模糊 UI 需求 / prompt 优化 | `/enhance-prompt`（UI 想法精炼器） |
 
 ## 执行原则
 
