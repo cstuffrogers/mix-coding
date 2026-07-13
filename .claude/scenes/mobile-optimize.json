@@ -33,11 +33,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "mobile-perf",
-            "optimize",
-            "performance"
-          ]
+          "type": ["mobile-perf", "optimize", "performance"]
         }
       },
       "description": "注入历史性能基线和优化记忆"
@@ -119,14 +115,7 @@
       "action": "runAgent",
       "params": {
         "agent": "mobile-perf",
-        "focus": [
-          "bundle",
-          "startup",
-          "rendering",
-          "memory",
-          "network",
-          "battery"
-        ]
+        "focus": ["bundle", "startup", "rendering", "memory", "network", "battery"]
       },
       "description": "mobile-perf Agent AI 性能分析：综合测量数据→按收益排序→生成预算违规报告",
       "timeout": 300
@@ -177,12 +166,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "bundle_size",
-          "startup_time",
-          "fps",
-          "memory"
-        ]
+        "checks": ["bundle_size", "startup_time", "fps", "memory"]
       },
       "description": "性能预算门禁：超标项标注 🔴/🟡，生成通俗优化报告",
       "on_error": "abort"
@@ -206,10 +190,7 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls"
-        ]
+        "include": ["tokens", "api_calls"]
       },
       "description": "性能优化流程成本报告"
     },

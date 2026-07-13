@@ -3,11 +3,7 @@
   "workflow": "loop",
   "name": "自动迭代循环",
   "description": "无人值守自动迭代（集成CE知识沉淀）",
-  "trigger_keywords": [
-    "通宵",
-    "自动迭代",
-    "Ralph Loop"
-  ],
+  "trigger_keywords": ["通宵", "自动迭代", "Ralph Loop"],
   "flow": [
     {
       "step": 0.3,
@@ -28,11 +24,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "loop",
-            "review",
-            "iteration"
-          ]
+          "type": ["loop", "review", "iteration"]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -68,10 +60,7 @@
       "params": {
         "mode": "full",
         "options": {
-          "rules": [
-            "eslint",
-            "typescript"
-          ],
+          "rules": ["eslint", "typescript"],
           "autoFix": true
         }
       },
@@ -151,11 +140,7 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls",
-          "mcp_usage"
-        ]
+        "include": ["tokens", "api_calls", "mcp_usage"]
       },
       "description": "输出本轮迭代的Token/API调用/MCP使用成本汇总"
     },

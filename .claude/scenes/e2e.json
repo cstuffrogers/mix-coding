@@ -22,12 +22,7 @@
       "params": {
         "type": "e2e",
         "filters": {
-          "type": [
-            "e2e",
-            "testing",
-            "integration",
-            "api-testing"
-          ]
+          "type": ["e2e", "testing", "integration", "api-testing"]
         }
       },
       "description": "注入 E2E 测试相关记忆"
@@ -46,9 +41,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "e2e"
-        ]
+        "checks": ["e2e"]
       },
       "description": "E2E 配置质量门禁",
       "condition": "e2eConfigured == false",

@@ -79,21 +79,7 @@ check('User ~/.claude/settings.json', () => {
   return { status: 'EMPTY', detail: 'no hooks' };
 });
 
-// === 4. mempalace CLI 可用性 ===
-check('mempalace CLI on PATH', () => {
-  // 检查常见的安装位置
-  const candidates = [
-    path.join(HOME, 'go/bin/mempalace.exe'),
-    path.join(HOME, '.local/bin/mempalace'),
-    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'mempalace', 'mempalace.exe'),
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return { status: 'OK', detail: `found: ${c}` };
-  }
-  return { status: 'MISS', detail: 'mempalace CLI not installed' };
-});
-
-// === 5. mempalace hook 文件 ===
+// === 4. mempalace hook 文件 ===
 check('MemPalace hook scripts', () => {
   const p = path.join(HOME, '.claude/hooks');
   if (!fs.existsSync(p)) return { status: 'MISS', detail: 'hooks dir not found' };

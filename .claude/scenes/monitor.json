@@ -3,14 +3,7 @@
   "workflow": "monitor",
   "name": "监控配置",
   "description": "使用 Upptime 配置 GitHub Actions 原生网站监控，自动生成配置文件和工作流，并部署状态页面",
-  "trigger_keywords": [
-    "监控",
-    "monitor",
-    "uptime",
-    "状态页",
-    "健康检查配置",
-    "可用性监控"
-  ],
+  "trigger_keywords": ["监控", "monitor", "uptime", "状态页", "健康检查配置", "可用性监控"],
   "flow": [
     {
       "step": 1,
@@ -20,12 +13,7 @@
       "params": {
         "type": "monitor",
         "filters": {
-          "type": [
-            "monitor",
-            "uptime",
-            "performance",
-            "health"
-          ]
+          "type": ["monitor", "uptime", "performance", "health"]
         }
       },
       "description": "注入监控相关记忆"
@@ -44,9 +32,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "monitor"
-        ]
+        "checks": ["monitor"]
       },
       "description": "监控配置质量门禁",
       "condition": "monitorConfigured == false",

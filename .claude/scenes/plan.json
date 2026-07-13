@@ -3,14 +3,7 @@
   "workflow": "plan",
   "name": "Manus 风格持久规划",
   "description": "基于文件的持久化任务规划，支持会话恢复、SHA256认证、多阶段追踪",
-  "trigger_keywords": [
-    "规划任务",
-    "制定计划",
-    "分解任务",
-    "plan",
-    "任务拆解",
-    "多步骤任务"
-  ],
+  "trigger_keywords": ["规划任务", "制定计划", "分解任务", "plan", "任务拆解", "多步骤任务"],
   "flow": [
     {
       "step": 0,

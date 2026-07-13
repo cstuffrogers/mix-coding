@@ -33,11 +33,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "mobile-release",
-            "deployment",
-            "release"
-          ]
+          "type": ["mobile-release", "deployment", "release"]
         }
       },
       "description": "注入历史发布记录和配置记忆"
@@ -76,12 +72,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "security_scan",
-          "performance_baseline",
-          "tests_pass",
-          "store_compliance"
-        ],
+        "checks": ["security_scan", "performance_baseline", "tests_pass", "store_compliance"],
         "mode": "strict",
         "block_release": true
       },
@@ -186,10 +177,7 @@
         "draft": false,
         "prerelease": true
       },
-      "consumes": [
-        "changelog_content",
-        "new_version"
-      ],
+      "consumes": ["changelog_content", "new_version"],
       "description": "GitHub Release + CHANGELOG（body_ref/tag_ref 分别引用 step 6 和 step 5 产出）",
       "condition": "github_mcp_available"
     },
@@ -212,10 +200,7 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls"
-        ]
+        "include": ["tokens", "api_calls"]
       },
       "description": "发布流程成本报告"
     },

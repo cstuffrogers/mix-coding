@@ -3,13 +3,7 @@
   "workflow": "qa",
   "name": "浏览器 QA 验证",
   "description": "读取 git diff，浏览器测试受影响路由，发现 Bug 并生成结构化报告",
-  "trigger_keywords": [
-    "qa",
-    "浏览器测试",
-    "QA验证",
-    "browser test",
-    "visual regression"
-  ],
+  "trigger_keywords": ["qa", "浏览器测试", "QA验证", "browser test", "visual regression"],
   "flow": [
     {
       "step": 0.5,

@@ -3,13 +3,7 @@
   "workflow": "plan-ceo-review",
   "name": "创始人策略审查",
   "description": "从创始人视角审查功能：找到 10x 版本、砍掉 scope creep、聚焦用户价值",
-  "trigger_keywords": [
-    "ceo-review",
-    "创始人审查",
-    "产品策略",
-    "founder mode",
-    "10x"
-  ],
+  "trigger_keywords": ["ceo-review", "创始人审查", "产品策略", "founder mode", "10x"],
   "flow": [
     {
       "step": 0.5,

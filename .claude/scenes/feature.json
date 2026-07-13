@@ -3,12 +3,7 @@
   "workflow": "feature",
   "name": "新功能开发",
   "description": "端到端一键推进新功能开发流程（集成CE知识沉淀）",
-  "trigger_keywords": [
-    "开发新功能",
-    "feature开发",
-    "新功能",
-    "开发"
-  ],
+  "trigger_keywords": ["开发新功能", "feature开发", "新功能", "开发"],
   "flow": [
     {
       "step": 0,
@@ -74,11 +69,7 @@
       "action": "mp-grill-me",
       "params": {
         "mode": "interview",
-        "focus": [
-          "requirements",
-          "design",
-          "edge_cases"
-        ]
+        "focus": ["requirements", "design", "edge_cases"]
       },
       "description": "Matt Pocock /grill-me: 逐分支追问方案决策树，消除需求盲区和设计歧义",
       "condition": "mattpocock_skill_available"
@@ -89,13 +80,7 @@
       "service": "ProjectService",
       "action": "detectLanguage",
       "params": {
-        "detect": [
-          "go.mod",
-          "Cargo.toml",
-          "pubspec.yaml",
-          "build.gradle",
-          "CMakeLists.txt"
-        ]
+        "detect": ["go.mod", "Cargo.toml", "pubspec.yaml", "build.gradle", "CMakeLists.txt"]
       },
       "description": "检测项目语言生态，确定使用哪种构建/测试工具链"
     },
@@ -250,10 +235,7 @@
         "mode": "full",
         "autoFix": true,
         "options": {
-          "rules": [
-            "eslint",
-            "typescript"
-          ]
+          "rules": ["eslint", "typescript"]
         }
       },
       "description": "ESLint + React Doctor 多层深度审查",
@@ -265,13 +247,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "lint",
-          "typecheck",
-          "test",
-          "coverage",
-          "security"
-        ],
+        "checks": ["lint", "typecheck", "test", "coverage", "security"],
         "mode": "strict"
       },
       "description": "质量门禁：汇总所有检查结果（Lint + 类型 + 测试 + 覆盖率 + 安全），任一不达标阻止PR",

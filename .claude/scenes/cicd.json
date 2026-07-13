@@ -24,13 +24,7 @@
       "params": {
         "type": "cicd",
         "filters": {
-          "type": [
-            "ci",
-            "cd",
-            "workflow",
-            "deployment",
-            "pipeline"
-          ]
+          "type": ["ci", "cd", "workflow", "deployment", "pipeline"]
         }
       },
       "description": "注入 CI/CD 相关记忆"
@@ -81,12 +75,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "cicd",
-          "actionlint",
-          "zizmor",
-          "build_leaks"
-        ]
+        "checks": ["cicd", "actionlint", "zizmor", "build_leaks"]
       },
       "description": "CI/CD 质量门禁",
       "condition": "ciConfigured == false",

@@ -34,11 +34,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "optimize",
-            "performance",
-            "analysis"
-          ]
+          "type": ["optimize", "performance", "analysis"]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -50,10 +46,7 @@
       "action": "listIssues",
       "params": {
         "state": "open",
-        "labels": [
-          "performance",
-          "optimization"
-        ],
+        "labels": ["performance", "optimization"],
         "limit": 5
       },
       "description": "使用 GitHub MCP 列出性能相关的 issues",

@@ -3,13 +3,7 @@
   "workflow": "new-project",
   "name": "从零开始新项目",
   "description": "从零开始新项目：Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Open Design → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复→Huashu 验证，",
-  "trigger_keywords": [
-    "从零开始",
-    "新项目",
-    "做一个",
-    "搭建",
-    "创建"
-  ],
+  "trigger_keywords": ["从零开始", "新项目", "做一个", "搭建", "创建"],
   "flow": [
     {
       "step": 0.3,

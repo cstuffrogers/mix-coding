@@ -32,11 +32,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "mobile-security",
-            "audit",
-            "compliance"
-          ]
+          "type": ["mobile-security", "audit", "compliance"]
         }
       },
       "description": "注入历史审计上下文和安全策略记忆"
@@ -56,12 +52,7 @@
       "service": "MobileService",
       "action": "checkTools",
       "params": {
-        "tools": [
-          "mobsf",
-          "mobsfscan",
-          "bearer",
-          "dependencycheck"
-        ]
+        "tools": ["mobsf", "mobsfscan", "bearer", "dependencycheck"]
       },
       "description": "自动检测工具可用性 + 缺失工具安装指引"
     },
@@ -162,12 +153,7 @@
       "service": "MobileService",
       "action": "perfBaseline",
       "params": {
-        "metrics": [
-          "bundle_size",
-          "asset_size",
-          "method_count",
-          "permissions_count"
-        ]
+        "metrics": ["bundle_size", "asset_size", "method_count", "permissions_count"]
       },
       "description": "性能基线快照（静态指标）：包体积/资源占比/方法数/权限数 — 运行时指标（启动/FPS/内存）见 mobile-optimize"
     },
@@ -185,13 +171,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "security",
-          "privacy",
-          "dependencies",
-          "performance",
-          "store_compliance"
-        ],
+        "checks": ["security", "privacy", "dependencies", "performance", "store_compliance"],
         "mode": "strict",
         "block_critical": true
       },
@@ -205,11 +185,7 @@
       "action": "runAgent",
       "params": {
         "agent": "mobile-security",
-        "focus": [
-          "masvs_mapping",
-          "finding_interpretation",
-          "fix_prioritization"
-        ]
+        "focus": ["masvs_mapping", "finding_interpretation", "fix_prioritization"]
       },
       "description": "mobile-security Agent AI 安全审计：综合扫描结果→MASVS 对照→修复优先级排序→为报告提供专家解读",
       "timeout": 300
@@ -221,13 +197,7 @@
       "action": "mobileGenerateReport",
       "params": {
         "format": "plain_language",
-        "sections": [
-          "security",
-          "privacy",
-          "dependencies",
-          "performance",
-          "store_compliance"
-        ]
+        "sections": ["security", "privacy", "dependencies", "performance", "store_compliance"]
       },
       "description": "生成通俗审计报告：emoji 指标 + 自然语言 + 一键修复清单"
     },
@@ -271,10 +241,7 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls"
-        ]
+        "include": ["tokens", "api_calls"]
       },
       "description": "审计流程成本报告"
     },

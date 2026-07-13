@@ -3,13 +3,7 @@
   "workflow": "check",
   "name": "引擎自检 + 自愈",
   "description": "引擎功能完整性检查：检测 dead actions / orphan gate flags / missing action messages，自动修复数据文件",
-  "trigger_keywords": [
-    "自检",
-    "check",
-    "完整性检查",
-    "引擎检查",
-    "自愈"
-  ],
+  "trigger_keywords": ["自检", "check", "完整性检查", "引擎检查", "自愈"],
   "flow": [
     {
       "step": 0.5,

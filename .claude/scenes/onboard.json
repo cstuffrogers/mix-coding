@@ -32,11 +32,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "onboard",
-            "setup",
-            "environment"
-          ]
+          "type": ["onboard", "setup", "environment"]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -67,14 +63,8 @@
       "service": "BuildService",
       "action": "checkPrerequisites",
       "params": {
-        "required": [
-          "node",
-          "git"
-        ],
-        "optional": [
-          "docker",
-          "pnpm"
-        ]
+        "required": ["node", "git"],
+        "optional": ["docker", "pnpm"]
       },
       "description": "检查系统是否安装了必需的运行时和工具"
     },

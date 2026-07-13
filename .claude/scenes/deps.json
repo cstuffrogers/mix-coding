@@ -31,11 +31,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "deps",
-            "dependency",
-            "security"
-          ]
+          "type": ["deps", "dependency", "security"]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -82,12 +78,8 @@
       "params": {
         "mode": "security",
         "options": {
-          "layers": [
-            "static"
-          ],
-          "rules": [
-            "npm-audit"
-          ]
+          "layers": ["static"],
+          "rules": ["npm-audit"]
         }
       },
       "description": "安全审计当前依赖：识别已知漏洞"

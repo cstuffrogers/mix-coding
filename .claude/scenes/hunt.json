@@ -3,14 +3,7 @@
   "workflow": "hunt",
   "name": "安全漏洞审查",
   "description": "代码安全漏洞扫描与修复（集成CE知识沉淀）",
-  "trigger_keywords": [
-    "安全审查",
-    "漏洞扫描",
-    "安全隐患",
-    "XSS",
-    "注入",
-    "CSRF"
-  ],
+  "trigger_keywords": ["安全审查", "漏洞扫描", "安全隐患", "XSS", "注入", "CSRF"],
   "flow": [
     {
       "step": 0.3,
@@ -65,10 +58,7 @@
       "action": "listIssues",
       "params": {
         "state": "all",
-        "labels": [
-          "security",
-          "vulnerability"
-        ],
+        "labels": ["security", "vulnerability"],
         "limit": 10
       },
       "description": "使用 GitHub MCP 查询历史安全漏洞 issues",
@@ -105,13 +95,8 @@
       "params": {
         "mode": "security",
         "options": {
-          "layers": [
-            "static"
-          ],
-          "rules": [
-            "eslint-plugin-security",
-            "OWASP-Top-10"
-          ],
+          "layers": ["static"],
+          "rules": ["eslint-plugin-security", "OWASP-Top-10"],
           "autoFix": true
         }
       },
@@ -125,12 +110,8 @@
       "params": {
         "mode": "security",
         "options": {
-          "layers": [
-            "static"
-          ],
-          "rules": [
-            "npm-audit"
-          ],
+          "layers": ["static"],
+          "rules": ["npm-audit"],
           "autoFix": true
         }
       },
@@ -211,10 +192,7 @@
       "service": "SkillSecurityService",
       "action": "skillspector-scan",
       "params": {
-        "targets": [
-          ".claude/skills/",
-          ".claude/commands/"
-        ],
+        "targets": [".claude/skills/", ".claude/commands/"],
         "format": "json"
       },
       "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）"

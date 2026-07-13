@@ -3,13 +3,7 @@
   "workflow": "mobile-e2e",
   "name": "移动端 E2E 测试配置",
   "description": "自动检测项目框架→选择最佳测试工具→生成配置+示例→CI 集成",
-  "trigger_keywords": [
-    "移动端测试",
-    "E2E测试",
-    "UI自动化",
-    "mobile test",
-    "Detox"
-  ],
+  "trigger_keywords": ["移动端测试", "E2E测试", "UI自动化", "mobile test", "Detox"],
   "flow": [
     {
       "step": 0.2,
@@ -30,11 +24,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "mobile",
-            "test",
-            "e2e"
-          ]
+          "type": ["mobile", "test", "e2e"]
         }
       },
       "description": "注入历史测试配置记忆"
@@ -95,11 +85,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "e2e_config",
-          "test_examples",
-          "ci_integration"
-        ]
+        "checks": ["e2e_config", "test_examples", "ci_integration"]
       },
       "description": "E2E 配置质量门禁（CI 配置已生成后再检查）",
       "on_error": "abort"
@@ -123,10 +109,7 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls"
-        ]
+        "include": ["tokens", "api_calls"]
       },
       "description": "E2E 配置流程成本报告"
     },

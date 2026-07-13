@@ -3,13 +3,7 @@
   "workflow": "rollback",
   "name": "快速回滚",
   "description": "紧急回滚流程：识别目标版本 → 验证回滚安全性 → 执行回滚 → 验证服务恢复",
-  "trigger_keywords": [
-    "回滚",
-    "rollback",
-    "撤销部署",
-    "紧急恢复",
-    "revert"
-  ],
+  "trigger_keywords": ["回滚", "rollback", "撤销部署", "紧急恢复", "revert"],
   "flow": [
     {
       "step": 0.3,
@@ -30,11 +24,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "rollback",
-            "incident",
-            "release"
-          ]
+          "type": ["rollback", "incident", "release"]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -162,10 +152,7 @@
       "action": "createIssue",
       "params": {
         "title": "⚠️ 回滚事件记录",
-        "labels": [
-          "rollback",
-          "incident"
-        ],
+        "labels": ["rollback", "incident"],
         "body": "版本回滚详情..."
       },
       "description": "创建回滚事件记录Issue供事后复盘",

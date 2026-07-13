@@ -217,7 +217,11 @@
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "sec-bug-hunt",
-      "params": { "scope": "current_diffs", "min_confidence": 0.85, "block_merge_on_critical": true },
+      "params": {
+        "scope": "current_diffs",
+        "min_confidence": 0.85,
+        "block_merge_on_critical": true
+      },
       "description": "代码安全深度审计",
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')",
       "timeout": 600,

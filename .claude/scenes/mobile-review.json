@@ -31,11 +31,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "mobile-review",
-            "mobile-quality",
-            "review"
-          ]
+          "type": ["mobile-review", "mobile-quality", "review"]
         }
       },
       "description": "注入历史审查上下文和已知代码质量问题"
@@ -69,10 +65,7 @@
       "params": {
         "mode": "lint",
         "options": {
-          "rules": [
-            "eslint",
-            "typescript"
-          ]
+          "rules": ["eslint", "typescript"]
         }
       },
       "description": "L1: ESLint + RN/Flutter 规则 — 语法/样式/平台API误用/widget生命周期"
@@ -131,13 +124,7 @@
       "action": "runAgent",
       "params": {
         "agent": "mobile-reviewer",
-        "focus": [
-          "navigation",
-          "platform_isolation",
-          "memory",
-          "state_management",
-          "mobile_a11y"
-        ]
+        "focus": ["navigation", "platform_isolation", "memory", "state_management", "mobile_a11y"]
       },
       "description": "L4: mobile-reviewer Agent AI 语义审查 — 导航栈/Platform.OS散落/内存泄漏/状态管理/移动端a11y",
       "timeout": 600
@@ -175,11 +162,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "lint",
-          "security",
-          "ui_regression"
-        ],
+        "checks": ["lint", "security", "ui_regression"],
         "mode": "strict",
         "block_merge": true
       },
@@ -205,10 +188,7 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls"
-        ]
+        "include": ["tokens", "api_calls"]
       },
       "description": "代码审查流程成本报告"
     },

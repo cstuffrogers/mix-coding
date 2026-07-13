@@ -32,11 +32,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "mobile",
-            "onboard",
-            "environment"
-          ]
+          "type": ["mobile", "onboard", "environment"]
         }
       },
       "description": "注入历史环境配置记忆"
@@ -56,14 +52,7 @@
       "service": "MobileService",
       "action": "checkPrerequisites",
       "params": {
-        "checks": [
-          "node",
-          "jdk",
-          "xcode",
-          "android_studio",
-          "ruby",
-          "cocoapods"
-        ]
+        "checks": ["node", "jdk", "xcode", "android_studio", "ruby", "cocoapods"]
       },
       "description": "检测前置依赖：Xcode/Android Studio/Node.js/JDK/Ruby/CocoaPods 版本"
     },
@@ -127,11 +116,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "env_prerequisites",
-          "build_pass",
-          "env_template"
-        ],
+        "checks": ["env_prerequisites", "build_pass", "env_template"],
         "mode": "relaxed"
       },
       "description": "环境搭建质量门禁：检查依赖安装+构建通过+.env模板",
@@ -156,10 +141,7 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls"
-        ]
+        "include": ["tokens", "api_calls"]
       },
       "description": "环境搭建流程成本报告"
     },

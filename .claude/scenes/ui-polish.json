@@ -17,10 +17,30 @@
   "mode_selection": {
     "prompt": "选择美化/设计模式（可多选）：",
     "options": [
-      { "id": "ui_polish", "label": "UI 美化", "description": "主题注入/图标升级/DaisyUI/动画/微交互/硬编码颜色清除", "default": true },
-      { "id": "design_only", "label": "仅设计", "description": "Open Design 品牌+模板 → Huashu 原型 → 专家评审", "default": false },
-      { "id": "brand_system", "label": "品牌系统", "description": "AWM/Open Design 品牌导入 → 设计令牌同步", "default": false },
-      { "id": "impeccable", "label": "Impeccable 打磨", "description": "27 条反 AI 模式 + 12 条 LLM 批判", "default": true }
+      {
+        "id": "ui_polish",
+        "label": "UI 美化",
+        "description": "主题注入/图标升级/DaisyUI/动画/微交互/硬编码颜色清除",
+        "default": true
+      },
+      {
+        "id": "design_only",
+        "label": "仅设计",
+        "description": "Open Design 品牌+模板 → Huashu 原型 → 专家评审",
+        "default": false
+      },
+      {
+        "id": "brand_system",
+        "label": "品牌系统",
+        "description": "AWM/Open Design 品牌导入 → 设计令牌同步",
+        "default": false
+      },
+      {
+        "id": "impeccable",
+        "label": "Impeccable 打磨",
+        "description": "27 条反 AI 模式 + 12 条 LLM 批判",
+        "default": true
+      }
     ],
     "multi_select": true,
     "timeout_seconds": 3
@@ -75,11 +95,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "ui",
-            "design",
-            "polish"
-          ]
+          "type": ["ui", "design", "polish"]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -622,10 +638,7 @@
       "service": "DesignService",
       "action": "impeccable-critique",
       "params": {
-        "rules": [
-          "anti-patterns",
-          "llm-critique"
-        ],
+        "rules": ["anti-patterns", "llm-critique"],
         "checks": [
           "no-indigo-default",
           "no-purple-blue-gradient",
@@ -749,11 +762,7 @@
       "action": "browser_screenshot",
       "params": {
         "fullPage": true,
-        "viewports": [
-          "desktop",
-          "tablet",
-          "mobile"
-        ]
+        "viewports": ["desktop", "tablet", "mobile"]
       },
       "description": "Playwright MCP 浏览器截图：真实浏览器渲染截图（Desktop 1440×900 / Tablet 768×1024 / Mobile",
       "condition": "playwright_mcp_available"
@@ -764,11 +773,7 @@
       "service": "TestEngine",
       "action": "visualRegression",
       "params": {
-        "viewports": [
-          "desktop",
-          "tablet",
-          "mobile"
-        ]
+        "viewports": ["desktop", "tablet", "mobile"]
       },
       "description": "Playwright 视觉回归测试（Desktop/Tablet/Mobile）"
     },

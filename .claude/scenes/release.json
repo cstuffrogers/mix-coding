@@ -3,14 +3,7 @@
   "workflow": "release",
   "name": "发布部署",
   "description": "端到端发布部署流程：质量门禁 → 版本号 → 构建 → 验证 → Tag → 发布",
-  "trigger_keywords": [
-    "发布",
-    "release",
-    "上线",
-    "deploy",
-    "ship",
-    "发版"
-  ],
+  "trigger_keywords": ["发布", "release", "上线", "deploy", "ship", "发版"],
   "flow": [
     {
       "step": 0.3,
@@ -31,11 +24,7 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": [
-            "release",
-            "deployment",
-            "changelog"
-          ]
+          "type": ["release", "deployment", "changelog"]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -58,14 +47,7 @@
       "service": "QualityService",
       "action": "checkGate",
       "params": {
-        "checks": [
-          "lint",
-          "typecheck",
-          "test",
-          "coverage",
-          "security",
-          "dependency_audit"
-        ],
+        "checks": ["lint", "typecheck", "test", "coverage", "security", "dependency_audit"],
         "mode": "strict",
         "block_release": true
       },
@@ -273,10 +255,7 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls"
-        ]
+        "include": ["tokens", "api_calls"]
       },
       "description": "发布流程成本报告"
     },
