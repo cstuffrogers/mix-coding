@@ -75,12 +75,13 @@ Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js star
 |----------|----------|
 | 移动端项目 (RN/Expo/.apk/.ipa) | `conditional/mobile-coding.md` + `conditional/mobile-security-rules.md` |
 | React Web 项目 | `conditional/react-doctor.md` |
-| `/ui-polish` / `/design` 工作流 | `conditional/visual-standards.md` + `conditional/anti-slop-design.md` + `../od-craft/index.md` |
+| `/ui-polish` / `/design` 工作流 | `conditional/visual-standards.md` + `conditional/anti-slop-design.md` + `../od-craft/index.md` + **hallmark skill**（20 主题 + 57 slop-test + 9 宏观结构） |
 | 重构/优化 (`/refactor`/`/optimize`) | `conditional/core-rules.md`（完整 CodeGuardian 边界） |
 | 自动记忆触发（重要决策/bug/架构） | `conditional/memory-auto-save.md` |
 | `/plan` 工作流或复杂任务 (≥3步) | `conditional/planning-with-files.md` |
-| `/feature` / `/new-project` 多页站点 | `conditional/baton-loop.md`（baton 接力模式） |
+| `/feature` / `/new-project` 多页站点 | `conditional/baton-loop.md`（baton 接力模式） + **hallmark skill**（新页面结构多样化） |
 | 模糊 UI 需求 / prompt 优化 | `/enhance-prompt`（UI 想法精炼器） |
+| hallmark 审计/重构/设计提取 | **hallmark skill** — `audit`（评分+punch list）、`redesign`（保留IA重建视觉）、`study`（截图/URL→DNA→design.md） |
 
 ## 执行原则
 

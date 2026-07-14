@@ -12,7 +12,7 @@
 - ✅ **交互式模式选择**：`/review`、`/refactor`、`/ui-polish` 启动时弹出勾选菜单，3秒无操作使用默认
 - ✅ **多轮自动审查与修复**：直到问题清零
 - ✅ **AI 驱动设计**：Open Design 完整集成（152 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词模板 + 11 craft 设计铁律），零设计门槛
-- ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 全维度设计打磨（shape 设计简报 + 27 条反AI模式规则 + 12 条 LLM 批判规则 + 双轮品控 + 3 项精准残留修复）+ web-design-engineer Skill（OKLCH 色彩系统 + 反AI套路规则 + 设计基准声明，所有模式必须执行）+ anti-slop 反套娃设计标准（4 维决策 + 颜色/排版/组件/动效规则 + 27 条 AI 禁止清单）
+- ✅ **前端美化工具链**：DaisyUI（35+主题）+ Animal Island UI（自然风格）+ Animate.css + Lucide React + Playwright + Impeccable 全维度设计打磨（shape 设计简报 + 27 条反AI模式规则 + 12 条 LLM 批判规则 + 双轮品控 + 3 项精准残留修复）+ web-design-engineer Skill（OKLCH 色彩系统 + 反AI套路规则 + 设计基准声明，所有模式必须执行）+ **hallmark Skill（20 主题 + 57 slop-test 门禁 + 9 种宏观结构 + 4 动词：build/audit/redesign/study）**+ anti-slop 反套娃设计标准（4 维决策框架 + 与 hallmark 互补分工）
 - ✅ **5 层代码审查**：ESLint（1216→0 错误归零）+ TypeScript + 安全扫描 + npm audit + AI 语义 + Handler 功能验证（10 Pass 空转桩检测）
 - ✅ **数据库迁移审查**：扫描迁移文件，检测 8 种危险模式（DROP TABLE / NOT NULL 无默认值等），自动阻断高风险变更
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
@@ -25,9 +25,10 @@
 - ✅ **AI/Model 无缝切换**：通过配置文件快速切换 AI 服务提供商，支持 Claude、Gemini、Qwen 等主流模型
 - ✅ **编码原则四重防线**：Ponytail（写之前阻断）+ Karpathy（写之时约束）+ CodeGuardian（改之后验证）+ `/simplify`（写之后清理），合并为 `conditional/core-rules.md` 按需加载
 - ✅ **Prompt 自动进化**：GEPA 集成 — LLM 反思执行轨迹 → Pareto 进化搜索 → 自动优化场景 prompt（`/optimize`、`/loop` 可选增强）
-- ✅ **jvn Spec-Driven 开发**：`/spec` → `/design` → `/build` 规范驱动开发，底层由 [GitHub Spec-Kit](https://github.com/github/spec-kit)（11 speckit 技能）驱动，5 Agent 增强审查（PM + 架构师 + UX + 代码审查 + 宪法校验）
-- ✅ **多页站点自动生成**：Baton 接力模式 — `next-prompt.md` 接力棒 + SITE.md 路线图 + DESIGN.md 设计系统，配合 `/loop` 全自动逐页生成完整站点（`/feature` `/new-project` 多页站点时自动加载）
+- ✅ **jvn Spec-Driven 开发**：`/spec` → `/design` → `/build` 规范驱动开发，底层由 [GitHub Spec-Kit](https://github.com/github/spec-kit)（11 speckit 技能）驱动，5 Agent 增强审查（PM + 架构师 + UX + 代码审查 + 宪法校验）+ 新页面自动触发 hallmark 选型 + baton-loop 接力
+- ✅ **多页站点自动生成**：Baton 接力模式 — `next-prompt.md` 接力棒 + SITE.md 路线图 + DESIGN.md 设计系统，配合 `/loop` 全自动逐页生成完整站点（`/feature` `/new-project` 多页站点时自动加载）+ **hallmark Skill 确保每页不同宏观结构**
 - ✅ **UI Prompt 精炼器**：`/enhance-prompt` — 模糊 UI 想法 → 结构化 prompt，含 UI/UX 关键词参考 + 形容词调色板 + 色彩角色术语，提升设计工具生成质量
+- ✅ **hallmark 设计引擎**：Nutlope/hallmark v1.1.0 — 4 动词设计 Skill：`audit`（评分+punch list）、`redesign`（保留IA+品牌重建视觉）、`study`（截图/URL→设计DNA→design.md）、默认 Design flow（20 主题 + 57 slop-test 门禁 + pre-emit 自批判）
 
 ---
 
@@ -172,10 +173,10 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | 阶段 | 工作流 | 说明 |
 |------|--------|------|
 | UI 美化 | `/ui-polish` | DaisyUI 主题 + 动效 + 组件类注入 |
-| 设计规范 | `/ui-polish` | Huashu 5 维度评审 + Impeccable 打磨 |
+| 设计规范 | `/ui-polish` | Huashu 5 维度评审 + Impeccable 打磨 + hallmark audit |
 | 响应式校验 | `/ui-polish` | Stagehand 多视口截图（检测到时） |
 
-> **原 `/design` `/polish` 已合并到 `/ui-polish`。**
+> **hallmark 集成**：`/ui-polish` 自动加载 hallmark skill — 选主题 → 57 slop-test → pre-emit 自批判。`hallmark study` 可从截图/URL 提取设计 DNA 并生成 design.md。详见 hallmark Skill 的 4 个动词（audit/redesign/study/默认 Design flow）。
 
 ### 安全漏洞扫描
 
@@ -576,7 +577,7 @@ mix-coding/
 │   ├── scenes/               # 场景定义（26 个 JSON）
 │   ├── commands/             # Slash commands 工作流（36 个 .md）
 │   ├── rules/                # 项目规则（conditional/ 按需加载，含 anti-slop 反套娃设计标准 + baton-loop 多页站点接力模式）
-│   ├── skills/               # Claude Skills（21 个）
+│   ├── skills/               # Claude Skills（22 个）
 │   ├── agents/               # 8 个 Agent
 │   ├── reports/              # 审计报告（含 harness-audit 12 维评分）
 │   ├── knowledge/            # 知识索引
@@ -757,13 +758,14 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **83+ 个外部组件**：Skills 21 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个 + MemPalace 工具 1 个
+> 共集成 **84+ 个外部组件**：Skills 22 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个 + MemPalace 工具 1 个
 
-### 本地 Skills（21 个，`.claude/skills/`）
+### 本地 Skills（22 个，`.claude/skills/`）
 
 | Skill | 来源 | 功能 |
 |-------|------|------|
 | `speckit-specify` 等 11 个 | GitHub Spec-Kit | spec → plan → tasks → implement 规范驱动开发全流程 |
+| `hallmark` | Nutlope / Together AI | 20 主题 + 57 slop-test 门禁 + 9 宏观结构 + 4 动词（build/audit/redesign/study） |
 | `web-design-engineer` | ConardLi | OKLCH 色彩 + 6步工作流 + 反 AI 套路 |
 | `impeccable` | — | 27 反模式规则 + 12 LLM 批判规则，去塑料感 |
 | `ai-friendly-web-design` | ianho7 | 语义 HTML / ARIA 可访问性 |
@@ -808,9 +810,9 @@ claude plugins install compound-engineering@anthropic
 | **npx 零安装** | 10 | `biome`、`aislop`、`dependency-cruiser`、`jscpd`、`size-limit`、`Stryker`、`Spectral`、`markdownlint`、`commitlint`、`knip` | 无需安装 |
 | **内置 grep** | 4 | `log-sanitizer`、`cors-checker`、`env-leak-scanner`、`sensitive-file-check` | 已内置 |
 
-### 集成 GitHub 项目（25 个）
+### 集成 GitHub 项目（26 个）
 
-`gitleaks/gitleaks` · `semgrep/semgrep` · `conventional-changelog/commitlint` · `biomejs/biome` · `astral-sh/ruff` · `Orange-OpenSource/hurl` · `aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
+`Nutlope/hallmark` · `gitleaks/gitleaks` · `semgrep/semgrep` · `conventional-changelog/commitlint` · `biomejs/biome` · `astral-sh/ruff` · `Orange-OpenSource/hurl` · `aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
 
 ---
 
