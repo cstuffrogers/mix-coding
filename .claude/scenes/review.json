@@ -195,6 +195,15 @@
       "condition": "selected_modes.includes('quality_tools') && frontend_involved"
     },
     {
+      "step": 2.95,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": { "skill": "review-delta" },
+      "description": "CRG blast-radius 审查：仅读变更+受影响节点，生成风险评级+爆炸半径+测试缺口",
+      "condition": "crg_skill_available && selected_modes.includes('code_review')"
+    },
+    {
       "step": 3.2,
       "layer": "skill",
       "service": "Skill",

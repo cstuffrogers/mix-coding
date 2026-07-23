@@ -136,6 +136,15 @@
         "--json"
       ],
       "description": "mobsfscan — 移动端源码级 SAST (Java/Kotlin/Swift/ObjC)"
+    },
+    "code-review-graph": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "code-review-graph",
+        "serve"
+      ],
+      "description": "code-review-graph — Tree-sitter 代码知识图谱 (blast radius / 语义搜索 / 架构社区 / 审查 guidance)，与 codegraph 共存按场景路由"
     }
   }
 }

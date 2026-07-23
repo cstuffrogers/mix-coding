@@ -46,7 +46,7 @@
 
 ---
 
-## MCP 服务器（13个）与场景使用矩阵
+## MCP 服务器（14个）与场景使用矩阵
 
 ### 活跃 MCP 服务器（7个，定义在 `.claude/mcp.json`）
 
@@ -60,11 +60,12 @@
 | 6 | **stripe** | npx `@stripe/mcp` | `STRIPE_SECRET_KEY` | npm 包 |
 | 7 | **resend** | Node `./.mcp/resend-mcp/dist/index.js` | `RESEND_API_KEY` | `.mcp/resend-mcp/` |
 
-### 注册但非独立 MCP 服务器（11个，定义在 `.claude/mcp-enable.json`）
+### 注册但非独立 MCP 服务器（12个，定义在 `.claude/mcp-enable.json`）
 
 | # | 服务器 | 类型 | 用途 |
 |---|--------|------|------|
 | 8 | **codegraph** | 代码图谱 | 代码依赖/调用关系分析，SQLite 数据库（130MB） |
+| 8b | **code-review-graph** | 代码知识图谱 (CLI) | Tree-sitter 解析：blast radius / 语义向量搜索 / 架构社区检测 / 死代码 / 大函数热点 / 审查 guidance。**light 模式默认走 CLI** (`uvx code-review-graph <cmd>`,图库 `.code-review-graph/graph.db`),full 模式可选 MCP server。与 codegraph 共存——codegraph 通用符号+动态trace,CRG 审查/重构架构洞察 |
 | 9 | **memory** | 会话记忆 | 跨会话持久化记忆 |
 | 10 | **playwright** | 浏览器测试 | E2E 和视觉回归测试 |
 | 11 | **filesystem** | 文件系统 | 文件读写操作 |
@@ -169,6 +170,20 @@
 | setup-pre-commit | 设置 pre-commit 钩子 |
 
 **其他（8个）**：migrate-to-shoehorn, scaffold-exercises, edit-article, obsidian-vault, design-an-interface(deprecated), qa(deprecated), request-refactor-plan(deprecated), ubiquitous-language(deprecated)
+
+### code-review-graph Skills（7个，定义在 `.claude/skills/code-review-graph/`）
+
+> Tree-sitter 代码知识图谱（MCP server `code-review-graph`，`uvx` 按需拉取）。与 codegraph 共存——codegraph 擅长通用符号查询+动态 trace，CRG 擅长审查/重构场景的架构洞察。
+
+| Skill | 用途 | 场景引用 |
+|-------|------|---------|
+| **review-delta** | 仅审查变更+爆炸半径（5-10x 省 token），风险评级+测试缺口 | review Step 2.95 |
+| **refactor-safely** | 死代码检测 + 重命名影响预览 + 社区驱动重构建议 | refactor Step 6.5 |
+| **review-changes** | 结构化变更审查（风险分级+合并建议） | review（可选） |
+| **review-pr** | PR/分支 diff 全量审查（blast-radius+逐文件） | review（可选） |
+| **build-graph** | 构建/增量更新知识图谱（`.code-review-graph/graph.db`） | 首次或图过时时 |
+| **debug-issue** | 图驱动调试：语义搜索→调用链→影响面→最近变更 | bugfix（可选） |
+| **explore-codebase** | 架构总览→社区→语义搜索→调用流浏览 | analyze（可选） |
 
 ---
 
@@ -346,6 +361,7 @@ claude-scene/src/
 | 2 | runReview(full) | 总是 | ESLint → react-doctor → Playwright 视觉 → AI 语义 |
 | 2.5 | huashu-expert-review | enh_huashu_expert_review | Huashu 5 维度专家评审 |
 | 2.7 | state-audit | 总是 | 状态管理审计：Context 过度使用/耦合度/循环依赖 |
+| 2.95 | Skill(review-delta) | crg_skill_available | CRG blast-radius 审查：仅读变更+受影响节点，风险评级+爆炸半径+测试缺口 |
 | 3 | ce-review(9 Agent) | plugin_ce_available | CE 多Agent深度审查 |
 | 4 | sec-bug-hunt(≥0.85置信度) | 总是 | 安全深度审计（阻断高危） |
 | 4.2 | open-redirect-scan | 总是 | 开放重定向检测：URL 参数注入 |
@@ -355,15 +371,15 @@ claude-scene/src/
 | 6.5 | consolidate | 总是 | 跨后端记忆一致性 |
 | 7 | notify | 总是 | 审计结果通知 |
 
-**MCP启用**：github, context7（Token预算 700）
+**MCP启用**：github, context7, a11y（Token预算 900）。CRG blast-radius 走 CLI (`uvx code-review-graph detect-changes/impact`) 按需调用,非 MCP server
 
 ---
 
 #### 5. refactor — 代码重构（11步）
 
-核心流程：记忆召回 → codeMetrics → detectAntiPatterns → generateRefactorPlan → applyTransformations → runSuite → runReview → cleanup → ce-compound → notify
+核心流程：记忆召回 → codeMetrics → detectAntiPatterns → **CRG refactor-safely(死代码+重命名预览+影响面,CLI调用)** → MattPocock 架构深化 → generateRefactorPlan → applyTransformations → runSuite → runReview → cleanup → ce-compound → notify
 
-**MCP启用**：github, context7（Token预算 700）
+**MCP启用**：github, context7, codeguardian（Token预算 1000）。CRG 死代码/影响面/社区分析走 CLI 按需调用
 
 ---
 

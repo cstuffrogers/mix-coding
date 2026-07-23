@@ -20,7 +20,7 @@
     "refactor": {
       "enabled_servers": ["github", "context7", "codeguardian"],
       "token_estimate": 1000,
-      "rationale": "重构主要依赖代码仓库、文档和CodeGuardian防止过度重构"
+      "rationale": "重构主要依赖代码仓库、文档和CodeGuardian防止过度重构。CRG 死代码/影响面/社区分析走 CLI (uvx code-review-graph) 按需调用"
     },
     "design": {
       "enabled_servers": ["tavily-search", "context7"],
@@ -45,7 +45,7 @@
     "review": {
       "enabled_servers": ["github", "context7", "a11y"],
       "token_estimate": 900,
-      "rationale": "代码审查需要仓库+文档+可选无障碍扫描"
+      "rationale": "代码审查需要仓库+文档+可选无障碍扫描。CRG blast-radius 走 CLI (uvx code-review-graph) 按需调用，非 MCP server"
     },
     "hunt": {
       "enabled_servers": ["sentry", "tavily-search", "context7", "github", "codegraph"],
@@ -159,6 +159,11 @@
       "type": "codegraph",
       "install_command": "独立安装 codegraph-win32-x64.zip",
       "description": "代码图谱分析"
+    },
+    "code-review-graph": {
+      "type": "code-review-graph",
+      "install_command": "uvx code-review-graph serve (按需拉取，无需预装)",
+      "description": "Tree-sitter 代码知识图谱：blast radius / 语义向量搜索 / 架构社区检测 / 死代码 / 大函数热点 / 审查 guidance。light 模式默认走 CLI (uvx code-review-graph <cmd>)，full 模式可选 MCP server。与 codegraph 共存——codegraph 通用符号+动态trace，CRG 审查/重构架构洞察"
     },
     "memory": {
       "type": "memory",

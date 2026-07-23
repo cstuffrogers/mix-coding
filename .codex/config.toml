@@ -23,3 +23,9 @@ args = [
     "sentry-mcp",
 ]
 env_vars = ["SENTRY_AUTH_TOKEN"]
+
+# code-review-graph — Tree-sitter 代码知识图谱 (blast radius / 语义搜索 / 架构社区 / 审查 guidance)
+# 默认不启用（按需拉取 uvx 包）。审查/重构场景需启用时取消注释。
+# [mcp_servers.code-review-graph]
+# command = "uvx"
+# args = ["code-review-graph", "serve"]

@@ -130,6 +130,15 @@
       "description": "检测God Object、长方法、重复代码等反模式"
     },
     {
+      "step": 6.5,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": { "skill": "refactor-safely" },
+      "description": "CRG 重构安全分析：死代码检测 + 重命名影响预览 + 社区驱动重构建议",
+      "condition": "crg_skill_available"
+    },
+    {
       "step": 7,
       "layer": "capability",
       "service": "MattPocockSkill",
