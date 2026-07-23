@@ -1,11 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const actionsContent = fs.readFileSync('E:/auto-coding/claude-scene/src/actions.js', 'utf-8');
-const actionMessagesContent = fs.readFileSync('E:/auto-coding/claude-scene/src/data/action-messages.js', 'utf-8');
-const uiPolishContent = fs.readFileSync('E:/auto-coding/claude-scene/src/handlers/ui-polish.js', 'utf-8');
+const projectRoot = path.join(__dirname, '..');
+const actionsContent = fs.readFileSync(path.join(projectRoot, 'claude-scene/src/actions.js'), 'utf-8');
+const actionMessagesContent = fs.readFileSync(path.join(projectRoot, 'claude-scene/src/data/action-messages.js'), 'utf-8');
+const uiPolishContent = fs.readFileSync(path.join(projectRoot, 'claude-scene/src/handlers/ui-polish.js'), 'utf-8');
 
-const scenesDir = 'E:/auto-coding/.claude/scenes';
+const scenesDir = path.join(projectRoot, '.claude/scenes');
 const sceneFiles = fs.readdirSync(scenesDir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
 
 function actionExists(action) {

@@ -46,12 +46,12 @@ When user requests a workflow:
 1. Identify the scene name from command
 2. Execute:
    `bash
-   node E:\\auto-coding\\claude-scene\\src\\index.js start <scene> --auto
+   node claude-scene/src/index.js start <scene> --auto
    `
 3. Report output to user
 
 ## Example
 
 User: "/review"
-Execute: node E:\\auto-coding\\claude-scene\\src\\index.js start review --auto
+Execute: node claude-scene/src/index.js start review --auto
 """

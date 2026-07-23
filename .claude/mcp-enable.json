@@ -202,7 +202,7 @@
     },
     "codeguardian": {
       "type": "codeguardian-mcp",
-      "install_command": "pip install -e E:/auto-coding/codeguardian",
+      "install_command": "pip install -e ./codeguardian",
       "required_env_vars": [],
       "description": "AI代码优化守护者：物理边界(max_lines/max_deps/max_complexity)+自动验证(test/bench/quality)+失败回滚+人工门控，防止过度优化与负优化"
     },

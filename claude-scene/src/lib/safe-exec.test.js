@@ -23,8 +23,8 @@ describe('safeExec', () => {
 
   it('preserves forward slashes and backslashes in paths', () => {
     existsSync.mockReturnValue(true);
-    safeExec('echo hello', 'E:\\auto-coding\\project');
-    expect(existsSync).toHaveBeenCalledWith('E:\\auto-coding\\project');
+    safeExec('echo hello', 'claude-scene\\src\\project');
+    expect(existsSync).toHaveBeenCalledWith('claude-scene\\src\\project');
   });
 
   it('throws when target directory does not exist', () => {

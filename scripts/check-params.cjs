@@ -24,7 +24,7 @@ const HANDLER_PARAMS = {
   huashuExpertReview: { expects: ['mode', 'iterations'], optional: true },
 };
 
-const scenesDir = 'E:/auto-coding/.claude/scenes';
+const scenesDir = path.join(__dirname, '..', '.claude/scenes');
 const sceneFiles = fs.readdirSync(scenesDir).filter(f => f.endsWith('.json'));
 
 // Collect all action-using steps and check params

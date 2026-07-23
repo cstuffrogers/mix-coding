@@ -13,7 +13,7 @@
             "severity": "critical",
             "count": 4,
             "files": [
-              "E:\\auto-coding\\claude-scene\\src\\handlers\\design.js"
+              "claude-scene\\src\\handlers\\design.js"
             ]
           }
         ]
