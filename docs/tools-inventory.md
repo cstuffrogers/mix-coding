@@ -177,7 +177,7 @@
 
 | Skill | 用途 | 场景引用 |
 |-------|------|---------|
-| **review-delta** | 仅审查变更+爆炸半径（5-10x 省 token），风险评级+测试缺口 | review Step 2.95 |
+| **review-delta** | 仅审查变更+爆炸半径（5-10x 省 token），风险评级+测试缺口 | review Step 2.97 |
 | **refactor-safely** | 死代码检测 + 重命名影响预览 + 社区驱动重构建议 | refactor Step 6.5 |
 | **review-changes** | 结构化变更审查（风险分级+合并建议） | review（可选） |
 | **review-pr** | PR/分支 diff 全量审查（blast-radius+逐文件） | review（可选） |
@@ -361,7 +361,7 @@ claude-scene/src/
 | 2 | runReview(full) | 总是 | ESLint → react-doctor → Playwright 视觉 → AI 语义 |
 | 2.5 | huashu-expert-review | enh_huashu_expert_review | Huashu 5 维度专家评审 |
 | 2.7 | state-audit | 总是 | 状态管理审计：Context 过度使用/耦合度/循环依赖 |
-| 2.95 | Skill(review-delta) | crg_skill_available | CRG blast-radius 审查：仅读变更+受影响节点，风险评级+爆炸半径+测试缺口 |
+| 2.97 | Skill(review-delta) | crg_skill_available | CRG blast-radius 审查：仅读变更+受影响节点，风险评级+爆炸半径+测试缺口 |
 | 3 | ce-review(9 Agent) | plugin_ce_available | CE 多Agent深度审查 |
 | 4 | sec-bug-hunt(≥0.85置信度) | 总是 | 安全深度审计（阻断高危） |
 | 4.2 | open-redirect-scan | 总是 | 开放重定向检测：URL 参数注入 |

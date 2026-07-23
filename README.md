@@ -743,6 +743,7 @@ claude plugins install compound-engineering@anthropic
 | **基础环境** | [Node.js LTS](https://nodejs.org/) + [Git](https://git-scm.com/) | Node.js 运行时环境 |
 | **Claude Code** | `npm install -g @anthropic-ai/claude-code` | AI助手核心CLI |
 | **CodeGraph** | `npm install -g @codegraph/cli` | 代码结构记忆分析工具 |
+| **code-review-graph** | `uvx code-review-graph serve`（按需拉取，无需预装） | Tree-sitter 代码知识图谱：blast radius / 语义搜索 / 架构社区 / 死代码 / 大函数热点。与 CodeGraph 共存——CodeGraph 通用符号+动态trace，CRG 审查/重构架构洞察。light 模式走 CLI (`uvx code-review-graph <cmd>`)，full 模式可选 MCP server |
 | **Claude Skills** | `npx skills install 技能名` | 技能插件生态（12+主流插件） |
 | **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` + `specify init --here --integration claude --force` | GitHub Spec-Driven Development 引擎（11 speckit 技能） |
 | **Impeccable Skill** | `echo Y \| npx --yes impeccable@2.3.2 skills install` | AI 设计词汇 + 27 反模式规则 + 12 LLM 批判规则，自动修正 UI 塑料感 |
@@ -771,6 +772,7 @@ claude plugins install compound-engineering@anthropic
 | `ai-friendly-web-design` | ianho7 | 语义 HTML / ARIA 可访问性 |
 | `awesome-design-md` | VoltAgent | 5 品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为 Open Design 152 品牌库直接文件读取 |
 | `mattpocock` | Matt Pocock | 含 29 个子技能（TS/工程/生产力） |
+| `code-review-graph` | tirth8205 | 7 个 skills：review-delta / refactor-safely / review-changes / review-pr / build-graph / debug-issue / explore-codebase。Tree-sitter 知识图谱，blast-radius 审查+死代码+架构社区（CLI 驱动，与 codegraph 共存） |
 | `review-checklist` | — | 23 项审查清单 |
 | `sec-bug-hunt` | — | 5 向量安全扫描规则 |
 | `mobile-ui-review` | — | 移动端 UI 审查 |

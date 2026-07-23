@@ -195,7 +195,7 @@
       "condition": "selected_modes.includes('quality_tools') && frontend_involved"
     },
     {
-      "step": 2.95,
+      "step": 2.97,
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
