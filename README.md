@@ -577,7 +577,7 @@ mix-coding/
 │   ├── scenes/               # 场景定义（26 个 JSON）
 │   ├── commands/             # Slash commands 工作流（36 个 .md）
 │   ├── rules/                # 项目规则（conditional/ 按需加载，含 anti-slop 反套娃设计标准 + baton-loop 多页站点接力模式）
-│   ├── skills/               # Claude Skills（22 个）
+│   ├── skills/               # Claude Skills（23 个）
 │   ├── agents/               # 8 个 Agent
 │   ├── reports/              # 审计报告（含 harness-audit 12 维评分）
 │   ├── knowledge/            # 知识索引
@@ -759,9 +759,9 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **84+ 个外部组件**：Skills 22 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个 + MemPalace 工具 1 个
+> 共集成 **85+ 个外部组件**：Skills 23 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个 + MemPalace 工具 1 个
 
-### 本地 Skills（22 个，`.claude/skills/`）
+### 本地 Skills（23 个，`.claude/skills/`）
 
 | Skill | 来源 | 功能 |
 |-------|------|------|
@@ -778,6 +778,7 @@ claude plugins install compound-engineering@anthropic
 | `mobile-ui-review` | — | 移动端 UI 审查 |
 | `constitution-reference` | — | 项目宪法引用 |
 | `stack-knowledge` | — | 技术栈知识库 |
+| `i-have-adhd` | ayghri/i-have-adhd | ADHD 友好输出风格：首行动作 + 编号步骤 + 重述状态 + 压制分支（10 规则，纯按需 `/i-have-adhd`） |
 
 **推荐额外安装**（`npx skills install`）：`anthropics/skills`、`obra/superpowers`、`frontend-design`、`security-guidance`、`claude-seo`、`plannotator`、`deep-trilogy`
 
@@ -812,9 +813,9 @@ claude plugins install compound-engineering@anthropic
 | **npx 零安装** | 10 | `biome`、`aislop`、`dependency-cruiser`、`jscpd`、`size-limit`、`Stryker`、`Spectral`、`markdownlint`、`commitlint`、`knip` | 无需安装 |
 | **内置 grep** | 4 | `log-sanitizer`、`cors-checker`、`env-leak-scanner`、`sensitive-file-check` | 已内置 |
 
-### 集成 GitHub 项目（26 个）
+### 集成 GitHub 项目（27 个）
 
-`Nutlope/hallmark` · `gitleaks/gitleaks` · `semgrep/semgrep` · `conventional-changelog/commitlint` · `biomejs/biome` · `astral-sh/ruff` · `Orange-OpenSource/hurl` · `aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit`
+`Nutlope/hallmark` · `gitleaks/gitleaks` · `semgrep/semgrep` · `conventional-changelog/commitlint` · `biomejs/biome` · `astral-sh/ruff` · `Orange-OpenSource/hurl` · `aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit` · `ayghri/i-have-adhd`
 
 ---
 

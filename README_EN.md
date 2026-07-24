@@ -415,9 +415,9 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 Integration Overview
 
-> **76+ external components**: 21 Skills + 14 MCP servers + 23 npm packages + 25 external tools
+> **77+ external components**: 23 Skills + 16 MCP servers + 24 npm packages + 28 external tools
 
-### Local Skills (21, `.claude/skills/`)
+### Local Skills (23, `.claude/skills/`)
 
 | Skill | Source | Purpose |
 |-------|--------|---------|
@@ -432,6 +432,7 @@ claude plugins install compound-engineering@anthropic
 | `mobile-ui-review` | — | Mobile UI review |
 | `constitution-reference` | — | Project constitution reference |
 | `stack-knowledge` | — | Tech stack knowledge base |
+| `i-have-adhd` | ayghri/i-have-adhd | ADHD-friendly output style: lead with action + numbered steps + restate state + suppress tangents (10 rules, on-demand `/i-have-adhd`) |
 
 **Recommended extras** (`npx skills install`): `anthropics/skills`, `obra/superpowers`, `frontend-design`, `security-guidance`, `claude-seo`, `plannotator`, `deep-trilogy`
 

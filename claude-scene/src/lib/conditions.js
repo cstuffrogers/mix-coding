@@ -132,7 +132,7 @@ function evalClause(expr, ctx) {
   }
 
   // comparison: key === value / key !== value
-  // eslint-disable-next-line sonarjs/slow-regex
+  // eslint-disable-next-line sonarjs/super-linear-regex
   const cmpMatch = trimmed.match(/^(\w+)\s*(===?|!==?)\s*(.+)$/);
   if (cmpMatch) {
     const [, key, op, rawVal] = cmpMatch;
