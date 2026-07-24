@@ -82,6 +82,7 @@ Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js star
 | `/feature` / `/new-project` 多页站点 | `conditional/baton-loop.md`（baton 接力模式） + **hallmark skill**（新页面结构多样化） |
 | 模糊 UI 需求 / prompt 优化 | `/enhance-prompt`（UI 想法精炼器） |
 | hallmark 审计/重构/设计提取 | **hallmark skill** — `audit`（评分+punch list）、`redesign`（保留IA重建视觉）、`study`（截图/URL→DNA→design.md） |
+| `/deps` 依赖更新 | `docs/tool-versions.md`（工具版本与更新记录 — 对比上游判断要不要更新 + 更新后写日志） |
 
 ## 执行原则
 
