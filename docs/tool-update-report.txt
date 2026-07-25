@@ -1,0 +1,76 @@
+# Mix-Coding Tool Update Report 
+Generated: 周五 2026/07/24 20:11:37.98 
+Mode: READ-ONLY check (no files modified) 
+ 
+## 1. npm packages 
+ 
+Location: claude-scene\package.json 
+ 
+| Package | Current | Wanted | Latest | 
+|---------|---------|--------|--------| 
+| @cyclonedx/cyclonedx-npm | 4.2.1 | 4.2.1 | 6.0.0 | 
+| @redocly/cli | 2.34.0 | 2.40.0 | 2.40.0 | 
+| @vitest/coverage-v8 | 4.1.9 | 4.1.10 | 4.1.10 | 
+| eslint | 10.5.0 | 10.7.0 | 10.7.0 | 
+| eslint-plugin-sonarjs | 4.1.0 | 4.2.0 | 4.2.0 | 
+| eslint-plugin-unicorn | 67.0.0 | 67.0.0 | 72.0.0 | 
+| knip | 6.17.1 | 6.29.0 | 6.29.0 | 
+| ora | 9.4.0 | 9.4.1 | 9.4.1 | 
+| playwright | 1.61.0 | 1.61.1 | 1.61.1 | 
+| runme | 3.15.0 | 3.17.0 | 3.17.0 | 
+| vitest | 4.1.9 | 4.1.10 | 4.1.10 | 
+ 
+## 2. winget binaries 
+ 
+Relevant packages (trivy/gitleaks/hurl/shellcheck/lychee/act/restic/bruno): 
+ 
+- restic (current: 0.19.0, available: 0.19.1
+ 
+## 3. uv Python tools 
+ 
+Installed uv tools: 
+- kimi-cli v1.12.0 
+- - kimi 
+- - kimi-cli 
+- mempalace v3.3.5 
+- - mempalace 
+- - mempalace-mcp 
+- specify-cli v0.11.2.dev0 
+- - specify 
+ 
+Note: uv has no built-in outdated. Check upstream manually: 
+  specify-cli: github.com/github/spec-kit/releases 
+  seraphim-audit / skillspector / sqlfluff / semgrep / ruff: pip outdated 
+ 
+## 4. git submodules (local vs upstream) 
+ 
+Comparison method: fetch --dry-run (no local changes touched) 
+ 
+- open-design: local HEAD abe72af, behind upstream by 0 commits 
+- .mcp\resend-mcp: local HEAD ba4bca7, behind upstream by 0 commits 
+- .mcp\sentry-mcp: local HEAD d527a09, behind upstream by 0 commits 
+- .mcp\stripe-mcp: local HEAD f3cd24b, behind upstream by 0 commits 
+- .mcp\supabase-mcp: local HEAD da182d6, behind upstream by 0 commits 
+- .mcp\tavily-mcp: local HEAD 7bcf907, behind upstream by 0 commits 
+ 
+## 5. Skills (manual check) 
+ 
+Skills have no auto-update mechanism (each has different upstream layout). 
+Manually check each upstream repo against docs\tool-versions.md: 
+ 
+- hallmark: github.com/Nutlope/hallmark/releases 
+- i-have-adhd: github.com/ayghri/i-have-adhd/commits/main 
+- code-review-graph: github.com/tirth8205/code-review-graph/releases 
+- impeccable: npx impeccable skills (compare version) 
+- web-design-engineer: github.com/ConardLi/web-design-engineer 
+- awesome-design-md: github.com/VoltAgent/awesome-design-md 
+- mattpocock: github.com/mattpocock/skills 
+- speckit-*: github.com/github/spec-kit/releases 
+ 
+## 6. npx zero-install tools 
+ 
+biome / aislop / dependency-cruiser / jscpd / size-limit / Stryker / Spectral / markdownlint / commitlint / knip 
+These pull latest on every run - no version lock possible. 
+If a run breaks after upstream change, pin version in the calling script. 
+ 
+ 

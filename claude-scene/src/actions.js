@@ -69,6 +69,7 @@ import {
 import { handleCheckPrerequisites } from './handlers/prerequisites.js';
 import { handleVerifyHandlers } from './handlers/handler-verify.js';
 import { handleCheckSmoke, handleCheckActionMessages, handleCheckGateFlags, handleFixActionMessages, handleFixGateFlags, handleSelfCheckReport } from './handlers/engine-check.js';
+import { handleScanUpdates, handleDetectConflicts, handleAutoUpdateSafe, handleWriteUpdateLog, handleUpdateReport } from './handlers/update.js';
 
 // Mobile handlers
 import {
@@ -181,6 +182,16 @@ export const ACTION_REGISTRY = {
   checkOutdated: handleCheckOutdated,
   updateDeps: handleUpdateDeps,
   checkBreakingChanges: handleCheckBreakingChanges,
+  scanUpdates: handleScanUpdates,
+  'scan-updates': handleScanUpdates,
+  detectConflicts: handleDetectConflicts,
+  'detect-conflicts': handleDetectConflicts,
+  autoUpdateSafe: handleAutoUpdateSafe,
+  'auto-update-safe': handleAutoUpdateSafe,
+  writeUpdateLog: handleWriteUpdateLog,
+  'write-update-log': handleWriteUpdateLog,
+  updateReport: handleUpdateReport,
+  'update-report': handleUpdateReport,
   runCI: handleRunCI,
   codeScan: handleCodeScan,
   securityScan: handleSecurityScan,

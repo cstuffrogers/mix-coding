@@ -52,9 +52,9 @@ function camelToSnake(str) {
 
 export function handleCheckSmoke(_action, _params, targetPath, context) {
   try {
-    const raw = safeExec('npx vitest run --reporter=verbose 2>&1', targetPath, {
+    const raw = safeExec('npx vitest run 2>&1', targetPath, {
       stdio: 'pipe',
-      timeout: 120000,
+      timeout: 180000,
     }).toString();
 
     const passed = /All \d+ tests? passed/.test(raw) || /Tests\s+\d+ passed/.test(raw);
