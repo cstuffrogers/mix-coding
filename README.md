@@ -275,7 +275,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **370+ 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 27 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **126 个 action**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），由 41 个 handler 模块共 222 个 handler 函数实现，覆盖 27 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|

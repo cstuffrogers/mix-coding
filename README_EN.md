@@ -9,7 +9,7 @@ Designed for non-technical users — integrates the hottest GitHub projects with
 
 A **three-layer architecture + Scene engine** intelligent development system:
 
-- ✅ **29 automated workflows** (23 Web + 6 Mobile) — code review, security scanning, performance optimization, E2E testing, release deployment, environment setup, engine self-check, and more
+- ✅ **27 automated workflows** (21 Web + 6 Mobile) — code review, security scanning, performance optimization, E2E testing, release deployment, environment setup, engine self-check, UI prompt refinement, and more
 - ✅ **Multi-round auto review & fix**: iterate until issues are cleared
 - ✅ **AI-driven design**: Open Design fully integrated (152 brands + 111 templates + 137 skills + 6 device frames + 3 decks + 102 prompt templates + 11 craft principles)
 - ✅ **Frontend polish toolchain**: DaisyUI (35+ themes) + Animal Island UI + Animate.css + Lucide React + Playwright + Impeccable critique (27 anti-AI-pattern rules) + web-design-engineer + ai-friendly-web-design + awesome-design-md (5 brand DESIGN.md: Vercel/Linear/Stripe/Notion/Apple)
@@ -86,14 +86,10 @@ node src/index.js start ui-polish --auto    # Execute workflow
 | **review** | 33 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic) + migration/QA/i18n/a11y enhancements | `/review` |
 | **refactor** | 23 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
 | **optimize** | 17 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
-| **simplify** | 15 | Code simplification (readability-first, incremental simplify + test safety) | `/simplify` |
 | **hunt** | 24 | Security vulnerability scan & fix (12 external tools + CE) + LLM proxy audit enhancement | `/hunt` |
-| **design** | 53 | AI-driven design (full conversation mode, Open Design 152 brands + shape design brief → 3-direction proposal → Huashu prototype → expert review → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu verification) | `/design` |
-| **analyze** | 18 | Deep code analysis (complexity / security / performance / CI + auto-fix) | `/analyze` |
 | **loop** | 13 | Auto iteration loop (unattended: review → fix → verify) | `/loop` |
 | **new-project** | 66 | Project from scratch (full conversation mode, Pre-flight design baseline → shape design brief → context gathering → CE plan → Open Design 152 brands + Impeccable full-suite polish (dual-round QC + 3 precision fixes) + AI-Friendly a11y + review + retention) | `/new-project` |
 | **release** | 24 | Release deployment (quality gates + version bump + build + leak check + tag + health check + monitoring) + CHANGELOG enhancement | `/release` |
-| **audit** | 47 | Full project health check (security + code + deps + performance + coverage + complexity + dead code + secret scan + 27 quality gates + infographic) | `/audit` |
 | **deps** | 17 | Safe dependency updates (scan outdated → update one-by-one → breaking changes check → test) + SBOM enhancement | `/deps` |
 | **rollback** | 16 | Emergency rollback (version selection → rollback → build → health check → monitor restoration) | `/rollback` |
 | **onboard** | 16 | Dev environment setup (detect language → install deps → configure .env → start dev server) | `/onboard` |
@@ -103,6 +99,8 @@ node src/index.js start ui-polish --auto    # Execute workflow
 | **qa** | 12 | Browser QA verification (git diff → browser test → bug report), also /review enhancement | `/qa` |
 | **plan-ceo-review** | 11 | Founder-mode product review (10x analysis + simplify + user value), also /feature enhancement | `/plan-ceo-review` |
 | **check** | 10 | Engine self-check + self-heal: dead action detection / orphan gate flags / missing action messages, auto-fix data files | `/check` |
+| **plan** | 10 | Manus-style persistent planning (session recovery + SHA256 attestation + multi-stage tracking) | `/plan` |
+| **update** | 10 | System resource update (scan MCP/Skill/CLI/npm → conflict detection → patch/minor auto-update → major pending confirmation → date-stamped log) | `/update` |
 | **mobile-audit** | 24 | App security audit (MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5-layer gates) | `/mobile-audit` |
 | **mobile-review** | 17 | Mobile code review (ESLint → mobsfscan SAST → UI screenshots → mobile-ui-review → AI semantic + a11y → aggregate report) | `/mobile-review` |
 | **mobile-release** | 18 | App release (quality gate → cert check → version bump → CHANGELOG → TestFlight/Play Store + 4-layer gates) | `/mobile-release` |
@@ -114,7 +112,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ## 🔧 Action Handler Completeness
 
-The system registers **354 action handlers** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), covering all steps across 29 workflows.
+The system registers **126 actions** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), backed by 222 handler functions across 41 handler modules, covering all steps across 27 workflows.
 
 | Action | Purpose | Status |
 |--------|---------|--------|
@@ -309,20 +307,20 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # Scene definitions (29 JSON files)
+│   ├── scenes/               # Scene definitions (27 JSON files)
 │   │   ├── ui-polish.json    bugfix.json     feature.json
 │   │   ├── review.json       refactor.json   optimize.json
-│   │   ├── simplify.json     hunt.json       design.json
-│   │   ├── analyze.json      loop.json       new-project.json
-│   │   ├── release.json      audit.json      deps.json
+│   │   ├── hunt.json         loop.json       new-project.json
+│   │   ├── release.json      deps.json       update.json
 │   │   ├── rollback.json     onboard.json    cicd.json
 │   │   ├── e2e.json          monitor.json
-│   │   ├── qa.json           plan-ceo-review.json  check.json
+│   │   ├── qa.json           plan-ceo-review.json  check.json  enhance-prompt.json
+│   │   ├── plan.json
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
-│   ├── commands/             # Slash commands (29 workflows + jvn /spec /design /build /report etc.)
+│   ├── commands/             # Slash commands (37 .md files: 27 workflows + jvn /spec /design /build /report etc.)
 │   ├── rules/                # Project rules (conditional/ on-demand: core-rules / workflows / enhancements / 9 files)
-│   ├── skills/               # Claude Skills (21: 10 core + 11 speckit)
+│   ├── skills/               # Claude Skills (24: 13 core + 11 speckit)
 │   └── agents/               # 8 Agents (PM/Architect/UX/Reviewer/Constitutional-validator + mobile-reviewer/mobile-security/mobile-perf)
 │
 ├── .specify/                 # Spec-Kit config (templates / scripts / memory)
@@ -415,9 +413,9 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 Integration Overview
 
-> **77+ external components**: 23 Skills + 16 MCP servers + 24 npm packages + 28 external tools
+> **92+ external components**: 24 Skills + 16 MCP servers + 23 npm packages + 28 external tools
 
-### Local Skills (23, `.claude/skills/`)
+### Local Skills (24, `.claude/skills/`)
 
 | Skill | Source | Purpose |
 |-------|--------|---------|
@@ -474,6 +472,16 @@ claude plugins install compound-engineering@anthropic
 ---
 
 ## 🔄 Update Guide
+
+### `/update` Workflow (Recommended)
+
+```bash
+node src/index.js start update --auto
+```
+
+Scans MCP / Skill / CLI / npm system resources → conflict detection (hard blocks, soft warns) → auto-updates conflict-free patch/minor → major pending confirmation → writes date-stamped log to `docs/tool-versions.md`.
+
+> vs `update-all.bat`: the script only runs `npm update` / `git pull`; the `/update` workflow adds conflict detection and manual confirmation for major bumps — safer.
 
 ### One-click Full Update
 
