@@ -42,11 +42,13 @@ export async function listScenes(options) {
   const sceneList = ids.map(id => {
     const scene = loadScene(id);
     const meta = SCENE_META[id] || { icon: '📦', description: '' };
-    return { id, scene, meta };
+    const description = scene?.description || meta.description;
+    return { id, scene, meta, description };
   }).filter(s => s.scene !== null);
 
-  for (const { scene } of sceneList) {
-
+  console.log(chalk.bold('可用场景:'));
+  for (const { id, scene, meta, description } of sceneList) {
+    console.log(`  ${meta.icon} ${chalk.cyan(id.padEnd(16))} ${description}`);
     if (options.verbose) {
       if (scene.trigger_keywords && scene.trigger_keywords.length > 0) {
         console.log(`      ${chalk.gray('触发关键词:')} ${scene.trigger_keywords.join(', ')}`);
@@ -56,5 +58,5 @@ export async function listScenes(options) {
       }
     }
   }
-
+  console.log(`\n共 ${sceneList.length} 个场景，使用 ${chalk.cyan('claude-scene show <id>')} 查看详情`);
 }

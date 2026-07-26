@@ -30,6 +30,13 @@ export async function forkScene(sourceSceneId, options) {
   };
 
   if (options.dryRun) {
+    console.log(chalk.bold('🔍 Fork 预览 (dry-run)'));
+    console.log(`  ${chalk.gray('源场景:')}    ${sceneId}`);
+    console.log(`  ${chalk.gray('新名称:')}    ${newName.replace(/\.json$/, '')}`);
+    console.log(`  ${chalk.gray('输出路径:')}  ${outputPath}`);
+    console.log(`  ${chalk.gray('步骤数:')}    ${forked.flow.length}`);
+    console.log(`  ${chalk.gray('触发词:')}    ${forked.trigger_keywords.join(', ') || '(无)'}`);
+    console.log(chalk.gray('\n  去掉 --dry-run 实际写入文件'));
     return;
   }
 

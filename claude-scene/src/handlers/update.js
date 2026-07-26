@@ -35,11 +35,22 @@ function scanNpm(targetPath) {
   }
 }
 
-function bumpLevel(current, latest) {
-  const c = String(current || '0').split('.');
-  const l = String(latest || '0').split('.');
-  if (parseInt(l[0]) > parseInt(c[0])) return 'major';
-  if (parseInt(l[1]) > parseInt(c[1] || '0')) return 'minor';
+function parseSemver(version) {
+  const parts = String(version || '0')
+    .replace(/^\D+/, '')
+    .split('.');
+  return [
+    parseInt(parts[0]) || 0,
+    parseInt(parts[1]) || 0,
+    parseInt(parts[2]) || 0,
+  ];
+}
+
+export function bumpLevel(current, latest) {
+  const c = parseSemver(current);
+  const l = parseSemver(latest);
+  if (l[0] > c[0]) return 'major';
+  if (l[1] > c[1]) return 'minor';
   return 'patch';
 }
 
@@ -124,6 +135,9 @@ export function handleDetectConflicts(_action, _params, targetPath, context) {
   return `冲突检测通过: 硬 0 · 软 ${result.soft.length}`;
 }
 
+// npm 包名 + @version 只允许安全字符,阻断 shell 注入
+const NPM_PKG_RE = /^@?[a-zA-Z0-9][a-zA-Z0-9._/-]*@[a-zA-Z0-9.\-+]+$/;
+
 export function handleAutoUpdateSafe(_action, _params, targetPath, context) {
   if (context?.hasHardConflict) {
     return '存在硬冲突,跳过自动更新';
@@ -135,6 +149,10 @@ export function handleAutoUpdateSafe(_action, _params, targetPath, context) {
   const npmUpdatable = scan.updatable.filter((r) => r.type === 'npm');
   const updated = [];
   if (npmUpdatable.length) {
+    const safe = npmUpdatable.every((r) => NPM_PKG_RE.test(`${r.name}@${r.latest}`));
+    if (!safe) {
+      return 'npm 包名含非法字符,跳过自动更新(安全阻断)';
+    }
     const pkgs = npmUpdatable.map((r) => `${r.name}@${r.latest}`);
     try {
       safeExec(`npm install ${pkgs.join(' ')}`, join(targetPath, 'claude-scene'), { stdio: 'pipe' });

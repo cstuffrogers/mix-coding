@@ -33,7 +33,7 @@ vi.mock('fs', () => ({
   statSync: (...args) => mockStatSync(...args),
 }));
 
-import { handleScanUpdates, handleDetectConflicts, handleAutoUpdateSafe, handleWriteUpdateLog, handleUpdateReport } from './update.js';
+import { handleScanUpdates, handleDetectConflicts, handleAutoUpdateSafe, handleWriteUpdateLog, handleUpdateReport, bumpLevel } from './update.js';
 
 describe('update handlers', () => {
   beforeEach(() => {
@@ -82,6 +82,36 @@ describe('update handlers', () => {
       const result = handleAutoUpdateSafe('autoUpdateSafe', {}, '/project', ctx);
       expect(result).toContain('1');
       expect(ctx.autoUpdated).toHaveLength(1);
+    });
+
+    it('blocks npm install on malicious package name (injection defense)', () => {
+      const ctx = {
+        updateScanResult: {
+          updatable: [{ type: 'npm', name: 'evil;rm -rf /', current: '1.0.0', latest: '1.0.1', bumpLevel: 'patch' }],
+        },
+      };
+      mockSafeExec.mockReturnValue('');
+      const result = handleAutoUpdateSafe('autoUpdateSafe', {}, '/project', ctx);
+      expect(result).toContain('非法字符');
+      expect(mockSafeExec).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('bumpLevel', () => {
+    it('detects major bump', () => {
+      expect(bumpLevel('1.2.3', '2.0.0')).toBe('major');
+    });
+    it('detects minor bump', () => {
+      expect(bumpLevel('1.2.3', '1.3.0')).toBe('minor');
+    });
+    it('detects patch bump', () => {
+      expect(bumpLevel('1.2.3', '1.2.4')).toBe('patch');
+    });
+    it('strips non-numeric prefix (v/^) before comparing', () => {
+      expect(bumpLevel('^1.2.3', 'v1.3.0')).toBe('minor');
+    });
+    it('falls back to patch for same version', () => {
+      expect(bumpLevel('1.2.3', '1.2.3')).toBe('patch');
     });
   });
 
