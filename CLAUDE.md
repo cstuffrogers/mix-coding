@@ -28,7 +28,7 @@ MemPalace MCP：`mcp__mempalace__search` 查历史，`mcp__mempalace__remember` 
 
 ## 引擎
 
-Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js start <场景ID> --auto [参数]`
+Scene 引擎在对话内执行工作流。27 个场景。`node src/index.js start <场景ID> --auto [参数]`
 
 ## 工作流速查
 
