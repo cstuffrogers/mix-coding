@@ -85,7 +85,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ---
 
-## 📋 26 个工作流场景
+## 📋 27 个工作流场景
 
 > 另有 9 个功能已融入增强菜单（backup/docker→cicd、sbom→deps、loadtest→e2e、log/incident→monitor、changelog→release、migration→review、llm-proxy-audit→hunt），对应父工作流中按需弹出。
 >
@@ -118,6 +118,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **check** | 10 步 | 引擎自检+自愈（dead action / orphan gate / 自动修复） | `/check` |
 | **enhance-prompt** | — | UI prompt 精炼（模糊 UI 想法 → 结构化 prompt，含关键词参考 + 形容词调色板） | `/enhance-prompt` |
 | **plan** | 10 步 | Manus 持久规划（会话恢复 + SHA256认证 + 多阶段追踪） | `/plan` |
+| **update** | 10 步 | 系统资源更新（扫描 MCP/Skill/CLI/npm → 冲突检测 → patch/minor 自动更新 → major 待确认 → 写日期日志） | `/update` |
 | **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + 负载测试可选增强） | `/e2e` |
 | **monitor** | 9 步 | 网站监控（Upptime + 日志/Incident Runbook 可选增强） | `/monitor` |
 
@@ -274,7 +275,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **370+ 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 26 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **370+ 个 action 处理器**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），覆盖 27 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|
@@ -574,10 +575,10 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # 场景定义（26 个 JSON）
-│   ├── commands/             # Slash commands 工作流（36 个 .md）
+│   ├── scenes/               # 场景定义（27 个 JSON）
+│   ├── commands/             # Slash commands 工作流（37 个 .md）
 │   ├── rules/                # 项目规则（conditional/ 按需加载，含 anti-slop 反套娃设计标准 + baton-loop 多页站点接力模式）
-│   ├── skills/               # Claude Skills（23 个）
+│   ├── skills/               # Claude Skills（24 个）
 │   ├── agents/               # 8 个 Agent
 │   ├── reports/              # 审计报告（含 harness-audit 12 维评分）
 │   ├── knowledge/            # 知识索引
@@ -759,9 +760,9 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **85+ 个外部组件**：Skills 23 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个 + MemPalace 工具 1 个
+> 共集成 **86+ 个外部组件**：Skills 24 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个 + MemPalace 工具 1 个
 
-### 本地 Skills（23 个，`.claude/skills/`）
+### 本地 Skills（24 个，`.claude/skills/`）
 
 | Skill | 来源 | 功能 |
 |-------|------|------|
@@ -820,6 +821,16 @@ claude plugins install compound-engineering@anthropic
 ---
 
 ## 🔄 更新指南
+
+### `/update` 工作流（推荐）
+
+```bash
+node src/index.js start update --auto
+```
+
+扫描 MCP / Skill / CLI / npm 四类系统资源 → 检测冲突（硬冲突阻断、软冲突提示）→ 自动更新无冲突的 patch/minor → major 待确认 → 写日期日志到 `docs/tool-versions.md`。
+
+> 与 `update-all.bat` 的区别：脚本只跑 `npm update` / `git pull`；`/update` 工作流额外做冲突检测和 major 版本人工确认，更安全。
 
 ### 一键全量更新
 
