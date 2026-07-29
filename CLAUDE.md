@@ -24,7 +24,7 @@
 
 ## 记忆系统
 
-MemPalace MCP：`mcp__mempalace__search` 查历史，`mcp__mempalace__remember` 保存。验证：`npm run scan:memory`
+Claude Code auto-memory（`~/.claude/.../memory/` + MEMORY.md 索引）：用户画像/偏好/项目事实，自动保存。会话内规划用 `plan.md`/`findings.md`/`progress.md`（详见 `conditional/planning-with-files.md`）。
 
 ## 引擎
 

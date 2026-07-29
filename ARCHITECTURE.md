@@ -90,7 +90,6 @@ This project implements a **three-layer architecture** following the **12-factor
 - **agentmemory**: CLI tool with SQLite backend, structured data
 - **NEXO Brain**: Graph-based semantic memory with GPT-4
 - **CodeGraph**: Code relationship knowledge graph (SQLite)
-- **MemPalace**: Verbatim conversation archiving and recall (v3.3.5, 2026-06-06) — **通过 MCP 工具调用**（不走 hook）
 
 **Isolation Strategy**:
 - Tool name prefixes: `memory-agentmemory_*`, `memory-nexo_*`, `memory-codegraph_*`

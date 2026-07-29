@@ -269,45 +269,6 @@ npx nexo-brain@latest init
 
 ---
 
-### 9. MemPalace（对话原文记忆） - 推荐安装 ⭐⭐⭐⭐
-**作用：** 对话原文自动归档 + 跨会话历史召回，通过 **MCP 工具调用**（不走 hook，避免 Windows 路径转义假死）
-
-**安装 CLI：**
-```bash
-# 用 uv 安装（已装 uv 才能用）
-uv tool install mempalace
-
-# 验证
-mempalace --version
-# 应显示 v3.3.5+
-```
-
-**配置 MCP：** 一键脚本自动配置
-```bash
-cd e:\auto-coding
-npm run setup:mempalace
-```
-
-**手动配置**（如果脚本失败）：
-编辑 `.mcp.json`，把 mempalace 的 command 改为全路径：
-```json
-"mempalace": {
-  "command": "C:\\Users\\你的用户名\\.local\\bin\\mempalace-mcp.exe",
-  "args": []
-}
-```
-
-**使用：** Claude 主动调用 `mcp__mempalace__search` / `remember` / `list` / `store`
-
-> **重要**：MemPalace hook 已被禁用（避免 Windows 路径转义假死）。记忆功能通过 MCP 工具调用实现。
-
-**验证：**
-```bash
-npm run scan:memory
-```
-
----
-
 ## 🚀 第四层：自动化工具链
 
 ### 9. claude-scene CLI工具 - 必装 ⭐⭐⭐⭐⭐

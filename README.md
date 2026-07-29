@@ -612,50 +612,19 @@ mix-coding/
 
 ---
 
-## 🧠 MemPalace 记忆系统（MCP 工具调用）
+## 🧠 记忆系统
 
-**状态**：✅ 已通过 MCP 工具调用（不走 hook 避免 Windows 路径转义假死）
+**状态**：✅ Claude Code auto-memory 自动保存用户画像/偏好/项目事实
 
-### 架构变化
-
-```
-旧架构（已废弃）：Trae/Claude Code → hook 脚本 → 假死 ❌
-新架构（当前）：   Trae/Claude Code ─┬─→ [禁用 hook] sys.exit(0) 立即返回
-                                  └─→ MCP 工具调 mempalace ✅
-```
-
-### 用法
-
-| 场景 | Claude 主动调用的 MCP 工具 |
-|------|----------------------------|
-| 用户问"上次 / 之前 / 那个" | `mcp__mempalace__search` |
-| 重要决策 / 关键 bug 修复 | `mcp__mempalace__remember` |
-| 项目知识沉淀 | `mcp__mempalace__store` |
-| 列出所有记忆 | `mcp__mempalace__list` |
-
-### 安装配置
-
-```bash
-# mempalace CLI 需先安装
-uv tool install mempalace
-
-# 一键配置（修改 .mcp.json 用全路径避免 Windows 路径问题）
-npm run setup:mempalace
-
-# 验证
-npm run scan:memory
-```
+- `~/.claude/.../memory/*.md` + `MEMORY.md` 索引，跨会话自动加载
+- 会话内规划用 `plan.md` / `findings.md` / `progress.md`（见 `.claude/rules/conditional/planning-with-files.md`）
 
 ### 一键脚本
 
 | 脚本 | 作用 |
 |------|------|
-| `npm run setup:mempalace` | 安装 + 配置 |
-| `npm run scan:memory` | 状态扫描 |
 | `npm run scan:deadcode` | 死代码扫描 |
 | `npm run scan:all` | 综合扫描 |
-
-详细说明见 [docs/省token.md](./docs/省token.md)
 
 ---
 
@@ -663,34 +632,34 @@ npm run scan:memory
 
 | 工作流 | 启用的 MCP 服务器 |
 |--------|-------------------|
-| new-project | github, context7, supabase, stripe, resend, mempalace |
-| feature | github, context7, supabase, mempalace |
-| bugfix | sentry, context7, github, codegraph, mempalace |
-| refactor | github, context7, mempalace |
-| design | context7, mempalace |
-| ui-polish | memory, playwright, mempalace |
-| simplify | github, context7, mempalace |
-| optimize | github, context7, mempalace |
-| review | github, context7, mempalace |
-| hunt | sentry, context7, github, codegraph, mempalace |
-| analyze | opendigger, mempalace |
-| loop | github, context7, mempalace |
-| release | github, mempalace |
-| audit | github, context7, codegraph, mempalace |
-| deps | github, mempalace |
-| rollback | github, codegraph, mempalace |
-| changelog | github, mempalace |
-| cicd | github, mempalace |
-| incident | github, mempalace |
-| monitor | github, mempalace |
-| sbom | github, mempalace |
-| mobile-audit | mobsf, mobsfscan, bearer, sentry, dependencycheck, mempalace |
-| mobile-review | mobsfscan, detox, codegraph, mobile-ui-review, mempalace |
-| mobile-release | github, mempalace |
-| mobile-optimize | bundle-visualizer, detox, toxiproxy, mempalace |
-| mobile-e2e | detox, patrol, mempalace |
-| mobile-onboard | react-native-doctor, mempalace |
-| llm-proxy-audit | lobstertrap, mempalace |
+| new-project | github, context7, supabase, stripe, resend |
+| feature | github, context7, supabase |
+| bugfix | sentry, context7, github, codegraph |
+| refactor | github, context7 |
+| design | context7 |
+| ui-polish | memory, playwright |
+| simplify | github, context7 |
+| optimize | github, context7 |
+| review | github, context7 |
+| hunt | sentry, context7, github, codegraph |
+| analyze | opendigger |
+| loop | github, context7 |
+| release | github |
+| audit | github, context7, codegraph |
+| deps | github |
+| rollback | github, codegraph |
+| changelog | github |
+| cicd | github |
+| incident | github |
+| monitor | github |
+| sbom | github |
+| mobile-audit | mobsf, mobsfscan, bearer, sentry, dependencycheck |
+| mobile-review | mobsfscan, detox, codegraph, mobile-ui-review |
+| mobile-release | github |
+| mobile-optimize | bundle-visualizer, detox, toxiproxy |
+| mobile-e2e | detox, patrol |
+| mobile-onboard | react-native-doctor |
+| llm-proxy-audit | lobstertrap |
 
 ---
 
@@ -752,7 +721,7 @@ claude plugins install compound-engineering@anthropic
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: 语义HTML/ARIA可访问性 |
 | **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md`（同上，注意前序元数据格式） | 5 精选品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为 Open Design 152 品牌库直接文件读取 |
 | **MCP服务器** | `claude mcp install github playwright supabase` | AI上下文增强扩展 |
-| **记忆工具** | `git clone https://github.com/claude-mem \`%USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 6种记忆组件组合使用（project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace） |
+| **记忆工具** | `git clone https://github.com/claude-mem \`%USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 5种记忆组件组合使用（project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph） |
 | **安全工具链** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli knip` + `pip install seraphim-audit` + Socket.dev API Key 配置 | 构建泄露检测 / 安全响应头 / 死链 / 无障碍 / ReDoS / 性能门禁 / AST 死代码检测 / 日志脱敏 / CORS / 敏感文件 / 供应链安全 / 技术债务 |
 | **App Store** | [claude代码商店](https://github.com/topics/claude-app-store) | 更多Claude扩展工具 |
 
@@ -760,7 +729,7 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **86+ 个外部组件**：Skills 24 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个 + MemPalace 工具 1 个
+> 共集成 **85+ 个外部组件**：Skills 24 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个
 
 ### 本地 Skills（24 个，`.claude/skills/`）
 
@@ -791,9 +760,9 @@ claude plugins install compound-engineering@anthropic
 | `context7` | 文档查询 | `tavily-search` | 网络搜索 |
 | `playwright` | 浏览器自动化 | `filesystem` | 文件系统操作 |
 | `sequential-thinking` | 链式推理 | `memory` | 会话持久化记忆 |
-| `mempalace` | 对话原文归档 | `stripe` | 支付集成 |
-| `supabase` | 数据库操作 | `resend` | 邮件服务 |
-| `sentry` | 错误监控 | `bearer` | PII/GDPR 隐私合规 |
+| `stripe` | 支付集成 | `supabase` | 数据库操作 |
+| `resend` | 邮件服务 | `sentry` | 错误监控 |
+| `bearer` | PII/GDPR 隐私合规 |
 | `detox` | RN E2E 测试 | `mobsfscan` | 移动端 SAST |
 
 ### npm 包（23 个，`claude-scene/package.json`）

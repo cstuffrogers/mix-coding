@@ -102,44 +102,9 @@ CLAUDE.md 引用了两个大文件，导致规则链冗余
 
 ---
 
-## 🧠 MemPalace 替代方案
-
-### 旧架构（已废弃）
-
-```
-Trae IDE → hook 脚本 → 假死 ❌
-```
-
-### 新架构（当前）
-
-```
-Trae/Claude Code ─┬─→ [禁用 hook] .py.disabled ✅
-                  └─→ MCP 工具调 mempalace ✅
-```
-
-### MemPalace 工具调用
-
-| 工具 | 作用 |
-|------|------|
-| `mcp__mempalace__search` | 检索历史记忆 |
-| `mempalace__remember` | 保存记忆 |
-| `mempalace__list` | 列出所有记忆 |
-| `mempalace__store` | 知识沉淀 |
-
-### 配置位置
-
-- **CLI 路径**：`C:\Users\Administrator\.local\bin\mempalace.exe`
-- **MCP server**：`C:\Users\Administrator\.local\bin\mempalace-mcp.exe`
-- **MCP 配置**：`.mcp.json`（用全路径避免 Windows 路径问题）
-- **一键脚本**：`npm run setup:mempalace`
-
----
-
 ## 🚀 一键命令
 
 ```bash
-npm run setup:mempalace     # 配置 mempalace MCP
-npm run scan:memory         # 记忆系统状态
 npm run scan:deadcode       # 死代码扫描
 npm run scan:all            # 综合扫描
 node scripts/scan-scenes.cjs  # 真实步骤数
@@ -164,7 +129,7 @@ node scripts/scan-scenes.cjs  # 真实步骤数
 
 如果未来装了 Python 3，**不要**把 `.py.disabled` 改回 `.py`：
 - 这些 hook 在 Windows 上**路径转义**会再次假死
-- MemPalace 已通过 MCP 工具替代
+- MemPalace 已退役（2026-07-29），记忆改用 auto-memory
 
 ### 2. 永远不要添加 `Bash(python3 *)` 到 allow
 
@@ -197,7 +162,6 @@ node scripts/scan-scenes.cjs  # 真实步骤数
 
 | 功能 | 启用条件 |
 |------|----------|
-| MemPalace hook | Trae IDE 修复 Windows 路径转义 bug |
 | Claude-Mem 3 层记忆 | 安装 Python 3 + 修复 hook 路径 |
 | od-craft 自动加载 | 用户主动要求 |
 

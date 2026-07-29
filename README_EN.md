@@ -333,8 +333,7 @@ mix-coding/
 ├── scripts/                  # Project scripts (Node.js .cjs)
 │   ├── scan-scenes.cjs       # Scan all scene step counts
 │   ├── find-deadcode.cjs     # Dead code scanner
-│   ├── check-memory-system.cjs # Memory system health check
-│   └── setup-mempalace.cjs   # MemPalace MCP setup
+│   └── find-deadcode-full.cjs # Dead code scanner
 ├── constitution.md           # Project constitution (enforced by constitutional-validator Agent)
 ├── CLAUDE.md                 # Main project instructions
 ├── ARCHITECTURE.md           # Full architecture documentation
@@ -404,7 +403,7 @@ claude plugins install compound-engineering@anthropic
 | **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 curated brand DESIGN.md files (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
 | **MCP Servers** | `claude mcp install github playwright supabase` | AI context enhancement extensions |
 | **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` | GitHub spec-driven development engine (11 speckit skills) |
-| **Memory Tools** | `git clone https://github.com/claude-mem %USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 6 memory backends (project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph / MemPalace) |
+| **Memory Tools** | `git clone https://github.com/claude-mem %USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 5 memory backends (project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph) |
 | **Security Toolchain** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli knip` + `pip install seraphim-audit` + Socket.dev API Key | Build leak detection / security headers / dead links / a11y / ReDoS / performance gates / dead code / supply chain |
 | **New External Tools** | `pip install sqlfluff` + `npm install -g @usebruno/cli` | trivy (container/filesystem/IaC scan) / shellcheck (shell script analysis) / sqlfluff (SQL lint) / bruno (API testing) — download from GitHub releases or winget/brew |
 | **App Store** | [Claude App Store](https://github.com/topics/claude-app-store) | More Claude extensions |
@@ -442,9 +441,9 @@ claude plugins install compound-engineering@anthropic
 | `context7` | Documentation query | `tavily-search` | Web search |
 | `playwright` | Browser automation | `filesystem` | Filesystem ops |
 | `sequential-thinking` | Chain reasoning | `memory` | Session memory |
-| `mempalace` | Verbatim conversation archive | `stripe` | Payments |
-| `supabase` | Database operations | `resend` | Email service |
-| `sentry` | Error monitoring | `bearer` | PII/GDPR compliance |
+| `stripe` | Payments | `supabase` | Database operations |
+| `resend` | Email service | `sentry` | Error monitoring |
+| `bearer` | PII/GDPR compliance |
 | `detox` | RN E2E testing | `mobsfscan` | Mobile SAST |
 
 ### npm Packages (23, `claude-scene/package.json`)

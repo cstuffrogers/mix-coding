@@ -13,9 +13,6 @@ args = [
 ]
 env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 
-[mcp_servers.mempalace]
-command = 'C:\Users\Administrator\.local\bin\mempalace-mcp.exe'
-
 [mcp_servers.sentry]
 command = "npx"
 args = [

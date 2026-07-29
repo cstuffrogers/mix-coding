@@ -47,7 +47,6 @@ const commands = {
   '/rollback': { description: '紧急回滚：定位目标版本→验证安全→执行回滚→健康检查→事故复盘', template: '先完整读取 .claude/commands/rollback.md 获取详细工作流（16步，双重确认）。然后按步骤执行紧急回滚。' },
   '/spec': { description: '描述你要构建的功能需求，进入 Spec-Driven 开发流程', template: '先完整读取 .claude/commands/spec.md 获取详细工作流。然后按 Spec-Driven 开发流程：录入需求→/design→/build。' },
   '/plan-ceo-review': { description: '创始人模式产品策略审查：找到 10x 版本，砍掉范围蔓延，聚焦用户影响', template: '先完整读取 .claude/commands/plan-ceo-review.md 获取详细工作流。然后进行产品策略深度审查。' },
-  '/recall': { description: 'MemPalace 召回历史对话原文（逐字、无摘要）', template: '先完整读取 .claude/commands/recall.md 获取详细工作流。然后按查询条件召回历史对话。' },
   '/report': { description: '分析本项目并生成时间戳报告', template: '先完整读取 .claude/commands/report.md 获取详细工作流。然后分析项目并生成报告。' },
   '/report-fix': { description: '修复项目报告中发现的问题', template: '先完整读取 .claude/commands/report-fix.md 获取详细工作流。然后根据报告修复问题。' },
   '/others': { description: '查看所有可用工具（场景工作流+辅助工具），弹出分类选择菜单', template: '先完整读取 .claude/commands/others.md 获取详细工作流。然后展示分类菜单供用户选择。' },

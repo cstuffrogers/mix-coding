@@ -107,11 +107,6 @@
       ],
       "description": "Playwright 浏览器自动化测试"
     },
-    "mempalace": {
-      "command": "C:\\Users\\Administrator\\.local\\bin\\mempalace-mcp.exe",
-      "args": [],
-      "description": "MemPalace 本地优先 AI 记忆 - 逐字存储对话原文，语义检索 (ChromaDB)"
-    },
     "bearer": {
       "command": "npx",
       "args": [

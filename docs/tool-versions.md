@@ -126,7 +126,7 @@
 
 | 服务器 | 最后核查 |
 |--------|---------|
-| codegraph, github, context7, tavily-search, playwright, filesystem, sequential-thinking, memory, mempalace, stripe, supabase, resend, sentry, bearer, detox, mobsfscan | 2026-07-24 |
+| codegraph, github, context7, tavily-search, playwright, filesystem, sequential-thinking, memory, stripe, supabase, resend, sentry, bearer, detox, mobsfscan | 2026-07-24 |
 
 > **核查**: MCP 服务器通过 `npx` 拉取,版本随上游 npm 包。`/check` 会检测 MCP 配置健康度。
 

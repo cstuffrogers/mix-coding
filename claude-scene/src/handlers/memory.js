@@ -42,7 +42,7 @@ export async function handleMemoryRecall(_action, params, _targetPath, context) 
   const cg = queryCodeGraph(perSourceLimit);
   allMemories.push({ source: 'codegraph', summary: cg });
 
-  // 6 backends total (project-memory, claude-mem, agentmemory, NEXO, CodeGraph, MemPalace)
+  // 5 backends total (project-memory, claude-mem, agentmemory, NEXO, CodeGraph)
 
   const recalled = filters
     ? allMemories.filter(m => matchFilter(m, filters)).slice(0, limit)

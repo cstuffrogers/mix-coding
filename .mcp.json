@@ -1,15 +1,10 @@
 {
-  "_comment": "LIGHTWEIGHT mode: only 4 MCP servers active. For full 14 servers, restore from .mcp.json.full: cp .mcp.json.full .mcp.json",
+  "_comment": "LIGHTWEIGHT mode: only 3 MCP servers active. For full servers, restore from .mcp.json.full: cp .mcp.json.full .mcp.json",
   "_modes": {
     "current": "light",
-    "active_servers": ["mempalace", "context7", "github", "sentry"]
+    "active_servers": ["context7", "github", "sentry"]
   },
   "mcpServers": {
-    "mempalace": {
-      "command": "C:\\Users\\Administrator\\.local\\bin\\mempalace-mcp.exe",
-      "args": [],
-      "description": "MemPalace 本地优先 AI 记忆 (v3.3.5, 启动快)"
-    },
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@latest"],

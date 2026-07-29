@@ -15,7 +15,7 @@
 2. **27 个工作流**:`/ui-polish` `/hunt` `/feature` `/release` 等斜杠命令,覆盖开发全链路
 3. **反 AI 套娃设计**:hallmark skill + 57 条 slop-test 门禁,生成的 UI 不像 AI 写的
 4. **安全工具链**:gitleaks/semgrep/trivy/critiq 等 28 个安全工具零冲突集成
-5. **记忆系统**:MemPalace + auto-memory + 项目 CLI 三层记忆,跨会话不丢上下文
+5. **记忆系统**:auto-memory + 项目 CLI 两层记忆,跨会话不丢上下文
 6. **多平台**:同一套配置同时喂 Claude Code / opencode / Codex / ZCode
 
 ---
@@ -41,7 +41,7 @@
 | 2. 一键安装 | 60-150s | 实录 `./install.sh` 跑通,Git/Node/Claude/工具链全自动 | 终端录屏,标注每步 ✓ |
 | 3. 工作流演示 | 150-330s | 挑 3 个有冲击力的:`/ui-polish`(丑→美)、`/hunt`(扫漏洞)、`/feature`(出功能) | 三段前后对比 |
 | 4. 设计亮点 | 330-420s | hallmark 反 AI 套娃 + 57 slop-test | 设计系统截图 |
-| 5. 记忆系统 | 420-460s | MemPalace 跨会话召回演示 | 两终端会话对照 |
+| 5. 记忆系统 | 420-460s | auto-memory 跨会话召回演示 | 两终端会话对照 |
 | 6. 多平台 | 460-480s | 同一配置喂 4 个 AI CLI | 四宫格 |
 | 7. CTA | 480-500s | GitHub 地址 + star 引导 + 三连 | 结尾卡 |
 
