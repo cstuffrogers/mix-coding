@@ -41,51 +41,62 @@ export function handleReleaseChecks(_action, _params, targetPath, context) {
 
 // ── Version Bumping ──
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Apply major/minor/patch increment to a 3-part version, resetting lower parts.
+function bumpParts(parts, bumpType) {
+  if (bumpType === 'major') { parts[0]++; parts[1] = 0; parts[2] = 0; }
+  else if (bumpType === 'minor') { parts[1]++; parts[2] = 0; }
+  else { parts[2]++; }
+  return parts;
+}
+
+// Bump version in package.json (RN/Expo). Returns {previous, current} or null on miss.
+function bumpPackageJson(targetPath, bumpType) {
+  const packagePath = join(targetPath, 'package.json');
+  if (!existsSync(packagePath)) return null;
+  const result = { previous: null, current: null };
+  try {
+    const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+    result.previous = pkg.version;
+    const parts = (pkg.version || '0.0.0').split('.').map(Number);
+    result.current = bumpParts(parts, bumpType).join('.');
+    pkg.version = result.current;
+    writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + '\n');
+  } catch {
+    result.current = '0.0.1';
+  }
+  return result;
+}
+
+// Bump version in pubspec.yaml (Flutter). Returns new version string or null.
+function bumpPubspec(targetPath, bumpType) {
+  const pubspecPath = join(targetPath, 'pubspec.yaml');
+  if (!existsSync(pubspecPath)) return null;
+  try {
+    let content = readFileSync(pubspecPath, 'utf-8');
+    const verMatch = content.match(/^version:\s*(\S+)/m);
+    if (!verMatch) return null;
+    const parts = verMatch[1].trim().split('.').map(Number);
+    const newVer = bumpParts(parts, bumpType).join('.');
+    content = content.replace(/^version:\s*(\S+)/m, `version: ${newVer}`);
+    writeFileSync(pubspecPath, content);
+    return newVer;
+  } catch { return null; }
+}
+
 export function handleMobileBumpVersion(_action, params, targetPath, context) {
   const bumpType = context?.selectedOption || params?.bump_type || 'patch';
-
   const newVersion = { previous: null, current: null, bump_type: bumpType };
   const projectType = context?.project_type || 'rn';
 
-  // Try package.json (RN/Expo)
-  const packagePath = join(targetPath, 'package.json');
-  if (existsSync(packagePath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
-      newVersion.previous = pkg.version;
-      const parts = (pkg.version || '0.0.0').split('.').map(Number);
-      if (bumpType === 'major') { parts[0]++; parts[1] = 0; parts[2] = 0; }
-      else if (bumpType === 'minor') { parts[1]++; parts[2] = 0; }
-      else { parts[2]++; }
-      newVersion.current = parts.join('.');
-      pkg.version = newVersion.current;
-      writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + '\n');
-    } catch {
-      newVersion.current = '0.0.1';
-    }
+  const pkgResult = bumpPackageJson(targetPath, bumpType);
+  if (pkgResult) {
+    newVersion.previous = pkgResult.previous;
+    newVersion.current = pkgResult.current;
   }
 
-  // pubspec.yaml (Flutter)
   if (projectType === 'flutter') {
-    const pubspecPath = join(targetPath, 'pubspec.yaml');
-    if (existsSync(pubspecPath)) {
-      try {
-        let content = readFileSync(pubspecPath, 'utf-8');
-        const verMatch = content.match(/^version:\s*(\S+)/m);
-        if (verMatch) {
-          const oldVer = verMatch[1].trim();
-          const parts = oldVer.split('.').map(Number);
-          if (bumpType === 'major') { parts[0]++; parts[1] = 0; parts[2] = 0; }
-          else if (bumpType === 'minor') { parts[1]++; parts[2] = 0; }
-          else { parts[2]++; }
-          const newVer = parts.join('.');
-          content = content.replace(/^version:\s*(\S+)/m, `version: ${newVer}`);
-          writeFileSync(pubspecPath, content);
-          newVersion.current = newVer;
-        }
-      } catch { /* skip */ }
-    }
+    const newVer = bumpPubspec(targetPath, bumpType);
+    if (newVer) newVersion.current = newVer;
   }
 
   if (context) {

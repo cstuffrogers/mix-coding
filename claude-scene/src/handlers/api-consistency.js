@@ -5,20 +5,9 @@ import { findOpenApiSpec, loadSpec, extractEndpoints, extractSchemas } from './a
 import { findFrontendDir, detectFrontendApiCalls } from './api/frontend-detect.js';
 import { redoclyLint, redoclyBundle, openapiTypeScript, runCrossReference, writeSkipReport, calculateScore, buildReport } from './api/pipeline.js';
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
-export async function handleCheckAPIConsistency(_action, _params, targetPath, context) {
-
-  const specFile = findOpenApiSpec(targetPath);
-  if (!specFile) {
-    writeSkipReport(targetPath, context);
-    return '一致性检查跳过（无 OpenAPI 规范）';
-  }
-
-  const issues = { critical: [], high: [] };
-  let totalChecks = 0;
-
+// Run redocly lint + bundle and collect issues. Returns { lintResult, bundledPath }.
+function runLintAndBundle(specFile, targetPath, issues) {
   const lintResult = redoclyLint(specFile, targetPath);
-  totalChecks++;
   if (!lintResult.passed) {
     lintResult.errors.forEach(e => issues.critical.push(`Redocly lint: ${e}`));
   } else {
@@ -31,6 +20,35 @@ export async function handleCheckAPIConsistency(_action, _params, targetPath, co
   } else {
     console.log(chalk.dim(`  📦 Bundle: ${bundledPath}`));
   }
+  return { lintResult, bundledPath };
+}
+
+// Detect frontend dir + API calls, recording high-severity gaps. Mutates issues.
+async function collectFrontendCalls(targetPath, serverEndpoints, issues) {
+  const frontendDir = findFrontendDir(targetPath);
+  if (!frontendDir) {
+    if (serverEndpoints.size > 0) issues.high.push('未找到前端目录，无法验证后端端点是否被调用');
+    return [];
+  }
+  const frontendCalls = await detectFrontendApiCalls(frontendDir);
+  if (frontendCalls.length === 0 && serverEndpoints.size > 0) {
+    issues.high.push('前端目录存在但未检测到任何 API 调用，可能使用了未支持的 HTTP 库');
+  }
+  return frontendCalls;
+}
+
+export async function handleCheckAPIConsistency(_action, _params, targetPath, context) {
+  const specFile = findOpenApiSpec(targetPath);
+  if (!specFile) {
+    writeSkipReport(targetPath, context);
+    return '一致性检查跳过（无 OpenAPI 规范）';
+  }
+
+  const issues = { critical: [], high: [] };
+  let totalChecks = 0;
+
+  const { lintResult, bundledPath } = runLintAndBundle(specFile, targetPath, issues);
+  totalChecks++;
 
   const specFileToUse = bundledPath || specFile;
   const spec = loadSpec(specFileToUse);
@@ -43,16 +61,7 @@ export async function handleCheckAPIConsistency(_action, _params, targetPath, co
   const serverEndpoints = extractEndpoints(spec);
   const serverSchemas = extractSchemas(spec);
 
-  const frontendDir = findFrontendDir(targetPath);
-  let frontendCalls = [];
-  if (frontendDir) {
-    frontendCalls = await detectFrontendApiCalls(frontendDir);
-    if (frontendCalls.length === 0 && serverEndpoints.size > 0) {
-      issues.high.push('前端目录存在但未检测到任何 API 调用，可能使用了未支持的 HTTP 库');
-    }
-  } else if (serverEndpoints.size > 0) {
-    issues.high.push('未找到前端目录，无法验证后端端点是否被调用');
-  }
+  const frontendCalls = await collectFrontendCalls(targetPath, serverEndpoints, issues);
   totalChecks = runCrossReference(frontendCalls, serverEndpoints, issues, totalChecks);
 
   const typesResult = openapiTypeScript(specFileToUse, targetPath);

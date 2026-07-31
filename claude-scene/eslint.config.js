@@ -8,6 +8,8 @@ export default [
     ignores: ["coverage/**", "node_modules/**", "dist/**", "../.huashu-extract/**", "../assets/huashu/**", "../.claude/skills/impeccable/**", "../.specify/**", "**/*.umd.js", "**/*.min.js"],
   },
   js.configs.recommended,
+  // flatConfigs is the documented property access for import-x flat config.
+  // eslint-disable-next-line import-x/no-named-as-default-member
   importPlugin.flatConfigs.recommended,
   unicorn.configs["flat/recommended"],
   sonarjs.configs.recommended,
@@ -29,12 +31,19 @@ export default [
         process: "readonly",
         console: "readonly",
         setTimeout: "readonly",
+        clearTimeout: "readonly",
+        // Node 18+ Web API globals (used by llm-proxy-detector fetch/AbortController)
+        fetch: "readonly",
+        AbortController: "readonly",
       },
     },
     rules: {
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "no-undef": "error",
       "no-empty": ["error", { "allowEmptyCatch": true }],
+      // Mechanically enforce the declared ≤15 cognitive-complexity boundary.
+      // Functions exceeding the threshold must use an inline eslint-disable with a reason.
+      "sonarjs/cognitive-complexity": ["error", 15],
       "unicorn/filename-case": "off",
       "unicorn/prefer-module": "off",
       "unicorn/no-null": "off",

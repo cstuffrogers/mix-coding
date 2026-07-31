@@ -160,8 +160,7 @@ describe('handler smoke tests', () => {
 // ═══ 3. await-safeExec anti-pattern ═══
 
 describe('no await safeExec anti-pattern', () => {
-  it('handler files never use await on synchronous safeExec', () => {
-    if (!existsSync(HANDLERS_DIR)) return;
+  it.skipIf(!existsSync(HANDLERS_DIR))('handler files never use await on synchronous safeExec', () => {
     const violations = [];
     const awaitRe = /\bawait\s+safeExec\s*\(/;
     function scan(dir) {
@@ -185,8 +184,7 @@ describe('no await safeExec anti-pattern', () => {
 // ═══ 4. scene JSON well-formedness ═══
 
 describe('scene JSON integrity', () => {
-  it('all scene JSONs are valid and have scene_id + flow fields', () => {
-    if (!existsSync(SCENES_DIR)) return;
+  it.skipIf(!existsSync(SCENES_DIR))('all scene JSONs are valid and have scene_id + flow fields', () => {
     const broken = [];
     for (const f of readdirSync(SCENES_DIR).filter(x => x.endsWith('.json'))) {
       const scene = readJsonOrNull(join(SCENES_DIR, f));

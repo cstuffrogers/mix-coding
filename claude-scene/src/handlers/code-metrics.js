@@ -77,7 +77,94 @@ export function handleCodeMetrics(_action, params, targetPath, context) {
   return `指标计算完成: 圈复杂度 ${avgComplexity}, 可维护性 ${maintainability}`;
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Counts method-like declarations (excluding control-flow keywords).
+// methodsRe only matches at line start, so indentation affects the count —
+// this mirrors the original heuristic rather than doing a full AST walk.
+function countMethods(content) {
+  const methodsRe = /^(?:async\s)?(?:static\s)?(\w+)\s*\(/gm;
+  let methods = 0;
+  let rm;
+  while ((rm = methodsRe.exec(content)) !== null) {
+    if (!CTRL_FLOW.has(rm[1])) methods++;
+  }
+  return methods;
+}
+
+// Data/config/message files are exempt from god_object — they legitimately
+// hold many small accessors without being real "god objects".
+function isDataFile(filePath) {
+  return /(?:^|[\\/])(?:data|config|constants|messages|i18n|locales)[\\/]/.test(filePath)
+    || /(?:action-messages|messages|constants|i18n|config)\.(?:js|ts|mjs|mts)$/.test(filePath);
+}
+
+function detectGodObject(file, lines, found) {
+  const hasClassOrFunc = /^(?:export\s+)?(?:class|function)\s+\w+/m.test(file.content);
+  const methods = countMethods(file.content);
+  // Need BOTH size and method count, OR very high method count (data files exempt)
+  if (!isDataFile(file.path) && hasClassOrFunc && (lines.length > 300 && methods > 5 || methods > 30)) {
+    found.god_object.push({ file: file.path, lines: lines.length, methods });
+  }
+}
+
+// Tracks brace depth across stripped lines to find function/arrow bodies that
+// exceed 50 lines. funcStartRe identifies declaration lines; funcStart marks
+// the opening of a body that gets closed when braceDepth returns to zero.
+const LONG_FUNC_RES = [
+  /(?:function\s+\w+\s*\([^)]*\))/, // eslint-disable-next-line sonarjs/super-linear-regex
+  /(?:\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>/,
+];
+
+function detectLongMethods(strippedLines, lines, filePath, found) {
+  let braceDepth = 0;
+  let funcStart = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const braceLine = (strippedLines ? strippedLines[i] : lines[i]) || '';
+    const open = (braceLine.match(/\{/g) || []).length;
+    const close = (braceLine.match(/\}/g) || []).length;
+    braceDepth += open - close;
+    // Only mark funcStart when the line actually has a function/arrow declaration
+    if (open > 0 && funcStart === -1 && LONG_FUNC_RES.some(re => re.test(braceLine))) funcStart = i;
+    if (braceDepth <= 0 && funcStart >= 0) {
+      const len = i - funcStart;
+      if (len > 50) found.long_method.push({ file: filePath, line: funcStart + 1, length: len });
+      funcStart = -1;
+    }
+  }
+}
+
+// Tallies non-trivial, non-comment, non-import lines to surface duplication.
+function collectDuplicateLines(strippedLines, lines) {
+  const lineCount = {};
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = strippedLines ? strippedLines[i] : lines[i];
+    if (!rawLine) continue;
+    const trimmed = rawLine.trim();
+    if (trimmed.length > 10 && !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('import')) {
+      lineCount[trimmed] = (lineCount[trimmed] || 0) + 1;
+    }
+  }
+  return lineCount;
+}
+
+function detectDuplicates(strippedLines, lines, filePath, found) {
+  const lineCount = collectDuplicateLines(strippedLines, lines);
+  const dups = Object.entries(lineCount).filter(([, c]) => c >= 3);
+  if (dups.length) found.duplicate_code.push({ file: filePath, count: dups.length });
+}
+
+function detectLongMethodAndDuplicates(file, patterns, found) {
+  const checkLong = patterns.includes('long_method');
+  const checkDup = patterns.includes('duplicate_code');
+  if (!checkLong && !checkDup) return;
+
+  const strippedContent = stripCommentsAndStrings(file.content);
+  const strippedLines = strippedContent.split('\n');
+  const lines = file.content.split('\n');
+
+  if (checkLong) detectLongMethods(strippedLines, lines, file.path, found);
+  if (checkDup) detectDuplicates(strippedLines, lines, file.path, found);
+}
+
 export function handleDetectAntiPatterns(_action, params, targetPath, context) {
   const patterns = params?.patterns || ['god_object', 'long_method', 'duplicate_code'];
   const srcDir = join(targetPath, 'src');
@@ -86,68 +173,11 @@ export function handleDetectAntiPatterns(_action, params, targetPath, context) {
   for (const file of readCodeFiles(srcDir)) {
     // Test/spec files naturally have many small methods — not genuine god objects
     if (/\.(test|spec)\.[jt]sx?$/.test(file.path)) continue;
-    const content = file.content;
-    const lines = content.split('\n');
-    const strippedContent = patterns.includes('long_method') || patterns.includes('duplicate_code')
-      ? stripCommentsAndStrings(content) : null;
-    const strippedLines = strippedContent ? strippedContent.split('\n') : null;
+    const lines = file.content.split('\n');
 
-    if (patterns.includes('god_object')) {
-      // Only flag files with class/function declarations AND significant method count
-      const hasClassOrFunc = /^(?:export\s+)?(?:class|function)\s+\w+/m.test(content);
-      const isDataFile = /(?:^|[\\/])(?:data|config|constants|messages|i18n|locales)[\\/]/.test(file.path)
-        || /(?:action-messages|messages|constants|i18n|config)\.(?:js|ts|mjs|mts)$/.test(file.path);
-      const methodsRe = /^(?:async\s)?(?:static\s)?(\w+)\s*\(/gm;
-      let methods = 0;
-      let rm;
-      while ((rm = methodsRe.exec(content)) !== null) {
-        if (!CTRL_FLOW.has(rm[1])) methods++;
-      }
-      // Need BOTH size and method count, OR very high method count (data files exempt)
-      if (!isDataFile && hasClassOrFunc && (lines.length > 300 && methods > 5 || methods > 30)) {
-        found.god_object.push({ file: file.path, lines: lines.length, methods });
-      }
-    }
-
+    if (patterns.includes('god_object')) detectGodObject(file, lines, found);
     if (patterns.includes('long_method') || patterns.includes('duplicate_code')) {
-      const checkLong = patterns.includes('long_method');
-      const checkDup = patterns.includes('duplicate_code');
-      const funcStartRe = checkLong
-        ? [/(?:function\s+\w+\s*\([^)]*\))/, // eslint-disable-next-line sonarjs/super-linear-regex
-          /(?:\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>/]
-        : null;
-      const lineCount = checkDup ? {} : null;
-      let braceDepth = 0;
-      let funcStart = -1;
-
-      for (let i = 0; i < lines.length; i++) {
-        const braceLine = (strippedLines ? strippedLines[i] : lines[i]) || '';
-        if (checkLong && funcStartRe) {
-          const open = (braceLine.match(/\{/g) || []).length;
-          const close = (braceLine.match(/\}/g) || []).length;
-          braceDepth += open - close;
-          // Only mark funcStart when the line actually has a function/arrow declaration
-          if (open > 0 && funcStart === -1 && funcStartRe.some(re => re.test(braceLine))) funcStart = i;
-          if (braceDepth <= 0 && funcStart >= 0) {
-            const len = i - funcStart;
-            if (len > 50) found.long_method.push({ file: file.path, line: funcStart + 1, length: len });
-            funcStart = -1;
-          }
-        }
-        if (checkDup) {
-          const rawLine = strippedLines ? strippedLines[i] : lines[i];
-          if (!rawLine) continue;
-          const trimmed = rawLine.trim();
-          if (trimmed.length > 10 && !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('import')) {
-            lineCount[trimmed] = (lineCount[trimmed] || 0) + 1;
-          }
-        }
-      }
-
-      if (checkDup) {
-        const dups = Object.entries(lineCount).filter(([, c]) => c >= 3);
-        if (dups.length) found.duplicate_code.push({ file: file.path, count: dups.length });
-      }
+      detectLongMethodAndDuplicates(file, patterns, found);
     }
   }
 

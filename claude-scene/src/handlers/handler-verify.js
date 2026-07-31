@@ -109,7 +109,7 @@ const MEANINGFUL_LINES = [
   /\breturn\s+\w+\s*\(/,
 ];
 
-function isTrivialLine(line) {
+export function isTrivialLine(line) {
   const s = line.trim();
   if (!s) return true;
   if (s.startsWith('//')) return true;
@@ -120,7 +120,7 @@ function isTrivialLine(line) {
   return false;
 }
 
-function extractFunctionBody(src, startIndex) {
+export function extractFunctionBody(src, startIndex) {
   // Find the end: next 'export function' at top level, or end of file
   // This avoids complex brace matching completely
   const nextExport = src.slice(startIndex + 1).search(/^export\s+(async\s+)?function\s+\w+/m);

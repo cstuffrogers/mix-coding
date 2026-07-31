@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, appendFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { randomBytes } from 'crypto';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora from 'ora';
@@ -10,6 +11,8 @@ import { executeAction } from '../actions.js';
 import { executeUIPolish } from '../handlers/ui-polish.js';
 import { applyEnhancements } from '../lib/enhancements.js';
 import { SCENES_DIR, PROJECT_ROOT } from '../lib/paths.js';
+import { detectHandlerFailure } from '../lib/failure-detection.js';
+import { checkAcceptance } from '../lib/acceptance-check.js';
 
 const LAYER_ICONS = {
   interactive: '💬',
@@ -26,21 +29,23 @@ const THEME_NAMES = {
 // ── Execution logging ──
 
 let LOG_PATH = null;
+let LOG_RUN_ID = null;
 let LOG_SUMMARY = { total: 0, pass: 0, fail: 0, skip: 0, noop: 0, warn: 0 };
 
 function initLog(sceneId) {
   const ts = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+  LOG_RUN_ID = `${ts}-${randomBytes(3).toString('hex')}`;
   const logDir = join(PROJECT_ROOT, '.claude', 'logs');
   mkdirSync(logDir, { recursive: true });
-  LOG_PATH = join(logDir, `workflow-${sceneId}-${ts}.log`);
+  LOG_PATH = join(logDir, `workflow-${sceneId}-${ts}-${LOG_RUN_ID.slice(-6)}.log`);
   LOG_SUMMARY = { total: 0, pass: 0, fail: 0, skip: 0, noop: 0, warn: 0 };
-  const header = JSON.stringify({ event: 'start', scene: sceneId, time: new Date().toISOString() });
+  const header = JSON.stringify({ event: 'start', scene: sceneId, run_id: LOG_RUN_ID, time: new Date().toISOString() });
   appendFileSync(LOG_PATH, header + '\n');
 }
 
 function appendLog(entry) {
   if (!LOG_PATH) return;
-  appendFileSync(LOG_PATH, JSON.stringify(entry) + '\n');
+  appendFileSync(LOG_PATH, JSON.stringify({ run_id: LOG_RUN_ID, ...entry }) + '\n');
 }
 
 // ── Helpers extracted from runStep ──
@@ -104,25 +109,10 @@ async function handleAwmBrandSelection(step, options, context) {
   return true;
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
-function setContextFlag(step, context, options) {
-  // Prefer structured context_flag param; fall back to description sniffing
-  const flag = step.params?.context_flag;
-  if (flag) {
-    context[flag] = !options.auto ? context._confirmAnswer : true;
-    console.log(chalk[context[flag] ? 'green' : 'gray'](`\n${context[flag] ? '✅ 已启用' : '⏭ 跳过'} ${flag}`));
-    return true;
-  }
-
-  const stepDesc = step.description?.toLowerCase() || '';
+function applyDescriptionFlag(stepDesc, enabled, context) {
   const isDesign = stepDesc.includes('open design') || stepDesc.includes('ui');
   const isRefactor = stepDesc.includes('重构') || stepDesc.includes('refactor');
-
   if (!isDesign && !isRefactor) return false;
-
-  const enabled = !options.auto
-    ? context._confirmAnswer
-    : true;
 
   if (isDesign) {
     context.user_confirmed_open_design = enabled;
@@ -133,6 +123,20 @@ function setContextFlag(step, context, options) {
     console.log(chalk[enabled ? 'green' : 'gray'](`\n${enabled ? '✅ 已启用' : '⏭ 跳过'} 代码重构检查`));
   }
   return true;
+}
+
+function setContextFlag(step, context, options) {
+  // Prefer structured context_flag param; fall back to description sniffing
+  const flag = step.params?.context_flag;
+  if (flag) {
+    context[flag] = !options.auto ? context._confirmAnswer : true;
+    console.log(chalk[context[flag] ? 'green' : 'gray'](`\n${context[flag] ? '✅ 已启用' : '⏭ 跳过'} ${flag}`));
+    return true;
+  }
+
+  const stepDesc = step.description?.toLowerCase() || '';
+  const enabled = !options.auto ? context._confirmAnswer : true;
+  return applyDescriptionFlag(stepDesc, enabled, context);
 }
 
 async function handleConfirmDialog(step, options, context) {
@@ -208,6 +212,12 @@ function printSummary(sceneId) {
   if (fail > 0 || noop > 0 || warn > 0) {
     console.log(chalk.dim(`  日志: ${LOG_PATH}`));
   }
+  console.log(chalk.dim('─'.repeat(40)));
+  // Acceptance triple: bind delivery to a reviewed check, not handoff alone.
+  console.log(chalk.cyan('  验收三元组（交付前必须报告）：'));
+  console.log(chalk.gray('    1. 变更：本次修改的文件/内容'));
+  console.log(chalk.gray('    2. 验证命令：实际跑过的 lint/test/build'));
+  console.log(chalk.gray('    3. 验证结果：命令的通过/失败状态'));
   console.log(chalk.dim(`${'─'.repeat(40)}\n`));
 }
 
@@ -273,7 +283,69 @@ function loadScene(sceneId) {
   return JSON.parse(raw);
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Runs the interactive (auto_execute === false) phase of a step.
+// Returns true when the step was fully handled and runStep should return early.
+async function handleInteractiveStep(sceneId, step, context, options) {
+  if (step.auto_execute !== false) return false;
+
+  if (await handleThemeSelection(step, options, context)) return true;
+  if (await handleAwmBrandSelection(step, options, context)) return true;
+  if (await handleConfirmDialog(step, options, context)) return true;
+
+  const isConfirmationStep = step.action === 'confirm' || !!step.confirm_message;
+  const confirmMsg = isConfirmationStep ? (step.confirm_message || step.params?.message) : null;
+  if (confirmMsg) {
+    if (!options.auto) {
+      const answers = await inquirer.prompt([
+        { type: 'confirm', name: 'proceed', message: confirmMsg, default: true },
+      ]);
+      context.user_confirmed = answers.proceed;
+      if (!answers.proceed) {
+        console.log(chalk.yellow(`  ⏭ 用户跳过 Step ${step.step}`));
+        LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
+        appendLog({ step: step.step, action: step.action, status: 'skip', reason: 'user', time: new Date().toISOString() });
+        return true;
+      }
+    } else {
+      context.user_confirmed = true;
+    }
+    if (step.action === 'confirm') return true;
+  }
+
+  return handleOptionSelection(step, options, context, sceneId);
+}
+
+// Auto-detect no-op: tool unavailable / nothing to check / config missing
+// eslint-disable-next-line sonarjs/super-linear-regex
+const NOOP_RES = [/不可用/i, /无[^]*?[目录配置]/, /未安装/, /未找到/, /not found/i, /not available/i, /已?跳过/, /no\s+.*?found/i];
+// Auto-detect warn: passes but result indicates non-zero issues (aislop findings, vulnerabilities, etc.)
+// eslint-disable-next-line sonarjs/super-linear-regex
+const WARN_RES = [/\d+\s*[个处类].{0,30}?(?:问题|漏洞|警告|气味|发现|重复)/i, /\d+\s*(?:failed|failure)/i];
+
+function deriveStepStatus(result, context) {
+  if (!context.lastStepFailed && detectHandlerFailure(result)) {
+    context.lastStepFailed = true;
+  }
+  const resultStr = typeof result === 'string' ? result : '';
+  const isNoop = !context.lastStepFailed && NOOP_RES.some(re => re.test(resultStr));
+  const isWarn = !context.lastStepFailed && !isNoop && WARN_RES.some(re => re.test(resultStr));
+  return { resultStr, stepStatus: context.lastStepFailed ? 'fail' : (isNoop ? 'noop' : (isWarn ? 'warn' : 'pass')) };
+}
+
+function recordStepResult(step, stepNum, status, duration, resultStr, context) {
+  LOG_SUMMARY.total++;
+  switch (status) {
+    case 'fail': LOG_SUMMARY.fail++; break;
+    case 'noop': LOG_SUMMARY.noop++; break;
+    case 'warn': LOG_SUMMARY.warn++; break;
+    default: LOG_SUMMARY.pass++; break;
+  }
+  appendLog({ step: stepNum, action: step.action, status, duration_ms: duration, result: resultStr.slice(0, 200), time: new Date().toISOString() });
+  // Track per-step { action, status } for the acceptance reviewed-check gate.
+  if (!Array.isArray(context.stepResults)) context.stepResults = [];
+  context.stepResults.push({ action: step.action, status });
+}
+
 async function runStep(sceneId, step, context, options) {
   const stepNum = step.step;
 
@@ -284,35 +356,7 @@ async function runStep(sceneId, step, context, options) {
     return;
   }
 
-  if (step.auto_execute === false) {
-    if (await handleThemeSelection(step, options, context)) return;
-
-    if (await handleAwmBrandSelection(step, options, context)) return;
-
-    if (await handleConfirmDialog(step, options, context)) return;
-
-    const isConfirmationStep = step.action === 'confirm' || !!step.confirm_message;
-    const confirmMsg = isConfirmationStep ? (step.confirm_message || step.params?.message) : null;
-    if (confirmMsg) {
-      if (!options.auto) {
-        const answers = await inquirer.prompt([
-          { type: 'confirm', name: 'proceed', message: confirmMsg, default: true },
-        ]);
-        context.user_confirmed = answers.proceed;
-        if (!answers.proceed) {
-          console.log(chalk.yellow(`  ⏭ 用户跳过 Step ${stepNum}`));
-          LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
-          appendLog({ step: stepNum, action: step.action, status: 'skip', reason: 'user', time: new Date().toISOString() });
-          return;
-        }
-      } else {
-        context.user_confirmed = true;
-      }
-      if (step.action === 'confirm') return;
-    }
-
-    if (await handleOptionSelection(step, options, context, sceneId)) return;
-  }
+  if (await handleInteractiveStep(sceneId, step, context, options)) return;
 
   const spinner = ora({ text: `执行中: ${step.action}...`, color: 'cyan' }).start();
   const resolvedParams = resolveParams(step.params, context);
@@ -322,32 +366,8 @@ async function runStep(sceneId, step, context, options) {
   const result = await dispatchAction(sceneId, step.action, resolvedParams, context);
   const duration = Date.now() - stepStart;
 
-  // Auto-detect failure from result string when handler forgot to set lastStepFailed.
-  // Only flags unambiguous failures, not partial/expected ones.
-  if (!context.lastStepFailed && typeof result === 'string') {
-    const isFailure = /(失败|阻断|abort|FAIL)/i.test(result) &&
-                      !/(部分|跳过|继续|非致命|fallback|降级|通知已发送|已保存|已记录|已?通知)/i.test(result);
-    if (isFailure) context.lastStepFailed = true;
-  }
-
-  // Auto-detect no-op steps: tool unavailable / nothing to check / config missing
-  const resultStr = typeof result === 'string' ? result : '';
-  // eslint-disable-next-line sonarjs/super-linear-regex
-  const noopRes = [/不可用/i, /无[^]*?[目录配置]/, /未安装/, /未找到/, /not found/i, /not available/i, /已?跳过/, /no\s+.*?found/i];
-  const isNoop = !context.lastStepFailed && noopRes.some(re => re.test(resultStr));
-
-  // Auto-detect warn: passes but result indicates non-zero issues (aislop findings, vulnerabilities, etc.)
-  // eslint-disable-next-line sonarjs/super-linear-regex
-  const warnRes = [/\d+\s*[个处类].{0,30}?(?:问题|漏洞|警告|气味|发现|重复)/i, /\d+\s*(?:failed|failure)/i];
-  const isWarn = !context.lastStepFailed && !isNoop && warnRes.some(re => re.test(resultStr));
-
-  LOG_SUMMARY.total++;
-  const stepStatus = context.lastStepFailed ? 'fail' : (isNoop ? 'noop' : (isWarn ? 'warn' : 'pass'));
-  if (context.lastStepFailed) LOG_SUMMARY.fail++;
-  else if (isNoop) LOG_SUMMARY.noop++;
-  else if (isWarn) LOG_SUMMARY.warn++;
-  else LOG_SUMMARY.pass++;
-  appendLog({ step: stepNum, action: step.action, status: stepStatus, duration_ms: duration, result: resultStr.slice(0, 200), time: new Date().toISOString() });
+  const { resultStr, stepStatus } = deriveStepStatus(result, context);
+  recordStepResult(step, stepNum, stepStatus, duration, resultStr, context);
 
   spinner.succeed(chalk.green(result));
 
@@ -362,7 +382,54 @@ async function runStep(sceneId, step, context, options) {
   context.completedSteps.push(stepNum);
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+function buildSceneContext(options) {
+  const prompt = options.prompt || '';
+  return {
+    prompt,
+    completedSteps: [],
+    targetPath: options.target || '',
+    selectedTheme: options.theme || '',
+    securityScanResult: {},
+    selectedOption: options.option || '',
+    refactor_points: [],
+    database_required: /数据库|database|db|存储|数据|postgres|mysql|supabase|mongo/i.test(prompt),
+    payment_required: /支付|付款|payment|stripe|订阅|billing/i.test(prompt),
+    email_required: /邮件|email|邮箱|通知|发送|resend/i.test(prompt),
+  };
+}
+
+function previewDryRunStep(step, context) {
+  const icon = LAYER_ICONS[step.layer] || '📦';
+  const stepIcon = step.auto_execute === false ? '⏸' : '▶';
+  const autoLabel = step.auto_execute === false ? '需确认' : '自动';
+  const desc = step.description || step.action;
+  console.log(chalk.dim(`  ${stepIcon} Step ${step.step} [${autoLabel}] ${icon}`));
+  console.log(chalk.gray(`     └─ ${desc}`));
+  if (step.condition) {
+    const condMet = evaluateCondition(step.condition, context);
+    console.log(chalk.gray(`     └─ 条件 [${step.condition}]: ${condMet ? chalk.green('满足') : chalk.red('跳过')}`));
+  }
+  context.completedSteps.push(step.step);
+}
+
+function enforceAcceptanceGate(scene, context, sceneId) {
+  // Hard acceptance gate: a change-bearing run must close with a reviewed-passing verify step.
+  // Scenes that legitimately have no verify step declare allow_no_verify: true.
+  const acceptance = checkAcceptance(scene.flow, context.completedSteps, scene.allow_no_verify, context.stepResults);
+  if (acceptance.missingVerify) {
+    console.log(chalk.red('  ✖ 验收阻断：本次工作流包含变更类步骤但未执行任何验证类步骤（lint/test/verify/build）。'));
+    console.log(chalk.red('    交付前必须补跑验证并报告「变更 + 验证命令 + 验证结果」三元组。'));
+    printSummary(sceneId);
+    process.exit(1);
+  }
+  if (acceptance.unreviewedChange) {
+    console.log(chalk.red('  ✖ 验收阻断：本次工作流有变更，但验证类步骤未通过（全部 fail/noop/skip）。'));
+    console.log(chalk.red('    交付前必须让验证步骤 pass 或 warn（通过带发现），并报告「变更 + 验证命令 + 验证结果」三元组。'));
+    printSummary(sceneId);
+    process.exit(1);
+  }
+}
+
 export async function startScene(sceneId, options) {
   let scene;
   try {
@@ -372,18 +439,7 @@ export async function startScene(sceneId, options) {
     process.exit(1);
   }
 
-  const context = {
-    prompt: options.prompt || '',
-    completedSteps: [],
-    targetPath: options.target || '',
-    selectedTheme: options.theme || '',
-    securityScanResult: {},
-    selectedOption: options.option || '',
-    refactor_points: [],
-    database_required: /数据库|database|db|存储|数据|postgres|mysql|supabase|mongo/i.test(options.prompt || ''),
-    payment_required: /支付|付款|payment|stripe|订阅|billing/i.test(options.prompt || ''),
-    email_required: /邮件|email|邮箱|通知|发送|resend/i.test(options.prompt || ''),
-  };
+  const context = buildSceneContext(options);
 
   await resolveTargetPath(options, context);
 
@@ -401,17 +457,7 @@ export async function startScene(sceneId, options) {
 
   for (const step of scene.flow) {
     if (options.dryRun) {
-      const icon = LAYER_ICONS[step.layer] || '📦';
-      const stepIcon = step.auto_execute === false ? '⏸' : '▶';
-      const autoLabel = step.auto_execute === false ? '需确认' : '自动';
-      const desc = step.description || step.action;
-      console.log(chalk.dim(`  ${stepIcon} Step ${step.step} [${autoLabel}] ${icon}`));
-      console.log(chalk.gray(`     └─ ${desc}`));
-      if (step.condition) {
-        const condMet = evaluateCondition(step.condition, context);
-        console.log(chalk.gray(`     └─ 条件 [${step.condition}]: ${condMet ? chalk.green('满足') : chalk.red('跳过')}`));
-      }
-      context.completedSteps.push(step.step);
+      previewDryRunStep(step, context);
       continue;
     }
     await runStep(sceneId, step, context, options);
@@ -421,7 +467,7 @@ export async function startScene(sceneId, options) {
   if (!options.dryRun) {
     context._sceneId = sceneId;
     await executeAction(sceneId, 'autoRemember', {}, context, context.targetPath || PROJECT_ROOT);
-
+    enforceAcceptanceGate(scene, context, sceneId);
     printSummary(sceneId);
   }
 }

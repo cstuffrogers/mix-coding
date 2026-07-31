@@ -9,7 +9,7 @@ import { isConversationMode } from '../lib/platform.js';
  * Run a command that may exit non-zero (e.g. linter finding issues).
  * Returns stdout on success or non-zero exit; throws only on crash/signal.
  */
-function runDiagnostic(command, targetPath) {
+export function runDiagnostic(command, targetPath) {
   try {
     return safeExec(`${command} 2>&1`, targetPath, { stdio: 'pipe' }).toString();
   } catch (e) {
@@ -214,7 +214,31 @@ function handleSpecialMode(mode, targetPath, context) {
   return null;
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Run a check only when the active rules/mode request it; merges results into the accumulators.
+function runRuleGatedCheck(active, runner, accum) {
+  if (!active) return;
+  const r = runner();
+  accum.issues ||= r.foundIssues;
+  accum.security ||= r.foundSecurityIssues;
+}
+
+// Run eslint/tsc gates; flips context flags + isFoundIssues when active.
+function runQualityGates(rules, mode, targetPath, autoFix, context) {
+  let isFoundIssues = false;
+
+  if (rules.includes('eslint') || mode === 'full') {
+    const lintIssues = runEslintCheck(targetPath, autoFix);
+    if (lintIssues) isFoundIssues = true;
+    if (context) context.lintPassed = !lintIssues;
+  }
+  if (rules.includes('typescript') || mode === 'full') {
+    const tsIssues = runTypeCheck(targetPath);
+    if (tsIssues) isFoundIssues = true;
+    if (context) context.typecheckPassed = !tsIssues;
+  }
+  return isFoundIssues;
+}
+
 export function handleRunReview(_action, params, targetPath, context) {
   const mode = params?.mode || 'full';
   const options = params?.options || {};
@@ -229,32 +253,15 @@ export function handleRunReview(_action, params, targetPath, context) {
   const specialResult = handleSpecialMode(mode, targetPath, context);
   if (specialResult !== null) return specialResult;
 
-  let isFoundIssues = false;
-  let isFoundSecurityIssues = false;
+  const accum = { issues: false, security: false };
+  const runSecurity = rules.includes('eslint-plugin-security') || rules.includes('OWASP-Top-10') || mode === 'security';
+  const runAudit = rules.includes('npm-audit') || mode === 'security';
 
-  if (rules.includes('eslint-plugin-security') || rules.includes('OWASP-Top-10') || mode === 'security') {
-    const r = runSecurityEslint(targetPath, autoFix);
-    isFoundIssues ||= r.foundIssues;
-    isFoundSecurityIssues ||= r.foundSecurityIssues;
-  }
+  runRuleGatedCheck(runSecurity, () => runSecurityEslint(targetPath, autoFix), accum);
+  runRuleGatedCheck(runAudit, () => runNpmAudit(targetPath, autoFix), accum);
 
-  if (rules.includes('npm-audit') || mode === 'security') {
-    const r = runNpmAudit(targetPath, autoFix);
-    isFoundIssues ||= r.foundIssues;
-    isFoundSecurityIssues ||= r.foundSecurityIssues;
-  }
-
-  if (rules.includes('eslint') || mode === 'full') {
-    const lintIssues = runEslintCheck(targetPath, autoFix);
-    if (lintIssues) isFoundIssues = true;
-    if (context) context.lintPassed = !lintIssues;
-  }
-
-  if (rules.includes('typescript') || mode === 'full') {
-    const tsIssues = runTypeCheck(targetPath);
-    if (tsIssues) isFoundIssues = true;
-    if (context) context.typecheckPassed = !tsIssues;
-  }
+  const isFoundIssues = runQualityGates(rules, mode, targetPath, autoFix, context) || accum.issues;
+  const isFoundSecurityIssues = accum.security;
 
   applyReviewResults(context, isFoundSecurityIssues, isFoundIssues, autoFix);
 

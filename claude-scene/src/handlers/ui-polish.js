@@ -40,7 +40,43 @@ function handleInstallDeps(targetPath, theme) {
   return '依赖安装完成';
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Promote <button> → <Button>, inferring type from className and stripping it.
+function replaceButtonTags(content) {
+  content = content.replace(/<button([^>]*?)>/gi, (_match, attrs) => {
+    let preservedAttrs = attrs;
+    const className = attrs.match(/className=["']([^"']*)["']/);
+    let type = 'primary';
+    if (className && className[1]) {
+      if (className[1].match(/secondary|danger|warning/)) {
+        type = className[1].match(/secondary|danger|warning/)[0];
+      }
+      // eslint-disable-next-line sonarjs/super-linear-regex
+      preservedAttrs = preservedAttrs.replace(/\s+className=["'][^"']*["']/, '');
+    }
+    return `<Button type="${type}"${preservedAttrs}>`;
+  });
+  return content.replace(/<\/button>/gi, '</Button>');
+}
+
+// Promote <select> → <Select>.
+function replaceSelectTags(content) {
+  content = content.replace(/<select([^>]*?)>/gi, '<Select$1>');
+  return content.replace(/<\/select>/gi, '</Select>');
+}
+
+// Prepend component imports after the last existing import, or at top of file.
+function injectComponentImports(content, fileComponents) {
+  if (content.includes("from 'animal-island-ui'")) return content;
+  const importLine = `import { ${[...fileComponents].join(', ')} } from 'animal-island-ui';`;
+  const styleImport = "import 'animal-island-ui/style';";
+  const importMatches = content.match(/^import .+$/gm);
+  if (importMatches && importMatches.length > 0) {
+    const lastImport = importMatches[importMatches.length - 1];
+    return content.replace(lastImport, `${lastImport}\n${importLine}\n${styleImport}`);
+  }
+  return `${importLine}\n${styleImport}\n\n${content}`;
+}
+
 function replaceInFile(fullPath, componentsUsed, modifiedFiles) {
   let content = readFileSync(fullPath, 'utf-8');
   const fileComponents = new Set();
@@ -60,37 +96,13 @@ function replaceInFile(fullPath, componentsUsed, modifiedFiles) {
         return `<${config.component} ${extraProps}${attrs.trim() ? ` ${attrs.trim()}` : ''} />`;
       });
     } else if (pattern === '<button') {
-      content = content.replace(/<button([^>]*?)>/gi, (_match, attrs) => {
-        let preservedAttrs = attrs;
-        const className = attrs.match(/className=["']([^"']*)["']/);
-        let type = 'primary';
-        if (className && className[1]) {
-          if (className[1].match(/secondary|danger|warning/)) {
-            type = className[1].match(/secondary|danger|warning/)[0];
-          }
-          // eslint-disable-next-line sonarjs/super-linear-regex
-          preservedAttrs = preservedAttrs.replace(/\s+className=["'][^"']*["']/, '');
-        }
-        return `<Button type="${type}"${preservedAttrs}>`;
-      });
-      content = content.replace(/<\/button>/gi, '</Button>');
+      content = replaceButtonTags(content);
     } else if (pattern === '<select') {
-      content = content.replace(/<select([^>]*?)>/gi, '<Select$1>');
-      content = content.replace(/<\/select>/gi, '</Select>');
+      content = replaceSelectTags(content);
     }
   }
   if (fileComponents.size > 0) {
-    const importLine = `import { ${[...fileComponents].join(', ')} } from 'animal-island-ui';`;
-    const styleImport = "import 'animal-island-ui/style';";
-    if (!content.includes("from 'animal-island-ui'")) {
-      const importMatches = content.match(/^import .+$/gm);
-      if (importMatches && importMatches.length > 0) {
-        const lastImport = importMatches[importMatches.length - 1];
-        content = content.replace(lastImport, `${lastImport}\n${importLine}\n${styleImport}`);
-      } else {
-        content = `${importLine}\n${styleImport}\n\n${content}`;
-      }
-    }
+    content = injectComponentImports(content, fileComponents);
     writeFileSync(fullPath, content);
     modifiedFiles.push(fullPath);
   }

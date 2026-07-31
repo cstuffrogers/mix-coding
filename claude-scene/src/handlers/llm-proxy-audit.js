@@ -54,6 +54,8 @@ export function handleLobsterTrapInstall(_action, _params, targetPath, context) 
 
   // Try Go install as fallback
   try {
+    // Intentional PATH lookup: detecting whether go is installed.
+    // eslint-disable-next-line sonarjs/no-os-command-from-path
     execSync('go version', { stdio: 'pipe' });
     const tmpDir = join(toolsDir, 'lobstertrap-src');
     execSync(`git clone --depth 1 https://github.com/veeainc/lobstertrap.git "${tmpDir}"`, {

@@ -32,7 +32,17 @@ export function handleTestUnit(_action, _params, targetPath, context) {
   return testPassed ? '单元测试运行完成（全部通过）' : '单元测试运行完成（部分失败）';
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+function pickTestCommand(mode, pkg) {
+  const scripts = pkg.scripts || {};
+  if (mode === 'integration') {
+    if (scripts['test:integration']) return 'npm run test:integration 2>&1 || true';
+    if (scripts['test:e2e'] || scripts.e2e) return 'npx playwright test 2>&1 || true';
+  }
+  if (scripts.test) return 'npm test 2>&1 || true';
+  if (scripts.vitest) return 'npx vitest run 2>&1 || true';
+  return null;
+}
+
 export function handleRunSuite(_action, params, targetPath, context) {
   const mode = params?.mode || 'unit';
   const packagePath = join(targetPath, 'package.json');
@@ -41,27 +51,10 @@ export function handleRunSuite(_action, params, targetPath, context) {
   if (existsSync(packagePath)) {
     try {
       const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
-      let testResult;
-
-      if (mode === 'integration') {
-        if (pkg.scripts?.['test:integration']) {
-          testResult = safeExec('npm run test:integration 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-        } else if (pkg.scripts?.['test:e2e'] || pkg.scripts?.e2e) {
-          testResult = safeExec('npx playwright test 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-        } else {
-          if (pkg.scripts?.test) {
-            testResult = safeExec('npm test 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-          } else if (pkg.scripts?.vitest) {
-            testResult = safeExec('npx vitest run 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-          }
-        }
-      } else {
-        if (pkg.scripts?.test) {
-          testResult = safeExec('npm test 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-        } else if (pkg.scripts?.vitest) {
-          testResult = safeExec('npx vitest run 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-        }
-      }
+      const cmd = pickTestCommand(mode, pkg);
+      const testResult = cmd
+        ? safeExec(cmd, targetPath, { stdio: 'pipe' }).toString()
+        : '';
 
       if (testResult && /[Ff]ail|FAIL/.test(testResult)) {
         testPassed = false;
@@ -92,41 +85,25 @@ export function handleRunAffected(_action, _params, targetPath, context) {
   return affectedPassed ? '受影响测试全部通过' : '受影响测试部分失败';
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+const CI_CHECKS = [
+  { name: 'linting', cmd: 'npx eslint . --max-warnings 50 2>&1', ctxKey: 'lintPassed' },
+  { name: 'typing', cmd: 'npx tsc --noEmit 2>&1', ctxKey: 'typecheckPassed' },
+  { name: 'coverage', cmd: 'npx vitest run --coverage 2>&1', ctxKey: 'coveragePassed' },
+];
+
 export function handleRunCI(_action, params, targetPath, context) {
   const checks = params?.check || ['linting', 'typing', 'coverage'];
   const results = { passed: [], failed: [], skipped: [] };
 
-  if (checks.includes('linting')) {
+  for (const check of CI_CHECKS) {
+    if (!checks.includes(check.name)) continue;
     try {
-      safeExec('npx eslint . --max-warnings 50 2>&1', targetPath, { stdio: 'pipe' });
-      results.passed.push('linting');
-      if (context) context.lintPassed = true;
+      safeExec(check.cmd, targetPath, { stdio: 'pipe' });
+      results.passed.push(check.name);
+      if (context) context[check.ctxKey] = true;
     } catch {
-      results.failed.push('linting');
-      if (context) context.lintPassed = false;
-    }
-  }
-
-  if (checks.includes('typing')) {
-    try {
-      safeExec('npx tsc --noEmit 2>&1', targetPath, { stdio: 'pipe' });
-      results.passed.push('typing');
-      if (context) context.typecheckPassed = true;
-    } catch {
-      results.failed.push('typing');
-      if (context) context.typecheckPassed = false;
-    }
-  }
-
-  if (checks.includes('coverage')) {
-    try {
-      safeExec('npx vitest run --coverage 2>&1', targetPath, { stdio: 'pipe' });
-      results.passed.push('coverage');
-      if (context) context.coveragePassed = true;
-    } catch {
-      results.failed.push('coverage');
-      if (context) context.coveragePassed = false;
+      results.failed.push(check.name);
+      if (context) context[check.ctxKey] = false;
     }
   }
 

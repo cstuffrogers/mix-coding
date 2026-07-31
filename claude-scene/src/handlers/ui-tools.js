@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
 
-function countCssVariables(cssFiles) {
+export function countCssVariables(cssFiles) {
   let cssVarCount = 0;
   let hardcodedColorCount = 0;
   for (const f of cssFiles.slice(0, 50)) {
@@ -17,7 +17,7 @@ function countCssVariables(cssFiles) {
   return { cssVarCount, hardcodedColorCount };
 }
 
-function countTailwindClasses(componentFiles) {
+export function countTailwindClasses(componentFiles) {
   let tailwindClasses = 0;
   for (const f of componentFiles.slice(0, 100)) {
     try {
@@ -28,7 +28,7 @@ function countTailwindClasses(componentFiles) {
   return tailwindClasses;
 }
 
-function detectFramework(targetPath) {
+export function detectFramework(targetPath) {
   const pkgJsonPath = path.join(targetPath, 'package.json');
   if (!existsSync(pkgJsonPath)) return 'unknown';
   try {
@@ -61,16 +61,12 @@ export function handleCheckConsistency(_action, _params, targetPath, context) {
   const cssFiles = scanDir(targetPath, { filter: (f) => /\.css$|\.scss$|\.less$/.test(f) }).slice(0, 100);
   const componentFiles = scanDir(targetPath, { filter: (f) => /\.(jsx|tsx|vue)$/.test(f) }).slice(0, 200);
 
-  let totalCssVars = 0;
   let totalHardcodedColors = 0;
   let totalInlineStyles = 0;
 
   cssFiles.forEach(cssFile => {
     try {
       const content = readFileSync(cssFile, 'utf-8');
-      // eslint-disable-next-line sonarjs/super-linear-regex
-      const cssVarMatches = content.match(/--[\w-]+:/g) || [];
-      totalCssVars += cssVarMatches.length;
       const hardcodedColorMatches = content.match(/#[0-9a-fA-F]{3,6}|rgb\(|rgba\(/g) || [];
       totalHardcodedColors += hardcodedColorMatches.length;
     } catch { /* unreadable file */ }
@@ -1044,107 +1040,122 @@ export function handleWebDesignVerify(_action, _params, targetPath, context) {
   return `Web 设计验证完成: ${issues.length ? issues.join('; ') : '无问题'}`;
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Collect open-design brand tokens carried in context (loaded by od-brand-import).
+// Treats the CSS var list as authoritative only when it has enough vars to be meaningful.
+function collectOdBrandTokens(context, existing) {
+  if (!context?.od_brand_css) return;
+  const odVars = context.od_brand_css.match(/--[\w-]+/g) || [];
+  if (odVars.length < 5) return;
+  existing.brand.push('open-design:brand (context)');
+  if (odVars.some(v => v.includes('font') || v.includes('family'))) existing.fonts.push('open-design:font (context)');
+  if (odVars.some(v => v.includes('spacing'))) existing.spacing.push('open-design:spacing (context)');
+  if (odVars.some(v => v.includes('radius'))) existing.radii.push('open-design:radius (context)');
+  if (odVars.some(v => v.includes('shadow'))) existing.shadows.push('open-design:shadow (context)');
+  if (odVars.some(v => v.includes('duration') || v.includes('ease') || v.includes('motion'))) existing.motion.push('open-design:motion (context)');
+}
+
+// Detect which token categories a piece of file content references, by regex per category.
+function pushCategoryMatches(content, fileRef, existing) {
+  if (/palette|color|#[0-9a-f]{3,8}|oklch|hsl|rgb/i.test(content)) existing.brand.push(fileRef);
+  if (/typography|font|typeface/i.test(content)) existing.fonts.push(fileRef);
+  if (/spacing/i.test(content)) existing.spacing.push(fileRef);
+  if (/radius|border-radius/i.test(content)) existing.radii.push(fileRef);
+  if (/shadow|elevation/i.test(content)) existing.shadows.push(fileRef);
+  if (/motion|duration|easing|animation/i.test(content)) existing.motion.push(fileRef);
+}
+
+// Scan .claude/designs/ (open-design Skill output) — treat as authoritative existing tokens.
+function collectDesignsDirTokens(targetPath, existing) {
+  for (const p of [path.join(targetPath, '.claude', 'designs', 'design-baseline.md'), path.join(targetPath, '.claude', 'designs', 'design-system.md')]) {
+    if (!existsSync(p)) continue;
+    try {
+      pushCategoryMatches(readFileSync(p, 'utf-8'), p, existing);
+    } catch { /* unreadable */ }
+  }
+}
+
+// Scan root DESIGN.md for brand/font/spacing mentions (lighter-weight subset).
+function collectDesignMdTokens(targetPath, existing) {
+  const designMdPath = path.join(targetPath, 'DESIGN.md');
+  if (!existsSync(designMdPath)) return;
+  try {
+    const content = readFileSync(designMdPath, 'utf-8');
+    if (content.includes('brand')) existing.brand.push('DESIGN.md');
+    if (content.includes('font') || content.includes('typography')) existing.fonts.push('DESIGN.md');
+    if (content.includes('spacing')) existing.spacing.push('DESIGN.md');
+  } catch { /* unreadable */ }
+}
+
+// Scan the first present tailwind config; its theme keys declare existing token groups.
+function collectTailwindConfigTokens(targetPath, existing) {
+  for (const cfg of ['tailwind.config.js', 'tailwind.config.ts', 'tailwind.config.mjs']) {
+    const cfgPath = path.join(targetPath, cfg);
+    if (!existsSync(cfgPath)) continue;
+    try {
+      const content = readFileSync(cfgPath, 'utf-8');
+      if (/colors\s*:\s*\{/.test(content)) existing.brand.push(cfg);
+      if (/fontFamily\s*:\s*\{/.test(content)) existing.fonts.push(cfg);
+      if (/borderRadius\s*:\s*\{/.test(content)) existing.radii.push(cfg);
+      if (/boxShadow\s*:\s*\{/.test(content)) existing.shadows.push(cfg);
+    } catch { /* unreadable */ }
+    break; // only the first present config is authoritative
+  }
+}
+
+// Route a single CSS custom property name/value into the matching value bucket by keyword.
+function classifyCssVarValue(name, val, values) {
+  const isColor = name.includes('color') || name.includes('primary') || name.includes('secondary') || name.includes('accent') || name.includes('bg') || name.includes('background') || name.includes('text');
+  if (isColor) values.colors[name] = val;
+  else if (name.includes('font') || name.includes('family')) values.fonts[name] = val;
+  else if (name.includes('spacing') || name.includes('gap')) values.spacing[name] = val;
+  else if (name.includes('radius')) values.radii[name] = val;
+  else if (name.includes('shadow') || name.includes('elevation')) values.shadows[name] = val;
+  else if (name.includes('duration') || name.includes('ease') || name.includes('motion')) values.motion[name] = val;
+}
+
+// Record which token-source markers a CSS file declares (one push per matched marker).
+function pushCssTokenSources(content, cssFile, existing) {
+  if (/--color-/.test(content)) existing.brand.push(cssFile);
+  if (/--font-/.test(content)) existing.fonts.push(cssFile);
+  if (/--spacing-/.test(content)) existing.spacing.push(cssFile);
+  if (/--radius-/.test(content)) existing.radii.push(cssFile);
+  if (/--shadow-/.test(content)) existing.shadows.push(cssFile);
+  if (/prefers-reduced-motion|--duration-|--ease-/.test(content)) existing.motion.push(cssFile);
+}
+
+// Single-pass CSS scan: record which files declare existing tokens, then extract their values.
+function collectCssFileTokens(targetPath, existing, values) {
+  for (const cssFile of scanDir(targetPath, { filter: f => f.endsWith('.css') && !f.includes('node_modules') })) {
+    try {
+      const content = readFileSync(cssFile, 'utf-8');
+      pushCssTokenSources(content, cssFile, existing);
+
+      // eslint-disable-next-line sonarjs/super-linear-regex
+      for (const [, name, val] of content.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)) {
+        classifyCssVarValue(name, val.trim(), values);
+      }
+    } catch { /* unreadable */ }
+  }
+}
+
 export function handleReconcileDesignTokens(_action, _params, targetPath, context) {
   if (!context) {
     return '设计 Token 调和跳过（缺少上下文）';
   }
   const existing = { brand: [], fonts: [], spacing: [], radii: [], shadows: [], motion: [] };
-
-  // Check open-design brand CSS in context (loaded by od-brand-import)
-  if (context?.od_brand_css) {
-    const odVars = context.od_brand_css.match(/--[\w-]+/g) || [];
-    if (odVars.length >= 5) {
-      existing.brand.push('open-design:brand (context)');
-      if (odVars.some(v => v.includes('font') || v.includes('family'))) existing.fonts.push('open-design:font (context)');
-      if (odVars.some(v => v.includes('spacing'))) existing.spacing.push('open-design:spacing (context)');
-      if (odVars.some(v => v.includes('radius'))) existing.radii.push('open-design:radius (context)');
-      if (odVars.some(v => v.includes('shadow'))) existing.shadows.push('open-design:shadow (context)');
-      if (odVars.some(v => v.includes('duration') || v.includes('ease') || v.includes('motion'))) existing.motion.push('open-design:motion (context)');
-    }
-  }
-
-  // Scan .claude/designs/ (open-design Skill output) — treat as authoritative existing tokens
-  const designBaselinePath = path.join(targetPath, '.claude', 'designs', 'design-baseline.md');
-  const designSystemPath = path.join(targetPath, '.claude', 'designs', 'design-system.md');
-  for (const p of [designBaselinePath, designSystemPath]) {
-    if (existsSync(p)) {
-      try {
-        const content = readFileSync(p, 'utf-8');
-        if (/palette|color|#[0-9a-f]{3,8}|oklch|hsl|rgb/i.test(content)) existing.brand.push(p);
-        if (/typography|font|typeface/i.test(content)) existing.fonts.push(p);
-        if (/spacing/i.test(content)) existing.spacing.push(p);
-        if (/radius|border-radius/i.test(content)) existing.radii.push(p);
-        if (/shadow|elevation/i.test(content)) existing.shadows.push(p);
-        if (/motion|duration|easing|animation/i.test(content)) existing.motion.push(p);
-      } catch { /* unreadable */ }
-    }
-  }
-
-  // Scan DESIGN.md
-  const designMdPath = path.join(targetPath, 'DESIGN.md');
-  if (existsSync(designMdPath)) {
-    try {
-      const content = readFileSync(designMdPath, 'utf-8');
-      if (content.includes('brand')) existing.brand.push('DESIGN.md');
-      if (content.includes('font') || content.includes('typography')) existing.fonts.push('DESIGN.md');
-      if (content.includes('spacing')) existing.spacing.push('DESIGN.md');
-    } catch { /* unreadable */ }
-  }
-
-  // Scan tailwind.config
-  for (const cfg of ['tailwind.config.js', 'tailwind.config.ts', 'tailwind.config.mjs']) {
-    const cfgPath = path.join(targetPath, cfg);
-    if (existsSync(cfgPath)) {
-      try {
-        const content = readFileSync(cfgPath, 'utf-8');
-        if (/colors\s*:\s*\{/.test(content)) existing.brand.push(cfg);
-        if (/fontFamily\s*:\s*\{/.test(content)) existing.fonts.push(cfg);
-        if (/borderRadius\s*:\s*\{/.test(content)) existing.radii.push(cfg);
-        if (/boxShadow\s*:\s*\{/.test(content)) existing.shadows.push(cfg);
-      } catch { /* unreadable */ }
-      break;
-    }
-  }
-
-  // Single-pass CSS scan: detect existing tokens + extract values
   const values = { colors: {}, fonts: {}, spacing: {}, radii: {}, shadows: {}, motion: {} };
 
-  for (const cssFile of scanDir(targetPath, { filter: f => f.endsWith('.css') && !f.includes('node_modules') })) {
-    try {
-      const content = readFileSync(cssFile, 'utf-8');
-      if (/--color-/.test(content)) existing.brand.push(cssFile);
-      if (/--font-/.test(content)) existing.fonts.push(cssFile);
-      if (/--spacing-/.test(content)) existing.spacing.push(cssFile);
-      if (/--radius-/.test(content)) existing.radii.push(cssFile);
-      if (/--shadow-/.test(content)) existing.shadows.push(cssFile);
-      if (/prefers-reduced-motion|--duration-|--ease-/.test(content)) existing.motion.push(cssFile);
+  collectOdBrandTokens(context, existing);
+  collectDesignsDirTokens(targetPath, existing);
+  collectDesignMdTokens(targetPath, existing);
+  collectTailwindConfigTokens(targetPath, existing);
+  collectCssFileTokens(targetPath, existing, values);
 
-      // eslint-disable-next-line sonarjs/super-linear-regex
-      for (const [, name, val] of content.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)) {
-        if (name.includes('color') || name.includes('primary') || name.includes('secondary') || name.includes('accent') || name.includes('bg') || name.includes('background') || name.includes('text')) {
-          values.colors[name] = val.trim();
-        } else if (name.includes('font') || name.includes('family')) {
-          values.fonts[name] = val.trim();
-        } else if (name.includes('spacing') || name.includes('gap')) {
-          values.spacing[name] = val.trim();
-        } else if (name.includes('radius')) {
-          values.radii[name] = val.trim();
-        } else if (name.includes('shadow') || name.includes('elevation')) {
-          values.shadows[name] = val.trim();
-        } else if (name.includes('duration') || name.includes('ease') || name.includes('motion')) {
-          values.motion[name] = val.trim();
-        }
-      }
-    } catch { /* unreadable */ }
-  }
+  const totalExisting = existing.brand.length + existing.fonts.length + existing.spacing.length
+    + existing.radii.length + existing.shadows.length + existing.motion.length;
 
-  const totalExisting = existing.brand.length + existing.fonts.length + existing.spacing.length + existing.radii.length + existing.shadows.length + existing.motion.length;
-
-  if (context) {
-    context.reconciledTokens = existing;
-    context.reconciledValues = values;
-  }
+  context.reconciledTokens = existing;
+  context.reconciledValues = values;
   return `设计 Token 调和完成: ${totalExisting} 处已有 Token 保留`;
 }
 

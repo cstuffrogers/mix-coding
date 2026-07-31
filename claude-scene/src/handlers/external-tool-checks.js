@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
@@ -9,7 +9,6 @@ function _resolvePythonTool(toolName, moduleName) {
   if (process.platform === 'win32' && process.env.APPDATA) {
     const pythonDir = process.env.APPDATA.replace(/\\/g, '/') + '/Python';
     try {
-      const { readdirSync } = require('fs');
       const versions = readdirSync(pythonDir).filter(d => /^Python3\d+$/.test(d)).sort().reverse();
       for (const ver of versions) {
         const exePath = `${pythonDir}/${ver}/Scripts/${toolName}.exe`;
@@ -56,7 +55,7 @@ export function handleKnipCheck(_action, _params, targetPath, context) {
   return '死代码检测完成（knip 不可用）';
 }
 
-function _parseNoleakOutput(raw) {
+export function _parseNoleakOutput(raw) {
   const findings = [];
   // Parse structured JSON output first; fall back to substring heuristics
   try {

@@ -58,12 +58,16 @@ const DETECTORS = {
   },
   mythosAgent: () => {
     try {
+      // Intentional PATH lookup: detecting whether the CLI is installed.
+      // eslint-disable-next-line sonarjs/no-os-command-from-path
       execSync('mythos-agent --version', { stdio: 'ignore' });
       return true;
     } catch { return false; }
   },
   gepa: () => {
     try {
+      // Intentional PATH lookup: detecting whether the python module is importable.
+      // eslint-disable-next-line sonarjs/no-os-command-from-path
       execSync('python -c "import gepa"', { stdio: 'ignore' });
       return true;
     } catch { return false; }

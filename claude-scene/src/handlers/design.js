@@ -83,7 +83,7 @@ export function handleHuashuInfographic(_action, params, targetPath, context) {
   return renderInfographic({ targetPath, title, subtitle, metrics, sections });
 }
 
-function deriveMetricsFromContext(context = {}) {
+export function deriveMetricsFromContext(context = {}) {
   const m = [];
   if (context.huashu_review) {
     const r = context.huashu_review;
@@ -645,9 +645,10 @@ export function handleOdTemplatePreview(_action, params, targetPath, context) {
     loadTemplateContext(templateDir, templateId, context);
   }
 
-  // Open preview in browser
+  // Open preview in browser — platform launchers are intentional PATH lookups.
   try {
     const htmlPath = join(previewDir, `template-${templateId}.html`);
+    /* eslint-disable sonarjs/no-os-command-from-path */
     if (process.platform === 'win32') {
       spawn('cmd', ['/c', 'start', '', htmlPath], { stdio: 'ignore', windowsHide: true });
     } else if (process.platform === 'darwin') {
@@ -655,6 +656,7 @@ export function handleOdTemplatePreview(_action, params, targetPath, context) {
     } else {
       spawn('xdg-open', [htmlPath], { stdio: 'ignore' });
     }
+    /* eslint-enable sonarjs/no-os-command-from-path */
   } catch { /* non-fatal */ }
 
   return `模板 "${templateId}" 预览已打开：${relative(targetPath, join(previewDir, `template-${templateId}.html`))}`;

@@ -364,7 +364,36 @@ export function handleDisplaySummary(action, params, _targetPath) {
  * @param {object} params - { phase: number, status: 'pending'|'in_progress'|'complete' }
  * @param {string} targetPath - Project directory
  */
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Walk plan.md lines, locate the target phase's **Status:** line, rewrite it in place.
+// Returns the new lines array (null if the phase/status line was not found).
+function rewritePhaseStatusLine(lines, phase, status) {
+	let isInTargetPhase = false;
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+
+		// Entering the target phase header.
+		if (line.match(new RegExp(`^### Phase ${phase}:`))) {
+			isInTargetPhase = true;
+			continue;
+		}
+		// Leaving the phase (a different phase header).
+		if (isInTargetPhase && line.match(/^### Phase \d+:/)) {
+			isInTargetPhase = false;
+			continue;
+		}
+		// Rewrite the status line within the phase.
+		if (isInTargetPhase && line.includes('**Status:**')) {
+			const statusRegex = /\*\*Status:\*\*\s*(pending|in_progress|complete)/;
+			const statusMatch = statusRegex.exec(line);
+			if (statusMatch) {
+				lines[i] = line.slice(0, statusMatch.index) + '**Status:** ' + String(status) + line.slice(statusMatch.index + statusMatch[0].length);
+			}
+			return lines;
+		}
+	}
+	return null;
+}
+
 export function handleUpdatePhaseStatus(action, params, targetPath) {
 	const planFile = resolve(targetPath, 'plan.md');
 
@@ -378,40 +407,11 @@ export function handleUpdatePhaseStatus(action, params, targetPath) {
 	}
 
 	try {
-		let content = readFileSync(planFile, 'utf-8');
-		const lines = content.split('\n');
-		let isInTargetPhase = false;
-		let isFound = false;
+		const lines = readFileSync(planFile, 'utf-8').split('\n');
 
-		for (let i = 0; i < lines.length; i++) {
-			const line = lines[i];
-
-			// Check if entering the target phase
-			if (line.match(new RegExp(`^### Phase ${phase}:`))) {
-				isInTargetPhase = true;
-				continue;
-			}
-
-			// Check if leaving phase (another phase)
-			if (isInTargetPhase && line.match(/^### Phase \d+:/)) {
-				isInTargetPhase = false;
-				continue;
-			}
-
-			// Update status line within the phase
-			if (isInTargetPhase && line.includes('**Status:**')) {
-				const statusRegex = /\*\*Status:\*\*\s*(pending|in_progress|complete)/;
-				const statusMatch = statusRegex.exec(line);
-				if (statusMatch) {
-					lines[i] = line.slice(0, statusMatch.index) + '**Status:** ' + String(status) + line.slice(statusMatch.index + statusMatch[0].length);
-				}
-				isFound = true;
-				break;
-			}
-		}
-
-		if (isFound) {
-			writeFileSync(planFile, lines.join('\n'));
+		const updatedLines = rewritePhaseStatusLine(lines, phase, status);
+		if (updatedLines) {
+			writeFileSync(planFile, updatedLines.join('\n'));
 			return { status: 'success', phase, newStatus: status };
 		}
 

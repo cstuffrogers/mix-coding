@@ -45,7 +45,14 @@ function createCheckers(targetPath) {
 
 const IOS_ONLY = new Set(['xcode', 'cocoapods']);
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Gate platform-specific checks: skip a check name when the active platform can't use it.
+function isCheckApplicable(name, isIos, isAndroid) {
+  if (IOS_ONLY.has(name) && !isIos) return false;
+  if (name === 'android_studio' && !isAndroid) return false;
+  if (name === 'ruby' && !isIos) return false;
+  return true;
+}
+
 export function handleCheckPrerequisites(_action, params, targetPath, context) {
   const requestedChecks = params?.checks || ['node', 'npm', 'git'];
 
@@ -56,15 +63,7 @@ export function handleCheckPrerequisites(_action, params, targetPath, context) {
 
   const results = {};
   for (const name of requestedChecks) {
-    if (IOS_ONLY.has(name) && !isIos) {
-      continue;
-    }
-    if (name === 'android_studio' && !isAndroid) {
-      continue;
-    }
-    if (name === 'ruby' && !isIos) {
-      continue;
-    }
+    if (!isCheckApplicable(name, isIos, isAndroid)) continue;
     if (checkers[name]) {
       try {
         const r = checkers[name]();

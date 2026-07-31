@@ -151,48 +151,23 @@ services:
 `;
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
-export function handleSetupDocker(_action, _params, targetPath, context) {
-
-  const language = detectLanguage(targetPath);
-
-  let isDockerConfigured = true;
-  const dockerfilePath = join(targetPath, 'Dockerfile');
-  const ignorePath = join(targetPath, '.dockerignore');
-  const composePath = join(targetPath, 'docker-compose.yml');
-
-  // Dockerfile
-  if (!existsSync(dockerfilePath)) {
-    try {
-      writeFileSync(dockerfilePath, generateDockerfile(language, targetPath), 'utf-8');
-    } catch {
-      isDockerConfigured = false;
-    }
+// Write a single generated file unless it already exists; logs skip/warning.
+function writeGeneratedFile(filePath, content, label) {
+  if (existsSync(filePath)) {
+    console.log(chalk.dim(`  ${label} 已存在，跳过`));
+    return true;
   }
-
-  // .dockerignore
-  if (existsSync(ignorePath)) {
-    console.log(chalk.dim('  .dockerignore 已存在，跳过'));
-  } else {
-    try {
-      writeFileSync(ignorePath, generateDockerignore(), 'utf-8');
-    } catch (e) {
-      console.log(chalk.yellow(`  ⚠ .dockerignore 生成失败: ${e.message}`));
-    }
+  try {
+    writeFileSync(filePath, content, 'utf-8');
+    return true;
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ ${label} 生成失败: ${e.message}`));
+    return false;
   }
+}
 
-  // docker-compose.yml
-  if (existsSync(composePath)) {
-    console.log(chalk.dim('  docker-compose.yml 已存在，跳过'));
-  } else {
-    try {
-      writeFileSync(composePath, generateDockerCompose(targetPath), 'utf-8');
-    } catch (e) {
-      console.log(chalk.yellow(`  ⚠ docker-compose.yml 生成失败: ${e.message}`));
-    }
-  }
-
-  // Docker validation
+// Validate Docker setup via CLI (best-effort; non-fatal when unavailable).
+function validateDocker(targetPath) {
   try {
     safeExec('docker --version 2>&1', targetPath, { stdio: 'pipe' }).toString();
     try {
@@ -203,6 +178,32 @@ export function handleSetupDocker(_action, _params, targetPath, context) {
   } catch (e) {
     console.log(chalk.dim('  ℹ Docker CLI 不可用，跳过语法验证'), e.message);
   }
+}
+
+export function handleSetupDocker(_action, _params, targetPath, context) {
+  const language = detectLanguage(targetPath);
+
+  const dockerfilePath = join(targetPath, 'Dockerfile');
+  const ignorePath = join(targetPath, '.dockerignore');
+  const composePath = join(targetPath, 'docker-compose.yml');
+
+  // Dockerfile — track failure separately so context.lastStepFailed reflects it.
+  let isDockerConfigured = true;
+  if (!existsSync(dockerfilePath)) {
+    try {
+      writeFileSync(dockerfilePath, generateDockerfile(language, targetPath), 'utf-8');
+    } catch {
+      isDockerConfigured = false;
+    }
+  }
+
+  // .dockerignore
+  writeGeneratedFile(ignorePath, generateDockerignore(), '.dockerignore');
+
+  // docker-compose.yml
+  writeGeneratedFile(composePath, generateDockerCompose(targetPath), 'docker-compose.yml');
+
+  validateDocker(targetPath);
 
   if (context) {
     context.dockerConfigured = isDockerConfigured;

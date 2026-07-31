@@ -55,34 +55,31 @@ function parseCallFromUrl(url, method) {
   return { method: method || 'GET', path, bodyFields: [] };
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// Each entry: [regex, extractor] where extractor(m) returns the call to push.
+const CALL_PATTERNS = [
+  [/fetch\s*\(\s*`?["']([^"'`]+)["'`]/g, m => parseCallFromUrl(m[1], 'GET')],
+  [/fetch\s*\([^,]+,\s*\{[^}]*method\s*:\s*["']([^"']+)["'][^}]*\}/g, (m, content, start) => {
+    const urlM = content.slice(start, start + 200).match(/fetch\s*\(\s*`?["']([^"'`]+)["'`]/);
+    return urlM ? parseCallFromUrl(urlM[1], m[1].toUpperCase()) : null;
+  }],
+  [/axios\.(get|post|put|delete|patch)\s*\(\s*`?["']([^"'`]+)["'`]/g, m => parseCallFromUrl(m[2], m[1].toUpperCase())],
+  [/use(?:Query|Mutation)\s*\(\s*\{[^}]*url\s*:\s*["']([^"']+)["'][^}]*method\s*:\s*["']([^"']+)["']/g, m => parseCallFromUrl(m[1], m[2].toUpperCase())],
+  [/use(?:Query|Mutation)\s*\(\s*\{[^}]*url\s*:\s*`([^`]+)`[^}]*\}/g, m => parseCallFromUrl(m[1], 'GET')],
+  [/(?:ky|got|ofetch)\s*\(\s*["']([^"']+)["']/g, m => parseCallFromUrl(m[1], 'GET')],
+  [/hx-(get|post|put|delete|patch)\s*=\s*["']([^"']+)["']/gi, m => parseCallFromUrl(m[2], m[1].toUpperCase())],
+];
+
 function extractCallsFromFile(f, calls) {
   let content;
   try { content = readFileSync(f, 'utf-8'); } catch { return; }
 
-  for (const m of content.matchAll(/fetch\s*\(\s*`?["']([^"'`]+)["'`]/g)) {
-    calls.push(parseCallFromUrl(m[1], 'GET'));
+  for (const [re, extractor] of CALL_PATTERNS) {
+    for (const m of content.matchAll(re)) {
+      const call = extractor(m, content, Math.max(0, m.index));
+      if (call) calls.push(call);
+    }
   }
-  for (const m of content.matchAll(/fetch\s*\([^,]+,\s*\{[^}]*method\s*:\s*["']([^"']+)["'][^}]*\}/g)) {
-    const start = Math.max(0, m.index);
-    const urlM = content.slice(start, start + 200).match(/fetch\s*\(\s*`?["']([^"'`]+)["'`]/);
-    if (urlM) calls.push(parseCallFromUrl(urlM[1], m[1].toUpperCase()));
-  }
-  for (const m of content.matchAll(/axios\.(get|post|put|delete|patch)\s*\(\s*`?["']([^"'`]+)["'`]/g)) {
-    calls.push(parseCallFromUrl(m[2], m[1].toUpperCase()));
-  }
-  for (const m of content.matchAll(/use(?:Query|Mutation)\s*\(\s*\{[^}]*url\s*:\s*["']([^"']+)["'][^}]*method\s*:\s*["']([^"']+)["']/g)) {
-    calls.push(parseCallFromUrl(m[1], m[2].toUpperCase()));
-  }
-  for (const m of content.matchAll(/use(?:Query|Mutation)\s*\(\s*\{[^}]*url\s*:\s*`([^`]+)`[^}]*\}/g)) {
-    calls.push(parseCallFromUrl(m[1], 'GET'));
-  }
-  for (const m of content.matchAll(/(?:ky|got|ofetch)\s*\(\s*["']([^"']+)["']/g)) {
-    calls.push(parseCallFromUrl(m[1], 'GET'));
-  }
-  for (const m of content.matchAll(/hx-(get|post|put|delete|patch)\s*=\s*["']([^"']+)["']/gi)) {
-    calls.push(parseCallFromUrl(m[2], m[1].toUpperCase()));
-  }
+
   const normalizedPath = f.replace(/\\/g, '/');
   const isApiRouteFile = /\/(?:app|pages)\/api\//.test(normalizedPath);
   if (!isApiRouteFile) {

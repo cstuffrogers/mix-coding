@@ -117,7 +117,38 @@ const SIMPLE_CONDITIONS = {
   detox_mcp_available: () => process.env.CLAUDECODE === '1',
 };
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
+// eslint-disable-next-line sonarjs/super-linear-regex
+const CMP_RE = /^(\w+)\s*(===?|!==?)\s*(.+)$/;
+
+function evalComparison(trimmed, ctx) {
+  const cmpMatch = trimmed.match(CMP_RE);
+  if (!cmpMatch) return null;
+  const [, key, op, rawVal] = cmpMatch;
+  const expected = rawVal.trim().replace(/^['"]|['"]$/g, '');
+  const actual = ctx[key];
+  if (op === '===' || op === '==') return String(actual) === expected;
+  if (op === '!==' || op === '!=') return String(actual) !== expected;
+  return null;
+}
+
+const LEN_RE = /^(\w+)\.length\s*(>|<|>=|<=)\s*(\d+)$/;
+
+function evalLength(trimmed, ctx) {
+  const lenMatch = trimmed.match(LEN_RE);
+  if (!lenMatch) return null;
+  const [, key, op, num] = lenMatch;
+  const val = ctx[key];
+  const len = Array.isArray(val) || (typeof val === 'string') ? val.length : 0;
+  const n = parseInt(num, 10);
+  switch (op) {
+    case '>': return len > n;
+    case '<': return len < n;
+    case '>=': return len >= n;
+    case '<=': return len <= n;
+    default: return null;
+  }
+}
+
 function evalClause(expr, ctx) {
   const trimmed = expr.trim();
 
@@ -132,30 +163,12 @@ function evalClause(expr, ctx) {
   }
 
   // comparison: key === value / key !== value
-  // eslint-disable-next-line sonarjs/super-linear-regex
-  const cmpMatch = trimmed.match(/^(\w+)\s*(===?|!==?)\s*(.+)$/);
-  if (cmpMatch) {
-    const [, key, op, rawVal] = cmpMatch;
-    const expected = rawVal.trim().replace(/^['"]|['"]$/g, '');
-    const actual = ctx[key];
-    if (op === '===' || op === '==') return String(actual) === expected;
-    if (op === '!==' || op === '!=') return String(actual) !== expected;
-  }
+  const cmpResult = evalComparison(trimmed, ctx);
+  if (cmpResult !== null) return cmpResult;
 
   // property access: key.length > N
-  const lenMatch = trimmed.match(/^(\w+)\.length\s*(>|<|>=|<=)\s*(\d+)$/);
-  if (lenMatch) {
-    const [, key, op, num] = lenMatch;
-    const val = ctx[key];
-    const len = Array.isArray(val) || (typeof val === 'string') ? val.length : 0;
-    const n = parseInt(num, 10);
-    switch (op) {
-      case '>': return len > n;
-      case '<': return len < n;
-      case '>=': return len >= n;
-      case '<=': return len <= n;
-    }
-  }
+  const lenResult = evalLength(trimmed, ctx);
+  if (lenResult !== null) return lenResult;
 
   // negation: !key
   if (trimmed.startsWith('!')) {

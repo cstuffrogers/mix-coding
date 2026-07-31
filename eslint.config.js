@@ -15,11 +15,14 @@ const IGNORED_DIRS = [
   ".codex/",
   ".zcode/",
   ".opencode/",
+  ".agents/",
   ".github/",
   ".husky/",
   "open-design/**",
   "scripts/**",
   ".mcp/**",
+  // claude-scene has its own eslint.config.js; lint it via `cd claude-scene && npx eslint .`
+  "claude-scene/**",
 ];
 
 export default [

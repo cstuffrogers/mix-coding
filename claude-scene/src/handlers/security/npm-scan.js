@@ -3,43 +3,47 @@ import chalk from 'chalk';
 import { safeExec } from '../../lib/safe-exec.js';
 import { readCodeFiles } from '../../lib/code-analysis-utils.js';
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
-export function handleSecurityScan(_action, _params, targetPath, context) {
-  const issues = [];
-
+// Try JSON npm audit first, fall back to scraping the human-readable output.
+function detectNpmVulnerabilities(targetPath) {
   try {
-    const audit = safeExec('npm audit --json 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-    const parsed = JSON.parse(audit);
+    const parsed = JSON.parse(safeExec('npm audit --json 2>&1 || true', targetPath, { stdio: 'pipe' }).toString());
     const vulns = parsed?.vulnerabilities ? Object.keys(parsed.vulnerabilities).length : 0;
-    if (vulns) {
-      issues.push(`npm: ${vulns} 漏洞`);
-    } else {
-      console.log(chalk.green('  ✅ npm: 无漏洞'));
-    }
+    if (vulns) return vulns;
+    console.log(chalk.green('  ✅ npm: 无漏洞'));
+    return 0;
   } catch {
     try {
       const audit2 = safeExec('npm audit 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
       const foundMatch = audit2.match(/(?<!\d)(\d+)\s+vulnerabilities/);
-      if (foundMatch && parseInt(foundMatch[1]) > 0) {
-        issues.push(`npm: ${foundMatch[1]} 漏洞`);
-      }
-    } catch { /* fallback */ }
+      return foundMatch && parseInt(foundMatch[1]) > 0 ? parseInt(foundMatch[1]) : 0;
+    } catch { return 0; }
   }
+}
 
-  const srcDir = join(targetPath, 'src');
+// Scan source files for hardcoded secrets; returns a list of finding strings.
+function scanHardcodedSecrets(srcDir) {
   const secretPatterns = [
     { name: 'API Key', regex: /(?:api[_-]?key|apikey|api_secret)\s*[:=]\s*['"][\w-]{20,}['"]/gi },
     { name: 'Password', regex: /(?:password|passwd|pwd)\s*[:=]\s*['"](?!.*(?:placeholder|example|test|xxx|\*))/gi },
     { name: 'Token', regex: /(?:token|secret|jwt)\s*[:=]\s*['"][\w.-]{20,}['"]/gi },
   ];
+  const findings = [];
   for (const file of readCodeFiles(srcDir)) {
     for (const { name, regex } of secretPatterns) {
       const matches = file.content.match(regex);
-      if (matches) {
-        issues.push(`${name}: ${file.path} (${matches.length} 处)`);
-      }
+      if (matches) findings.push(`${name}: ${file.path} (${matches.length} 处)`);
     }
   }
+  return findings;
+}
+
+export function handleSecurityScan(_action, _params, targetPath, context) {
+  const issues = [];
+
+  const npmVulns = detectNpmVulnerabilities(targetPath);
+  if (npmVulns) issues.push(`npm: ${npmVulns} 漏洞`);
+
+  issues.push(...scanHardcodedSecrets(join(targetPath, 'src')));
 
   if (context) {
     context.securityScanResult = context.securityScanResult || {};

@@ -138,32 +138,33 @@ export function handleSetupEmulator(_action, _params, _targetPath, context) {
 
 // ── Build Verification ──
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
-export function handleVerifyBuild(_action, _params, targetPath, context) {
+// Run one build sub-command, pushing an ok/skipped result regardless of failure.
+function runBuildStep(results, platform, step, cmd, targetPath, timeout) {
+  try {
+    safeExec(cmd, targetPath, { stdio: 'pipe', timeout });
+    results.push({ platform, step, status: 'ok' });
+  } catch {
+    results.push({ platform, step, status: 'skipped' });
+  }
+}
 
+export function handleVerifyBuild(_action, _params, targetPath, context) {
   const platform = context?.platform || 'both';
   const results = [];
 
   // iOS pod install
   if ((platform === 'ios' || platform === 'both') && existsSync(join(targetPath, 'ios', 'Podfile'))) {
-    try {
-      safeExec('cd ios && pod install 2>&1 || echo "CocoaPods 不可用"', targetPath, { stdio: 'pipe', timeout: 60000 });
-      results.push({ platform: 'ios', step: 'pod install', status: 'ok' });
-    } catch {
-      results.push({ platform: 'ios', step: 'pod install', status: 'skipped' });
-    }
+    runBuildStep(results, 'ios', 'pod install',
+      'cd ios && pod install 2>&1 || echo "CocoaPods 不可用"', targetPath, 60000);
   }
 
   // Android gradle sync
   if (platform === 'android' || platform === 'both') {
     const gradlew = join(targetPath, 'android', process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
     if (existsSync(gradlew)) {
-      try {
-        safeExec(`cd android && ${process.platform === 'win32' ? 'gradlew.bat' : './gradlew'} --no-daemon assembleDebug 2>&1 || echo "Gradle 不可用"`, targetPath, { stdio: 'pipe', timeout: 120000 });
-        results.push({ platform: 'android', step: 'gradle assembleDebug', status: 'ok' });
-      } catch {
-        results.push({ platform: 'android', step: 'gradle assembleDebug', status: 'skipped' });
-      }
+      const gradleCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+      runBuildStep(results, 'android', 'gradle assembleDebug',
+        `cd android && ${gradleCmd} --no-daemon assembleDebug 2>&1 || echo "Gradle 不可用"`, targetPath, 120000);
     }
   }
 

@@ -108,41 +108,40 @@ function detectELK(targetPath) {
   return indicators;
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity
-export function handleSetupLogging(_action, _params, targetPath, context) {
+// Pick the logger config generator matching the detected logger.
+function generateLoggerConfig(logger) {
+  if (logger === 'pino') return generatePinoConfig();
+  if (logger === 'log4js') return generateLog4jsConfig();
+  return generateWinstonConfig();
+}
 
+// When ELK/Fluentd indicators are present, emit filebeat.yml unless it exists.
+function maybeWriteFilebeat(targetPath) {
+  if (detectELK(targetPath).length === 0) return;
+  const fbPath = join(targetPath, 'filebeat.yml');
+  if (existsSync(fbPath)) return;
+  try {
+    writeFileSync(fbPath, generateFilebeatConfig(), 'utf-8');
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ filebeat.yml 生成失败: ${e.message}`));
+  }
+}
+
+export function handleSetupLogging(_action, _params, targetPath, context) {
   const logger = detectLogger(targetPath);
 
   const configPath = join(targetPath, 'logging.config.js');
   let isLoggingConfigured = true;
 
-  if (existsSync(configPath)) {
-    /* config already exists — skip generation */
-  } else {
+  if (!existsSync(configPath)) {
     try {
-      let configContent;
-      if (logger === 'pino') configContent = generatePinoConfig();
-      else if (logger === 'log4js') configContent = generateLog4jsConfig();
-      else configContent = generateWinstonConfig();
-
-      writeFileSync(configPath, configContent, 'utf-8');
+      writeFileSync(configPath, generateLoggerConfig(logger), 'utf-8');
     } catch {
       isLoggingConfigured = false;
     }
   }
 
-  // ELK/Fluentd detection
-  const elkIndicators = detectELK(targetPath);
-  if (elkIndicators.length) {
-    const fbPath = join(targetPath, 'filebeat.yml');
-    if (!existsSync(fbPath)) {
-      try {
-        writeFileSync(fbPath, generateFilebeatConfig(), 'utf-8');
-      } catch (e) {
-        console.log(chalk.yellow(`  ⚠ filebeat.yml 生成失败: ${e.message}`));
-      }
-    }
-  }
+  maybeWriteFilebeat(targetPath);
 
   if (logger === 'none') {
     console.log(chalk.yellow('  ⚠ 未检测到日志库，建议安装: npm install winston winston-daily-rotate-file'));
