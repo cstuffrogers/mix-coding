@@ -1,0 +1,201 @@
+{
+  "summary": {
+    "projectName": "auto-coding",
+    "locale": "en",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 25,
+    "overview": "The Mix-Coding scene engine has a runnable, mechanically-checked workflow core (scene/handler integrity smoke tests, pre-commit lint+test, JSON-line execution logs), but the orchestrator's own pass/fail decision is an untested regex over free-text handler returns, the most-changed handlers lack focused tests, declared change-safety boundaries are not mechanically enforced, and session evidence shows validation rarely closes on a reviewed check relevant to the final change.",
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "Task Understanding",
+        "score": 68,
+        "summary": "Scoped AGENTS.md and declarative scene/condition maps make the task boundary clear, but per-scene failure/next-step routing is encoded in handler return strings rather than a queryable risk map.",
+        "findingRefs": []
+      },
+      {
+        "id": "controlled-execution",
+        "label": "Controlled Execution",
+        "score": 66,
+        "summary": "Supported start/list/show/fork entries and --dry-run are wired and smoke-tested, but there is no explicit doctor command and destructive-git guardrails are user-stated, not mechanically enforced.",
+        "findingRefs": [
+          "change-safety-boundaries-not-enforced",
+          "hallmark-skill-missing-local-references"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "Change Validation",
+        "score": 52,
+        "summary": "Lint+test+deadcode run on every change, but the orchestrator's failure detection is an untested regex, the highest-churn handlers have no focused tests, and session evidence shows no reviewed check tied to a final change.",
+        "findingRefs": [
+          "orchestrator-failure-detection-untested-regex",
+          "top-churn-handlers-untested",
+          "validation-rarely-closes-on-reviewed-check",
+          "execution-logs-no-run-correlation-id"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "Reliable Delivery",
+        "score": 48,
+        "summary": "CI gates main and a rollback scene exists, but acceptance is uniformly assistant-handoff with no structured-completion or user-correction signal in the reviewed window, and branch protection/CODEOWNERS are unverified.",
+        "findingRefs": [
+          "validation-rarely-closes-on-reviewed-check"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "Learning Capture",
+        "score": 35,
+        "summary": "A bounded Learning Capture review was completed; no comparable later outcome has validated a reusable improvement, and session resume/review demand has no observed durable owner exercised this window.",
+        "findingRefs": []
+      }
+    ],
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Skills",
+        "Rules",
+        "Custom Agents",
+        "MCP",
+        "Commands"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Project"
+          ],
+          "count": 58,
+          "paths": [
+            ".claude/skills/hallmark/SKILL.md"
+          ]
+        },
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 26,
+          "paths": [
+            ".claude/rules/conditional/core-rules.md"
+          ]
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 8,
+          "paths": []
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Project"
+          ],
+          "count": 3,
+          "paths": [
+            ".mcp.json"
+          ]
+        },
+        {
+          "surface": "Commands",
+          "scopes": [
+            "Project"
+          ],
+          "count": 36,
+          "paths": []
+        }
+      ]
+    },
+    "assignmentSummaries": []
+  },
+  "findings": [
+    {
+      "id": "orchestrator-failure-detection-untested-regex",
+      "title": "Engine pass/fail decision relies on an untested regex over free-text handler returns",
+      "severity": "Medium",
+      "reason": "In claude-scene/src/commands/start.js, runStep infers lastStepFailed/noop/warn by regex-matching Chinese/English substrings in handler return values (lines 327-345), with explicit suppressions and a 200-char truncation. The retry/abort/fail_workflow loop it feeds (lines 214-241) has no focused test; flow-control.test.js covers handleCheckGate but not runStep's detector or its exit paths. Fact: the detector and loop are untested. Inference: a soft failure or non-string result can silently pass or trigger wrong on_error behavior. Owner: claude-scene/src/commands/start.js. Provider: claude. Uncertainty: the regex is documented as flagging only unambiguous failures, so some suppression is intentional, but the boundary between partial and fail is not testable without invoking the full orchestrator.",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nAdd focused tests for the runStep failure-detection path in claude-scene/src/commands/start.js without changing the detector contract.\n\n## Validation\n\n- Run the focused test for runStep failure detection and the retry/abort/fail_workflow loop\n- Confirm a soft-failure return and a non-string result are classified as intended, and that on_error=abort and on_error=fail_workflow reach the documented exit paths",
+      "expectedArtifact": "Focused tests",
+      "expectedOutput": [
+        "A focused test that exercises runStep's failure-detection regex, the retry/abort loop, and the abort/fail_workflow exit paths, so the engine's core pass/fail boundary is no longer verified only indirectly."
+      ]
+    },
+    {
+      "id": "top-churn-handlers-untested",
+      "title": "Five highest-churn handlers have no focused tests, so path-specific drift is undetectable",
+      "severity": "Medium",
+      "reason": "The five highest-churn handler files (ui-tools.js ~1332 lines churn 4076, design.js ~891 churn 1523, external-tool-checks.js ~851 churn 1469, handler-verify.js ~828 churn 1428, review.js ~495 churn 901) have no focused test files; only the breadth smoke test touches them with default args and asserts a non-empty return. Fact: focused test inventory vs churn ranking. Inference: path-specific regressions in the most-edited parts of the engine are caught only when a scene breaks at runtime. Owner: claude-scene/src/handlers/{ui-tools,external-tool-checks,design,handler-verify,review}.js. Provider: claude. Uncertainty: some handlers may be thin dispatchers covered indirectly via scene-level runs, but no scene-level integration test was found in the inventory; churn and length are risk leads, not proof of defect.",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nAdd focused tests for the highest-churn handlers in claude-scene/src/handlers/.\n\n## Validation\n\n- Run the new focused tests for ui-tools, design, external-tool-checks, handler-verify, and review handlers\n- Confirm at least one negative and one recovery path per handler is exercised, not just the default-args smoke path",
+      "expectedArtifact": "Focused tests",
+      "expectedOutput": [
+        "Focused tests for the five highest-churn handlers that cover path-specific and failure-path behavior beyond the default-args smoke test."
+      ]
+    },
+    {
+      "id": "change-safety-boundaries-not-enforced",
+      "title": "Declared change-safety boundaries (line/complexity/auto-rollback) are not mechanically enforced",
+      "severity": "Medium",
+      "reason": "core-rules.md declares ±50-line, 0-new-dependency, ≤130% complexity, and test-fail-auto-rollback boundaries. Inspection of eslint.config.js shows no-unused-vars and no-undef downgraded to warn, several sonarjs rules turned off, and no sonarjs/cognitive-complexity error threshold; the orchestrator disables cognitive-complexity per-file (start.js lines 107, 276, 365; conditions.js line 120). .husky/pre-commit runs eslint with --max-warnings 500, so lint findings do not block. Fact: the declared governing requirement exists; mechanical enforcement is absent. Inference: the codebase can accumulate lint findings and exceed declared complexity/size boundaries without a blocking signal. Owner: eslint.config.js and .husky/pre-commit. Provider: claude. Uncertainty: the codeguardian MCP named in core-rules.md may enforce via a separate path not visible in static config, and the ±50-line boundary may be enforced at human PR review; both are unverified.",
+      "dimensionRefs": [
+        "controlled-execution"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nTighten the mechanical enforcement of the change-safety boundaries declared in .claude/rules/conditional/core-rules.md.\n\n## Validation\n\n- Run eslint and the pre-commit hook after tightening\n- Confirm the cognitive-complexity threshold and a bounded warning ceiling now block rather than warn, and that the declared boundaries map to an enforced gate",
+      "expectedArtifact": "Enforced gate",
+      "expectedOutput": [
+        "An eslint/pre-commit configuration that mechanically enforces the declared complexity and warning-ceiling boundaries instead of tolerating them, so declared change-safety rules produce a blocking signal."
+      ]
+    },
+    {
+      "id": "validation-rarely-closes-on-reviewed-check",
+      "title": "Session validation rarely closes on a reviewed check relevant to the final change",
+      "severity": "Medium",
+      "reason": "Across the 30-day reviewed window, population withReviewedRelevantCheck=0 and observation withReviewedRelevantCheck=0; every emitted candidate's check has relation no-change-context and closure no-change-observed or changed-without-check, and the one change-bearing episode ran no check. Acceptance is uniformly assistant-handoff (withStructuredCompletion=0, withUserCorrection=0). Fact: session-core-facts envelope, 40 of 40 eligible sessions analyzed. Inference: delivery is being asserted by handoff rather than confirmed by a reviewed check tied to the final change. Owner: project validation/acceptance practice (scene engine + review workflow). Provider: claude. Uncertainty: the emitted portfolio is truncated (candidateBudget=91 omitted) and diverges from the population, but the population-level withReviewedRelevantCheck=0 is the defensible signal; handoff may be appropriate for some work types.",
+      "dimensionRefs": [
+        "change-validation",
+        "reliable-delivery"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nWire a reviewed-check step into the acceptance boundary for change-bearing work so a final change is tied to a relevant validation result.\n\n## Validation\n\n- Run a representative change-bearing scene or review workflow\n- Confirm the final change is mapped to and exercised by the smallest relevant check, and the acceptance record binds that check result to the change",
+      "expectedArtifact": "Acceptance step",
+      "expectedOutput": [
+        "A change-bearing acceptance route that binds the final change to a reviewed relevant check result rather than asserting delivery by handoff alone."
+      ]
+    },
+    {
+      "id": "execution-logs-no-run-correlation-id",
+      "title": "Execution logs lack a per-run correlation id, so same-minute runs cannot be reliably joined",
+      "severity": "Low",
+      "reason": "initLog (claude-scene/src/commands/start.js lines 31-39) names files workflow-<sceneId>-<YYYYMMDDTHHMMSS>.log; log lines carry scene and step but no run_id/trace_id. Two concurrent or same-minute runs of the same scene share a timestamp-derived filename and their step records cannot be reliably joined for diagnosis. Fact: logging implementation inspected. Inference: AI-debug correlation is partial. Owner: claude-scene/src/commands/start.js (initLog/appendLog). Provider: claude. Uncertainty: the engine is primarily single-user interactive so concurrency may be rare, but --auto batch use and /loop scheduling make same-minute collisions plausible.",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nAdd a per-run correlation id to the execution logs in claude-scene/src/commands/start.js.\n\n## Validation\n\n- Run the same scene twice within the same minute\n- Confirm each run's log lines carry a unique run id and can be reliably joined for diagnosis",
+      "expectedArtifact": "Logger change",
+      "expectedOutput": [
+        "A per-run id emitted on every log line so concurrent or same-minute runs of the same scene remain correlatable for diagnosis."
+      ]
+    },
+    {
+      "id": "hallmark-skill-missing-local-references",
+      "title": "hallmark SKILL.md references three local files that do not exist at their resolved paths",
+      "severity": "Low",
+      "reason": "The agent-lint envelope reports skill-missing-local-reference errors at .claude/skills/hallmark/SKILL.md lines 282, 390, and 391. Corroboration against the canonical file: line 282 links ../../site/css/tokens.css inside active theme-axis guidance; lines 390 and 391 link ../../docs/recipes.md and ../../docs/study-examples.md under a heading marked Human-only (do NOT auto-load). Filesystem check confirms none of the three resolved targets exist under .claude/ (no site/ or docs/ directory at that level; repo-wide recipes.md has zero matches). Fact: deterministic lint errors with targets confirmed absent. Inference: the references are broken links. Owner: .claude/skills/hallmark/SKILL.md. Provider: claude. Uncertainty: two of three references are explicitly designated human-only/non-auto-loaded, so their runtime impact on the Skill's executable workflow is likely lower than line 282's, which sits in auto-loadable procedural text; severity, repair, and release-admission are the lead's call.",
+      "dimensionRefs": [
+        "controlled-execution"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nResolve the three missing local references in .claude/skills/hallmark/SKILL.md (lines 282, 390, 391).\n\n## Validation\n\n- Run the agent-lint skill-local-reference check on .claude/skills/hallmark/SKILL.md\n- Confirm each reference either points to an existing file or is removed/rewritten to match the actual reference tree",
+      "expectedArtifact": "Skill fix",
+      "expectedOutput": [
+        "hallmark SKILL.md with no missing local references, verified by re-running the skill-local-reference lint check."
+      ]
+    }
+  ]
+}

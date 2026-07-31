@@ -1,0 +1,898 @@
+{
+  "kind": "better-harness.harness-analysis-evidence",
+  "schemaVersion": 1,
+  "evidence": "HARNESS ANALYSIS EVIDENCE\n\nThis is a read-only evidence brief, not a report conclusion.\nProjected report conclusions are intentionally excluded; use the observations and boundaries below to make your own evidence-backed decisions.\nWorkspace: E:\\auto-coding\nPlatform: claude\nLanguage: zh-CN\nBudget: at most 6000 estimated tokens; each evidence domain uses bounded representative rows and reports omissions.\n\nOBSERVATION SCOPE\nSource roots: 1 of 3 enabled roots exist; 3 roots were discovered.\nSession selection: analyzed 40 of 83 eligible sessions with stratified selection; confidence Medium; representative no.\nScope: workspace; global capability metadata included no; until 2026-07-31T07:17:52.065Z.\nPrivacy boundary: reader-safe; raw prompts included no; raw commands included no; absolute home paths included no.\nSource warnings: missing-optional-root, partial-secret-scan-coverage.\n\nREPOSITORY FACTS\nProject label: auto-coding.\n- Task understanding: 1 observed and 1 connected signal(s). Representative evidence: 6 agent guidance file(s), 14 architecture/readme and 1 spec file(s).\n- Controlled execution: 1 observed and 1 connected signal(s). Representative evidence: 4 workspace manifest(s), Task 工作入口（2 个文件）.\n- Change validation: 1 observed and 1 connected signal(s). Representative evidence: 25 tracked test file(s), workspace test/check script.\n- Reliable delivery: 0 observed and 1 connected signal(s). Representative evidence: 4 CI workflow file(s).\n- Agent practice coverage: Custom Agents has 0 asset(s) in Project.\n- Reusable Skill evidence: candidates-present; 23 candidate asset(s), 0 observed project Skill(s), and 6 unresolved name match(es).\n  - .claude/skills/ai-friendly-web-design/SKILL.md: trigger no, procedure yes, output no, validation no, routed no.\n  - .claude/skills/awesome-design-md/SKILL.md: trigger no, procedure yes, output no, validation no, routed no.\n  - .claude/skills/constitution-reference/SKILL.md: trigger no, procedure yes, output no, validation no, routed no.\n  - .claude/skills/hallmark/SKILL.md: trigger yes, procedure yes, output yes, validation yes, routed no.\n  - .claude/skills/i-have-adhd/SKILL.md: trigger no, procedure yes, output no, validation yes, routed no.\n  - 18 additional Skill candidate(s) omitted.\n- Regression-test evidence: candidates-present; inspected 63 commit(s) and retained 3 source/test co-change candidate(s).\n  - Sources: claude-scene/src/commands/fork.js, claude-scene/src/commands/list.js, claude-scene/src/handlers/update.js. Tests: claude-scene/src/handlers/update.test.js. Path-correlated yes.\n  - Sources: claude-scene/src/actions.js, claude-scene/src/commands/start.js, claude-scene/src/data/gate-flags.js (+5 omitted). Tests: claude-scene/src/actions.test.js, claude-scene/src/handlers/flow-control.test.js, claude-scene/src/handlers/migration.test.js (+1 omitted). Path-correlated yes.\n  - Sources: claude-scene/src/actions.js, claude-scene/src/commands/show.js, claude-scene/src/handlers/backup.js (+5 omitted). Tests: claude-scene/src/actions.test.js, claude-scene/src/handlers/flow-control.test.js. Path-correlated yes.\n- Canonical planning evidence: candidates-present; 2 candidate(s); paths: .claude/skills/mattpocock/skills/docs/adr/0001-explicit-setup-pointer-only-for-hard-dependencies.md, docs/mobile-final-design.md.\n- Sensitive-config scan coverage: partial; 217 of 220 candidate file(s) scanned, 1 skipped, 2 read error(s), truncated no.\n- Learning observation coverage: 201 episode record(s), 0 recurring candidate(s), 0 scoped Skill observation(s), and 9 unscoped Skill observation(s).\n  - Aggregated friction signals: permission-rejection: 1650, failed-event: 126, source-warning:missing-optional-root: 2.\n  - Coverage boundary: Asset Coverage=not-evaluable-missing-asset-inventory, Capture=not-evaluable-missing-normalized-events, Pattern Detection=insufficient-recurrence, Routing=not-evaluable-missing-invocation-events, Freshness=not-evaluable-missing-freshness-evidence, Application=not-evaluable-missing-application-events, Evolution=not-evaluable-missing-update-evidence, Effectiveness=pending-no-later-window, Memory Governance=checked-clean.\n- Workflow-demand observation: 0 current handoff(s) and 5 repeated candidate(s); candidate contents are not projected into this brief.\n  - Coverage boundary: Demand Signals=candidate-found, Current Handoff=checked-clean, Recurrence=candidate-found, Skill Inventory=checked-clean, Skill Activation=not-evaluable-missing-invocation-events.\n\nSESSION AND TASK FACTS\nSession packet: 40 selected session(s), 201 retained candidate episode(s), and 119 discarded episode(s).\nUsage activity: 83 session(s) in the complete activity census; top bounded Skill observations: speckit-specify: 5, review: 2, review-checklist: 2, speckit-analyze: 2, speckit-implement: 2.\nUsage census: analyzed 83 of 83 eligible sessions; complete yes; 57 active-long and 7 wall-only session(s); accounting host-estimated.\n- Episode 1 (episode:94ef3366acb60663): session-start; 1 session(s); 0 change event(s) in 0 set(s); 0 validation event(s) in 0 set(s); closure not-applicable; repair not-applicable; 1281.1 seconds; 0 tool call(s); 49 retained event(s).\n- Episode 2 (episode:5368153e4acb0658): session-start; 1 session(s); 0 change event(s) in 0 set(s); 0 validation event(s) in 0 set(s); closure not-applicable; repair not-applicable; 4302.5 seconds; 44 tool call(s); 301 retained event(s).\n- Episode 3 (episode:fcd3e67c5c3d33c8): session-start; 1 session(s); 0 change event(s) in 0 set(s); 0 validation event(s) in 0 set(s); closure not-applicable; repair not-applicable; 1174.4 seconds; 56 tool call(s); 394 retained event(s).\n- Episode 4 (episode:8cdb5948c4142f38): idle-gap; 1 session(s); 0 change event(s) in 0 set(s); 0 validation event(s) in 1 set(s); closure not-applicable; repair not-applicable; 11004.6 seconds; 167 tool call(s); 1159 retained event(s).\n- Episode 5 (episode:401e4e912cc6cf79): progress-handoff; 1 session(s); 0 change event(s) in 0 set(s); 0 validation event(s) in 1 set(s); closure not-applicable; repair not-applicable; 17.0 seconds; 1 tool call(s); 14 retained event(s).\n- 196 additional task episode(s) omitted; selection retained the first, last, and highest observed activity episodes.\n\nANALYZER OBSERVATIONS\n- Analyzed 40 of 83 sessions; 1/3 enabled source roots exist. Treat conclusions as sampled and increase the limit or time scope before making broad claims.\n- Observed validation command category: pytest (80). Use observed validation as execution evidence, not just configured command availability. (3 bounded evidence reference(s))\n- Observed 43 edit event(s), but no later validation command in the analyzed sample. Route this lead to Harness session-evidence review to inspect the affected Task Episodes and later relevant validation before any finding. (1 bounded evidence reference(s))\n- Observed friction category: permission-rejection (1650). Open bounded sessions behind this category before turning it into a user-facing recommendation. (3 bounded evidence reference(s))\n- Most observed tool: Bash (1090). Use this as workflow evidence, then inspect bounded sessions before claiming user intent. (5 bounded evidence reference(s))\n- Observed claude spec-command: /spec (6, workspace). Use this as workspace session evidence for Goal/Plan/Spec workflow behavior. (3 bounded evidence reference(s))\n- Observed 23 active long session(s); longest active estimate: 6h 37m. Review task family, outcome, and friction before deciding whether this duration reflects a problem or any decomposition, tool, delegation, or model change is needed. (1 bounded evidence reference(s))\n- 本次分析覆盖 83 个会话，其中 57 个达到活跃长会话阈值，最长约 554 分钟；另有 7 个长跨度主要来自暂停或恢复。 这些活动证据不代表模型偏好或质量；模型效果仍需结合相同任务类型的结果比较。 (3 bounded evidence reference(s))\n\nDELIVERY EVIDENCE\nNo bounded evidence observed.\n\nINTERVENTION HISTORY\nNo bounded evidence observed.\n\nREVIEW BOUNDARIES\n- Source candidate: requires-review.\n- Repository review: requires-review; 2 framework(s), 9 repository check(s), and 5 Software Fluency capability review(s) remain in scope.\n- Score review: requires-review; 5 dimension(s) await AI judgment.\n- Session observation review: candidate; 8 observation card(s) from 40 analyzed session(s).",
+  "summaryFacts": {
+    "evidenceMode": "session-rich",
+    "evidenceBoundary": {
+      "manifest": {
+        "schemaVersion": 2,
+        "sourceFingerprint": "0138e596a2960386",
+        "adapterVersion": "claude-task-loop-source-v2",
+        "platform": "claude",
+        "selection": {
+          "strategy": "stratified",
+          "eligibleCount": 83,
+          "analyzedCount": 40,
+          "confidence": "Medium"
+        }
+      },
+      "episodeCoverage": {
+        "episodeCount": 201,
+        "editedEpisodeCount": 43,
+        "closedEpisodeCount": 0,
+        "recoveredEpisodeCount": 0
+      },
+      "deliveryEvidenceLevels": [],
+      "sourceGaps": []
+    },
+    "semanticFacets": {
+      "schemaVersion": 1,
+      "status": "supplementary",
+      "entries": [
+        {
+          "id": "session-insight:source-coverage",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "source-coverage",
+            "Medium"
+          ],
+          "summary": "Analyzed 40 of 83 sessions; 1/3 enabled source roots exist. Treat conclusions as sampled and increase the limit or time scope before making broad claims.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:validation-behavior",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "validation-behavior",
+            "Medium"
+          ],
+          "summary": "Observed validation command category: pytest (80). Use observed validation as execution evidence, not just configured command availability.",
+          "evidenceRefs": [
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-2-1",
+              "type": "tool.call",
+              "line": 38
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-2-2",
+              "type": "tool.call",
+              "line": 47
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-2-3",
+              "type": "tool.call",
+              "line": 69
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:post-edit-validation",
+          "kind": "rework-correction",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "post-edit-validation",
+            "Medium"
+          ],
+          "summary": "Observed 43 edit event(s), but no later validation command in the analyzed sample. Route this lead to Harness session-evidence review to inspect the affected Task Episodes and later relevant validation before any finding.",
+          "evidenceRefs": [
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-3-1",
+              "type": "tool.result",
+              "line": 405
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:execution-friction",
+          "kind": "friction-taxonomy",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "execution-friction",
+            "Medium"
+          ],
+          "summary": "Observed friction category: permission-rejection (1650). Open bounded sessions behind this category before turning it into a user-facing recommendation.",
+          "evidenceRefs": [
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-4-1",
+              "type": "metadata.permission-mode",
+              "line": 1
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-4-2",
+              "type": "metadata.permission-mode",
+              "line": 18
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-4-3",
+              "type": "metadata.permission-mode",
+              "line": 24
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:tool-mix",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "tool-mix",
+            "Medium"
+          ],
+          "summary": "Most observed tool: Bash (1090). Use this as workflow evidence, then inspect bounded sessions before claiming user intent.",
+          "evidenceRefs": [
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-5-1",
+              "type": "tool.call",
+              "line": 8
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-5-2",
+              "type": "tool.call",
+              "line": 14
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-5-3",
+              "type": "tool.call",
+              "line": 26
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-5-4",
+              "type": "tool.call",
+              "line": 30
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-5-5",
+              "type": "tool.call",
+              "line": 35
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:planning-workflow",
+          "kind": "goal-workflow",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "planning-workflow",
+            "High"
+          ],
+          "summary": "Observed claude spec-command: /spec (6, workspace). Use this as workspace session evidence for Goal/Plan/Spec workflow behavior.",
+          "evidenceRefs": [
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-6-1",
+              "type": "last-prompt",
+              "line": 40
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-6-2",
+              "type": "last-prompt",
+              "line": 62
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-6-3",
+              "type": "last-prompt",
+              "line": 82
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:session-complexity",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "session-complexity",
+            "Medium"
+          ],
+          "summary": "Observed 23 active long session(s); longest active estimate: 6h 37m. Review task family, outcome, and friction before deciding whether this duration reflects a problem or any decomposition, tool, delegation, or model change is needed.",
+          "evidenceRefs": [
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-7-1",
+              "type": "metadata.permission-mode",
+              "line": 1
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:session-usage-efficiency",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "session-usage-efficiency",
+            "Medium"
+          ],
+          "summary": "本次分析覆盖 83 个会话，其中 57 个达到活跃长会话阈值，最长约 554 分钟；另有 7 个长跨度主要来自暂停或恢复。 这些活动证据不代表模型偏好或质量；模型效果仍需结合相同任务类型的结果比较。",
+          "evidenceRefs": [
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-8-1",
+              "type": "metadata.permission-mode",
+              "line": 1
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-8-2",
+              "type": "model.response.completed",
+              "line": 7
+            },
+            {
+              "kind": "claude-project-jsonl",
+              "id": "session-insight-8-3",
+              "type": "model.response.completed",
+              "line": 18
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        }
+      ]
+    },
+    "learningCapture": {
+      "schemaVersion": 1,
+      "state": "N/A",
+      "summary": "暂不适用——需要两个可比的观察窗口和一次改进对比。",
+      "interventions": []
+    },
+    "aiAgentPractice": {
+      "inspectedSurfaces": [],
+      "coverageRows": [
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        }
+      ]
+    },
+    "usageActivity": {
+      "schemaVersion": 2,
+      "dateBasis": "UTC",
+      "measurementBasis": "session-starts-active-estimate-model-active-session-days-skill-invocations-and-loads",
+      "truncated": false,
+      "dates": [
+        "2026-07-01",
+        "2026-07-02",
+        "2026-07-03",
+        "2026-07-04",
+        "2026-07-05",
+        "2026-07-06",
+        "2026-07-07",
+        "2026-07-08",
+        "2026-07-09",
+        "2026-07-10",
+        "2026-07-11",
+        "2026-07-12",
+        "2026-07-13",
+        "2026-07-14",
+        "2026-07-15",
+        "2026-07-16",
+        "2026-07-17",
+        "2026-07-18",
+        "2026-07-19",
+        "2026-07-20",
+        "2026-07-21",
+        "2026-07-22",
+        "2026-07-23",
+        "2026-07-24",
+        "2026-07-25",
+        "2026-07-26",
+        "2026-07-27",
+        "2026-07-28",
+        "2026-07-29",
+        "2026-07-30",
+        "2026-07-31"
+      ],
+      "sessions": {
+        "total": 83,
+        "starts": [
+          2,
+          4,
+          2,
+          5,
+          4,
+          2,
+          1,
+          1,
+          0,
+          2,
+          3,
+          4,
+          5,
+          7,
+          2,
+          2,
+          0,
+          4,
+          1,
+          1,
+          2,
+          1,
+          3,
+          6,
+          2,
+          4,
+          2,
+          3,
+          1,
+          7,
+          0
+        ],
+        "activeMinutes": [
+          180.5,
+          520.6,
+          104.3,
+          398.6,
+          65.8,
+          325.6,
+          80,
+          58.2,
+          0,
+          134.5,
+          338.4,
+          333.1,
+          341.7,
+          431.9,
+          214.2,
+          105.2,
+          0,
+          213.2,
+          92.6,
+          91.1,
+          172.8,
+          342.4,
+          649.3,
+          1443.4,
+          126.9,
+          345,
+          293.8,
+          332.9,
+          102.7,
+          740.4,
+          0
+        ]
+      },
+      "models": [
+        {
+          "name": "astron-code-latest",
+          "total": 91,
+          "daily": [
+            1,
+            4,
+            2,
+            5,
+            4,
+            2,
+            2,
+            2,
+            1,
+            2,
+            3,
+            4,
+            6,
+            7,
+            2,
+            2,
+            1,
+            4,
+            1,
+            1,
+            2,
+            1,
+            3,
+            6,
+            3,
+            4,
+            2,
+            4,
+            3,
+            5,
+            2
+          ]
+        },
+        {
+          "name": "<synthetic>",
+          "total": 38,
+          "daily": [
+            2,
+            2,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1,
+            2,
+            0,
+            4,
+            5,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1,
+            3,
+            5,
+            2,
+            2,
+            0,
+            1,
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "name": "speckit-specify",
+          "total": 5,
+          "daily": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ]
+        },
+        {
+          "name": "review",
+          "total": 2,
+          "daily": [
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "review-checklist",
+          "total": 2,
+          "daily": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "speckit-analyze",
+          "total": 2,
+          "daily": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "speckit-implement",
+          "total": 2,
+          "daily": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ]
+        },
+        {
+          "name": "speckit-plan",
+          "total": 2,
+          "daily": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ]
+        },
+        {
+          "name": "speckit-tasks",
+          "total": 2,
+          "daily": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ]
+        },
+        {
+          "name": "webapp-testing",
+          "total": 2,
+          "daily": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "Other",
+          "total": 6,
+          "daily": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            0
+          ]
+        }
+      ]
+    },
+    "usageEfficiency": {
+      "schemaVersion": 2,
+      "selection": {
+        "strategy": "all-eligible",
+        "eligibleSessionCount": 83,
+        "analyzedSessionCount": 83,
+        "complete": true
+      },
+      "roles": {
+        "userThreadCandidateCount": 72,
+        "childAgentCandidateCount": 11
+      },
+      "longSessions": {
+        "activeCount": 57,
+        "wallOnlyCount": 7,
+        "longestActiveMinutes": 553.9,
+        "activeRatio": 0.6867,
+        "estimate": {
+          "method": "capped-event-gap",
+          "activeThresholdMinutes": 45,
+          "gapCapMinutes": 5,
+          "idleGapMinutes": 30
+        },
+        "samples": [
+          {
+            "alias": "S1",
+            "role": "user-thread-candidate",
+            "activeMinutes": 553.9,
+            "failureCount": 12
+          },
+          {
+            "alias": "S2",
+            "role": "user-thread-candidate",
+            "activeMinutes": 444.4,
+            "failureCount": 47
+          },
+          {
+            "alias": "S3",
+            "role": "user-thread-candidate",
+            "activeMinutes": 396.8,
+            "failureCount": 9
+          },
+          {
+            "alias": "S4",
+            "role": "user-thread-candidate",
+            "activeMinutes": 342.4,
+            "failureCount": 11
+          }
+        ]
+      },
+      "accounting": {
+        "mode": "host-estimated",
+        "responseCount": 7083,
+        "modelAttributedResponseCount": 7083,
+        "unattributedResponseCount": 0,
+        "usageFieldObservedCount": 7083,
+        "nonZeroUsageCount": 6874,
+        "exactCreditsAvailable": false,
+        "pricingVersion": null
+      },
+      "modelUsage": [
+        {
+          "model": "astron-code-latest",
+          "responseCount": 6876,
+          "usageFieldObservedCount": 6876,
+          "nonZeroUsageCount": 6874
+        },
+        {
+          "model": "<synthetic>",
+          "responseCount": 207,
+          "usageFieldObservedCount": 207,
+          "nonZeroUsageCount": 0
+        }
+      ],
+      "outcomeReview": {
+        "status": "required",
+        "reviewedCandidateCount": 0,
+        "reviewedActiveLongCount": 0,
+        "comparableModelOutcomeEvidence": false,
+        "recommendation": "controlled-a-b-required"
+      },
+      "tokenTotals": {
+        "inputTokens": 651875137,
+        "outputTokens": 1778099,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0
+      },
+      "reviewLead": {
+        "id": "session-usage-outcome-review-gap",
+        "title": "57 个长会话候选仍待结果复核",
+        "reason": "83 个已分析会话中有 57 个（68.7%）超过估算活跃时长阈值，最长估算为 553.9 分钟，其中 0 个已有结果复核；另有 7 个长跨度可能来自空闲或恢复。这只是调查线索，尚未确认存在效率、任务拆分、工具链或模型问题。",
+        "expectedOutcome": "每个展示候选都完成任务族、结果和摩擦分类，让报告能够判断是否真的需要改进。",
+        "aiFixPrompt": "/better-harness 复核这些会话\n\n57 个长会话候选仍待结果复核\n\n## 先核对的会话\n\n- S1：用户会话候选，估算活跃约 553.9 分钟，失败事件 12 次\n- S2：用户会话候选，估算活跃约 444.4 分钟，失败事件 47 次\n- S3：用户会话候选，估算活跃约 396.8 分钟，失败事件 9 次\n- S4：用户会话候选，估算活跃约 342.4 分钟，失败事件 11 次\n- 当前展示 57 个未复核活跃长会话中的 4 个；其余 53 个继续通过同一个有界 review packet 复核。\n\n## 先做什么\n\n在操作系统临时目录创建 <run>，从项目根运行：\n\n```bash\nnode scripts/session-analysis.mjs insights --platform claude --workspace . --selection all-eligible --limit 1000 --format json --output <run>/insights.json\nnode scripts/session-analysis/usage-review-packet.mjs --source <run>/insights.json --workspace . --limit 8 --output <run>/.review-packet.json\n```\n\n私有 review packet 会在本地解析候选；只为 S1, S2, S3, S4 写入 taskFamily、outcome、friction、confidence 和 evidenceReason。先完成复核，不改业务代码，也不创建 Memory、Skill 或 Hook。\n\n## 我们看到了什么\n\n83 个已分析会话中有 57 个（68.7%）超过估算活跃时长阈值，最长估算为 553.9 分钟，其中 0 个已有结果复核；另有 7 个长跨度可能来自空闲或恢复。这只是调查线索，尚未确认存在效率、任务拆分、工具链或模型问题。\n\n## 为什么值得复核\n\n未复核前无法区分复杂任务、工具链摩擦、暂停恢复噪音或正常的长任务。\n\n## 预期结果\n\n每个展示候选都完成任务族、结果和摩擦分类，让报告能够判断是否真的需要改进。\n\n## 范围\n\n只生成隐私安全的会话效率复核和 reader report，不改业务代码，不把墙钟跨度当作活跃成本。持久报告只保留匿名别名；私有 review packet 不得复制进报告。这是 4/57 的有界视图（4/N）；只对展示样本下结论，其余候选保持未复核。\n\n## 怎样算完成\n\n<run>/.review.json 对 S1, S2, S3, S4 各有一条有效复核；语义复核生成 <run>/insights.reviewed.json；<run>/report.md 以 reviewed source 校验通过。复核未确认问题时，不创建优化项。\n\n## 验证\n\n- 运行 `node scripts/session-analysis/usage-semantic-review.mjs --source <run>/insights.json --packet <run>/.review-packet.json --review <run>/.review.json --output <run>/insights.reviewed.json`\n- 运行 `node scripts/session-analysis/validate-usage-report.mjs --source <run>/insights.reviewed.json --report <run>/report.md`，必须返回 `ok: true`\n- 确认 reviewed source 的 `outcomeReview.reviewedActiveLongCount` 等于已复核的展示别名数；通过后删除两个私有临时 review 文件",
+        "sampleCoverage": {
+          "shown": 4,
+          "total": 57,
+          "complete": false
+        }
+      }
+    }
+  }
+}
