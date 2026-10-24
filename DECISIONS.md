@@ -33,10 +33,10 @@
 
 ---
 
-## ADR-002: 多平台支持 (Claude Code + opencode + Codex + ZCode)
+## ADR-002: 多平台支持 (Claude Code + opencode + Codex + ZCode + pi)
 
 **Status**: ACCEPTED
-**Date**: 2026-06-15
+**Date**: 2026-06-15 (2026-10-24 更新: 新增 pi)
 **Decided By**: System Architect
 
 ### Context
@@ -46,15 +46,16 @@
 ### Decision
 
 - `.claude/` 作为共享资源宿主（scenes/skills/rules/memory/plugins）
-- 各平台通过环境变量 (CLAUDECODE/OPENCODE/CODEX/ZCODE) 自识别
+- 各平台通过环境变量 (CLAUDECODE/OPENCODE/CODEX/ZCODE/AI_AGENT) 自识别
 - opencode 采用全局配置 (`~/.config/opencode/opencode.json`) + 项目配置的 双层架构
 - 共享配置通过 `CLAUDE.md` → `AGENTS.md` 链引用
+- pi 使用专属 `.pi/` 目录（官方 CONFIG_DIR_NAME） + 引擎 CLI；percho 是 pi 的桌面端 GUI，共用 `.pi/` 与引擎，不单独识别
 
 ### Consequences
 
-- 正向: 一次配置，四个平台可用
+- 正向: 一次配置，五个平台可用
 - 正向: `.claude/commands/*.md` 38 个工作流在 opencode 中 100% 对齐
-- 负向: ZCode 尚未实测
+- 负向: ZCode / pi 尚未实测（AI_AGENT=pi 标记已从 pi 源码核验）
 
 ---
 

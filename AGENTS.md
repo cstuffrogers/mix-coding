@@ -3,7 +3,7 @@
 > 多平台共享入口。`CLAUDE.md` 是所有平台的源文档。
 > 本文件包含 Harness Engineering 操作指南，确保 AI Agent 行为一致。
 
-**平台**: Claude Code | opencode | Codex | ZCode
+**平台**: Claude Code | opencode | Codex | ZCode | pi (含 percho 桌面端)
 **入口链**: `CLAUDE.md` ← `AGENTS.md` (跨平台别名)
 
 ---

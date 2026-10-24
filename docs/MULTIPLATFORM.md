@@ -1,6 +1,6 @@
 # Multi-Platform Support
 
-本项目同时适配 Claude Code、opencode、Codex、ZCode 四个 AI 编码平台。
+本项目同时适配 Claude Code、opencode、Codex、ZCode、pi 五个 AI 编码平台。
 
 ## 平台识别
 
@@ -11,8 +11,13 @@
 | Claude Code | `CLAUDECODE=1` | `.claude/` | `.claude/commands/*.md` (35 工作流) |
 | opencode | `OPENCODE=1` | `.opencode/` + 全局 `~/.config/opencode/opencode.json` | 全局面板 (命令对齐 35 工作流) |
 | Codex | `CODEX=1` | `.codex/` | prompt 文件 |
-| ZCode | `ZCODE=1` | `.zcode/` | (待填充) |
+| ZCode | `ZCODE=1` | `.zcode/` | AGENTS.md + 引擎 CLI |
+| pi *(含 percho 桌面端)* | `AI_AGENT=pi` | `.pi/` | AGENTS.md + 引擎 CLI |
 | CLI (无宿主) | 无 | `.claude/` (回退) | — |
+
+> **percho 不是独立平台**：它是 Pi 的桌面端 GUI（Electron 内嵌 `@earendil-works/pi-coding-agent` SDK），
+> 与 Pi CLI 共用 `~/.pi/agent/` 配置与项目级 `.pi/`，会话引擎一致，无独立识别标记，因此并入 pi 平台。
+> 识别标记 `AI_AGENT=pi` 来自 Pi 源码 `cli/setup.ts`（每次启动设置，另设 `PI_CODING_AGENT=true`），已实测验证。
 
 引擎通过 `claude-scene/src/lib/platform.js` 中的 `getHostPlatform()` / `isConversationMode()` 动态识别当前平台。
 
@@ -44,7 +49,11 @@ auto-coding/
 │   ├── mcp/              MCP 配置
 │   └── prompts/          自定义提示
 │
-├── .zcode/               ← ZCode 专属 (待填充)
+├── .zcode/               ← ZCode 专属
+│   └── AGENTS.md         项目指令
+│
+├── .pi/                  ← pi 专属（percho 桌面端共享此目录）
+│   └── AGENTS.md         项目指令
 │
 ├── opencode.jsonc        ← opencode 项目配置 (仅 instructions + skills)
 ├── CLAUDE.md             ← Claude Code 入口 (所有平台源文档)
@@ -88,4 +97,14 @@ Codex 无 `/command` 机制。请在 `.codex/prompts/` 创建 prompt 文件，�
 
 ## 为 ZCode 添加新命令
 
-待实测 ZCode 的扩展点后补充。
+ZCode 无 `/command` 机制。请在 `.zcode/AGENTS.md` 中追加指令块，或直接使用引擎 CLI：
+`node claude-scene/src/index.js start <scene> --auto`
+
+## 为 pi 添加新命令
+
+pi 无 Claude Code 式 `/command` 文件机制（slash 命令来自 extension / prompt template / skill），
+percho 桌面端同样如此。采用与 ZCode 相同的路径：
+
+1. 在 `.pi/AGENTS.md` 中追加指令块，指向引擎场景
+2. 或直接使用引擎 CLI：`node claude-scene/src/index.js start <scene> --auto`
+3. 或将工作流包装为 pi prompt template / skill 挂到 `.pi/` 下（需按 pi 的扩展约定编写）

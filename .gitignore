@@ -104,3 +104,4 @@ clearible-report.mdx
 
 # === od-craft 设计规则（按需手动 Read，不自动加载） ===
 .claude/rules/od-craft/
+.local/agent-work/
