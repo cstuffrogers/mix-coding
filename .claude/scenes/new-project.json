@@ -205,6 +205,19 @@
       "condition": "mattpocock_skill_available"
     },
     {
+      "step": 3.3,
+      "layer": "interactive",
+      "service": "MattPocockSkill",
+      "action": "mp-prototype",
+      "params": {
+        "mode": "auto",
+        "prompt": "是否需要快速原型验证设计（数据模型/状态机/UI变体）？"
+      },
+      "description": "Matt Pocock /prototype: 可选快速原型 — 验证数据模型/状态机/UI变体（throwaway）",
+      "auto_execute": false,
+      "condition": "mattpocock_skill_available && conversation_mode"
+    },
+    {
       "step": 3.5,
       "layer": "interactive",
       "service": "PromptService",
