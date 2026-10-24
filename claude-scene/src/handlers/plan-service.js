@@ -111,7 +111,8 @@ export function handleReadSpec(action, params, targetPath) {
 			file: specFile,
 			content: content.slice(0, 2000),
 			goal: goalMatch ? goalMatch[1].trim() : null,
-			title: titleMatch ? titleMatch[1].trim() : null
+			title: titleMatch ? titleMatch[1].trim() : null,
+			message: `已读取 ${specFile}（${content.length} 字符）`
 		};
 	} catch (error) {
 		return { status: 'error', message: error.message };

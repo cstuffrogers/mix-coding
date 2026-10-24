@@ -322,6 +322,15 @@ const NOOP_RES = [/不可用/i, /无[^]*?[目录配置]/, /未安装/, /未找�
 // eslint-disable-next-line sonarjs/super-linear-regex
 const WARN_RES = [/\d+\s*[个处类].{0,30}?(?:问题|漏洞|警告|气味|发现|重复)/i, /\d+\s*(?:failed|failure)/i];
 
+function formatResultForDisplay(result) {
+  if (typeof result === 'string') return result;
+  if (result && typeof result === 'object') {
+    if (typeof result.message === 'string') return result.message;
+    return `步骤已完成（状态：${result.status ?? 'success'}）`;
+  }
+  return String(result);
+}
+
 function deriveStepStatus(result, context) {
   if (!context.lastStepFailed && detectHandlerFailure(result)) {
     context.lastStepFailed = true;
@@ -369,7 +378,7 @@ async function runStep(sceneId, step, context, options) {
   const { resultStr, stepStatus } = deriveStepStatus(result, context);
   recordStepResult(step, stepNum, stepStatus, duration, resultStr, context);
 
-  spinner.succeed(chalk.green(result));
+  spinner.succeed(chalk.green(formatResultForDisplay(result)));
 
   applyPostStepContext(step, context, sceneId);
 
