@@ -155,7 +155,7 @@ async function handleConfirmDialog(step, options, context) {
 }
 
 async function handleOptionSelection(step, options, context, sceneId) {
-  if (!step.params?.options || options.auto) return false;
+  if (!step.params?.options || options.auto) return handleModeSelection(step, options, context);
 
   const choices = step.params.options.map(opt => {
     if (typeof opt === 'object' && opt.label) {
@@ -172,6 +172,30 @@ async function handleOptionSelection(step, options, context, sceneId) {
     context.design_selected = answers.selectedOption;
   }
   console.log(chalk.green(`\n✅ 已选择：${answers.selectedOption}\n`));
+  return true;
+}
+
+async function handleModeSelection(step, options, context) {
+  if (step.action !== 'selectModes' || !Array.isArray(step.params?.options)) return false;
+
+  const withDefaults = step.params.options.map(o =>
+    typeof o === 'string' ? { id: o, label: o, default: false } : o,
+  );
+
+  if (options.auto) {
+    context.selected_modes = withDefaults.filter(o => o.default).map(o => o.id);
+    return true;
+  }
+
+  const answers = await inquirer.prompt([{
+    type: 'checkbox',
+    name: 'modes',
+    message: step.params.prompt || step.description || '请选择：',
+    choices: withDefaults.map(o => ({ name: o.label, value: o.id, checked: !!o.default })),
+  }]);
+  context.selected_modes = answers.modes.length > 0
+    ? answers.modes
+    : withDefaults.filter(o => o.default).map(o => o.id);
   return true;
 }
 
@@ -286,6 +310,11 @@ function loadScene(sceneId) {
 // Runs the interactive (auto_execute === false) phase of a step.
 // Returns true when the step was fully handled and runStep should return early.
 async function handleInteractiveStep(sceneId, step, context, options) {
+  // selectModes 必须先把 selected_modes 写入 context，否则后续条件的
+  // `selected_modes.includes(...)` 全为 false —— 该场景 25 步会全部被跳过。
+  // 与 auto_execute 无关：它在 auto 模式走 default 选项，在交互模式走 checkbox。
+  if (await handleModeSelection(step, options, context)) return true;
+
   if (step.auto_execute !== false) return false;
 
   if (await handleThemeSelection(step, options, context)) return true;

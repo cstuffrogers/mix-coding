@@ -134,6 +134,20 @@ function evalComparison(trimmed, ctx) {
 
 const LEN_RE = /^(\w+)\.length\s*(>|<|>=|<=)\s*(\d+)$/;
 
+// Array/string membership: key.includes('value')
+// eslint-disable-next-line sonarjs/super-linear-regex
+const INCLUDES_RE = /^(\w+)\.includes\(\s*(['"]?)([^'")]+)\2\s*\)$/;
+
+function evalIncludes(trimmed, ctx) {
+  const m = trimmed.match(INCLUDES_RE);
+  if (!m) return null;
+  const [, key, , needle] = m;
+  const val = ctx[key];
+  if (Array.isArray(val)) return val.includes(needle);
+  if (typeof val === 'string') return val.includes(needle);
+  return false;
+}
+
 function evalLength(trimmed, ctx) {
   const lenMatch = trimmed.match(LEN_RE);
   if (!lenMatch) return null;
@@ -170,6 +184,10 @@ function evalClause(expr, ctx) {
   // property access: key.length > N
   const lenResult = evalLength(trimmed, ctx);
   if (lenResult !== null) return lenResult;
+
+  // membership: key.includes('value')
+  const includesResult = evalIncludes(trimmed, ctx);
+  if (includesResult !== null) return includesResult;
 
   // negation: !key
   if (trimmed.startsWith('!')) {

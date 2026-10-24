@@ -23,20 +23,13 @@ describe('handleInvokeSkill', () => {
     expect(result).toContain('需要在对话模式中执行');
   });
 
-  it('returns CLI alternative message for sec-bug-hunt', () => {
-    const result = handleInvokeSkill('invokeSkill', { skill: 'sec-bug-hunt' }, tmp, {});
-    expect(result).toContain('CLI 静态替代方案');
-  });
-
-  it('returns CLI alternative message for ai-friendly-web-design', () => {
-    const result = handleInvokeSkill('invokeSkill', { skill: 'ai-friendly-web-design' }, tmp, {});
-    expect(result).toContain('CLI 静态替代方案');
-  });
-
-  it('returns CLI alternative message for mobile-ui-review', () => {
-    const result = handleInvokeSkill('invokeSkill', { skill: 'mobile-ui-review' }, tmp, {});
-    expect(result).toContain('CLI 静态替代方案');
-  });
+  it.each(['sec-bug-hunt', 'ai-friendly-web-design', 'mobile-ui-review'])(
+    'returns CLI alternative message for %s',
+    (skill) => {
+      const result = handleInvokeSkill('invokeSkill', { skill }, tmp, {});
+      expect(result).toContain('CLI 静态替代方案');
+    },
+  );
 
   it('reads SKILL.md and returns checklist count for review-checklist', () => {
     // Create the skill file at expected relative path

@@ -130,6 +130,46 @@ describe('evaluateCondition', () => {
     });
   });
 
+  describe('membership: key.includes(\'value\')', () => {
+    // Regression: review 场景 25 个步骤靠 `selected_modes.includes(...)` 判门，
+    // 该语法此前无解析器、永远返回 false，导致 --auto 下只跑 5 步、25 步被误跳过。
+    const ctx = { selected_modes: ['code_review', 'security_deep'] };
+
+    it('is true when the value is present', () => {
+      expect(evaluateCondition("selected_modes.includes('code_review')", ctx)).toBe(true);
+      expect(evaluateCondition("selected_modes.includes('security_deep')", ctx)).toBe(true);
+    });
+
+    it('is false when the value is absent', () => {
+      expect(evaluateCondition("selected_modes.includes('full_audit')", ctx)).toBe(false);
+      expect(evaluateCondition("selected_modes.includes('ai_design')", ctx)).toBe(false);
+    });
+
+    it('supports double quotes and inner spacing', () => {
+      expect(evaluateCondition('selected_modes.includes("code_review")', ctx)).toBe(true);
+      expect(evaluateCondition("selected_modes.includes( 'code_review' )", ctx)).toBe(true);
+    });
+
+    it('works on strings', () => {
+      expect(evaluateCondition("name.includes('ell')", { name: 'hello' })).toBe(true);
+      expect(evaluateCondition("name.includes('zzz')", { name: 'hello' })).toBe(false);
+    });
+
+    it('is false for missing keys and non-collection values', () => {
+      expect(evaluateCondition("missing.includes('x')", ctx)).toBe(false);
+      expect(evaluateCondition("count.includes('x')", { count: 3 })).toBe(false);
+    });
+
+    it('composes with || and &&', () => {
+      expect(evaluateCondition("selected_modes.includes('code_review') || selected_modes.includes('full_audit')", ctx)).toBe(true);
+      expect(evaluateCondition("selected_modes.includes('ai_design') || selected_modes.includes('full_audit')", ctx)).toBe(false);
+      // frontend_involved is a derived predicate (reads selectedTheme/prompt), so put it on the
+      // right-hand side where the membership clause is still the deciding factor.
+      expect(evaluateCondition("selected_modes.includes('code_review') && frontend_involved", { ...ctx, prompt: '优化页面组件' })).toBe(true);
+      expect(evaluateCondition("selected_modes.includes('code_review') && frontend_involved", { ...ctx, prompt: '修复后端接口' })).toBe(false);
+    });
+  });
+
   describe('unknown conditions', () => {
     it('falls back to truthy context lookup', () => {
       expect(evaluateCondition('some_random_key', { some_random_key: 1 })).toBe(true);
