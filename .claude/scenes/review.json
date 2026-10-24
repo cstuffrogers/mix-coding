@@ -153,6 +153,17 @@
       "condition": "context7_mcp_available && selected_modes.includes('code_review')"
     },
     {
+      "step": 1.5,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "repomix"
+      },
+      "description": "Repomix: 打包代码库为 AI 友好上下文文件，供审查分析使用",
+      "condition": "conversation_mode"
+    },
+    {
       "step": 2,
       "layer": "capability",
       "service": "ReviewEngine",

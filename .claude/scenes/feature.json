@@ -56,6 +56,17 @@
       "condition": "supabase_mcp_available"
     },
     {
+      "step": 1.3,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "repomix"
+      },
+      "description": "Repomix: 打包代码库为 AI 友好上下文文件，供后续步骤使用",
+      "condition": "conversation_mode"
+    },
+    {
       "step": 2,
       "layer": "capability",
       "service": "MemoryService",

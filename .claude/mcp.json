@@ -116,5 +116,17 @@
       "env": {
         "BEARER_API_KEY": "${env:BEARER_API_KEY}"
       }
+    },
+    "tavily": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "${env:TAVILY_API_KEY}"
+      }
+    }
   }
 }

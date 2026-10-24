@@ -1,3 +1,4 @@
+import { isConversationMode } from './platform.js';
 import { existsSync } from "fs";
 import { join , dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -48,10 +49,10 @@ const SIMPLE_CONDITIONS = {
   // Claude Code skills — not callable from CLI subprocess.
   // Detect CLAUDECODE env var: when running inside a Claude Code session,
   // the Skill tool IS available. When running in a standalone CLI, it's not.
-  conversation_mode: () => process.env.CLAUDECODE === '1',
-  mattpocock_skill_available: () => process.env.CLAUDECODE === '1',
-  web_design_engineer_available: () => process.env.CLAUDECODE === '1',
-  ai_friendly_web_design_available: () => process.env.CLAUDECODE === '1',
+  conversation_mode: () => isConversationMode(),
+  mattpocock_skill_available: () => isConversationMode(),
+  web_design_engineer_available: () => isConversationMode(),
+  ai_friendly_web_design_available: () => isConversationMode(),
 
   impeccable_available: () => {
     const homeSkill = join(process.env.HOME || process.env.USERPROFILE || '', '.claude', 'skills', 'impeccable', 'SKILL.md');
@@ -65,30 +66,30 @@ const SIMPLE_CONDITIONS = {
 
   mobile_ui_review_available: () => {
     // Skill() tool only available in conversation mode (CLAUDECODE=1)
-    if (process.env.CLAUDECODE !== '1') return false;
+    if (!isConversationMode()) return false;
     return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'mobile-ui-review', 'SKILL.md'));
   },
 
-  webapp_testing_available: () => process.env.CLAUDECODE === '1',
+  webapp_testing_available: () => isConversationMode(),
 
   // MCP tools require Claude Code conversation-level tool calling.
   // When running inside a Claude Code session (CLAUDECODE=1), MCP tools ARE
   // available at the conversation level. When running in a standalone CLI, they're not.
   // In conversation mode, Claude handles MCP steps directly (reads command file and
   // calls MCP tools). In CLI mode, these steps are skipped to avoid stub 空转.
-  github_mcp_available: () => process.env.CLAUDECODE === '1',
-  sentry_mcp_available: () => process.env.CLAUDECODE === '1',
-  tavily_mcp_available: () => process.env.CLAUDECODE === '1',
-  context7_mcp_available: () => process.env.CLAUDECODE === '1',
-  codegraph_mcp_available: () => process.env.CLAUDECODE === '1',
-  crg_mcp_available: () => process.env.CLAUDECODE === '1',
-  crg_skill_available: () => process.env.CLAUDECODE === '1',
+  github_mcp_available: () => isConversationMode(),
+  sentry_mcp_available: () => isConversationMode(),
+  tavily_mcp_available: () => isConversationMode(),
+  context7_mcp_available: () => isConversationMode(),
+  codegraph_mcp_available: () => isConversationMode(),
+  crg_mcp_available: () => isConversationMode(),
+  crg_skill_available: () => isConversationMode(),
   // CRG graph already built for this repo (.code-review-graph/ dir exists)
   crg_graph_built: () => existsSync(join(PROJECT_ROOT, '.code-review-graph')),
-  supabase_mcp_available: () => process.env.CLAUDECODE === '1',
-  stripe_mcp_available: () => process.env.CLAUDECODE === '1',
-  resend_mcp_available: () => process.env.CLAUDECODE === '1',
-  memory_mcp_available: () => process.env.CLAUDECODE === '1',
+  supabase_mcp_available: () => isConversationMode(),
+  stripe_mcp_available: () => isConversationMode(),
+  resend_mcp_available: () => isConversationMode(),
+  memory_mcp_available: () => isConversationMode(),
 
   // Mobile platform guards
   mobile_platform: (ctx) => ctx.platform === 'android' || ctx.platform === 'ios' || ctx.platform === 'both',
@@ -96,7 +97,7 @@ const SIMPLE_CONDITIONS = {
   android_platform: (ctx) => ctx.platform === 'android' || ctx.platform === 'both',
 
   // Mobile tool availability
-  mobsf_mcp_available: () => process.env.CLAUDECODE === '1',
+  mobsf_mcp_available: () => isConversationMode(),
   mobsfscan_available: () => {
     try {
       // eslint-disable-next-line sonarjs/no-os-command-from-path -- tool detection, not user-controlled
@@ -104,7 +105,7 @@ const SIMPLE_CONDITIONS = {
       return true;
     } catch { return false; }
   },
-  bearer_mcp_available: () => process.env.CLAUDECODE === '1',
+  bearer_mcp_available: () => isConversationMode(),
   dependencycheck_available: () => {
     try {
       // eslint-disable-next-line sonarjs/no-os-command-from-path -- tool detection, not user-controlled
@@ -114,7 +115,7 @@ const SIMPLE_CONDITIONS = {
     const dcBat = join(PROJECT_ROOT, 'tools', 'dependency-check', 'bin', 'dependency-check.bat');
     return existsSync(dcBat);
   },
-  detox_mcp_available: () => process.env.CLAUDECODE === '1',
+  detox_mcp_available: () => isConversationMode(),
 };
 
 // eslint-disable-next-line sonarjs/super-linear-regex

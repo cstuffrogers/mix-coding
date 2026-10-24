@@ -1,4 +1,5 @@
 import { getActionMessage } from './data/action-messages.js';
+import { isConversationMode } from './lib/platform.js';
 
 /**
  * @typedef {object} WorkflowContext
@@ -434,116 +435,116 @@ export const ACTION_REGISTRY = {
   'od-deck-load': handleOdDeckLoad,
 
   // MCP actions — available in conversation mode (CLAUDECODE=1), skipped in CLI mode
-  listIssues: (_a, _p) => process.env.CLAUDECODE === '1'
+  listIssues: (_a, _p) => isConversationMode()
     ? 'GitHub MCP: Issues 查询就绪（对话模式 MCP 工具执行）'
     : 'GitHub MCP: Issues 查询已跳过（需对话模式 + GitHub MCP）',
-  listPullRequests: (_a, _p) => process.env.CLAUDECODE === '1'
+  listPullRequests: (_a, _p) => isConversationMode()
     ? 'GitHub MCP: Pull Requests 查询就绪（对话模式 MCP 工具执行）'
     : 'GitHub MCP: Pull Requests 查询已跳过（需对话模式 + GitHub MCP）',
-  search: (_a, _p) => process.env.CLAUDECODE === '1'
+  search: (_a, _p) => isConversationMode()
     ? 'Tavily MCP: 在线搜索就绪（对话模式 MCP 工具执行）'
     : 'Tavily MCP: 在线搜索已跳过（需对话模式 + Tavily MCP）',
-  getDocumentation: (_a, _p) => process.env.CLAUDECODE === '1'
+  getDocumentation: (_a, _p) => isConversationMode()
     ? 'Context7 MCP: 文档获取就绪（对话模式 MCP 工具执行）'
     : 'Context7 MCP: 文档获取已跳过（需对话模式 + Context7 MCP）',
-  getSchema: (_a, _p) => process.env.CLAUDECODE === '1'
+  getSchema: (_a, _p) => isConversationMode()
     ? 'Supabase MCP: Schema 获取就绪（对话模式 MCP 工具执行）'
     : 'Supabase MCP: Schema 获取已跳过（需对话模式 + Supabase MCP）',
-  getPaymentFlow: (_a, _p) => process.env.CLAUDECODE === '1'
+  getPaymentFlow: (_a, _p) => isConversationMode()
     ? 'Stripe MCP: 支付流程获取就绪（对话模式 MCP 工具执行）'
     : 'Stripe MCP: 支付流程获取已跳过（需对话模式 + Stripe MCP）',
-  getEmailTemplate: (_a, _p) => process.env.CLAUDECODE === '1'
+  getEmailTemplate: (_a, _p) => isConversationMode()
     ? 'Resend MCP: 邮件模板获取就绪（对话模式 MCP 工具执行）'
     : 'Resend MCP: 邮件模板获取已跳过（需对话模式 + Resend MCP）',
-  searchRepositories: (_a, _p) => process.env.CLAUDECODE === '1'
+  searchRepositories: (_a, _p) => isConversationMode()
     ? 'GitHub MCP: 仓库搜索就绪（对话模式 MCP 工具执行）'
     : 'GitHub MCP: 仓库搜索已跳过（需对话模式 + GitHub MCP）',
 
   // Matt Pocock skills — available in conversation mode (CLAUDECODE=1), skipped in CLI mode
-  mpTriage: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpTriage: (_a, _p) => isConversationMode()
     ? 'mp-triage: TypeScript 问题分诊就绪（对话模式 Skill 调用）'
     : 'mp-triage: TypeScript 问题分诊已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-triage': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-triage': (_a, _p) => isConversationMode()
     ? 'mp-triage: TypeScript 问题分诊就绪（对话模式 Skill 调用）'
     : 'mp-triage: TypeScript 问题分诊已跳过（需对话模式 + Matt Pocock skill）',
-  mpDiagnose: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpDiagnose: (_a, _p) => isConversationMode()
     ? 'mp-diagnose: TypeScript 诊断就绪（对话模式 Skill 调用）'
     : 'mp-diagnose: TypeScript 诊断已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-diagnose': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-diagnose': (_a, _p) => isConversationMode()
     ? 'mp-diagnose: TypeScript 诊断就绪（对话模式 Skill 调用）'
     : 'mp-diagnose: TypeScript 诊断已跳过（需对话模式 + Matt Pocock skill）',
-  mpGrillMe: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpGrillMe: (_a, _p) => isConversationMode()
     ? 'mp-grill-me: 代码审查就绪（对话模式 Skill 调用）'
     : 'mp-grill-me: 代码审查已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-grill-me': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-grill-me': (_a, _p) => isConversationMode()
     ? 'mp-grill-me: 代码审查就绪（对话模式 Skill 调用）'
     : 'mp-grill-me: 代码审查已跳过（需对话模式 + Matt Pocock skill）',
-  mpTdd: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpTdd: (_a, _p) => isConversationMode()
     ? 'mp-tdd: TDD 工作流就绪（对话模式 Skill 调用）'
     : 'mp-tdd: TDD 工作流已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-tdd': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-tdd': (_a, _p) => isConversationMode()
     ? 'mp-tdd: TDD 工作流就绪（对话模式 Skill 调用）'
     : 'mp-tdd: TDD 工作流已跳过（需对话模式 + Matt Pocock skill）',
-  mpHandoff: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpHandoff: (_a, _p) => isConversationMode()
     ? 'mp-handoff: 交接就绪（对话模式 Skill 调用）'
     : 'mp-handoff: 交接已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-handoff': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-handoff': (_a, _p) => isConversationMode()
     ? 'mp-handoff: 交接就绪（对话模式 Skill 调用）'
     : 'mp-handoff: 交接已跳过（需对话模式 + Matt Pocock skill）',
-  mpToPrd: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpToPrd: (_a, _p) => isConversationMode()
     ? 'mp-to-prd: PRD 生成就绪（对话模式 Skill 调用）'
     : 'mp-to-prd: PRD 生成已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-to-prd': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-to-prd': (_a, _p) => isConversationMode()
     ? 'mp-to-prd: PRD 生成就绪（对话模式 Skill 调用）'
     : 'mp-to-prd: PRD 生成已跳过（需对话模式 + Matt Pocock skill）',
-  mpToIssues: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpToIssues: (_a, _p) => isConversationMode()
     ? 'mp-to-issues: Issues 生成就绪（对话模式 Skill 调用）'
     : 'mp-to-issues: Issues 生成已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-to-issues': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-to-issues': (_a, _p) => isConversationMode()
     ? 'mp-to-issues: Issues 生成就绪（对话模式 Skill 调用）'
     : 'mp-to-issues: Issues 生成已跳过（需对话模式 + Matt Pocock skill）',
-  mpGitGuardrails: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpGitGuardrails: (_a, _p) => isConversationMode()
     ? 'mp-git-guardrails: Git 规范检查就绪（对话模式 Skill 调用）'
     : 'mp-git-guardrails: Git 规范检查已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-git-guardrails': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-git-guardrails': (_a, _p) => isConversationMode()
     ? 'mp-git-guardrails: Git 规范检查就绪（对话模式 Skill 调用）'
     : 'mp-git-guardrails: Git 规范检查已跳过（需对话模式 + Matt Pocock skill）',
-  mpPrototype: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpPrototype: (_a, _p) => isConversationMode()
     ? 'mp-prototype: 原型生成就绪（对话模式 Skill 调用）'
     : 'mp-prototype: 原型生成已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-prototype': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-prototype': (_a, _p) => isConversationMode()
     ? 'mp-prototype: 原型生成就绪（对话模式 Skill 调用）'
     : 'mp-prototype: 原型生成已跳过（需对话模式 + Matt Pocock skill）',
-  mpImproveCodebaseArchitecture: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpImproveCodebaseArchitecture: (_a, _p) => isConversationMode()
     ? 'mp-improve-codebase-architecture: 架构改进就绪（对话模式 Skill 调用）'
     : 'mp-improve-codebase-architecture: 架构改进已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-improve-codebase-architecture': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-improve-codebase-architecture': (_a, _p) => isConversationMode()
     ? 'mp-improve-codebase-architecture: 架构改进就绪（对话模式 Skill 调用）'
     : 'mp-improve-codebase-architecture: 架构改进已跳过（需对话模式 + Matt Pocock skill）',
 
   // ── Matt Pocock skills — 新增（grill-with-docs / zoom-out / review / setup-pre-commit） ──
-  mpGrillWithDocs: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpGrillWithDocs: (_a, _p) => isConversationMode()
     ? 'mp-grill-with-docs: 需求收集 + ADR/CONTEXT.md 同步就绪（对话模式 Skill 调用）'
     : 'mp-grill-with-docs: 已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-grill-with-docs': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-grill-with-docs': (_a, _p) => isConversationMode()
     ? 'mp-grill-with-docs: 需求收集 + ADR/CONTEXT.md 同步就绪（对话模式 Skill 调用）'
     : 'mp-grill-with-docs: 已跳过（需对话模式 + Matt Pocock skill）',
-  mpZoomOut: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpZoomOut: (_a, _p) => isConversationMode()
     ? 'mp-zoom-out: 高层架构视角就绪（对话模式 Skill 调用）'
     : 'mp-zoom-out: 已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-zoom-out': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-zoom-out': (_a, _p) => isConversationMode()
     ? 'mp-zoom-out: 高层架构视角就绪（对话模式 Skill 调用）'
     : 'mp-zoom-out: 已跳过（需对话模式 + Matt Pocock skill）',
-  mpReview: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpReview: (_a, _p) => isConversationMode()
     ? 'mp-review: Standards + Spec 双轴审查就绪（对话模式 Skill 调用）'
     : 'mp-review: 已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-review': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-review': (_a, _p) => isConversationMode()
     ? 'mp-review: Standards + Spec 双轴审查就绪（对话模式 Skill 调用）'
     : 'mp-review: 已跳过（需对话模式 + Matt Pocock skill）',
-  mpSetupPreCommit: (_a, _p) => process.env.CLAUDECODE === '1'
+  mpSetupPreCommit: (_a, _p) => isConversationMode()
     ? 'mp-setup-pre-commit: Husky pre-commit 配置就绪（对话模式 Skill 调用）'
     : 'mp-setup-pre-commit: 已跳过（需对话模式 + Matt Pocock skill）',
-  'mp-setup-pre-commit': (_a, _p) => process.env.CLAUDECODE === '1'
+  'mp-setup-pre-commit': (_a, _p) => isConversationMode()
     ? 'mp-setup-pre-commit: Husky pre-commit 配置就绪（对话模式 Skill 调用）'
     : 'mp-setup-pre-commit: 已跳过（需对话模式 + Matt Pocock skill）',
 
