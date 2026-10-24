@@ -139,6 +139,7 @@
 | 日期 | 工具 | 变更 | Commit | 备注 |
 |------|------|------|--------|------|
 | 2026-10-24 | `speckit-*` (11 个) | specify-cli 0.14.3.dev0 → **1.2.3** | — | 新增 scripts/handoffs/tools 字段, hook 处理细节优化 |
+| 2026-10-24 | `speckit-*` (6 个) | 集成到场景 | — | analyze→review, checklist→feature, constitution→new-project, converge→feature, taskstoissues→feature, clarify→spec 命令 |
 | 2026-10-24 | `mattpocock` | 核查: v1.2.x 本地定制 → v1.3.1 | — | 上游有 37 个技能,本地保留 29 个定制版 |
 | 2026-10-24 | `pa11y-ci` | 4.1.1 → **5.0.0** | — | major,配置格式变化,需迁移 |
 | 2026-10-24 | `@biomejs/biome` | 2.5.3 → **2.6.2** | — | minor,配置 schema 自动升级 |

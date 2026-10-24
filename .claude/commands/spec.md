@@ -60,6 +60,18 @@ Task(subagent_type: "ux-designer",
      Append the UX Brief section to the same file.")
 ```
 
+## Step 1.5: Clarify Specification (optional)
+
+Use the Skill tool to invoke speckit-clarify if ambiguities exist:
+
+```
+Skill(skill: "speckit-clarify")
+```
+
+This identifies underspecified areas and asks up to 5 targeted clarification questions.
+
+---
+
 ## Step 4: Present Summary
 
 Present the enriched specification to the user:

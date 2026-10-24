@@ -270,6 +270,17 @@
       "condition": "mattpocock_skill_available && selected_modes.includes('code_review')"
     },
     {
+      "step": 3.3,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-analyze"
+      },
+      "description": "Spec-Kit /analyze: 跨制品一致性分析 — spec/plan/tasks 三文件一致性检查",
+      "condition": "conversation_mode && selected_modes.includes('code_review')"
+    },
+    {
       "step": 3.5,
       "layer": "skill",
       "service": "Skill",

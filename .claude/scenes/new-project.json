@@ -163,6 +163,17 @@
       "condition": "mattpocock_skill_available"
     },
     {
+      "step": 2.51,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-constitution"
+      },
+      "description": "Spec-Kit /constitution: 创建/更新项目宪法，确保所有模板同步",
+      "condition": "conversation_mode"
+    },
+    {
       "step": 2.6,
       "layer": "skill",
       "service": "MattPocockSkill",

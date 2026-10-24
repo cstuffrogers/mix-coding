@@ -100,6 +100,17 @@
       "condition": "mattpocock_skill_available"
     },
     {
+      "step": 2.56,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-checklist"
+      },
+      "description": "Spec-Kit /checklist: 基于需求生成自定义验收清单",
+      "condition": "conversation_mode"
+    },
+    {
       "step": 2.6,
       "layer": "capability",
       "service": "ProjectService",
@@ -343,6 +354,28 @@
       "action": "consolidate",
       "params": {},
       "description": "整理跨后端记忆一致性"
+    },
+    {
+      "step": 10.7,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-converge"
+      },
+      "description": "Spec-Kit /converge: 评估代码 vs spec/plan/tasks，追加未完成工作",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 10.8,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-taskstoissues"
+      },
+      "description": "Spec-Kit /taskstoissues: 将 tasks.md 转为 GitHub Issues",
+      "condition": "conversation_mode"
     },
     {
       "step": 11,
