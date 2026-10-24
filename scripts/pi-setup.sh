@@ -19,7 +19,7 @@
 
 set -uo pipefail
 
-GREEN='\033[0;32m'; YELLOW='\033[0;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; NC='\033[0m'
+GREEN='\033[0;32m'; YELLOW='\033[0;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; DIM='\033[2m'; NC='\033[0m'
 ok()   { echo -e "  ${GREEN}✅${NC} $1"; }
 warn() { echo -e "  ${YELLOW}⚠️${NC}  $1"; }
 fail() { echo -e "  ${RED}❌${NC} $1"; ERR=$((ERR+1)); }
@@ -100,6 +100,19 @@ hdr "5. 接入文件确认"
 [ -d ".pi/skills" ] && ok ".pi/skills/ 就位 (pi Skills)" || warn ".pi/skills/ 缺失"
 [ -d ".pi/prompts" ] && ok ".pi/prompts/ 就位 (pi Prompt Templates)" || warn ".pi/prompts/ 缺失"
 [ -f "AGENTS.md" ] && ok "根 AGENTS.md 就位" || warn "根 AGENTS.md 缺失"
+
+# 全局安装检查：项目级斜杠命令只在 cd 到本仓库时可用
+GLOBAL_PROMPTS="${PI_AGENT_DIR:-$HOME/.pi/agent}/prompts"
+LOCAL_PROMPT_N=$(ls .pi/prompts/*.md 2>/dev/null | wc -l | tr -d ' ')
+GLOBAL_PROMPT_N=$(ls "$GLOBAL_PROMPTS"/*.md 2>/dev/null | wc -l | tr -d ' ')
+if [ "$GLOBAL_PROMPT_N" -ge "$LOCAL_PROMPT_N" ] && [ "$LOCAL_PROMPT_N" -gt 0 ]; then
+  ok "斜杠命令已全局安装 ($GLOBAL_PROMPT_N 个) — 任意目录可用"
+else
+  warn "斜杠命令未全局安装 ($GLOBAL_PROMPT_N/$LOCAL_PROMPT_N) — 仅本目录可用"
+  dim_hint() { echo -e "     ${DIM}安装: bash scripts/install-global.sh${NC}"; }
+  command -v claude-scene > /dev/null 2>&1 || echo -e "     ${DIM}先: cd claude-scene && npm link${NC}"
+  dim_hint
+fi
 
 if [ "$SKIP_SMOKE" -eq 0 ]; then
   hdr "6. 自检冒烟 (check 场景 dry-run)"

@@ -55,6 +55,26 @@ node claude-scene/src/index.js start check --auto
 - Prompt Templates：`.pi/prompts/*.md` — `/review`、`/feature` 等斜杠命令（含 `/audit`、`/simplify` 等合并别名）
 - 接入检查：`bash scripts/pi-setup.sh`（`--check` 仅检查）
 
+### 全局安装（任意项目目录都能用 / 命令）
+
+项目级 `.pi/prompts/` 只在 `cd` 到本仓库时生效。要在**任意项目**都用 `/review`：
+
+```bash
+cd claude-scene && npm link    # 引擎进 PATH
+cd .. && bash scripts/install-global.sh
+```
+
+装到（均自动加载，无需 settings.json）：
+
+| 目标 | 内容 |
+|------|------|
+| `~/.pi/agent/prompts/` | 32 个斜杠命令模板 |
+| `~/.pi/agent/skills/` | `scene-runner` skill |
+| `~/.claude/commands/` | 33 个 Claude Code 命令 |
+
+脚本支持 `--dry-run` / `--check` / `--uninstall` / `--force`（默认不覆盖用户已有同名文件）。
+装完在 pi/percho 执行 `/reload` 生效。
+
 ## 工作流清单（25 个场景）
 
 | 命令 | 场景 | 说明 |

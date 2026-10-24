@@ -45,18 +45,21 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 |--------|--------|------|
 | /audit | /review | review 场景勾选"全量审计"模式 |
 | /analyze | /review | review 场景勾选"仅分析"模式 |
+| /hunt | /review | 安全已并入 review 的 security_deep 模式（默认开启） |
 | /simplify | /refactor | refactor 场景勾选"代码简化"模式 |
 | /design | /ui-polish | 使用 ui-polish 场景 |
 | /polish | /ui-polish | 使用 ui-polish 场景 |
+| /e2e | /setup | setup 场景，kind 选 e2e（默认） |
+| /monitor | /setup | setup 场景，kind 选 monitor |
 
 ## 用法
 
 当用户调用场景命令（如 /review）时：
 
 1. 按上表映射命令到场景名（旧命令走"已合并命令"映射）
-2. 执行：
-   `node E:/auto-coding/claude-scene/src/index.js start <scene> --auto`
-3. 可加 --auto 非交互模式
+2. 在**当前工作目录**直接执行：
+   `claude-scene start <scene> --auto`
+3. 可加 `--target <路径>` 审查其他目录；`--dry-run` 只看不执行
 4. 向用户报告输出
 
 ## 示例
@@ -65,16 +68,22 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 
 执行：
 ```
-node E:/auto-coding/claude-scene/src/index.js start review --auto
+claude-scene start review --auto
 ```
 
 用户：/audit（已合并）
 
-执行：`node E:/auto-coding/claude-scene/src/index.js start review --auto`
+执行：`claude-scene start review --auto`
 并提示用户：/audit 已合并到 /review，请在交互菜单勾选"全量审计"模式。
 
-## 引擎路径
+## 引擎
 
-默认：E:/auto-coding/claude-scene/src/index.js
+`claude-scene` 是全局命令（npm link / npm i -g 安装）。
+目标项目默认为当前目录，可用 `--target` 或 `MIX_CODING_PROJECT_DIR` 覆盖。
 
-若项目路径不同，相应调整路径。
+若提示 command not found，说明引擎未全局安装：
+```
+cd <引擎仓库>/claude-scene && npm link
+```
+
+场景数据随引擎包分发；项目若有 `.claude/scenes/<name>.json` 会覆盖同名的内置场景。
