@@ -521,6 +521,32 @@ export const ACTION_REGISTRY = {
     ? 'mp-improve-codebase-architecture: 架构改进就绪（对话模式 Skill 调用）'
     : 'mp-improve-codebase-architecture: 架构改进已跳过（需对话模式 + Matt Pocock skill）',
 
+  // ── Matt Pocock skills — 新增（grill-with-docs / zoom-out / review / setup-pre-commit） ──
+  mpGrillWithDocs: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-grill-with-docs: 需求收集 + ADR/CONTEXT.md 同步就绪（对话模式 Skill 调用）'
+    : 'mp-grill-with-docs: 已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-grill-with-docs': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-grill-with-docs: 需求收集 + ADR/CONTEXT.md 同步就绪（对话模式 Skill 调用）'
+    : 'mp-grill-with-docs: 已跳过（需对话模式 + Matt Pocock skill）',
+  mpZoomOut: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-zoom-out: 高层架构视角就绪（对话模式 Skill 调用）'
+    : 'mp-zoom-out: 已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-zoom-out': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-zoom-out: 高层架构视角就绪（对话模式 Skill 调用）'
+    : 'mp-zoom-out: 已跳过（需对话模式 + Matt Pocock skill）',
+  mpReview: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-review: Standards + Spec 双轴审查就绪（对话模式 Skill 调用）'
+    : 'mp-review: 已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-review': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-review: Standards + Spec 双轴审查就绪（对话模式 Skill 调用）'
+    : 'mp-review: 已跳过（需对话模式 + Matt Pocock skill）',
+  mpSetupPreCommit: (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-setup-pre-commit: Husky pre-commit 配置就绪（对话模式 Skill 调用）'
+    : 'mp-setup-pre-commit: 已跳过（需对话模式 + Matt Pocock skill）',
+  'mp-setup-pre-commit': (_a, _p) => process.env.CLAUDECODE === '1'
+    ? 'mp-setup-pre-commit: Husky pre-commit 配置就绪（对话模式 Skill 调用）'
+    : 'mp-setup-pre-commit: 已跳过（需对话模式 + Matt Pocock skill）',
+
   // ── Mobile: Core (MobileService) ──
   detectProject: handleDetectProject,
   checkTools: handleCheckTools,

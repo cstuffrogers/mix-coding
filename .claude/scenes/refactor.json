@@ -3,7 +3,14 @@
   "workflow": "refactor",
   "name": "代码重构 + 简化",
   "description": "代码重构与简化合并。可选模式：重构 / 简化（不改变行为）/ 架构优化",
-  "trigger_keywords": ["重构", "refactor", "代码重构", "clean code", "简化", "simplify"],
+  "trigger_keywords": [
+    "重构",
+    "refactor",
+    "代码重构",
+    "clean code",
+    "简化",
+    "simplify"
+  ],
   "mode_selection": {
     "prompt": "选择重构模式（可多选）：",
     "options": [
@@ -38,9 +45,21 @@
       "params": {
         "prompt": "选择重构模式（可多选，3秒无操作使用默认）：",
         "options": [
-          { "id": "refactor", "label": "代码重构", "default": true },
-          { "id": "simplify", "label": "代码简化", "default": false },
-          { "id": "architecture", "label": "架构优化", "default": false }
+          {
+            "id": "refactor",
+            "label": "代码重构",
+            "default": true
+          },
+          {
+            "id": "simplify",
+            "label": "代码简化",
+            "default": false
+          },
+          {
+            "id": "architecture",
+            "label": "架构优化",
+            "default": false
+          }
         ],
         "multi_select": true
       },
@@ -65,7 +84,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["refactor", "architecture", "quality"]
+          "type": [
+            "refactor",
+            "architecture",
+            "quality"
+          ]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -77,7 +100,9 @@
       "action": "listIssues",
       "params": {
         "state": "open",
-        "labels": ["refactor"],
+        "labels": [
+          "refactor"
+        ],
         "limit": 5
       },
       "description": "使用 GitHub MCP 列出重构相关的 issues",
@@ -125,7 +150,11 @@
       "service": "CodeAnalyzer",
       "action": "detectAntiPatterns",
       "params": {
-        "patterns": ["god_object", "long_method", "duplicate_code"]
+        "patterns": [
+          "god_object",
+          "long_method",
+          "duplicate_code"
+        ]
       },
       "description": "检测God Object、长方法、重复代码等反模式"
     },
@@ -134,9 +163,22 @@
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
-      "params": { "skill": "refactor-safely" },
+      "params": {
+        "skill": "refactor-safely"
+      },
       "description": "CRG 重构安全分析：死代码检测 + 重命名影响预览 + 社区驱动重构建议",
       "condition": "crg_skill_available"
+    },
+    {
+      "step": 6.4,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-zoom-out",
+      "params": {
+        "mode": "architecture"
+      },
+      "description": "Matt Pocock /zoom-out: 高层架构视角，理解代码库结构与社区分布",
+      "condition": "mattpocock_skill_available"
     },
     {
       "step": 7,
@@ -144,7 +186,12 @@
       "service": "MattPocockSkill",
       "action": "mp-improve-codebase-architecture",
       "params": {
-        "focus": ["deepening_opportunities", "module_cohesion", "testability", "ai_navigability"]
+        "focus": [
+          "deepening_opportunities",
+          "module_cohesion",
+          "testability",
+          "ai_navigability"
+        ]
       },
       "description": "Matt Pocock /improve-codebase-architecture: 基于 ADR 和 CONTEXT.md 寻找架构深化机会",
       "condition": "mattpocock_skill_available"
@@ -155,7 +202,13 @@
       "service": "ProjectService",
       "action": "detectLanguage",
       "params": {
-        "detect": ["go.mod", "Cargo.toml", "pubspec.yaml", "build.gradle", "CMakeLists.txt"]
+        "detect": [
+          "go.mod",
+          "Cargo.toml",
+          "pubspec.yaml",
+          "build.gradle",
+          "CMakeLists.txt"
+        ]
       },
       "description": "检测项目语言生态，确定使用哪种构建/测试工具链"
     },
@@ -223,7 +276,11 @@
       "service": "CodeEngine",
       "action": "applyTransformations",
       "params": {
-        "transformations": ["extract_method", "extract_class", "rename_identifiers"],
+        "transformations": [
+          "extract_method",
+          "extract_class",
+          "rename_identifiers"
+        ],
         "preserve_behavior": true
       },
       "description": "应用重构变换：提取方法、提取类、重命名标识符",
@@ -294,7 +351,11 @@
       "service": "CodeEngine",
       "action": "cleanup",
       "params": {
-        "cleanup": ["remove_deadcode", "organize_imports", "format_code"]
+        "cleanup": [
+          "remove_deadcode",
+          "organize_imports",
+          "format_code"
+        ]
       },
       "description": "清理无用代码、组织导入、格式化代码"
     },

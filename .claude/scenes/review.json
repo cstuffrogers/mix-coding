@@ -66,12 +66,36 @@
       "params": {
         "prompt": "选择审查模式（可多选，3秒无操作使用默认）：",
         "options": [
-          { "id": "code_review", "label": "代码审查", "default": true },
-          { "id": "full_audit", "label": "全量审计", "default": false },
-          { "id": "analyze_only", "label": "仅分析", "default": false },
-          { "id": "security_deep", "label": "安全深度扫描", "default": true },
-          { "id": "quality_tools", "label": "质量工具链", "default": false },
-          { "id": "ai_design", "label": "AI/设计审查", "default": false }
+          {
+            "id": "code_review",
+            "label": "代码审查",
+            "default": true
+          },
+          {
+            "id": "full_audit",
+            "label": "全量审计",
+            "default": false
+          },
+          {
+            "id": "analyze_only",
+            "label": "仅分析",
+            "default": false
+          },
+          {
+            "id": "security_deep",
+            "label": "安全深度扫描",
+            "default": true
+          },
+          {
+            "id": "quality_tools",
+            "label": "质量工具链",
+            "default": false
+          },
+          {
+            "id": "ai_design",
+            "label": "AI/设计审查",
+            "default": false
+          }
         ],
         "multi_select": true
       },
@@ -82,7 +106,9 @@
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
-      "params": { "skill": "review-checklist" },
+      "params": {
+        "skill": "review-checklist"
+      },
       "description": "Pre-flight: 加载 23 项审查清单",
       "condition": "conversation_mode"
     },
@@ -91,7 +117,16 @@
       "layer": "capability",
       "service": "MemoryService",
       "action": "recall",
-      "params": { "mode": "full", "filters": { "type": ["review", "quality", "security"] } },
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": [
+            "review",
+            "quality",
+            "security"
+          ]
+        }
+      },
       "description": "注入历史审查上下文"
     },
     {
@@ -99,7 +134,10 @@
       "layer": "capability",
       "service": "GitHubMCP",
       "action": "listPullRequests",
-      "params": { "state": "open", "limit": 5 },
+      "params": {
+        "state": "open",
+        "limit": 5
+      },
       "description": "列出待审查的 PR",
       "condition": "github_mcp_available && selected_modes.includes('code_review')"
     },
@@ -108,7 +146,9 @@
       "layer": "capability",
       "service": "Context7MCP",
       "action": "getDocumentation",
-      "params": { "topic": "code review best practices" },
+      "params": {
+        "topic": "code review best practices"
+      },
       "description": "获取审查最佳实践",
       "condition": "context7_mcp_available && selected_modes.includes('code_review')"
     },
@@ -117,7 +157,9 @@
       "layer": "capability",
       "service": "ReviewEngine",
       "action": "runReview",
-      "params": { "mode": "full" },
+      "params": {
+        "mode": "full"
+      },
       "description": "ESLint → TypeScript → npm audit 静态分析",
       "condition": "selected_modes.includes('code_review') || selected_modes.includes('full_audit')",
       "on_error": "retry"
@@ -136,7 +178,9 @@
       "layer": "capability",
       "service": "SecurityTool",
       "action": "pa11y-ci",
-      "params": { "standard": "WCAG2AA" },
+      "params": {
+        "standard": "WCAG2AA"
+      },
       "description": "pa11y-ci WCAG 扫描",
       "condition": "frontend_involved && selected_modes.includes('full_audit')"
     },
@@ -154,7 +198,9 @@
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "knip-check",
-      "params": { "strict": true },
+      "params": {
+        "strict": true
+      },
       "description": "Knip 死代码检测",
       "condition": "selected_modes.includes('quality_tools') || selected_modes.includes('full_audit')"
     },
@@ -163,7 +209,9 @@
       "layer": "capability",
       "service": "ArchitectureService",
       "action": "depcruise-architecture",
-      "params": { "rules": ".dependency-cruiser.js" },
+      "params": {
+        "rules": ".dependency-cruiser.js"
+      },
       "description": "架构验证：循环依赖 / 孤儿模块",
       "condition": "selected_modes.includes('quality_tools') || selected_modes.includes('full_audit')"
     },
@@ -172,7 +220,9 @@
       "layer": "capability",
       "service": "AISlopService",
       "action": "aislop-scan",
-      "params": { "mode": "scan" },
+      "params": {
+        "mode": "scan"
+      },
       "description": "AI 代码气味扫描",
       "condition": "selected_modes.includes('ai_design')"
     },
@@ -181,7 +231,10 @@
       "layer": "capability",
       "service": "CodeQualityService",
       "action": "jscpd",
-      "params": { "minTokens": 50, "threshold": 0.05 },
+      "params": {
+        "minTokens": 50,
+        "threshold": 0.05
+      },
       "description": "代码重复检测",
       "condition": "selected_modes.includes('quality_tools')"
     },
@@ -199,25 +252,32 @@
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
-      "params": { "skill": "review-delta" },
+      "params": {
+        "skill": "review-delta"
+      },
       "description": "CRG blast-radius 审查：仅读变更+受影响节点，生成风险评级+爆炸半径+测试缺口",
       "condition": "crg_skill_available && selected_modes.includes('code_review')"
     },
     {
       "step": 3.2,
       "layer": "skill",
-      "service": "Skill",
-      "action": "invokeSkill",
-      "params": { "skill": "review" },
-      "description": "Matt Pocock 双轴审查",
-      "condition": "conversation_mode && selected_modes.includes('code_review')"
+      "service": "MattPocockSkill",
+      "action": "mp-review",
+      "params": {
+        "mode": "full"
+      },
+      "description": "Matt Pocock /review: Standards + Spec 双轴审查（并行 sub-agent）",
+      "condition": "mattpocock_skill_available && selected_modes.includes('code_review')"
     },
     {
       "step": 3.5,
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
-      "params": { "skill": "impeccable", "subcommand": "critique" },
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "critique"
+      },
       "description": "Impeccable 设计批判",
       "condition": "impeccable_available && selected_modes.includes('ai_design')"
     },
@@ -241,7 +301,9 @@
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "recheck-cli",
-      "params": { "maxSteps": 10000 },
+      "params": {
+        "maxSteps": 10000
+      },
       "description": "ReDoS 正则扫描",
       "condition": "selected_modes.includes('security_deep')"
     },
@@ -295,7 +357,9 @@
       "layer": "capability",
       "service": "PerformanceService",
       "action": "profile",
-      "params": { "mode": "baseline" },
+      "params": {
+        "mode": "baseline"
+      },
       "description": "性能基线测量",
       "condition": "selected_modes.includes('analyze_only') || selected_modes.includes('full_audit')"
     },
@@ -304,7 +368,13 @@
       "layer": "capability",
       "service": "CodeMetricsService",
       "action": "analyze",
-      "params": { "metrics": ["complexity", "maintainability", "coupling"] },
+      "params": {
+        "metrics": [
+          "complexity",
+          "maintainability",
+          "coupling"
+        ]
+      },
       "description": "代码质量指标分析",
       "condition": "selected_modes.includes('analyze_only')"
     },
@@ -313,7 +383,10 @@
       "layer": "capability",
       "service": "QualityService",
       "action": "checkGate",
-      "params": { "mode": "strict", "block_merge": true },
+      "params": {
+        "mode": "strict",
+        "block_merge": true
+      },
       "description": "质量门禁汇总",
       "condition": "selected_modes.includes('full_audit')",
       "on_error": "abort"
@@ -331,7 +404,9 @@
       "layer": "capability",
       "service": "MemoryService",
       "action": "remember",
-      "params": { "type": "review" },
+      "params": {
+        "type": "review"
+      },
       "description": "保存审查结果到记忆"
     },
     {
@@ -339,7 +414,10 @@
       "layer": "capability",
       "service": "NotificationService",
       "action": "notify",
-      "params": { "type": "info", "message": "审查完成" },
+      "params": {
+        "type": "info",
+        "message": "审查完成"
+      },
       "description": "通知审查结果"
     }
   ],
