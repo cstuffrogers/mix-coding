@@ -1,7 +1,6 @@
 import { readFileSync } from 'fs';
-import { join } from 'path';
 import chalk from 'chalk';
-import { SCENES_DIR } from '../lib/paths.js';
+import { resolveScenePath, describePaths } from '../lib/paths.js';
 
 function printTriggerKeywords(scene) {
   if (!scene.trigger_keywords?.length) return;
@@ -57,13 +56,16 @@ function printGuardrails(scene) {
 }
 
 export async function showScene(sceneId) {
-  const filePath = join(SCENES_DIR, `${sceneId}.json`);
+  const filePath = resolveScenePath(sceneId);
   let scene;
   try {
+    if (!filePath) throw new Error('not found');
     const raw = readFileSync(filePath, 'utf-8');
     scene = JSON.parse(raw);
   } catch {
     console.error(chalk.red(`\n✖ 场景 "${sceneId}" 未找到`));
+    console.error(chalk.gray('已搜索:'));
+    for (const d of describePaths().sceneDirs) console.error(chalk.gray(`  - ${d}`));
     process.exit(1);
   }
 

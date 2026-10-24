@@ -1,13 +1,8 @@
 import { isConversationMode } from './platform.js';
 import { existsSync } from "fs";
-import { join , dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { execSync } from 'child_process';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-// claude-scene/src/lib/ → up 3 = auto-coding/
-const PROJECT_ROOT = join(__dirname, '..', '..', '..');
+import { PROJECT_ROOT, findResourceDir } from './paths.js';
 
 
 const SIMPLE_CONDITIONS = {
@@ -55,19 +50,17 @@ const SIMPLE_CONDITIONS = {
   ai_friendly_web_design_available: () => isConversationMode(),
 
   impeccable_available: () => {
-    const homeSkill = join(process.env.HOME || process.env.USERPROFILE || '', '.claude', 'skills', 'impeccable', 'SKILL.md');
-    const projectSkill = join(PROJECT_ROOT, '.claude', 'skills', 'impeccable', 'SKILL.md');
-    return existsSync(homeSkill) || existsSync(projectSkill);
+    return existsSync(join(findResourceDir('skills', 'impeccable'), 'SKILL.md'));
   },
 
   awesome_design_md_available: () => {
-    return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'awesome-design-md', 'SKILL.md'));
+    return existsSync(join(findResourceDir('skills', 'awesome-design-md'), 'SKILL.md'));
   },
 
   mobile_ui_review_available: () => {
     // Skill() tool only available in conversation mode (CLAUDECODE=1)
     if (!isConversationMode()) return false;
-    return existsSync(join(PROJECT_ROOT, '.claude', 'skills', 'mobile-ui-review', 'SKILL.md'));
+    return existsSync(join(findResourceDir('skills', 'mobile-ui-review'), 'SKILL.md'));
   },
 
   webapp_testing_available: () => isConversationMode(),

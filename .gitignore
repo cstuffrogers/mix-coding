@@ -111,3 +111,10 @@ test_llm_fix.db
 
 # percho UI plugins (user-local, not project code)
 .claude/memory/claude-scene/.claude/
+
+# 场景运行产物（每次 review 生成，不入库）
+.claude/reviews/
+.claude/infographics/
+.claude/logs/
+.claude/memory/
+claude-scene/.claude/

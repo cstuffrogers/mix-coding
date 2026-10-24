@@ -1,0 +1,157 @@
+{
+  "scene_id": "cicd",
+  "workflow": "cicd",
+  "name": "CI/CD 流水线配置",
+  "description": "使用 Act + Task 配置本地 CI/CD 流水线，验证 GitHub Actions 工作流，生成 Taskfile.yml 任务运行器",
+  "trigger_keywords": [
+    "CI",
+    "CD",
+    "cicd",
+    "ci/cd",
+    "pipeline",
+    "流水线",
+    "workflow",
+    "自动构建",
+    "部署流水线",
+    "GitHub Actions"
+  ],
+  "flow": [
+    {
+      "step": 1,
+      "layer": "core",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "type": "cicd",
+        "filters": {
+          "type": ["ci", "cd", "workflow", "deployment", "pipeline"]
+        }
+      },
+      "description": "注入 CI/CD 相关记忆"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "CIService",
+      "action": "setupCI",
+      "params": {},
+      "description": "扫描工作流、验证、生成 Taskfile.yml"
+    },
+    {
+      "step": 2.3,
+      "layer": "capability",
+      "service": "CIService",
+      "action": "actionlint",
+      "params": {
+        "config": ".github/workflows",
+        "format": "json"
+      },
+      "description": "actionlint: GitHub Actions 工作流语法检查（3k+ stars）"
+    },
+    {
+      "step": 2.4,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "zizmor",
+      "params": {
+        "persona": "pedantic"
+      },
+      "description": "zizmor: GitHub Actions 安全审计 — 权限过度/脚本注入/敏感数据暴露（2.5k+ stars）"
+    },
+    {
+      "step": 2.5,
+      "layer": "capability",
+      "service": "SecurityTool",
+      "action": "build-leak-check",
+      "params": {
+        "mode": "block"
+      },
+      "description": "构建产物泄露检测（noleak）：Source Map / .env / 密钥 — 阻断 CI 流水线",
+      "condition": "build_artifacts_exist"
+    },
+    {
+      "step": 3,
+      "layer": "core",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": ["cicd", "actionlint", "zizmor", "build_leaks"]
+      },
+      "description": "CI/CD 质量门禁",
+      "condition": "ciConfigured == false",
+      "on_error": "abort"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "CIService",
+      "action": "autoFix",
+      "params": {
+        "source": "cicd"
+      },
+      "description": "自动修复 CI/CD 配置问题",
+      "condition": "ciConfigured == false"
+    },
+    {
+      "step": 5,
+      "layer": "core",
+      "service": "NotificationService",
+      "action": "send",
+      "params": {
+        "level": "warning",
+        "title": "CI/CD 配置失败",
+        "content": "未能生成有效的 CI/CD 配置，请检查项目结构"
+      },
+      "description": "CI/CD 配置失败通知",
+      "condition": "ciConfigured == false"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "cicd",
+        "data": {
+          "workflowsFound": "{{workflowsFound}}",
+          "workflowsValid": "{{workflowsValid}}",
+          "taskfileGenerated": "{{taskfileGenerated}}",
+          "actAvailable": "{{actAvailable}}",
+          "taskAvailable": "{{taskAvailable}}"
+        }
+      },
+      "description": "保存 CI/CD 配置结果"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理去重记忆"
+    },
+    {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "cicd",
+        "source": "auto"
+      },
+      "description": "将cicd知识沉淀到项目知识库 CLAUDE.md",
+      "condition": "plugin_ce_available"
+    },
+    {
+      "step": 8,
+      "layer": "core",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "message": "CI/CD 流水线配置工作流完成"
+      },
+      "description": "通知 CI/CD 配置完成"
+    }
+  ],
+  "status": "active"
+}

@@ -563,6 +563,7 @@ const ACTION_MESSAGES = {
 
   // Interactive layer actions (SceneSelector)
   selectModes: '交互式模式选择完成',
+  selectSetupKind: '设施类型选择完成',
   profile: '性能基线测量完成',
 
   // Update workflow actions

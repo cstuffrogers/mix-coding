@@ -1,24 +1,24 @@
-import { readFileSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'fs';
 import chalk from 'chalk';
-import { SCENES_DIR } from '../lib/paths.js';
+import { resolveScenePath, listSceneIds } from '../lib/paths.js';
 const SCENE_META = {
   'new-project':   { icon: '🚀', description: '从零开始新项目' },
   'feature':       { icon: '✨', description: '已有项目加功能' },
   'bugfix':        { icon: '🐛', description: '线上故障排查修复' },
-  'refactor':      { icon: '🔧', description: '代码重构优化' },
-  'design':        { icon: '🎨', description: 'UI/UX 设计改版' },
-  'analyze':       { icon: '📊', description: '竞品分析与技术选型' },
+  'refactor':      { icon: '🔧', description: '代码重构/简化' },
   'loop':          { icon: '🔄', description: '无人值守自动迭代' },
-  'review':        { icon: '📋', description: '全面代码质量审查' },
-  'hunt':          { icon: '🔒', description: '代码安全漏洞扫描与修复' },
-  'ui-polish':     { icon: '💅', description: '前端美化（DaisyUI + Animate.css）' },
-  'simplify':      { icon: '🧹', description: '代码简化（可读性优先）' },
+  'review':        { icon: '📋', description: '代码审查 + 安全审计（全量/安全/质量/设计模式）' },
+  'ui-polish':     { icon: '💅', description: '前端美化与 AI 设计' },
   'optimize':      { icon: '⚡', description: '性能优化（测量优先）' },
+  'setup':         { icon: '🔧', description: 'E2E 测试 / 网站监控设施搭建' },
+  'check':         { icon: '🩺', description: '引擎自检与自愈' },
+  'plan':          { icon: '🗺️', description: '持久化规划（spec/plan/tasks）' },
+  'update':        { icon: '⬆️', description: '系统资源更新' },
 };
 function loadScene(id) {
   try {
-    const filePath = join(SCENES_DIR, `${id}.json`);
+    const filePath = resolveScenePath(id);
+    if (!filePath) return null;
     const raw = readFileSync(filePath, 'utf-8');
     return JSON.parse(raw);
   } catch {
@@ -27,11 +27,7 @@ function loadScene(id) {
 }
 function getAllSceneIds() {
   try {
-    const files = readdirSync(SCENES_DIR);
-    return files
-      .filter(f => f.endsWith('.json'))
-      .map(f => f.replace('.json', ''))
-      .sort();
+    return listSceneIds();
   } catch {
     return Object.keys(SCENE_META);
   }

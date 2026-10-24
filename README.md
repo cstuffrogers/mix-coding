@@ -8,7 +8,7 @@
 
 这是一个基于 **三层架构 + Scene 引擎** 的智能开发系统，支持：
 
-- ✅ **27 个自动化工作流**：覆盖 Web 前端（21 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、E2E 测试、发布部署、环境搭建、引擎自检、UI prompt 精炼等。另有 9 个功能已融入增强菜单（cicd/deps/monitor/hunt/release/e2e/review/feature 内按需弹出）
+- ✅ **25 个自动化工作流**：覆盖 Web 前端（19 个）+ 移动端（6 个），含代码审查、安全扫描、性能优化、设施搭建、发布部署、环境搭建、引擎自检、UI prompt 精炼等。另有 9 个功能已融入增强菜单（cicd/deps/setup/review/feature 内按需弹出）
 - ✅ **交互式模式选择**：`/review`、`/refactor`、`/ui-polish` 启动时弹出勾选菜单，3秒无操作使用默认
 - ✅ **多轮自动审查与修复**：直到问题清零
 - ✅ **AI 驱动设计**：Open Design 完整集成（152 品牌 + 111 设计模板 + 137 Skill + 6 设备框 + 3 演示文稿 + 102 提示词模板 + 11 craft 设计铁律），零设计门槛
@@ -87,7 +87,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ## 📋 27 个工作流场景
 
-> 另有 9 个功能已融入增强菜单（backup/docker→cicd、sbom→deps、loadtest→e2e、log/incident→monitor、changelog→release、migration→review、llm-proxy-audit→hunt），对应父工作流中按需弹出。
+> 另有 9 个功能已融入增强菜单（backup/docker→cicd、sbom→deps、loadtest→setup、log/incident→setup、changelog→release、migration→review、llm-proxy-audit→review），对应父工作流中按需弹出。
 >
 > **交互式模式选择**：`/review`、`/refactor`、`/ui-polish` 启动时弹出勾选菜单，3秒无操作使用默认。
 
@@ -95,10 +95,9 @@ node src/index.js start ui-polish --auto    # 执行工作流
 |------|--------|------|------|
 | **ui-polish** | 69 步 | 前端美化 + 设计（交互式模式：UI美化/仅设计/品牌系统/Impeccable） | `/ui-polish` |
 | **new-project** | 67 步 | 从零开始新项目（设计基准 → shape 简报 → Open Design + Impeccable） | `/new-project` |
-| **review** | 33 步 | 代码审查 + 安全审计（交互式模式：代码审查/全量审计/仅分析/安全深度/质量工具链/AI设计） | `/review` |
+| **review** | 35 步 | 代码审查 + 安全审计（交互式模式：代码审查/全量审计/仅分析/安全深度/质量工具链/AI设计）。安全深度模式含响应头/SkillSpector/ReDoS/CORS/日志脱敏/密钥/敏感文件 | `/review` |
 | **bugfix** | 30 步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
 | **feature** | 26 步 | 新功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
-| **hunt** | 24 步 | 安全漏洞扫描与修复（12 项外部工具链 + CE 沉淀）+ LLM 代理审计可选增强 | `/hunt` |
 | **mobile-audit** | 24 步 | App 安全审计（MobSF + mobsfscan + Bearer + OWASP MASVS） | `/mobile-audit` |
 | **refactor** | 23 步 | 代码重构 + 简化（交互式模式：代码重构/代码简化/架构优化） | `/refactor` |
 | **release** | 24 步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 监控） | `/release` |
@@ -119,8 +118,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **enhance-prompt** | — | UI prompt 精炼（模糊 UI 想法 → 结构化 prompt，含关键词参考 + 形容词调色板） | `/enhance-prompt` |
 | **plan** | 10 步 | Manus 持久规划（会话恢复 + SHA256认证 + 多阶段追踪） | `/plan` |
 | **update** | 10 步 | 系统资源更新（扫描 MCP/Skill/CLI/npm → 冲突检测 → patch/minor 自动更新 → major 待确认 → 写日期日志） | `/update` |
-| **e2e** | 9 步 | 端到端测试配置（MSW + Supertest + 负载测试可选增强） | `/e2e` |
-| **monitor** | 9 步 | 网站监控（Upptime + 日志/Incident Runbook 可选增强） | `/monitor` |
+| **setup** | 9 步 | 测试/监控设施搭建（交互选择：E2E 测试 MSW+Supertest+Schemathesis / 网站监控 Upptime+GitHub Actions） | `/setup` |
 
 ---
 
@@ -145,7 +143,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 |------|--------|------|
 | 复现定位 | `/bugfix <描述>` | 复现 → 根因 → 修复方案 |
 | 验证 | （内置） | 测试通过 + 回归 |
-| 同类排查 | `/hunt` | 同根因变量分析，扫全库同类漏洞 |
+| 同类排查 | `/review` | security_deep 模式，同根因变量分析扫全库同类漏洞 |
 
 > **增强**：检测到 Stagehand 时支持浏览器复现闭环；mythos-agent 同根因排查。
 
@@ -183,9 +181,9 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 | 深度 | 工作流 | 说明 |
 |------|--------|------|
-| 快速扫描 | `/hunt` | sec-bug-hunt + ReDoS + 开放重定向 + 日志脱敏 |
-| 深度扫描 | `/hunt` | + LLM 代理审计 + mythos 假设驱动 + Critiq 确定性规则 |
-| 密钥泄露 | `/hunt` | gitleaks Git 历史 + trivy 容器/文件系统 |
+| 快速扫描 | `/review` | sec-bug-hunt + ReDoS + 开放重定向 + 日志脱敏 |
+| 深度扫描 | `/review` | + LLM 代理审计 + mythos 假设驱动 + Critiq 确定性规则 |
+| 密钥泄露 | `/review` | gitleaks Git 历史 + trivy 容器/文件系统 |
 
 ### 性能优化
 
@@ -239,8 +237,8 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | 场景 | 工作流 |
 |------|--------|
 | CI/CD 流水线 | `/cicd`（Docker 化 + 备份可选） |
-| 网站监控 | `/monitor`（Upptime + Runbook） |
-| E2E 测试 | `/e2e`（MSW + Supertest + fuzz） |
+| 网站监控 | `/setup` 选 monitor（Upptime + Runbook） |
+| E2E 测试 | `/setup` 选 e2e（MSW + Supertest + fuzz） |
 | 环境搭建 | `/onboard`（一键检测+安装+配置） |
 
 ### 紧急回滚
@@ -456,27 +454,27 @@ node src/index.js start hunt --auto --target "./your-project"
 | 工具 | 类型 | 负责工作流 | 功能 | 阻断级别 |
 |------|------|-----------|------|---------|
 | **noleak** | npm CLI | `/release` (step 8.5), `/audit` (step 8.7) | 构建产物泄露检测：Source Map / .env / 密钥 / .git 目录扫描 | BLOCK-RELEASE |
-| **seraphim-audit** | Python CLI | `/hunt` (step 4.5), `/audit` (step 3.5) | 安全响应头扫描：CSP / HSTS / X-Frame-Options / X-Content-Type-Options / Referrer-Policy / Permissions-Policy | — |
+| **seraphim-audit** | Python CLI | `/review` (step 4.5), `/audit` (step 3.5) | 安全响应头扫描：CSP / HSTS / X-Frame-Options / X-Content-Type-Options / Referrer-Policy / Permissions-Policy | — |
 | **lychee** | Rust 二进制 | `/audit` (step 8.5) | 死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 | — |
 | **Lighthouse CI** | npm CLI | `/release` (step 8.6), `/audit` (step 8.8) | 性能门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查 | BLOCK-RELEASE |
 | **pa11y-ci** | npm CLI | `/review` (a11y 增强层) | WCAG 2.1 AA 深度无障碍扫描 | — |
-| **recheck-cli** | npm CLI | `/hunt` (step 4.7), `/audit` (step 3.6) | 正则 ReDoS 灾难性回溯扫描 | — |
-| **log-sanitizer** | 内置 grep | `/hunt` (step 4.8), `/audit` (step 3.7), `/review` (step 4.3) | 日志脱敏扫描：Token/密码/身份证/手机号/邮箱泄露检测 | — |
-| **cors-checker** | 内置 grep | `/hunt` (step 4.9), `/audit` (step 3.8), `/review` (step 4.4) | CORS 配置检测：通配符 + credentials 泄露 | — |
-| **env-leak-scanner** | 内置 grep | `/hunt` (step 4.10), `/audit` (step 3.9), `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
-| **sensitive-file-check** | 内置 git | `/hunt` (step 4.12), `/audit` (step 3.12), `/review` (step 4.6) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
+| **recheck-cli** | npm CLI | `/review` (step 4.7), `/audit` (step 3.6) | 正则 ReDoS 灾难性回溯扫描 | — |
+| **log-sanitizer** | 内置 grep | `/review` (step 4.8), `/audit` (step 3.7), `/review` (step 4.3) | 日志脱敏扫描：Token/密码/身份证/手机号/邮箱泄露检测 | — |
+| **cors-checker** | 内置 grep | `/review` (step 4.9), `/audit` (step 3.8), `/review` (step 4.4) | CORS 配置检测：通配符 + credentials 泄露 | — |
+| **env-leak-scanner** | 内置 grep | `/review` (step 4.10), `/audit` (step 3.9), `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
+| **sensitive-file-check** | 内置 git | `/review` (step 4.12), `/audit` (step 3.12), `/review` (step 4.6) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
 | **deprecated-deps** | npm CLI | `/audit` (step 3.16) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | — |
 | **knip** | npx CLI | `/audit` (verifier Pass 7), `/review` (verifier Pass 7) | AST 级死代码/依赖检测：未使用文件/未使用导出/未解析导入/未声明依赖/未使用依赖（11k+ stars） | — |
-| **skillspector** | Python CLI | `/hunt` (step 4.15), `/audit` (step 3.18) | AI 技能安全扫描：提示注入/数据外泄/权限提升/供应链攻击等 64 种漏洞模式（NVIDIA, 2.5k+ stars） | — |
+| **skillspector** | Python CLI | `/review` (step 4.15), `/audit` (step 3.18) | AI 技能安全扫描：提示注入/数据外泄/权限提升/供应链攻击等 64 种漏洞模式（NVIDIA, 2.5k+ stars） | — |
 | **aislop** | npx CLI | `/review` (step 2.9), `/audit` (step 3.19) | AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper（子秒级确定性） | — |
 | **dependency-cruiser** | npx CLI | `/audit` (step 3.20) | 依赖架构验证：循环依赖检测/孤儿模块识别/架构分层合规/调用图生成（6.7k+ stars） | — |
-| **prototype-pollution** | ESLint 规则 | `/audit` (step 1, 2), `/hunt` (step 3), `/review` (step 2 lint) | no-prototype-builtins 原型链污染检测 | — |
-| **trivy** | Go 二进制 | `/hunt`, `/audit` | 容器镜像/文件系统/IaC 全量安全扫描：CVE + 密钥 + 配置错误（Aqua Security, 25k+ stars） | — |
+| **prototype-pollution** | ESLint 规则 | `/audit` (step 1, 2), `/review` (step 3), `/review` (step 2 lint) | no-prototype-builtins 原型链污染检测 | — |
+| **trivy** | Go 二进制 | `/review`, `/audit` | 容器镜像/文件系统/IaC 全量安全扫描：CVE + 密钥 + 配置错误（Aqua Security, 25k+ stars） | — |
 | **shellcheck** | Haskell 二进制 | `/audit`, `/cicd` | Shell 脚本静态分析：语法错误/不良实践/安全风险（37k+ stars） | — |
 | **sqlfluff** | Python CLI | `/review`, `/audit` | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言（8k+ stars, MIT） | — |
 | **bruno** | npm CLI | `/e2e`, `/review` | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本（31k+ stars, MIT） | — |
-| **gitleaks** | Go 二进制 | `/hunt`, `/audit` | Git 历史密钥泄露检测：120+ 内置规则，detect/describe/git 子命令（18k+ stars, MIT） | — |
-| **semgrep** | Python CLI | `/hunt`, `/audit`, `/review` | 多语言 AST 级 SAST：2,500+ 社区规则，支持自定义规则，跨语言模式匹配（11k+ stars, LGPL） | — |
+| **gitleaks** | Go 二进制 | `/review`, `/audit` | Git 历史密钥泄露检测：120+ 内置规则，detect/describe/git 子命令（18k+ stars, MIT） | — |
+| **semgrep** | Python CLI | `/review`, `/audit` | 多语言 AST 级 SAST：2,500+ 社区规则，支持自定义规则，跨语言模式匹配（11k+ stars, LGPL） | — |
 | **commitlint** | npm CLI | `/review`, `/cicd` | Conventional Commits 格式校验：`@commitlint/config-conventional` + 可扩展规则（18k+ stars, MIT） | — |
 | **biome** | npm CLI | `/review`, `/audit`, `/refactor` | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier，零配置高性能（50k+ stars, MIT/Apache-2.0） | — |
 | **ruff** | Python CLI | `/review`, `/audit`, `/refactor` | Rust 编写 Python linter + formatter，替代 Flake8+isort+black，10-100x 更快（35k+ stars, MIT） | — |
@@ -540,7 +538,7 @@ pip install ruff
 /bugfix 登录页面表单验证报错
 /feature 添加用户管理模块
 /review
-/hunt
+/setup
 ```
 
 **方式二：使用 CLI 工具**

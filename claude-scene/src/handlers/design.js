@@ -3,7 +3,7 @@ import { join, basename, relative } from 'path';
 import { spawn } from 'child_process';
 import chalk from 'chalk';
 import { ensureDir } from '../lib/fs-utils.js';
-import { PROJECT_ROOT } from '../lib/paths.js';
+import { findOptionalToolDir, findResourceDir } from '../lib/paths.js';
 import { scanDir } from '../lib/scan-dir.js';
 import { proposeThreeDirections } from "../lib/huashu/html-direction-advisor.js";
 import { runProtocol as runBrandProtocol } from '../lib/huashu/brand-protocol.js';
@@ -296,7 +296,7 @@ export function handleDesignInput(_action, params, _targetPath, context) {
 
 // ── Awesome Design MD handlers ──
 
-const BRANDS_DIR = join(PROJECT_ROOT, '.claude', 'skills', 'awesome-design-md', 'brands');
+const BRANDS_DIR = join(findResourceDir('skills', 'awesome-design-md'), 'brands');
 
 const BRAND_INFO = {
   vercel: { name: 'Vercel', description: '现代 SaaS 仪表板' },
@@ -346,7 +346,7 @@ export function handleAwmBrandImport(_action, params, _targetPath, context) {
 
 // ── Open Design (od) brand handlers ──
 
-const OD_DESIGN_SYSTEMS_DIR = join(PROJECT_ROOT, 'open-design', 'design-systems');
+const OD_DESIGN_SYSTEMS_DIR = join(findOptionalToolDir('open-design'), 'design-systems');
 
 function readBrandFromEntry(entry) {
   const designMd = join(OD_DESIGN_SYSTEMS_DIR, entry.name, 'DESIGN.md');
@@ -508,7 +508,7 @@ export function handleOdBrandImport(_action, params, _targetPath, context) {
 
 // ── Open Design template handlers ──
 
-const OD_TEMPLATES_DIR = join(PROJECT_ROOT, 'open-design', 'design-templates');
+const OD_TEMPLATES_DIR = join(findOptionalToolDir('open-design'), 'design-templates');
 
 function readTemplateSKILL(templateDir) {
   const skillMd = join(templateDir, 'SKILL.md');
@@ -664,7 +664,7 @@ export function handleOdTemplatePreview(_action, params, targetPath, context) {
 
 // ── Open Design skill loader ──
 
-const OD_SKILLS_DIR = join(PROJECT_ROOT, 'open-design', 'skills');
+const OD_SKILLS_DIR = join(findOptionalToolDir('open-design'), 'skills');
 
 export function handleOdSkillLoad(_action, params, _targetPath, context) {
   let skillName = params?.skill || context?.od_selected_skill;
@@ -698,7 +698,7 @@ export function handleOdSkillLoad(_action, params, _targetPath, context) {
 
 // ── Open Design device frame handlers ──
 
-const OD_FRAMES_DIR = join(PROJECT_ROOT, 'open-design', 'assets', 'frames');
+const OD_FRAMES_DIR = join(findOptionalToolDir('open-design'), 'assets', 'frames');
 
 export function handleOdFrameList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_FRAMES_DIR)) {
@@ -761,7 +761,7 @@ export function handleOdFrameApply(_action, params, targetPath, context) {
 
 // ── Open Design prompt template handlers ──
 
-const OD_PROMPTS_DIR = join(PROJECT_ROOT, 'open-design', 'prompt-templates');
+const OD_PROMPTS_DIR = join(findOptionalToolDir('open-design'), 'prompt-templates');
 
 export function handleOdPromptTemplateList(_action, _params, _targetPath, context) {
   const groups = {};
@@ -821,7 +821,7 @@ export function handleOdPromptTemplateLoad(_action, params, _targetPath, context
 
 // ── Open Design deck template handlers ──
 
-const OD_DECKS_DIR = join(PROJECT_ROOT, 'open-design', 'templates');
+const OD_DECKS_DIR = join(findOptionalToolDir('open-design'), 'templates');
 
 export function handleOdDeckList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_DECKS_DIR)) {

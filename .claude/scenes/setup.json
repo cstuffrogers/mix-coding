@@ -1,0 +1,132 @@
+{
+  "scene_id": "setup",
+  "workflow": "setup",
+  "name": "测试/监控设施搭建",
+  "description": "一键搭建质量观测设施：E2E 测试（MSW + Supertest + Schemathesis）或网站监控（Upptime + GitHub Actions）。两者流程同构，仅第 2 步动作不同，用 kind 参数区分。",
+  "trigger_keywords": [
+    "e2e",
+    "e2e测试",
+    "端到端测试",
+    "mock",
+    "supertest",
+    "schemathesis",
+    "monitor",
+    "监控",
+    "uptime",
+    "upptime",
+    "状态页",
+    "状态页面",
+    "搭建测试",
+    "配置监控"
+  ],
+  "flow": [
+    {
+      "step": 0,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "selectSetupKind",
+      "params": {
+        "prompt": "搭建什么设施？（3秒无操作默认 E2E 测试）",
+        "options": [
+          { "id": "e2e", "label": "E2E 测试（MSW + Supertest + Schemathesis）", "default": true },
+          { "id": "monitor", "label": "网站监控（Upptime + GitHub Actions）", "default": false }
+        ]
+      },
+      "description": "选择设施类型，存入 context.setup_kind"
+    },
+    {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": { "skill": "review-checklist" },
+      "description": "Pre-flight: 加载审查清单",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": { "keywords": ["e2e", "test", "monitor", "uptime", "mock"] },
+      "description": "注入测试/监控相关记忆"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "E2EService",
+      "action": "setupE2E",
+      "params": {},
+      "description": "生成 E2E 配置：检测 API 端点 → MSW + Supertest + Schemathesis",
+      "condition": "setup_kind === 'e2e'"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MonitorService",
+      "action": "setupMonitor",
+      "params": {},
+      "description": "生成监控配置：检测项目类型 → .upptimerc.yml + GitHub Actions 工作流",
+      "condition": "setup_kind === 'monitor'"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": { "gate": "setup_config" },
+      "description": "配置质量门禁"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "autoFix",
+      "params": { "maxAttempts": 3 },
+      "description": "自动修复配置问题",
+      "on_error": "retry"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "send",
+      "params": { "level": "warning" },
+      "description": "配置失败通知（仅在设施未成功搭建时触发）",
+      "condition": "setupConfigured == false"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": { "type": "general" },
+      "description": "保存搭建结果"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理去重记忆"
+    },
+    {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {},
+      "description": "将设施搭建知识沉淀到项目知识库"
+    },
+    {
+      "step": 8,
+      "layer": "runtime",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": { "title": "测试/监控设施搭建完成" },
+      "description": "完成通知"
+    }
+  ],
+  "status": "stable"
+}

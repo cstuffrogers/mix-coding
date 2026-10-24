@@ -1,7 +1,7 @@
 {
   "name": "claude-scene",
   "version": "1.0.0",
-  "description": "Claude Code 场景选择器 — 按场景模板自动编排开发流程",
+  "description": "Mix-Coding System 场景引擎 — 按场景模板自动编排开发流程（任意目录可用）",
   "bin": {
     "claude-scene": "./src/index.js"
   },
@@ -58,5 +58,18 @@
       "src/lib/safe-exec.test.js",
       "check-imports.js"
     ]
+  },
+  "files": [
+    "src/",
+    "scenes/",
+    "README.md",
+    "!src/**/*.test.js"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint src"
   }
 }

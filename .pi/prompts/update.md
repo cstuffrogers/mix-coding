@@ -5,7 +5,7 @@ argument-hint: "[args]"
 Run the Mix-Coding System `update` workflow by executing:
 
 ```bash
-node E:/auto-coding/claude-scene/src/index.js start update --auto $ARGUMENTS
+claude-scene start update --auto $ARGUMENTS
 ```
 
 Report the command output and the acceptance triple (changes / verify command / verify result).

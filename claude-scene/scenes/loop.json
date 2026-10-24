@@ -1,0 +1,160 @@
+{
+  "scene_id": "loop",
+  "workflow": "loop",
+  "name": "自动迭代循环",
+  "description": "无人值守自动迭代（集成CE知识沉淀）",
+  "trigger_keywords": ["通宵", "自动迭代", "Ralph Loop"],
+  "flow": [
+    {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["loop", "review", "iteration"]
+        }
+      },
+      "description": "注入历史上下文和相关记忆"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listIssues",
+      "params": {
+        "state": "open",
+        "limit": 10
+      },
+      "description": "使用 GitHub MCP 列出待处理的 issues",
+      "condition": "github_mcp_available"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "continuous integration best practices"
+      },
+      "description": "使用 Context7 MCP 获取持续集成最佳实践",
+      "condition": "context7_mcp_available"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "full",
+        "options": {
+          "rules": ["eslint", "typescript"],
+          "autoFix": true
+        }
+      },
+      "description": "持续监控：全量审查并自动修复"
+    },
+    {
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
+      "step": 4.1
+    },
+    {
+      "step": 4.2,
+      "layer": "capability",
+      "service": "CodeGuardianMCP",
+      "action": "codeguardian_optimize",
+      "params": {
+        "mode": "validate",
+        "scope": "modified_files"
+      },
+      "description": "CodeGuardian 变更边界验证：无人值守迭代中最关键防线。物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止自动修复跑偏",
+      "condition": "codeguardian_mcp_available",
+      "on_error": "abort"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "自动修复后运行测试验证",
+      "on_error": "abort"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "loop",
+        "source": "auto"
+      },
+      "description": "将迭代循环知识沉淀到项目知识库 CLAUDE.md",
+      "condition": "plugin_ce_available"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "loop",
+        "data": {
+          "source": "loop_workflow"
+        }
+      },
+      "description": "保存迭代循环结果到记忆"
+    },
+    {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨组件记忆一致性"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "CostService",
+      "action": "report",
+      "params": {
+        "format": "summary",
+        "include": ["tokens", "api_calls", "mcp_usage"]
+      },
+      "description": "输出本轮迭代的Token/API调用/MCP使用成本汇总"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "info",
+        "message": "自动迭代循环完成：审查→修复→测试验证已完成"
+      },
+      "description": "通知用户迭代循环完成"
+    }
+  ],
+  "status": "active"
+}

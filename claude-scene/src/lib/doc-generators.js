@@ -85,8 +85,8 @@ export function generateCommandTable(scenes, archonDir) {
 export function generateSkipEnhancementList(_scenes) {
   const ids = [...SKIP_ENHANCEMENT].sort();
   const group1 = ids.filter((id) =>
-    ['bugfix', 'hunt', 'analyze', 'loop', 'simplify', 'optimize', 'design',
-      'deps', 'monitor', 'cicd', 'backup', 'incident', 'e2e', 'docker',
+    ['bugfix', 'loop', 'optimize',
+      'deps', 'setup', 'cicd', 'backup', 'incident', 'docker',
       'changelog', 'sbom', 'log'].includes(id),
   );
   const group2 = ids.filter((id) =>

@@ -1,11 +1,13 @@
 ---
-description: Run Mix-Coding System monitor workflow via scene engine
+description: Alias to setup workflow (Mix-Coding System)
 argument-hint: "[args]"
 ---
-Run the Mix-Coding System `monitor` workflow by executing:
+`monitor` is merged into `setup`. Run:
 
 ```bash
-node E:/auto-coding/claude-scene/src/index.js start monitor --auto $ARGUMENTS
+claude-scene start setup --auto $ARGUMENTS
 ```
 
-Report the command output and the acceptance triple (changes / verify command / verify result).
+`setup` asks for the facility kind; to get monitoring (Upptime + GitHub Actions)
+select `monitor` instead of the default `e2e`. Inform the user that `monitor` has
+been merged into `setup`.

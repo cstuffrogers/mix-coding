@@ -1,0 +1,789 @@
+{
+  "scene_id": "new-project",
+  "workflow": "new-project",
+  "name": "从零开始新项目",
+  "description": "从零开始新项目：Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Open Design → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复→Huashu 验证，",
+  "trigger_keywords": [
+    "从零开始",
+    "新项目",
+    "做一个",
+    "搭建",
+    "创建"
+  ],
+  "flow": [
+    {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "web-design-engineer"
+      },
+      "description": "Pre-flight: 声明设计系统基准（Palette/Typography/Spacing/Motion/Radius/Shadows），",
+      "condition": "conversation_mode && frontend_involved"
+    },
+    {
+      "step": 0.5,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载 23 项审查清单，建立项目初始化分析框架",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 0.7,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full"
+      },
+      "description": "全量记忆注入（Claude-Mem + agentmemory + NEXO + CodeGraph）"
+    },
+    {
+      "step": 0.71,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "shape"
+      },
+      "description": "Impeccable shape: 设计发现访谈 → 10 节设计简报（mood/references/color strategy/design",
+      "condition": "impeccable_available && conversation_mode && frontend_involved",
+      "on_error": "abort"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "searchRepositories",
+      "params": {
+        "query": "best practices project architecture 2024",
+        "limit": 5
+      },
+      "description": "使用 GitHub MCP 搜索最佳实践仓库",
+      "condition": "github_mcp_available"
+    },
+    {
+      "step": 1.1,
+      "layer": "capability",
+      "service": "TavilyMCP",
+      "action": "search",
+      "params": {
+        "query": "project best practices architecture 2024",
+        "limit": 10
+      },
+      "description": "使用 Tavily MCP 搜索项目类型最佳实践",
+      "condition": "tavily_mcp_available"
+    },
+    {
+      "step": 1.2,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "current project tech stack"
+      },
+      "description": "使用 Context7 MCP 获取相关技术栈文档",
+      "condition": "context7_mcp_available"
+    },
+    {
+      "step": 1.3,
+      "layer": "capability",
+      "service": "SupabaseMCP",
+      "action": "getSchema",
+      "params": {
+        "project": "template"
+      },
+      "description": "使用 Supabase MCP 获取数据库模板",
+      "condition": "supabase_mcp_available && database_required"
+    },
+    {
+      "step": 1.4,
+      "layer": "capability",
+      "service": "StripeMCP",
+      "action": "getPaymentFlow",
+      "params": {
+        "type": "template"
+      },
+      "description": "使用 Stripe MCP 获取支付流程模板",
+      "condition": "stripe_mcp_available && payment_required"
+    },
+    {
+      "step": 1.5,
+      "layer": "capability",
+      "service": "ResendMCP",
+      "action": "getEmailTemplate",
+      "params": {
+        "type": "onboarding"
+      },
+      "description": "使用 Resend MCP 获取邮件模板",
+      "condition": "resend_mcp_available && email_required"
+    },
+    {
+      "step": 1.6,
+      "layer": "interactive",
+      "service": "OpenDiggerService",
+      "action": "analyze",
+      "params": {
+        "metric": "openrank",
+        "period": "90d"
+      },
+      "description": "竞品分析（条件触发；repo 由场景引擎从用户输入中提取）",
+      "auto_execute": false,
+      "condition": "user_mentioned_competitor_or_domain"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-plan",
+      "params": {
+        "detail_level": "high",
+        "risk_analysis": true,
+        "tech_selection": true
+      },
+      "description": "CE Plugin 生成详细项目规划：技术选型、架构设计、任务拆解、时间预估",
+      "condition": "plugin_ce_available"
+    },
+    {
+      "step": 2.5,
+      "layer": "skill",
+      "service": "MattPocockSkill",
+      "action": "mp-to-prd",
+      "params": {
+        "mode": "auto",
+        "format": "markdown"
+      },
+      "description": "Matt Pocock /to-prd: 从对话上下文合成 PRD 并发布到项目 Issue Tracker",
+      "condition": "mattpocock_skill_available"
+    },
+    {
+      "step": 2.51,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-constitution"
+      },
+      "description": "Spec-Kit /constitution: 创建/更新项目宪法，确保所有模板同步",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 2.6,
+      "layer": "skill",
+      "service": "MattPocockSkill",
+      "action": "mp-to-issues",
+      "params": {
+        "mode": "auto"
+      },
+      "description": "Matt Pocock /to-issues: 将 PRD 拆解为可独立抓取的垂直切片 Issue",
+      "condition": "mattpocock_skill_available"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "applyTemplate",
+      "params": {},
+      "description": "项目脚手架：创建目录结构、初始化 package.json/tsconfig/vite.config 等配置文件",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.1,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review"
+      },
+      "description": "Git guardrails: 配置 PreToolUse Hook 拦截危险 git 命令（force push/reset --hard/checkout",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 3.2,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-setup-pre-commit",
+      "params": {
+        "mode": "auto"
+      },
+      "description": "Matt Pocock /setup-pre-commit: 配置 Husky pre-commit hooks（lint-staged + typecheck + test）",
+      "condition": "mattpocock_skill_available"
+    },
+    {
+      "step": 3.3,
+      "layer": "interactive",
+      "service": "MattPocockSkill",
+      "action": "mp-prototype",
+      "params": {
+        "mode": "auto",
+        "prompt": "是否需要快速原型验证设计（数据模型/状态机/UI变体）？"
+      },
+      "description": "Matt Pocock /prototype: 可选快速原型 — 验证数据模型/状态机/UI变体（throwaway）",
+      "auto_execute": false,
+      "condition": "mattpocock_skill_available && conversation_mode"
+    },
+    {
+      "step": 3.5,
+      "layer": "interactive",
+      "service": "PromptService",
+      "action": "askUser",
+      "params": {
+        "prompt": "是否需要使用 Open Design 开发 UI 界面？",
+        "type": "confirm",
+        "default": false
+      },
+      "description": "询问用户是否需要 Open Design AI 设计",
+      "auto_execute": false
+    },
+    {
+      "step": 3.55,
+      "layer": "capability",
+      "service": "BrandService",
+      "action": "od-brand-list",
+      "params": {},
+      "description": "Open Design: 列出 150 个品牌设计系统，供用户选择",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.551,
+      "layer": "interactive",
+      "service": "BrandService",
+      "action": "od-brand-pick",
+      "params": {},
+      "description": "Open Design: 展示 13 个精选品牌（含配色说明），供用户选择 → 存入 user_selected_brand",
+      "auto_execute": false,
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.56,
+      "layer": "capability",
+      "service": "BrandService",
+      "action": "od-brand-import",
+      "params": {},
+      "description": "Open Design: 导入选中品牌 tokens.css → context.od_brand_css",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.57,
+      "layer": "capability",
+      "service": "TemplateService",
+      "action": "od-template-list",
+      "params": {},
+      "description": "Open Design: 列出设计模板（web原型/PPT/移动端/仪表板等）",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.58,
+      "layer": "capability",
+      "service": "TemplateService",
+      "action": "od-template-preview",
+      "params": {},
+      "description": "Open Design: 预览选中模板（浏览器打开 + 注入 context 供 subsequent 步骤参考）",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.59,
+      "layer": "capability",
+      "service": "SkillService",
+      "action": "od-skill-load",
+      "params": {},
+      "description": "Open Design: 加载选中设计 Skill 的 SKILL.md → context.od_skill_content",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.61,
+      "layer": "capability",
+      "service": "FrameService",
+      "action": "od-frame-list",
+      "params": {},
+      "description": "Open Design: 列出设备框架（iPhone/MacBook/iPad/Android/Browser）",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.62,
+      "layer": "capability",
+      "service": "FrameService",
+      "action": "od-frame-apply",
+      "params": {},
+      "description": "Open Design: 复制设备框架到 .claude/designs/frames/",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.63,
+      "layer": "capability",
+      "service": "DeckService",
+      "action": "od-deck-list",
+      "params": {},
+      "description": "Open Design: 列出演示文稿模板",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.64,
+      "layer": "capability",
+      "service": "DeckService",
+      "action": "od-deck-load",
+      "params": {},
+      "description": "Open Design: 加载演示文稿模板 → .claude/designs/decks/",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.65,
+      "layer": "capability",
+      "service": "PromptService",
+      "action": "od-prompt-list",
+      "params": {},
+      "description": "Open Design: 列出 AI 图像/视频提示词模板（102 个）",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.66,
+      "layer": "capability",
+      "service": "PromptService",
+      "action": "od-prompt-load",
+      "params": {},
+      "description": "Open Design: 加载提示词模板 JSON → context.od_prompt_template",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.67,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "awesome-design-md"
+      },
+      "description": "Skill: Awesome Design MD — 加载品牌 DESIGN.md 导入品牌",
+      "condition": "conversation_mode && frontend_involved"
+    },
+    {
+      "step": 3.7,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "generateDesign",
+      "params": {},
+      "description": "Open Design AI 生成设计（如涉及前端页面，Stripe/Linear/Vercel 等品牌系统）",
+      "condition": "frontend_involved || user_confirmed_open_design"
+    },
+    {
+      "step": 3.73,
+      "layer": "capability",
+      "service": "DesignMDService",
+      "action": "design-md-export",
+      "params": {
+        "command": "npx @google/design.md export --format tailwind",
+        "output": "tailwind.config.js theme.extend"
+      },
+      "description": "Google DESIGN.md CLI: 品牌导入完成后，将 DESIGN.md token 导出为 Tailwind 配置，",
+      "condition": "conversation_mode && frontend_involved && (user_confirmed_open_design || awesome_design_md_used)",
+      "on_error": "retry"
+    },
+    {
+      "step": 3.75,
+      "layer": "capability",
+      "service": "DesignService",
+      "action": "exportAssets",
+      "params": {},
+      "description": "导出设计资源：将 Open Design 品牌 tokens.css + design-spec.md 写入 src/assets/design-system/",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.76,
+      "layer": "capability",
+      "service": "PolishService",
+      "action": "applyComponents",
+      "params": {},
+      "description": "组件增强：注入主题预设类名（按钮/输入框/卡片阴影圆角 hover 效果）",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.77,
+      "layer": "capability",
+      "service": "PolishService",
+      "action": "iconUpgrade",
+      "params": {},
+      "description": "图标升级：Material Symbols/Icons → lucide-react，内联 SVG 统一尺寸",
+      "condition": "user_confirmed_open_design"
+    },
+    {
+      "step": 3.778,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-expert-review",
+      "params": {},
+      "description": "Huashu 5 维度专家评审（第一轮）：打磨前设计基线 — philosophy/hierarchy/craft/functionality/originality",
+      "condition": "frontend_involved"
+    },
+    {
+      "step": 3.779,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "critique"
+      },
+      "description": "Impeccable critique（第一轮）：27 条反 AI 模式规则 + 12 条 LLM 批判规则，在打磨前检测设计中的 AI 塑料感，",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.78,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "polish"
+      },
+      "description": "Impeccable polish: 前端设计质量打磨 — 配色/间距/字体/圆角/阴影全维度调优",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.781,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "layout"
+      },
+      "description": "Impeccable layout: 间距节奏 + 视觉层级 + 空间重构",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.782,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "colorize"
+      },
+      "description": "Impeccable colorize: 策略性色彩注入 — Restrained/Committed/Full Palette/Drenched",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.783,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "bolder"
+      },
+      "description": "Impeccable bolder: 安全→大胆 — 打破 AI 安全默认审美",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.784,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "typeset"
+      },
+      "description": "Impeccable typeset: 排版层次 — font-family ≤3、字号阶梯 ≥1.25、行长 65-75ch",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.785,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "animate"
+      },
+      "description": "Impeccable animate: purposeful motion + reduced-motion + exponential easing",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.786,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "delight"
+      },
+      "description": "Impeccable delight: 个性化记忆点 — 微交互/细节/惊喜",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.788,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "harden"
+      },
+      "description": "Impeccable harden: 生产就绪 — 加载/空/错误/边缘状态 + i18n 字符串提取 + 表单验证 + 键盘可操作性",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.789,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "distill"
+      },
+      "description": "Impeccable distill: 精简提纯 — 去除冗余元素/装饰/过度层次，保留核心信息层级",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.79,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "clarify"
+      },
+      "description": "Impeccable clarify: UX 文案优化 — 标签/按钮/错误提示/空状态/工具提示，消除「提交」「确定」等 AI 默认措辞，注入产品语调",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.791,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "adapt"
+      },
+      "description": "Impeccable adapt: 响应式设计验证 — 移动端/平板/桌面断点审查 + 触摸目标 24px+ + 视口溢出修复",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.7911,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "optimize"
+      },
+      "description": "Impeccable optimize: CSS/渲染性能诊断 — CLS 布局偏移/未使用 CSS/选择器开销/合成层提升/Font Load 策略",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.7912,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "critique"
+      },
+      "description": "Impeccable 设计批判（第二轮）：验证新项目打磨后的整体设计质量 — 27 条反 AI 模式规则 + 12 条 LLM 批判规则复检，",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.7913,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "polish"
+      },
+      "description": "Impeccable polish（第三轮精准修复）：基于第二轮 critique 残留问题清单，精准修复新项目中残留的 AI 塑料感",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.7914,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "bolder"
+      },
+      "description": "Impeccable bolder（第三轮精准修复）：基于残留问题，放大仍显保守的设计决策",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.7915,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "impeccable",
+        "subcommand": "delight"
+      },
+      "description": "Impeccable delight（第三轮精准修复）：注入之前遗漏的个性化记忆点，让新项目第一眼就有「人设计的」感觉",
+      "condition": "impeccable_available && conversation_mode && frontend_involved && open_design_executed",
+      "on_error": "abort"
+    },
+    {
+      "step": 3.7916,
+      "layer": "capability",
+      "service": "HuashuService",
+      "action": "huashu-expert-review",
+      "params": {},
+      "description": "Huashu 5 维度专家评审：新项目设计最终验证 — philosophy/hierarchy/craft/functionality/originality，",
+      "condition": "frontend_involved"
+    },
+    {
+      "step": 3.792,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "ai-friendly-web-design"
+      },
+      "description": "AI-Friendly Web Design: 可访问性审查 — 语义HTML/ARIA/稳定定位器/表单最佳实践/对比度/键盘导航",
+      "condition": "ai_friendly_web_design_available && conversation_mode && frontend_involved"
+    },
+    {
+      "step": 3.8,
+      "layer": "capability",
+      "service": "CodeEngine",
+      "action": "implementLogic",
+      "params": {},
+      "description": "实现核心业务逻辑：数据库 Schema 初始化、API 路由、前端页面"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "ContractChecker",
+      "action": "checkAPIConsistency",
+      "params": {},
+      "description": "API 契约一致性检查：从 Open Design 设计稿提取字段/端点，与后端代码交叉验证",
+      "condition": "open_design_executed"
+    },
+    {
+      "step": 4.4,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "模块测试基线：实现完成后立即运行测试套件，在审查前发现代码逻辑问题。测试失败则阻断，修复后再进入审查链",
+      "on_error": "abort"
+    },
+    {
+      "step": 4.5,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "full"
+      },
+      "description": "开发完成后全量审查：ESLint + TypeScript 静态分析",
+      "on_error": "retry"
+    },
+    {
+      "step": 4.6,
+      "layer": "capability",
+      "service": "AISlopService",
+      "action": "aislop-scan",
+      "params": {
+        "mode": "scan"
+      },
+      "description": "AI 代码气味扫描（aislop）：检查新项目代码是否引入反模式"
+    },
+    {
+      "step": 4.7,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "sec-bug-hunt"
+      },
+      "description": "Skill: 安全漏洞扫描 — 建立新项目的安全基线",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 4.75,
+      "layer": "security",
+      "service": "SecurityScanner",
+      "action": "sec-bug-hunt",
+      "params": {},
+      "description": "CLI 静态安全扫描: 5向量扫描（ESLint安全规则/依赖CVE/XSS/SQL注入/命令注入/硬编码密钥/路径遍历）— CLI 模式补充",
+      "condition": "!conversation_mode"
+    },
+    {
+      "step": 4.8,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "全量回归测试：审查通过后运行完整测试套件（含集成测试），确保所有模块正确且审查修改无副作用",
+      "on_error": "abort"
+    },
+    {
+      "step": 5.5,
+      "layer": "capability",
+      "service": "ECC",
+      "action": "ce-compound",
+      "params": {
+        "type": "new-project",
+        "source": "auto"
+      },
+      "description": "将新项目创建知识沉淀到项目知识库 CLAUDE.md",
+      "condition": "plugin_ce_available"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "architecture",
+        "data": {
+          "source": "new_project_workflow"
+        }
+      },
+      "description": "保存项目架构决策、技术选型、执行清单到记忆系统"
+    },
+    {
+      "step": 6.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "项目初始化完成"
+      },
+      "description": "通知用户项目创建结果"
+    }
+  ],
+  "status": "active"
+}

@@ -1,0 +1,416 @@
+{
+  "scene_id": "feature",
+  "workflow": "feature",
+  "name": "新功能开发",
+  "description": "端到端一键推进新功能开发流程（集成CE知识沉淀）",
+  "trigger_keywords": [
+    "开发新功能",
+    "feature开发",
+    "新功能",
+    "开发"
+  ],
+  "flow": [
+    {
+      "step": 0,
+      "layer": "capability",
+      "service": "UpdateService",
+      "action": "autoUpdate",
+      "params": {
+        "mode": "pull",
+        "rebase": true
+      },
+      "description": "拉取最新代码，避免合并冲突"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "GitHubMCP",
+      "action": "listIssues",
+      "params": {
+        "state": "open",
+        "limit": 5
+      },
+      "description": "使用 GitHub MCP 列出最近的 issues 获取开发上下文",
+      "condition": "github_mcp_available"
+    },
+    {
+      "step": 1.1,
+      "layer": "capability",
+      "service": "Context7MCP",
+      "action": "getDocumentation",
+      "params": {
+        "topic": "current feature tech stack best practices"
+      },
+      "description": "使用 Context7 MCP 获取相关技术文档",
+      "condition": "context7_mcp_available"
+    },
+    {
+      "step": 1.2,
+      "layer": "capability",
+      "service": "SupabaseMCP",
+      "action": "getSchema",
+      "params": {
+        "project": "current"
+      },
+      "description": "使用 Supabase MCP 获取当前数据库结构",
+      "condition": "supabase_mcp_available"
+    },
+    {
+      "step": 1.3,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "repomix"
+      },
+      "description": "Repomix: 打包代码库为 AI 友好上下文文件，供后续步骤使用",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "category": "feature_plan",
+        "limit": 5
+      },
+      "description": "回溯最近5条有效issue/PR作为开发上下文",
+      "timeout": 120
+    },
+    {
+      "step": 2.5,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-grill-me",
+      "params": {
+        "mode": "interview",
+        "focus": [
+          "requirements",
+          "design",
+          "edge_cases"
+        ]
+      },
+      "description": "Matt Pocock /grill-me: 逐分支追问方案决策树，消除需求盲区和设计歧义",
+      "condition": "mattpocock_skill_available"
+    },
+    {
+      "step": 2.55,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-grill-with-docs",
+      "params": {
+        "mode": "interview",
+        "focus": [
+          "requirements",
+          "adr",
+          "context_md"
+        ]
+      },
+      "description": "Matt Pocock /grill-with-docs: 需求收集 + ADR/CONTEXT.md 同步更新，防止设计漂移",
+      "condition": "mattpocock_skill_available"
+    },
+    {
+      "step": 2.56,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-checklist"
+      },
+      "description": "Spec-Kit /checklist: 基于需求生成自定义验收清单",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 2.6,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "detectLanguage",
+      "params": {
+        "detect": [
+          "go.mod",
+          "Cargo.toml",
+          "pubspec.yaml",
+          "build.gradle",
+          "CMakeLists.txt"
+        ]
+      },
+      "description": "检测项目语言生态，确定使用哪种构建/测试工具链"
+    },
+    {
+      "step": 2.7,
+      "layer": "capability",
+      "service": "BuildService",
+      "action": "languageBuild",
+      "params": {
+        "mapping": {
+          "go.mod": "go-build",
+          "Cargo.toml": "rust-build",
+          "pubspec.yaml": "flutter-build",
+          "build.gradle": "gradle-build"
+        }
+      },
+      "description": "根据检测到的语言调用对应构建工具（Go/Rust/Flutter/Kotlin），JS/TS项目跳过",
+      "condition": "non_js_project_detected"
+    },
+    {
+      "step": 2.8,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "languageTest",
+      "params": {
+        "mapping": {
+          "go.mod": "go-test",
+          "Cargo.toml": "rust-test",
+          "pubspec.yaml": "flutter-test",
+          "build.gradle": "kotlin-test"
+        }
+      },
+      "description": "根据检测到的语言运行对应测试工具，建立非JS项目的测试基线",
+      "condition": "non_js_project_detected",
+      "on_error": "abort"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "createBranch",
+      "params": {
+        "branch_type": "feature"
+      },
+      "description": "基于最新main分支创建feature分支",
+      "on_error": "abort",
+      "timeout": 180
+    },
+    {
+      "step": 5.1,
+      "layer": "capability",
+      "service": "ContractChecker",
+      "action": "checkAPIConsistency",
+      "params": {},
+      "description": "API 契约一致性检查：验证新功能前端设计与后端 API 的字段/端点一致性"
+    },
+    {
+      "step": 5.5,
+      "layer": "interactive",
+      "service": "MattPocockSkill",
+      "action": "mp-tdd",
+      "params": {
+        "mode": "optional",
+        "prompt": "是否启用 TDD 模式（先写测试再实现）？"
+      },
+      "description": "Matt Pocock /tdd: 可选TDD模式——先写失败的测试，再实现功能使其通过",
+      "auto_execute": false,
+      "condition": "mattpocock_skill_available"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "CodeGraphMCP",
+      "action": "codegraph_trace",
+      "params": {
+        "from": "entry_point",
+        "to": "affected_module"
+      },
+      "description": "CodeGraph 调用链追踪：从入口点到受影响模块的完整调用路径，识别需要修改的所有代码点",
+      "condition": "codegraph_mcp_available"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "generateTest",
+      "params": {
+        "coverage": "90+%",
+        "mode": "unit"
+      },
+      "description": "生成组件单元测试用例（覆盖率90%以上）",
+      "timeout": 300
+    },
+    {
+      "step": 7.5,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit",
+        "check_coverage": true
+      },
+      "description": "运行生成的测试套件，验证功能正确性并检查覆盖率",
+      "on_error": "abort",
+      "timeout": 300
+    },
+    {
+      "step": 7.6,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "checkCoverage",
+      "params": {
+        "threshold": 85,
+        "mode": "gate",
+        "block_on_fail": true
+      },
+      "description": "测试覆盖率门禁检查：低于85%阈值时阻断后续步骤",
+      "on_error": "abort"
+    },
+    {
+      "step": 7.65,
+      "layer": "capability",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "webapp-testing",
+        "mode": "e2e"
+      },
+      "description": "Web 端 E2E 验证：Playwright 浏览器测试确认新功能在真实环境中可用",
+      "condition": "webapp_testing_available",
+      "timeout": 300
+    },
+    {
+      "step": 7.7,
+      "layer": "capability",
+      "service": "VerifyService",
+      "action": "verify",
+      "params": {
+        "scope": "feature",
+        "mode": "e2e"
+      },
+      "description": "验证新功能在真实环境中可用，确认功能行为符合预期",
+      "on_error": "abort",
+      "timeout": 180
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "ReviewEngine",
+      "action": "runReview",
+      "params": {
+        "mode": "full",
+        "autoFix": true,
+        "options": {
+          "rules": [
+            "eslint",
+            "typescript"
+          ]
+        }
+      },
+      "description": "ESLint + React Doctor 多层深度审查",
+      "timeout": 240
+    },
+    {
+      "step": 8.5,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "checkGate",
+      "params": {
+        "checks": [
+          "lint",
+          "typecheck",
+          "test",
+          "coverage",
+          "security"
+        ],
+        "mode": "strict"
+      },
+      "description": "质量门禁：汇总所有检查结果（Lint + 类型 + 测试 + 覆盖率 + 安全），任一不达标阻止PR",
+      "on_error": "abort"
+    },
+    {
+      "step": 9,
+      "layer": "interactive",
+      "service": "SceneSelector",
+      "action": "confirm",
+      "params": {
+        "message": "新功能开发流程完成，请确认：\n✅ 功能已实现 \n✅ 测试已运行 \n✅ 覆盖率达标 \n✅ 验证通过 \n✅ 代码审查已完成 \n✅ 质量门禁通过 \n✅ 分支已创建\n\n是否提交代码？",
+        "validation": {
+          "type": "boolean",
+          "required_ack": true
+        }
+      },
+      "description": "人工确认后触发代码提交和后续流程",
+      "auto_execute": false,
+      "on_error": "abort",
+      "timeout": 60
+    },
+    {
+      "step": 10,
+      "layer": "capability",
+      "service": "ProjectService",
+      "action": "commitPush",
+      "params": {
+        "message": "feat: 新功能开发完成",
+        "push_remote": true
+      },
+      "description": "代码提交 + 推送远程feature分支（使用AI生成提交信息）",
+      "condition": "user_confirmed === true",
+      "timeout": 120
+    },
+    {
+      "step": 10.5,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "feature",
+        "data": {
+          "source": "feature_workflow"
+        }
+      },
+      "description": "保存新功能开发上下文到记忆（设计决策/实现方案/测试结果）"
+    },
+    {
+      "step": 10.6,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "consolidate",
+      "params": {},
+      "description": "整理跨后端记忆一致性"
+    },
+    {
+      "step": 10.7,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-converge"
+      },
+      "description": "Spec-Kit /converge: 评估代码 vs spec/plan/tasks，追加未完成工作",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 10.8,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "speckit-taskstoissues"
+      },
+      "description": "Spec-Kit /taskstoissues: 将 tasks.md 转为 GitHub Issues",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 11,
+      "layer": "capability",
+      "service": "MattPocockSkill",
+      "action": "mp-handoff",
+      "params": {
+        "mode": "auto",
+        "format": "markdown"
+      },
+      "description": "Matt Pocock /handoff: 自动生成功能交接文档（API说明、使用示例、注意事项）",
+      "condition": "mattpocock_skill_available"
+    },
+    {
+      "step": 11.5,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "新功能开发完成：代码已提交并推送"
+      },
+      "description": "通知用户功能开发完成"
+    }
+  ],
+  "status": "active"
+}

@@ -75,16 +75,16 @@ bash init.sh
 
 | Command | Purpose |
 |---------|---------|
-| `/audit` | 全量健康检查 |
-| `/review` | 5 层代码审查 |
+| `/audit` | 全量健康检查（→ `/review` 的 full_audit 模式） |
+| `/review` | 5 层代码审查 + 安全审计 |
 | `/feature` | 新功能开发 |
 | `/bugfix` | Bug 修复 |
-| `/design` | AI 辅助 UI 设计 |
-| `/polish` | 前端美化 (DaisyUI) |
-| `/simplify` | 代码简化 |
+| `/design` | AI 辅助 UI 设计（→ `/ui-polish` 的 ai_design 模式） |
+| `/polish` | 前端美化（→ `/ui-polish`） |
+| `/simplify` | 代码简化（→ `/refactor` 的 simplify 模式） |
 | `/optimize` | 性能优化 |
 | `/refactor` | 重构 |
-| `/hunt` | 安全漏洞扫描 |
+| `/setup` | 测试/监控设施搭建 |
 | `/release` | 发布部署 |
 | `/deps` | 依赖更新 |
 | `/check` | 引擎自检+自愈 |

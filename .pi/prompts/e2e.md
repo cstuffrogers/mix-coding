@@ -1,11 +1,12 @@
 ---
-description: Run Mix-Coding System e2e workflow via scene engine
+description: Alias to setup workflow (Mix-Coding System)
 argument-hint: "[args]"
 ---
-Run the Mix-Coding System `e2e` workflow by executing:
+`e2e` is merged into `setup`. Run:
 
 ```bash
-node E:/auto-coding/claude-scene/src/index.js start e2e --auto $ARGUMENTS
+claude-scene start setup --auto $ARGUMENTS
 ```
 
-Report the command output and the acceptance triple (changes / verify command / verify result).
+`setup` defaults to `e2e` (MSW + Supertest + Schemathesis). Inform the user that
+`e2e` has been merged into `setup`.

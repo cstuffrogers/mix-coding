@@ -1,0 +1,120 @@
+{
+  "scene_id": "update",
+  "workflow": "update",
+  "name": "系统资源更新",
+  "description": "全量扫描 MCP/Skill/CLI/npm 四类资源 → 检测冲突 → 自动更新无冲突 patch/minor → major 待确认 → 写日期日志",
+  "trigger_keywords": [
+    "更新系统",
+    "系统更新",
+    "update",
+    "工具更新",
+    "核查更新",
+    "skill 更新",
+    "mcp 更新"
+  ],
+  "flow": [
+    {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "review-checklist"
+      },
+      "description": "Pre-flight: 加载审查清单,建立更新审查基准",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 1,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "recall",
+      "params": {
+        "mode": "full",
+        "filters": {
+          "type": ["update", "deps", "tool"]
+        }
+      },
+      "description": "注入历史更新上下文和已知冲突问题"
+    },
+    {
+      "step": 2,
+      "layer": "capability",
+      "service": "UpdateService",
+      "action": "detectConflicts",
+      "params": {},
+      "description": "全维度冲突扫描: skill 同名/frontmatter/MCP 命令/command-skill 同名。硬冲突则阻断",
+      "on_error": "abort"
+    },
+    {
+      "step": 3,
+      "layer": "capability",
+      "service": "UpdateService",
+      "action": "scanUpdates",
+      "params": {},
+      "description": "全量扫描 npm 过期包 + skill 版本 + CLI 工具版本,对比上游",
+      "condition": "!hasHardConflict"
+    },
+    {
+      "step": 4,
+      "layer": "capability",
+      "service": "UpdateService",
+      "action": "autoUpdateSafe",
+      "params": {},
+      "description": "自动更新无冲突的 patch/minor,major 不动",
+      "condition": "!hasHardConflict"
+    },
+    {
+      "step": 5,
+      "layer": "capability",
+      "service": "TestEngine",
+      "action": "runSuite",
+      "params": {
+        "mode": "unit"
+      },
+      "description": "更新后运行测试验证",
+      "condition": "!hasHardConflict"
+    },
+    {
+      "step": 6,
+      "layer": "capability",
+      "service": "UpdateService",
+      "action": "writeUpdateLog",
+      "params": {},
+      "description": "写更新日志到 .claude/updates/YYYY-MM-DD.md"
+    },
+    {
+      "step": 7,
+      "layer": "capability",
+      "service": "UpdateService",
+      "action": "updateReport",
+      "params": {},
+      "description": "生成结构化报告: 已更新 / 待确认 major / 阻断冲突"
+    },
+    {
+      "step": 8,
+      "layer": "capability",
+      "service": "MemoryService",
+      "action": "remember",
+      "params": {
+        "type": "update",
+        "data": {
+          "source": "update_workflow"
+        }
+      },
+      "description": "保存更新记录到记忆"
+    },
+    {
+      "step": 9,
+      "layer": "capability",
+      "service": "NotificationService",
+      "action": "notify",
+      "params": {
+        "type": "success",
+        "message": "系统资源更新完成"
+      },
+      "description": "通知更新结果"
+    }
+  ],
+  "status": "active"
+}

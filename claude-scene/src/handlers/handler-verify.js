@@ -3,11 +3,13 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
+import { PACKAGE_ROOT, PROJECT_ROOT } from '../lib/paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const SRC_DIR = join(__dirname, '..');
-const PROJECT_ROOT = join(__dirname, '..', '..', '..');
+// 引擎自检看的是包内源码，而配置类检查看的是当前项目
+const PACKAGE_ROOT_DIR = PACKAGE_ROOT;
 
 function readOrNull(filePath) {
   try { return readFileSync(filePath, 'utf-8'); } catch { return null; }
@@ -356,7 +358,7 @@ function detectOrphanActions() {
   const registryKeys = parseRegistryKeys(src);
   const ceActions = new Set(['ce-compound', 'ce-plan', 'ce-review', 'ce-debug', 'ce-brainstorm', 'ce-work']);
 
-  const scenesDir = join(PROJECT_ROOT, '.claude', 'scenes');
+  const scenesDir = join(PACKAGE_ROOT_DIR, 'scenes');
   if (!existsSync(scenesDir)) return { orphans: [], sceneCount: 0, summary: 'scenes 目录不存在' };
 
   const orphans = [];

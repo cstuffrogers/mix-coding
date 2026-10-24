@@ -28,23 +28,25 @@ Claude Code auto-memory（`~/.claude/.../memory/` + MEMORY.md 索引）：用户
 
 ## 引擎
 
-Scene 引擎在对话内执行工作流。27 个场景。`node src/index.js start <场景ID> --auto [参数]`
+Scene 引擎在对话内执行工作流。25 个场景。`node src/index.js start <场景ID> --auto [参数]`
 
 ## 工作流速查
 
 | 常用 | 说明 | 常用 | 说明 |
 |------|------|------|------|
-| `/review` | 代码审查（含审计/分析） | `/bugfix` | Bug 修复 |
+| `/review` | 代码审查 + 安全审计（含审计/分析/安全深度/质量工具链/AI设计） | `/bugfix` | Bug 修复 |
 | `/refactor` | 重构 + 简化 | `/feature` | 新功能开发 |
 | `/ui-polish` | 前端美化 + 设计 | `/optimize` | 性能优化 |
-| `/hunt` | 安全漏洞扫描 | `/new-project` | 新建项目 |
+| `/setup` | 测试/监控设施搭建 | `/new-project` | 新建项目 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
 | `/check` | 引擎自检+自愈 | `/plan` | Manus 持久规划 |
 | `/enhance-prompt` | UI prompt 精炼 | — | — |
 
-> **交互式模式选择**：`/review` `/ui-polish` `/refactor` 启动时弹出勾选菜单，3秒无操作使用默认。
+> **交互式模式选择**：`/review` `/ui-polish` `/refactor` `/setup` 启动时弹出选择菜单，3秒无操作使用默认。
 >
-> 已融入增强：`/qa`（前端验证）、`/plan-ceo-review`（策略审查）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（e2e）、`/migration`（DB）、`/llm-proxy-audit`（hunt）。
+> 已融入增强：`/qa`（前端验证）、`/plan-ceo-review`（策略审查）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（setup）、`/migration`（review）、`/llm-proxy-audit`（review）。
+>
+> `hunt` 已并入 `/review` 的 `security_deep` 模式；`e2e` `monitor` 已并入 `/setup`。
 >
 > 增强工具：`Stagehand`（浏览器测试）、`mythos-agent`（安全扫描）、`GEPA`（prompt 进化）、`Critiq`（安全规则）。
 

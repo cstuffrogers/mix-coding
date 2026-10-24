@@ -1,10 +1,10 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import chalk from 'chalk';
-import { SCENES_DIR } from '../lib/paths.js';
+import { resolveScenePath, SCENES_DIR } from '../lib/paths.js';
 export async function forkScene(sourceSceneId, options) {
-  const sourcePath = join(SCENES_DIR, `${sourceSceneId}.json`);
-  if (!existsSync(sourcePath)) {
+  const sourcePath = resolveScenePath(sourceSceneId);
+  if (!sourcePath) {
     console.error(chalk.red(`\n✖ 源场景 "${sourceSceneId}" 未找到`));
     process.exit(1);
   }
@@ -19,6 +19,8 @@ export async function forkScene(sourceSceneId, options) {
 
   const sceneId = scene.scene_id || scene.id;
   const newName = options.name || `${sceneId}-fork`;
+  // 写入「项目级覆盖层」，而不是包内目录 ——
+  // 全局安装时包目录通常只读，且 fork 的语义就是在当前项目里定制。
   const outputPath = options.output || join(SCENES_DIR, `${newName}.json`);
   const forked = {
     scene_id: newName.replace(/\.json$/, ''),

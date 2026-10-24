@@ -375,6 +375,41 @@
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
+      "step": 4.45,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "security-headers",
+      "params": {},
+      "description": "安全响应头扫描：CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy — seraphim-audit（代码配置扫描）",
+      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
+    },
+    {
+      "step": 4.47,
+      "layer": "capability",
+      "service": "SkillSecurityService",
+      "action": "skillspector-scan",
+      "params": {
+        "targets": [
+          ".claude/skills/",
+          ".claude/commands/"
+        ],
+        "format": "json"
+      },
+      "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）",
+      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
+    },
+    {
+      "step": 4.48,
+      "layer": "capability",
+      "service": "CodeGraphMCP",
+      "action": "analyzeSecurityVulnerabilities",
+      "params": {
+        "depth": 3
+      },
+      "description": "使用 CodeGraph MCP 分析代码安全漏洞和依赖关系",
+      "condition": "codegraph_mcp_available && (selected_modes.includes('security_deep') || selected_modes.includes('full_audit'))"
+    },
+    {
       "step": 5,
       "layer": "capability",
       "service": "PerformanceService",

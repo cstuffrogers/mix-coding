@@ -1,11 +1,13 @@
 ---
-description: Run Mix-Coding System hunt workflow via scene engine
+description: Alias to review workflow (Mix-Coding System)
 argument-hint: "[args]"
 ---
-Run the Mix-Coding System `hunt` workflow by executing:
+`hunt` is merged into `review` with the `security_deep` mode (enabled by default).
 
 ```bash
-node E:/auto-coding/claude-scene/src/index.js start hunt --auto $ARGUMENTS
+claude-scene start review --auto $ARGUMENTS
 ```
 
-Report the command output and the acceptance triple (changes / verify command / verify result).
+Inform the user that `hunt` has been merged into `review` — the security scan
+(security headers, skill spectre, ReDoS, CORS, log sanitization, secret scanning,
+sensitive file check) runs as part of review's `security_deep` mode.

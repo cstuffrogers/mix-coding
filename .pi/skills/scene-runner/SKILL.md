@@ -1,6 +1,6 @@
 ---
 name: scene-runner
-description: 执行 Mix-Coding System 工作流场景。当用户输入 /review、/feature、/bugfix、/refactor、/plan、/optimize、/ui-polish、/hunt、/release、/deps、/check、/qa、/new-project、/onboard、/cicd、/monitor、/rollback、/e2e、/loop、/spec、/plan-ceo-review、/mobile-* 等命令，或要求运行工作流/场景时使用。
+description: 执行 Mix-Coding System 工作流场景。当用户输入 /review、/feature、/bugfix、/refactor、/plan、/optimize、/ui-polish、/release、/deps、/check、/qa、/new-project、/onboard、/cicd、/setup、/rollback、/loop、/spec、/plan-ceo-review、/mobile-* 等命令，或要求运行工作流/场景时使用。
 ---
 
 # Scene Runner
@@ -18,7 +18,6 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | /plan | plan | Manus 持久规划（会话恢复+SHA256） |
 | /optimize | optimize | 性能优化 |
 | /ui-polish | ui-polish | 前端美化 |
-| /hunt | hunt | 安全漏洞扫描 |
 | /release | release | 发布部署 |
 | /deps | deps | 依赖更新 |
 | /check | check | 引擎自检 + 自愈 |
@@ -26,9 +25,8 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | /new-project | new-project | 新项目创建 |
 | /onboard | onboard | 环境搭建 |
 | /cicd | cicd | CI/CD 流水线 |
-| /monitor | monitor | 监控配置 |
 | /rollback | rollback | 紧急回滚 |
-| /e2e | e2e | E2E 测试配置 |
+| /setup | setup | 测试/监控设施搭建 |
 | /loop | loop | 自动迭代循环 |
 | /spec | analyze | Spec-Driven 开发 |
 | /plan-ceo-review | plan-ceo-review | 创始人策略审查 |

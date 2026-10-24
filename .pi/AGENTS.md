@@ -55,18 +55,17 @@ node claude-scene/src/index.js start check --auto
 - Prompt Templates：`.pi/prompts/*.md` — `/review`、`/feature` 等斜杠命令（含 `/audit`、`/simplify` 等合并别名）
 - 接入检查：`bash scripts/pi-setup.sh`（`--check` 仅检查）
 
-## 工作流清单（27 个场景）
+## 工作流清单（25 个场景）
 
 | 命令 | 场景 | 说明 |
 |------|------|------|
-| /review | review | 5 层代码审查（含 audit/analyze 模式） |
+| /review | review | 5 层代码审查 + 安全审计（含 full_audit/analyze_only/security_deep/quality_tools/ai_design 模式） |
 | /feature | feature | 新功能开发 |
 | /bugfix | bugfix | Bug 修复 |
 | /refactor | refactor | 代码重构 + 简化 + 架构优化 |
 | /plan | plan | Manus 持久规划（会话恢复+SHA256） |
 | /optimize | optimize | 性能优化 |
-| /ui-polish | ui-polish | 前端美化 |
-| /hunt | hunt | 安全漏洞扫描 |
+| /ui-polish | ui-polish | 前端美化 + AI 设计 |
 | /release | release | 发布部署 |
 | /deps | deps | 依赖更新 |
 | /check | check | 引擎自检 + 自愈 |
@@ -74,13 +73,15 @@ node claude-scene/src/index.js start check --auto
 | /new-project | new-project | 新项目创建 |
 | /onboard | onboard | 环境搭建 |
 | /cicd | cicd | CI/CD 流水线 |
-| /monitor | monitor | 监控配置 |
+| /setup | setup | 测试/监控设施搭建（e2e / monitor 二选一） |
 | /rollback | rollback | 紧急回滚 |
-| /e2e | e2e | E2E 测试配置 |
 | /loop | loop | 自动迭代循环 |
 | /spec | analyze | Spec-Driven 开发 |
 | /plan-ceo-review | plan-ceo-review | 创始人策略审查 |
 | /mobile-* | mobile-* | 移动端系列 |
+
+> 已合并：`hunt` → `/review`（security_deep 模式，默认启用）；`e2e` `monitor` → `/setup`；
+> `audit` `/analyze` → `/review`；`simplify` `/design` `/polish` → `/refactor` `/ui-polish`。
 
 ## 共享资源
 

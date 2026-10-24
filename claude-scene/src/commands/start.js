@@ -10,7 +10,7 @@ import { resolveParams } from '../lib/template.js';
 import { executeAction } from '../actions.js';
 import { executeUIPolish } from '../handlers/ui-polish.js';
 import { applyEnhancements } from '../lib/enhancements.js';
-import { SCENES_DIR, PROJECT_ROOT } from '../lib/paths.js';
+import { PROJECT_ROOT, resolveScenePath, describePaths } from '../lib/paths.js';
 import { detectHandlerFailure } from '../lib/failure-detection.js';
 import { checkAcceptance } from '../lib/acceptance-check.js';
 
@@ -199,6 +199,39 @@ async function handleModeSelection(step, options, context) {
   return true;
 }
 
+/**
+ * 单选分支器：把选中的 option id 写入 context[key]。
+ * 用于 setup 场景的 e2e/monitor 二选一（两者流程同构，只差一个动作）。
+ */
+async function handleSingleChoice(step, options, context) {
+  const actionMap = {
+    selectSetupKind: 'setup_kind',
+  };
+  const contextKey = actionMap[step.action];
+  if (!contextKey || !Array.isArray(step.params?.options)) return false;
+
+  const opts = step.params.options.map(o =>
+    typeof o === 'string' ? { id: o, label: o, default: false } : o,
+  );
+  const fallback = opts.find(o => o.default) ?? opts[0];
+
+  if (options.auto) {
+    context[contextKey] = fallback?.id;
+    return true;
+  }
+
+  const answers = await inquirer.prompt([{
+    type: 'list',
+    name: 'choice',
+    message: step.params.prompt || step.description || '请选择：',
+    choices: opts.map(o => ({ name: o.label, value: o.id })),
+    default: fallback?.id,
+  }]);
+  context[contextKey] = answers.choice;
+  console.log(chalk.green(`\n✅ 已选择：${answers.choice}\n`));
+  return true;
+}
+
 async function dispatchAction(sceneId, action, params, context) {
   const targetPath = context.targetPath || PROJECT_ROOT;
   const result = sceneId === 'ui-polish'
@@ -302,9 +335,39 @@ async function resolveTargetPath(options, context) {
 // ── Main exported functions ──
 
 function loadScene(sceneId) {
-  const filePath = join(SCENES_DIR, `${sceneId}.json`);
+  const filePath = resolveScenePath(sceneId);
+  if (!filePath) {
+    throw new Error(
+      `未找到场景 "${sceneId}"。已搜索:\n${describePaths().sceneDirs.map(d => '  - ' + d).join('\n')}`,
+    );
+  }
   const raw = readFileSync(filePath, 'utf-8');
   return JSON.parse(raw);
+}
+
+/** 处理确认型步骤；返回 true 表示已完全处理，调用方应提前返回 */
+async function handleConfirmation(step, options, context) {
+  const isConfirmationStep = step.action === 'confirm' || !!step.confirm_message;
+  const confirmMsg = isConfirmationStep ? (step.confirm_message || step.params?.message) : null;
+  if (!confirmMsg) return false;
+
+  if (options.auto) {
+    context.user_confirmed = true;
+    return step.action === 'confirm';
+  }
+
+  const answers = await inquirer.prompt([
+    { type: 'confirm', name: 'proceed', message: confirmMsg, default: true },
+  ]);
+  context.user_confirmed = answers.proceed;
+  if (!answers.proceed) {
+    console.log(chalk.yellow(`  ⏭ 用户跳过 Step ${step.step}`));
+    LOG_SUMMARY.total++;
+    LOG_SUMMARY.skip++;
+    appendLog({ step: step.step, action: step.action, status: 'skip', reason: 'user', time: new Date().toISOString() });
+    return true;
+  }
+  return step.action === 'confirm';
 }
 
 // Runs the interactive (auto_execute === false) phase of a step.
@@ -314,32 +377,14 @@ async function handleInteractiveStep(sceneId, step, context, options) {
   // `selected_modes.includes(...)` 全为 false —— 该场景 25 步会全部被跳过。
   // 与 auto_execute 无关：它在 auto 模式走 default 选项，在交互模式走 checkbox。
   if (await handleModeSelection(step, options, context)) return true;
+  if (await handleSingleChoice(step, options, context)) return true;
 
   if (step.auto_execute !== false) return false;
 
   if (await handleThemeSelection(step, options, context)) return true;
   if (await handleAwmBrandSelection(step, options, context)) return true;
   if (await handleConfirmDialog(step, options, context)) return true;
-
-  const isConfirmationStep = step.action === 'confirm' || !!step.confirm_message;
-  const confirmMsg = isConfirmationStep ? (step.confirm_message || step.params?.message) : null;
-  if (confirmMsg) {
-    if (!options.auto) {
-      const answers = await inquirer.prompt([
-        { type: 'confirm', name: 'proceed', message: confirmMsg, default: true },
-      ]);
-      context.user_confirmed = answers.proceed;
-      if (!answers.proceed) {
-        console.log(chalk.yellow(`  ⏭ 用户跳过 Step ${step.step}`));
-        LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
-        appendLog({ step: step.step, action: step.action, status: 'skip', reason: 'user', time: new Date().toISOString() });
-        return true;
-      }
-    } else {
-      context.user_confirmed = true;
-    }
-    if (step.action === 'confirm') return true;
-  }
+  if (await handleConfirmation(step, options, context)) return true;
 
   return handleOptionSelection(step, options, context, sceneId);
 }
