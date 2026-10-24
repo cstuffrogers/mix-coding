@@ -108,3 +108,6 @@ clearible-report.mdx
 rimg.jpg
 ta.md
 test_llm_fix.db
+
+# percho UI plugins (user-local, not project code)
+.claude/memory/claude-scene/.claude/
