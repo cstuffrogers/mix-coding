@@ -307,28 +307,41 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
   }
 }
 
-async function resolveTargetPath(options, context) {
-  const sanitizePath = (p) => p.replace(/["$`]/g, '');
+/** 去掉拖拽路径时带上的引号/变量符号 */
+export function sanitizeTargetPath(p) {
+  return p.replace(/["$`]/g, '');
+}
 
-  if (options.target) {
-    context.targetPath = sanitizePath(options.target);
+/**
+ * 非交互解析目标项目：--target 优先，否则 PROJECT_ROOT
+ * （= $MIX_CODING_PROJECT_DIR || cwd）。
+ */
+export function defaultTargetPath(options) {
+  if (options.target) return sanitizeTargetPath(options.target);
+  return PROJECT_ROOT;
+}
+
+async function resolveTargetPath(options, context) {
+  // 默认目标就是 PROJECT_ROOT，不能直接用 process.cwd()：那样
+  // MIX_CODING_PROJECT_DIR 只影响 paths.js 的场景查找，实际动作却按
+  // cwd 执行 —— 两套目录错位，动作会跑错项目。
+  if (options.target || options.auto) {
+    context.targetPath = defaultTargetPath(options);
     console.log(chalk.cyan(`\n📁 目标项目：${context.targetPath}\n`));
-  } else if (options.auto) {
-    context.targetPath = sanitizePath(process.cwd());
-    console.log(chalk.cyan(`\n📁 目标项目：${context.targetPath}\n`));
-  } else {
-    try {
-      const { targetPath } = await inquirer.prompt([{
-        type: 'input', name: 'targetPath',
-        message: '请输入目标项目路径（或拖拽文件夹到此处）：',
-        default: process.cwd(),
-      }]);
-      context.targetPath = sanitizePath(targetPath);
-      console.log(chalk.cyan(`\n📁 目标项目：${targetPath}\n`));
-    } catch {
-      console.log(chalk.dim('  交互模式不可用，使用当前目录'));
-      context.targetPath = process.cwd();
-    }
+    return;
+  }
+
+  try {
+    const { targetPath } = await inquirer.prompt([{
+      type: 'input', name: 'targetPath',
+      message: '请输入目标项目路径（或拖拽文件夹到此处）：',
+      default: PROJECT_ROOT,
+    }]);
+    context.targetPath = sanitizeTargetPath(targetPath);
+    console.log(chalk.cyan(`\n📁 目标项目：${targetPath}\n`));
+  } catch {
+    console.log(chalk.dim('  交互模式不可用，使用当前目录'));
+    context.targetPath = PROJECT_ROOT;
   }
 }
 
