@@ -8,6 +8,14 @@ metadata:
   source: "templates/commands/clarify.md"
 user-invocable: true
 disable-model-invocation: false
+handoffs:
+  - label: Build Technical Plan
+    agent: speckit.plan
+    prompt: Create a plan for the spec. I am building with...
+scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
+  py: scripts/python/check_prerequisites.py --json --paths-only
 ---
 
 

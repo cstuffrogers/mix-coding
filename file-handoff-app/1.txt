@@ -1,0 +1,49 @@
+_error_dumper_web.dart:15 ══╡ EXCEPTION CAUGHT BY GESTURE ╞═══════════════════════════════════════════════════════════════════
+The following _TypeError was thrown while handling a gesture:
+TypeError: Instance of 'IdentityMap<String, String>': type 'IdentityMap<String, String>' is not a
+subtype of type 'String?'
+
+When the exception was thrown, this was the stack:
+dart-sdk/lib/_internal/js_dev_runtime/private/ddc_runtime/errors.dart 274:3       throw_
+dart-sdk/lib/_internal/js_shared/lib/rti.dart 1726:3                              _asStringQ
+package:flutter/src/widgets/routes.dart 950:18                                    didPop
+package:flutter/src/widgets/navigator.dart 3338:16                                handlePop
+package:flutter/src/widgets/navigator.dart 4486:21                                [_flushHistoryUpdates]
+package:flutter/src/widgets/navigator.dart 5627:7                                 pop
+package:flutter/src/widgets/navigator.dart 2777:25                                pop
+package:file_handoff_app/pages/file_detail_sheet.dart 60:40                       <fn>
+package:flutter/src/material/ink_well.dart 1224:21                                handleTap
+dart-sdk/lib/_internal/js_dev_runtime/private/ddc_runtime/operations.dart 118:77  tear
+package:flutter/src/gestures/recognizer.dart 345:24                               invokeCallback
+package:flutter/src/gestures/tap.dart 758:11                                      handleTapUp
+package:flutter/src/gestures/tap.dart 383:5                                       [_checkUp]
+package:flutter/src/gestures/tap.dart 353:7                                       acceptGesture
+package:flutter/src/gestures/arena.dart 173:12                                    sweep
+package:flutter/src/gestures/binding.dart 532:7                                   handleEvent
+package:flutter/src/gestures/binding.dart 498:14                                  dispatchEvent
+package:flutter/src/rendering/binding.dart 473:11                                 dispatchEvent
+package:flutter/src/gestures/binding.dart 437:7                                   [_handlePointerEventImmediately]
+package:flutter/src/gestures/binding.dart 394:5                                   handlePointerEvent
+package:flutter/src/gestures/binding.dart 341:7                                   [_flushPointerEventQueue]
+package:flutter/src/gestures/binding.dart 308:9                                   [_handlePointerDataPacket]
+dart-sdk/lib/_internal/js_dev_runtime/private/ddc_runtime/operations.dart 118:77  tear
+lib/_engine/engine/platform_dispatcher.dart 1715:5                                invoke1
+lib/_engine/engine/platform_dispatcher.dart 295:5                                 invokeOnPointerDataPacket
+lib/_engine/engine/pointer_binding.dart 466:30                                    [_sendToFramework]
+lib/_engine/engine/pointer_binding.dart 248:7                                     onPointerData
+dart-sdk/lib/_internal/js_dev_runtime/private/ddc_runtime/operations.dart 118:77  tear
+lib/_engine/engine/pointer_binding.dart 1144:20                                   <fn>
+lib/_engine/engine/pointer_binding.dart 1027:7                                    <fn>
+lib/_engine/engine/pointer_binding.dart 600:9                                     loggedHandler
+dart-sdk/lib/async/zone.dart 962:54                                               runUnary
+dart-sdk/lib/async/zone.dart 917:26                                               <fn>
+dart-sdk/lib/_internal/js_dev_runtime/patch/js_allow_interop_patch.dart 218:27    _callDartFunctionFast1
+dart-sdk/lib/_internal/js_dev_runtime/patch/js_allow_interop_patch.dart 78:15     ret
+
+Handler: "onTap"
+Recognizer:
+  TapGestureRecognizer#d967c
+════════════════════════════════════════════════════════════════════════════════════════════════════
+dump @ _error_dumper_web.dart:15
+18_error_dumper_web.dart:15 Another exception was thrown: Assertion failed: file:///C:/flutter/packages/flutter/lib/src/widgets/navigator.dart:5607:12
+dump @ _error_dumper_web.dart:15

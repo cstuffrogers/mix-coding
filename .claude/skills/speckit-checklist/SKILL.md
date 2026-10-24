@@ -8,6 +8,10 @@ metadata:
   source: "templates/commands/checklist.md"
 user-invocable: true
 disable-model-invocation: false
+scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --template checklist-template
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -Template checklist-template
+  py: scripts/python/check_prerequisites.py --json --template checklist-template
 ---
 
 

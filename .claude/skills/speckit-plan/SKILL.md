@@ -8,6 +8,10 @@ metadata:
   source: "templates/commands/plan.md"
 user-invocable: true
 disable-model-invocation: false
+scripts:
+  sh: scripts/bash/setup-plan.sh --json
+  ps: scripts/powershell/setup-plan.ps1 -Json
+  py: scripts/python/setup_plan.py --json
 ---
 
 

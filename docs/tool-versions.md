@@ -40,11 +40,11 @@
 | `hallmark` | Nutlope/hallmark | 1.1.0 | 2026-07-14 | 2026-07-25 | 未标 |
 | `i-have-adhd` | ayghri/i-have-adhd | 未标 (上游无 version 字段) | 2026-07-24 | 2026-07-25 | MIT |
 | `impeccable` | — | 3.5.0 | 2026-06-11 | 2026-07-25 | Apache 2.0 |
-| `mattpocock` | Matt Pocock | 未标 (29 子技能) | 2026-06-11 | 2026-07-25 | 未标 |
+| `mattpocock` | Matt Pocock | v1.2.x (本地定制) → v1.3.1 已核查 | 2026-10-24 | — |
 | `mobile-ui-review` | — (本地) | 未标 | 2026-06-11 | 2026-07-25 | — |
 | `review-checklist` | — (本地) | 未标 | 2026-06-11 | 2026-07-25 | — |
 | `sec-bug-hunt` | — (本地) | 未标 | 2026-06-11 | 2026-07-25 | — |
-| `speckit-*` (11 个) | github/spec-kit | specify-cli 0.14.3.dev0 | 2026-06-11 | 2026-07-25 | MIT |
+| `speckit-*` (11 个) | github/spec-kit | specify-cli 0.14.3.dev0 → 1.2.3 | 2026-10-24 | MIT |
 | `stack-knowledge` | — (本地) | 未标 | 2026-06-11 | 2026-07-25 | — |
 | `web-design-engineer` | ConardLi | 未标 (上游 repo not found) | 2026-06-11 | 2026-07-25 | 未标 |
 
@@ -138,6 +138,10 @@
 
 | 日期 | 工具 | 变更 | Commit | 备注 |
 |------|------|------|--------|------|
+| 2026-10-24 | `speckit-*` (11 个) | specify-cli 0.14.3.dev0 → **1.2.3** | — | 新增 scripts/handoffs/tools 字段, hook 处理细节优化 |
+| 2026-10-24 | `mattpocock` | 核查: v1.2.x 本地定制 → v1.3.1 | — | 上游有 37 个技能,本地保留 29 个定制版 |
+| 2026-10-24 | `pa11y-ci` | 4.1.1 → **5.0.0** | — | major,配置格式变化,需迁移 |
+| 2026-10-24 | `@biomejs/biome` | 2.5.3 → **2.6.2** | — | minor,配置 schema 自动升级 |
 | 2026-07-25 | `restic` | 0.19.0 → 0.19.1 | — | winget,patch |
 | 2026-07-25 | `ruff` | 0.15.15 → 0.16.0 | — | pip,minor |
 | 2026-07-25 | `specify-cli` | 0.11.2.dev0 → 0.14.3.dev0 | — | uv tool,从 spec-kit git HEAD,speckit-* skill 不受影响 |

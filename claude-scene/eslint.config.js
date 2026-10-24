@@ -11,7 +11,7 @@ export default [
   // flatConfigs is the documented property access for import-x flat config.
   // eslint-disable-next-line import-x/no-named-as-default-member
   importPlugin.flatConfigs.recommended,
-  unicorn.configs["flat/recommended"],
+  unicorn.configs.recommended,
   sonarjs.configs.recommended,
   {
     // Globally disable rules that try to deep-parse plugin internals (fails on modern JS syntax)

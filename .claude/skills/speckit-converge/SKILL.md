@@ -7,6 +7,10 @@ metadata:
   source: "templates/commands/converge.md"
 user-invocable: true
 disable-model-invocation: false
+scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --require-spec --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireSpec -RequireTasks -IncludeTasks
+  py: scripts/python/check_prerequisites.py --json --require-spec --require-tasks --include-tasks
 ---
 
 

@@ -8,6 +8,10 @@ metadata:
   source: "templates/commands/implement.md"
 user-invocable: true
 disable-model-invocation: false
+scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
+  py: scripts/python/check_prerequisites.py --json --require-tasks --include-tasks
 ---
 
 
