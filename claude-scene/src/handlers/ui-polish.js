@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "fs";
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
+import { handleApplyLiquidGlass } from './liquid-glass.js';
 import {
   handleCheckAPIConsistency,
   handleCheckConsistency as actionsCheckConsistency,
@@ -35,6 +36,11 @@ const COMPONENT_MAP = {
 function handleInstallDeps(targetPath, theme) {
   if (theme === 'animal-island') {
     safeExec('npm install animal-island-ui', targetPath, { stdio: 'ignore' });
+  }
+  if (theme === 'liquid-glass') {
+    // liquid-glass-react: Apple 液态玻璃效果（折射/色散/磨砂/弹性）
+    // peerDeps: react >=18, react-dom >=18 —— 与项目内 React 版本对齐，避免强装覆盖。
+    safeExec('npm install liquid-glass-react', targetPath, { stdio: 'ignore' });
   }
   safeExec('npm install lucide-react animate.css', targetPath, { stdio: 'ignore' });
   return '依赖安装完成';
@@ -240,6 +246,7 @@ const UI_POLISH_ACTIONS = {
   applyDaisyUI:       { handler: (action, params, targetPath, context) => applyDaisyUI(action, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
   applyDaisyUIComponents: { handler: handleApplyDaisyUIComponents, args: ['targetPath', 'theme', 'context'] },
   applyComponents:    { handler: handleApplyComponents,    args: ['targetPath', 'theme', 'context'] },
+  applyLiquidGlass:   { handler: handleApplyLiquidGlass,   args: ['targetPath', 'context'] },
   iconUpgrade:        { handler: (action, params, targetPath) => handleIconUpgrade(action, params, targetPath), args: ['action', 'params', 'targetPath'] },
   addAnimations:      { handler: (action, params, targetPath) => handleAddAnimations(action, params, targetPath), args: ['action', 'params', 'targetPath'] },
   microInteractions:  { handler: (action, params, targetPath) => handleMicroInteractions(action, params, targetPath), args: ['action', 'params', 'targetPath'] },

@@ -20,12 +20,38 @@ export function runDiagnostic(command, targetPath) {
   }
 }
 
+// [patched:lint-from-script] 各项目源码目录/工具链各不相同（本仓库前端在 frontend/student，
+// 没有 src/ 目录），硬编码 `npx eslint src` 必然报环境错误 → 被归为「跳过」= 假通过。
+// 项目 package.json 里有 lint / typecheck 脚本就优先用项目自己的。
+function _projectScript(targetPath, name) {
+  try {
+    const raw = safeExec('cat package.json', targetPath, { stdio: 'pipe', timeout: 5000 }).toString();
+    const scripts = JSON.parse(raw).scripts || {};
+    return typeof scripts[name] === 'string' ? scripts[name] : null;
+  } catch {
+    return null;
+  }
+}
+
+// [patched:lint-from-script] stylish 格式把文件名与「行:列」分两行输出，原正则只认一行式
+// file:line:col，会把真实问题漏成「无问题」。多认两种形式：缩进行号式（仅 error 级，
+// warning 不影响门禁）+ eslint 汇总 errors 计数。提取为共享函数避免两处重复。
+function _hasLintIssues(result) {
+  // eslint-disable-next-line sonarjs/super-linear-regex -- bounded CLI output (stylish「行:列 error」行，无回溯风险)
+  if (/^\s*\d+:\d+\s+error\b/m.test(result)) return true;
+  if (/(?:^|\n)[^\n:]+:\d+:\d+\b/.test(result)) return true;
+  // eslint-disable-next-line sonarjs/super-linear-regex -- bounded CLI output (eslint 汇总「N errors」)
+  const errorCount = /(\d+)\s+errors?\b/.exec(result);
+  return errorCount ? Number(errorCount[1]) > 0 : false;
+}
+
 function runSecurityEslint(targetPath, autoFix) {
-  let cmd = 'npx eslint src --ext .js,.jsx,.ts,.tsx';
-  if (autoFix) cmd += ' --fix';
+  const lintScript = _projectScript(targetPath, 'lint');
+  let cmd = lintScript
+    ? `npm run lint${autoFix ? ' -- --fix' : ''}`
+    : `npx eslint src --ext .js,.jsx,.ts,.tsx${autoFix ? ' --fix' : ''}`;
   const result = runDiagnostic(cmd, targetPath);
-  // eslint-disable-next-line sonarjs/super-linear-regex -- matches known CLI output format (file:line:col)
-  const hasFileIssues = /[^\s:]+:\d+:\d+\b/.test(result);
+  const hasFileIssues = _hasLintIssues(result);
   // Only treat security-rule violations as security findings, not arbitrary lint errors.
   const securityRulePattern = /\b(security|sonarjs\/(?:hardcoded-credentials|os-command|code-eval|no-clear-text-protocols|no-weak-cipher|no-weak-hash|insecure-jwt-token|x-frame-options|cors|sql-queries|disabled-auto-escaping|content-length|production-debug|hashing|publicly-writable-directories))\b/i;
   if (securityRulePattern.test(result) && hasFileIssues) {
@@ -37,7 +63,7 @@ function runSecurityEslint(targetPath, autoFix) {
   if (result.includes('fixed')) {
     return { foundIssues: true, foundSecurityIssues: false };
   }
-  if (result.includes('error') || result.includes('Error')) {
+  if (/No files matching|Could not find config|Cannot find module|Invalid option|ESLint couldn't find/i.test(result)) {
     console.log(chalk.dim('  ℹ ESLint 配置/环境问题（非代码问题），跳过'));
   }
   return { foundIssues: false, foundSecurityIssues: false };
@@ -62,27 +88,29 @@ function runNpmAudit(targetPath, autoFix) {
 }
 
 function runEslintCheck(targetPath, autoFix) {
-  let cmd = 'npx eslint src --ext .js,.jsx,.ts,.tsx';
-  if (autoFix) cmd += ' --fix';
+  const lintScript = _projectScript(targetPath, 'lint');
+  let cmd = lintScript
+    ? `npm run lint${autoFix ? ' -- --fix' : ''}`
+    : `npx eslint src --ext .js,.jsx,.ts,.tsx${autoFix ? ' --fix' : ''}`;
   const result = runDiagnostic(cmd, targetPath);
   // Distinguish config/runtime errors from actual lint issues — only
   // file:line:column patterns count as real code problems.
-  // eslint-disable-next-line sonarjs/super-linear-regex -- matches known CLI output format (file:line:col)
-  const hasFileIssues = /[^\s:]+:\d+:\d+\b/.test(result);
+  const hasFileIssues = _hasLintIssues(result);
   if (hasFileIssues) {
     return true;
   }
   if (result.includes('fixed')) {
     return true;
   }
-  if (result.includes('error') || result.includes('Error')) {
+  if (/No files matching|Could not find config|Cannot find module|Invalid option|ESLint couldn't find/i.test(result)) {
     console.log(chalk.dim('  ℹ ESLint 配置/环境问题（非代码问题），跳过'));
   }
   return false;
 }
 
 function runTypeCheck(targetPath) {
-  const result = runDiagnostic('npx tsc --noEmit', targetPath);
+  const tsScript = _projectScript(targetPath, 'typecheck');
+  const result = runDiagnostic(tsScript ? 'npm run typecheck' : 'npx tsc --noEmit', targetPath);
   // tsc outputs "error TS<code>" for type errors, config errors look different
   const hasTypeErrors = /\berror\s+TS\d+/i.test(result);
   if (hasTypeErrors) {

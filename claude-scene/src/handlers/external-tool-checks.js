@@ -174,6 +174,17 @@ export function handleDeadLinkCheck(_action, _params, targetPath, context) {
   return `死链接检测完成: ${brokenCount} 个死链接`;
 }
 
+// [patched:sec-headers-langs] 把逐项头匹配抽成独立函数，控制 handleSecurityHeaders 认知复杂度。
+function _matchHeaderChecks(checks, rawHeaders, findings) {
+  for (const check of checks) {
+    if (new RegExp(check.grep, 'i').test(rawHeaders)) {
+      console.log(chalk.dim(`  ✓ ${check.name}: 已配置`));
+    } else {
+      findings.push(`${check.name}: 未配置`);
+    }
+  }
+}
+
 export function handleSecurityHeaders(_action, _params, targetPath, context) {
   const findings = [];
   let isPassed = true;
@@ -187,23 +198,27 @@ export function handleSecurityHeaders(_action, _params, targetPath, context) {
     { name: 'Permissions-Policy', grep: 'permissionsPolicy|Permissions-Policy|Feature-Policy' },
   ];
 
-  const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.codegraph';
+  // [patched:sec-headers-langs] 两处修正：
+  // a) 原实现只扫 js/ts/json，Python/Go/Java 后端的响应头配置永远看不见；
+  // b) 原实现对 6 项头各跑一次全仓 grep（本仓库单次约 30s）→ 必然超时，
+  //    超时被 catch 成「检查失败」却仍算 pass。改为一次 grep 收齐再逐项匹配。
+  const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.codegraph --exclude-dir=.venv --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=dist --exclude-dir=build --exclude-dir=coverage --exclude-dir=.next --exclude-dir=target';
+  const includeFlags = '--include="*.js" --include="*.ts" --include="*.json" --include="*.py" --include="*.go" --include="*.rb" --include="*.php" --include="*.java"';
+  const pattern = checks.map(c => c.grep).join('|');
+  let rawHeaders = '';
+  try {
+    rawHeaders = safeExec(
+      `grep -rniE "${pattern}" ${includeFlags} ${excludeDirs} . 2>&1 | head -n 4000`,
+      targetPath,
+      { stdio: 'pipe', timeout: 180000, maxBuffer: 32 * 1024 * 1024 }
+    ).toString();
+  } catch (e) {
+    for (const check of checks) findings.push(`${check.name}: 检查失败 (${e.message})`);
+    if (context) context.lastStepFailed = true;
+  }
 
-  for (const check of checks) {
-    try {
-      const result = safeExec(
-        `grep -rn "${check.grep}" --include="*.js" --include="*.ts" --include="*.json" ${excludeDirs} . 2>&1 || true`,
-        targetPath,
-        { stdio: 'pipe', timeout: 15000 }
-      ).toString().trim();
-      if (!result) {
-        findings.push(`${check.name}: 未配置`);
-      } else {
-        console.log(chalk.dim(`  ✓ ${check.name}: 已配置`));
-      }
-    } catch (e) {
-      findings.push(`${check.name}: 检查失败 (${e.message})`);
-    }
+  if (rawHeaders) {
+    _matchHeaderChecks(checks, rawHeaders, findings);
   }
 
   _runLiveHeaderScan(targetPath, findings);

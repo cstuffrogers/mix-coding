@@ -24,6 +24,7 @@ const THEME_NAMES = {
   daisyui: 'DaisyUI',
   'animal-island': 'Animal Island UI',
   custom: 'Custom',
+  'liquid-glass': 'Liquid Glass（Apple 液态玻璃效果）',
 };
 
 // ── Execution logging ──
@@ -60,6 +61,7 @@ async function handleThemeSelection(step, options, context) {
         { name: '3. Custom（自定义颜色）', value: 'custom' },
         { name: '4. Huashu 40 风格库', value: 'huashu' },
         { name: '5. Awesome Design MD 品牌', value: 'awm-brand' },
+        { name: '6. Liquid Glass（Apple 液态玻璃效果，liquid-glass-react）', value: 'liquid-glass' },
       ],
     }]);
     context.selectedTheme = answers.theme;

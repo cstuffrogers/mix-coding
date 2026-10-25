@@ -54,10 +54,26 @@
       "params": {
         "prompt": "选择美化/设计模式（可多选，3秒无操作使用默认）：",
         "options": [
-          { "id": "ui_polish", "label": "UI 美化", "default": true },
-          { "id": "design_only", "label": "仅设计", "default": false },
-          { "id": "brand_system", "label": "品牌系统", "default": false },
-          { "id": "impeccable", "label": "Impeccable 打磨", "default": true }
+          {
+            "id": "ui_polish",
+            "label": "UI 美化",
+            "default": true
+          },
+          {
+            "id": "design_only",
+            "label": "仅设计",
+            "default": false
+          },
+          {
+            "id": "brand_system",
+            "label": "品牌系统",
+            "default": false
+          },
+          {
+            "id": "impeccable",
+            "label": "Impeccable 打磨",
+            "default": true
+          }
         ],
         "multi_select": true
       },
@@ -95,7 +111,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["ui", "design", "polish"]
+          "type": [
+            "ui",
+            "design",
+            "polish"
+          ]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -183,7 +203,7 @@
       "service": "SceneSelector",
       "action": "confirm",
       "params": {
-        "message": "已生成美化方案，请选择主题并确认：\n\n1. DaisyUI（35+专业主题：corporate/garden/light/dark/cupcake）\n2. Animal Island UI（自然、圆润、柔和风格）\n3. Custom（自定义颜色）\n4. Huashu 40 风格库（HTML-native: editorial-brutalism / neo-brutalism / minimal-mono / apple-product / dark-tech-grid / ... 共 20+ 个 web 风格）\n5. Awesome Design MD 品牌（Vercel/Linear/Stripe/Notion/Apple）\n\n请输入数字选择主题：",
+        "message": "已生成美化方案，请选择主题并确认：\n\n1. DaisyUI（35+专业主题：corporate/garden/light/dark/cupcake）\n2. Animal Island UI（自然、圆润、柔和风格）\n3. Custom（自定义颜色）\n4. Huashu 40 风格库（HTML-native: editorial-brutalism / neo-brutalism / minimal-mono / apple-product / dark-tech-grid / ... 共 20+ 个 web 风格）\n5. Awesome Design MD 品牌（Vercel/Linear/Stripe/Notion/Apple）\n6. Liquid Glass（Apple 液态玻璃效果，liquid-glass-react：折射/色散/磨砂/弹性）\n\n请输入数字选择主题：",
         "theme_selection": true
       },
       "description": "生成美化方案，选择主题并人工确认",
@@ -378,6 +398,15 @@
       "params": {},
       "description": "【Animal Island 主题】扫描 JSX/TSX 文件，将 button/input/select/card 等替换为 Animal Island UI",
       "condition": "selectedTheme === \"animal-island\""
+    },
+    {
+      "step": 8.05,
+      "layer": "capability",
+      "service": "UIPolish",
+      "action": "applyLiquidGlass",
+      "params": {},
+      "condition": "selected_theme_liquid_glass",
+      "description": "安装 liquid-glass-react 并生成液态玻璃示例组件（GlassCard/GlassButton + 使用指南）"
     },
     {
       "step": 8.5,
@@ -638,7 +667,10 @@
       "service": "DesignService",
       "action": "impeccable-critique",
       "params": {
-        "rules": ["anti-patterns", "llm-critique"],
+        "rules": [
+          "anti-patterns",
+          "llm-critique"
+        ],
         "checks": [
           "no-indigo-default",
           "no-purple-blue-gradient",
@@ -762,7 +794,11 @@
       "action": "browser_screenshot",
       "params": {
         "fullPage": true,
-        "viewports": ["desktop", "tablet", "mobile"]
+        "viewports": [
+          "desktop",
+          "tablet",
+          "mobile"
+        ]
       },
       "description": "Playwright MCP 浏览器截图：真实浏览器渲染截图（Desktop 1440×900 / Tablet 768×1024 / Mobile",
       "condition": "playwright_mcp_available"
@@ -773,7 +809,11 @@
       "service": "TestEngine",
       "action": "visualRegression",
       "params": {
-        "viewports": ["desktop", "tablet", "mobile"]
+        "viewports": [
+          "desktop",
+          "tablet",
+          "mobile"
+        ]
       },
       "description": "Playwright 视觉回归测试（Desktop/Tablet/Mobile）"
     },

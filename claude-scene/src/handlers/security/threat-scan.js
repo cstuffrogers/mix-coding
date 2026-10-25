@@ -147,11 +147,20 @@ export function handleSecBugHunt(_action, _params, targetPath, context) {
 
 function grepConsoleLines(targetPath) {
   const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.codegraph --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build';
-  return safeExec(
-    `grep -rn --include="*.js" --include="*.ts" --include="*.jsx" --include="*.tsx" ${excludeDirs} "console\\\\.\\\\(log\\\\|warn\\\\|error\\\\|info\\\\|debug\\\\)" . 2>&1 || true`,
+  // [patched:logsan-maxbuffer] execSync 默认 maxBuffer 只有 1MB，大仓库直接 ENOBUFS 抛异常，
+  // 整个扫描被跳过却仍记为 pass。这里放宽上限并给行数兜底。
+  const maxBuffer = Number(process.env.SCENE_LOGSCAN_MAXBUFFER || 32 * 1024 * 1024);
+  const maxLines = Number(process.env.SCENE_LOGSCAN_MAXLINES || 5000);
+  try {
+    return safeExec(
+    `grep -rn --include="*.js" --include="*.ts" --include="*.jsx" --include="*.tsx" ${excludeDirs} "console\\\\.\\\\(log\\\\|warn\\\\|error\\\\|info\\\\|debug\\\\)" . 2>&1 | head -n ${maxLines}`,
     targetPath,
-    { stdio: 'pipe', timeout: 30000 }
+    { stdio: 'pipe', timeout: 60000, maxBuffer }
   ).toString();
+  } catch (error) {
+    // [patched:logsan-maxbuffer] 交给 handleLogSanitization 判定失败，绝不静默当通过
+    throw new Error(`log-sanitization grep 失败（maxBuffer=${maxBuffer}）: ${error.message}`, { cause: error });
+  }
 }
 
 function isSelfFile(line) {
@@ -184,19 +193,33 @@ function checkLineForPattern(line) {
   return null;
 }
 
-export function handleLogSanitization(_action, _params, targetPath, context) {
+// [patched:logsan-maxbuffer] 逐行判定抽出来，把 handleLogSanitization 的认知复杂度压回限制内。
+function _collectLogFindings(raw) {
   const findings = [];
-  const raw = grepConsoleLines(targetPath);
-  if (!raw.trim()) {
-    return '日志脱敏扫描完成: 无问题';
-  }
-
   for (const line of raw.split('\n')) {
     if (isSelfFile(line)) continue;
     if (/_API_KEY|_SECRET.*(?:未设置|not set|跳过|skip|不可用)/i.test(line)) continue;
     const result = checkLineForPattern(line);
     if (result) findings.push(result);
   }
+  return findings;
+}
+
+export function handleLogSanitization(_action, _params, targetPath, context) {
+  let raw;
+  try {
+    raw = grepConsoleLines(targetPath);
+  } catch (error) {
+    // [patched:logsan-maxbuffer] 扫描本身失败必须计入 fail，不能返回「部分操作可能失败」被算成 pass
+    console.log(chalk.red(`  ❌ 日志脱敏扫描失败: ${error.message}`));
+    if (context) context.lastStepFailed = true;
+    return `日志脱敏扫描失败（未能扫描，结果不可信）: ${error.message}`;
+  }
+  if (!raw.trim()) {
+    return '日志脱敏扫描完成: 无问题';
+  }
+
+  const findings = _collectLogFindings(raw);
 
   if (findings.length > 0) {
     console.log(chalk.red(`  🔴 发现 ${findings.length} 处日志敏感数据泄露`));

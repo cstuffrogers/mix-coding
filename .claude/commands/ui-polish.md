@@ -1,5 +1,5 @@
 ---
-description: Polish frontend projects with DaisyUI/Animal Island UI themes, custom keyframe animations, lucide-react icon upgrade, micro-interactions, and Impeccable/web-design-engineer/Huashu design intelligence. 59-step hybrid workflow with dual-critique quality control + residual repair. Open Design 全资源集成：152品牌+111模板+138技能+11craft规则+8Huashu模块+5设备框+103提示词模板+3演示框架+8吉祥物.
+description: Polish frontend projects with DaisyUI/Animal Island UI/Liquid Glass themes, custom keyframe animations, lucide-react icon upgrade, micro-interactions, and Impeccable/web-design-engineer/Huashu design intelligence. 59-step hybrid workflow with dual-critique quality control + residual repair. Open Design 全资源集成：152品牌+111模板+138技能+11craft规则+8Huashu模块+5设备框+103提示词模板+3演示框架+8吉祥物.
 argument-hint: "[target-path]"
 ---
 
@@ -59,10 +59,11 @@ AskUserQuestion 交互式选择：
 3. Custom — Keep existing style, apply animations + icons + micro-interactions
 4. Huashu 40 风格库 — Bash 调用 `node -e "import('./src/lib/huashu/style-library.js').then(m => m.listStyles())"` 浏览 40 种风格
 5. Open Design 品牌库 — 152 品牌设计系统（含 DESIGN.md + tokens.css + components.html）
-6. Open Design 设计模板 — 111 模板（`ls open-design/design-templates/`）
-7. Open Design Skills — 138 AI 技能（`ls open-design/skills/`），按需注入到打磨链
-8. Open Design 提示词模板 — 103 提示词模板（46 图片生成 + 57 视频生成），用于 AI 图片/视频素材生成
-9. Open Design 演示框架 — 3 演示文稿框架（deck-framework.html / kami-deck.html / live-artifacts），用于生成设计演示稿
+6. Liquid Glass — Apple 液态玻璃效果（[liquid-glass-react](https://github.com/rdev/liquid-glass-react)：折射/色散/磨砂/弹性；安装依赖 + 生成 GlassCard/GlassButton 示例组件）
+7. Open Design 设计模板 — 111 模板（`ls open-design/design-templates/`）
+8. Open Design Skills — 138 AI 技能（`ls open-design/skills/`），按需注入到打磨链
+9. Open Design 提示词模板 — 103 提示词模板（46 图片生成 + 57 视频生成），用于 AI 图片/视频素材生成
+10. Open Design 演示框架 — 3 演示文稿框架（deck-framework.html / kami-deck.html / live-artifacts），用于生成设计演示稿
 
 选择 Open Design 品牌时：
 - Bash `ls open-design/design-systems/` 展示可用品牌

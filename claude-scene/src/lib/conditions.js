@@ -8,7 +8,12 @@ import { PROJECT_ROOT, findResourceDir } from './paths.js';
 const SIMPLE_CONDITIONS = {
   frontend_involved: (ctx) =>
     ctx.selectedTheme === 'animal-island' ||
+    ctx.selectedTheme === 'liquid-glass' ||
     /前端|UI|界面|页面|组件|样式|设计/i.test(ctx.prompt || ''),
+
+  selected_theme_liquid_glass: (ctx) =>
+    ctx.selectedTheme === 'liquid-glass' ||
+    /液态玻璃|liquid.?glass/i.test(ctx.prompt || ''),
 
   user_confirmed_open_design: (ctx) =>
     ctx.user_confirmed_open_design === true,
