@@ -15,7 +15,6 @@
 | `design` | `/design 描述` | 一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复，双轮品控+残留修复，55步） |
 | `e2e` | `/e2e` | 使用 MSW + Supertest + Schemathesis 配置端到端测试基础设施（Mock + HTTP 断言 + API fuzz） |
 | `feature` | `/feature 描述` | 端到端一键推进新功能开发流程（集成CE知识沉淀） |
-| `hunt` | `/hunt` | 代码安全漏洞扫描与修复（集成CE知识沉淀） |
 | `loop` | `/loop` | 无人值守自动迭代（集成CE知识沉淀） |
 | `mobile-audit` | `/mobile-audit` | 一键移动端安全+性能+合规+质量审计：MobSF安全扫描 → OWASP MASVS对照 → 隐私合规 → 依赖CVE → 性能基线 → 商店清单 |
 | `mobile-e2e` | `/mobile-e2e` | 自动检测项目框架→选择最佳测试工具→生成配置+示例→CI 集成 |

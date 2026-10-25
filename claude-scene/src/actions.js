@@ -43,7 +43,8 @@ import { handleLighthouseGate } from './handlers/lighthouse.js';
 import { handleOpenRedirectScan } from './handlers/open-redirect.js';
 import { handleI18nAudit } from './handlers/i18n.js';
 import { handleTestCoverage, handleTestUnit, handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest, handleLoadTest } from './handlers/testing.js';
-import { handleCreateBranch, handleCommitPush, handleCreatePR, handleAutoUpdate, handleBumpVersion, handleCreateTag, handleDeploy, handleCreateRelease, handleListReleases, handleRollback, handleCreateIssue } from './handlers/git.js';
+import { handleCreateBranch, handleCommitPush, handleCreatePR, handleAutoUpdate, handleBumpVersion, handleCreateTag, handleDeploy, handleCreateRelease, handleListReleases, handleRollback, handleCreateIssue, handleGitDiffNameOnly } from './handlers/git.js';
+import { handleMapRoutes, handleLoadPages, handleTestInteractions, handleVisualCheck, handleA11yScan, handleClassifyBugs, handleGenerateQAReport } from './handlers/qa.js';
 import { handleGenerateDesign, handleAnalyzeConsistency, handleExportAssets, handlePersist, handleDesignInput, handleHuashuBrandProtocol, handleHuashuExpertReview, handleHuashuPrototype, handleHuashuReleaseAnimation, handleHuashuReleaseDeck, handleHuashuInfographic, handleAwmBrandList, handleAwmBrandImport, handleOdBrandList, handleOdBrandPick, handleOdBrandImport, handleOdTemplateList, handleOdTemplatePreview, handleOdSkillLoad, handleOdFrameList, handleOdFrameApply, handleOdPromptTemplateList, handleOdPromptTemplateLoad, handleOdDeckList, handleOdDeckLoad } from './handlers/design.js';
 import { handleIssueQuery, handleLocate, handleAnalyzeDependencies, handleFix, handleVerifyFix, handleRegression, handleCloseTicket } from './handlers/issues.js';
 import { handleBuild, handleApplyTemplate, handleImplementLogic, handleCleanup, handleAutoFix, handleGenerateRefactorPlan, handleApplyTransformations, handleAnalyzeInterface, handleDetectLanguage, handleLanguageBuild, handleLanguageTest } from './handlers/quality.js';
@@ -58,6 +59,7 @@ import { handleIncidentRunbook } from './handlers/incident.js';
 import { handleSetupE2E } from './handlers/e2e.js';
 import { handleSetupDocker } from './handlers/docker.js';
 import { handleGenerateChangeLog } from './handlers/changelog.js';
+import { handleReleaseChecks, handleMobileBumpVersion, handleMobileGenerateChangelog, handleGrayReleaseConfig, handleIosRelease, handleAndroidRelease } from './handlers/mobile-release.js';
 import { handleSetupSBOM } from './handlers/sbom.js';
 import { handleSetupLogging } from './handlers/logging.js';
 import { handleAnalyzeUI, handleCheckConsistency, handleAddAnimations, handleVisualRegression, handleCheckAPIConsistency, handleApplyDaisyUI, handleApplyComponents, handleWebDesignVerify, handleApplyHuashuStyle, handleReconcileDesignTokens, handleImpeccableCritique, handleIconUpgrade, handleMicroInteractions } from './handlers/ui-tools.js';
@@ -82,10 +84,6 @@ import {
   handleRemeasure, handleRunUITest, handleRunAgent, handleAggregateReport,
   handleMobsfUpload, handleMobsfScan, handleBearerScan,
 } from './handlers/mobile.js';
-import {
-  handleReleaseChecks, handleMobileBumpVersion, handleMobileGenerateChangelog,
-  handleGrayReleaseConfig, handleIosRelease, handleAndroidRelease,
-} from './handlers/mobile-release.js';
 import { handleSetupE2EConfig, handleVerifySetup, handleGenerateCIConfig } from './handlers/mobile-testing.js';
 import {
   handleCheckRnDoctor, handleCheckAndroidSDK,
@@ -104,6 +102,7 @@ import {
   handleAttestPlan, handleDisplaySummary, handleUpdatePhaseStatus, handleLogError,
   handleAppendProgress, handleCheckComplete,
 } from './handlers/plan-service.js';
+import { handleAnalyze10x, handleDetectScopeCreep, handleUserImpactMatrix, handleCategorize, handleGenerateCEOReport } from './handlers/ceo-review.js';
 
 // Re-export for direct consumers (ui-polish.js)
 export { handleCheckConsistency, handleVisualRegression, handleCheckAPIConsistency, handleAddAnimations, handleAnalyzeUI, handleIconUpgrade, handleMicroInteractions };
@@ -181,6 +180,13 @@ export const ACTION_REGISTRY = {
   implementLogic: handleImplementLogic,
   autoFix: handleAutoFix,
   checkOutdated: handleCheckOutdated,
+  mapRoutes: handleMapRoutes,
+  loadPages: handleLoadPages,
+  testInteractions: handleTestInteractions,
+  visualCheck: handleVisualCheck,
+  'a11y-scan': handleA11yScan,
+  classifyBugs: handleClassifyBugs,
+  generateQAReport: handleGenerateQAReport,
   updateDeps: handleUpdateDeps,
   checkBreakingChanges: handleCheckBreakingChanges,
   scanUpdates: handleScanUpdates,
@@ -289,6 +295,7 @@ export const ACTION_REGISTRY = {
   listReleases: handleListReleases,
   rollback: handleRollback,
   createIssue: handleCreateIssue,
+  'git diff --name-only': handleGitDiffNameOnly,
 
   // Language detection / build / test
   detectLanguage: handleDetectLanguage,
@@ -661,6 +668,11 @@ export const ACTION_REGISTRY = {
   appendProgress: handleAppendProgress,
   'append-progress': handleAppendProgress,
   checkComplete: handleCheckComplete,
+  analyze10x: handleAnalyze10x,
+  detectScopeCreep: handleDetectScopeCreep,
+  userImpactMatrix: handleUserImpactMatrix,
+  categorize: handleCategorize,
+  generateCEOReport: handleGenerateCEOReport,
   'check-complete': handleCheckComplete,
 };
 

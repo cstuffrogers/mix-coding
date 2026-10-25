@@ -422,6 +422,7 @@ const ACTION_MESSAGES = {
   bearerScan: 'Bearer MCP: 隐私合规扫描完成（PII泄露/GDPR合规）',
   shorebirdPatch: 'Shorebird MCP: OTA 热更新资源包已发布',
   sentryCheckRelease: 'Sentry MCP: 发布后崩溃率监控基线已建立',
+  'git diff --name-only': 'Git diff 完成，变更文件列表已提取',
 
   // QA (conversation-mode actions)
   mapRoutes: '路由映射完成，页面清单已提取',

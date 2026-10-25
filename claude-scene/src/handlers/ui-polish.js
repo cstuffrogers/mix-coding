@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
+import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
@@ -39,8 +40,16 @@ function handleInstallDeps(targetPath, theme) {
   }
   if (theme === 'liquid-glass') {
     // liquid-glass-react: Apple 液态玻璃效果（折射/色散/磨砂/弹性）
-    // peerDeps: react >=18, react-dom >=18 —— 与项目内 React 版本对齐，避免强装覆盖。
-    safeExec('npm install liquid-glass-react', targetPath, { stdio: 'ignore' });
+    // peerDeps: react >=19；React 18 项目使用 --legacy-peer-deps。
+    let installCmd = 'npm install liquid-glass-react';
+    try {
+      const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf8'));
+      const reactSpec = (pkg.dependencies?.react || pkg.devDependencies?.react || '').toString();
+      const m = reactSpec.match(/(\d+)/);
+      const reactMajor = m ? parseInt(m[1], 10) : 0;
+      if (reactMajor > 0 && reactMajor < 19) installCmd = 'npm install liquid-glass-react --legacy-peer-deps';
+    } catch { /* ignore */ }
+    safeExec(installCmd, targetPath, { stdio: 'ignore' });
   }
   safeExec('npm install lucide-react animate.css', targetPath, { stdio: 'ignore' });
   return '依赖安装完成';

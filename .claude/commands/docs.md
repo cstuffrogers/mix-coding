@@ -31,7 +31,10 @@ If empty, default to `all`.
 ### Step 2: Run documentation handlers
 
 ```bash
-cd e:/auto-coding/claude-scene
+# 定位 claude-scene 引擎目录（全局安装 / npm link 均可）
+CLAUDE_SCENE_DIR="$(npm root -g)/claude-scene"
+[ -d "$CLAUDE_SCENE_DIR" ] || CLAUDE_SCENE_DIR="$(node -e "try{console.log(require.resolve('claude-scene/package.json').replace(/package.json\$/, ''))}catch(e){}" 2>/dev/null)"
+cd "$CLAUDE_SCENE_DIR"
 
 # API docs
 if [ "$MODE" = "api" ] || [ "$MODE" = "all" ]; then

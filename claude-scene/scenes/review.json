@@ -413,7 +413,7 @@
       "step": 5,
       "layer": "capability",
       "service": "PerformanceService",
-      "action": "profile",
+      "action": "performanceProfile",
       "params": {
         "mode": "baseline"
       },

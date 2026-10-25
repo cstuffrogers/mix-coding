@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
+import { execSync } from 'child_process';
 import { join } from 'path';
 import { safeExec, escapeArg } from '../lib/safe-exec.js';
 
@@ -147,6 +148,25 @@ export function handleRollback(_action, params, targetPath) {
     return `回滚完成: ${target}`;
   } catch (e) {
     return `回滚失败: ${e.message}`;
+  }
+}
+
+export function handleGitDiffNameOnly(_action, _params, targetPath, context) {
+  try {
+    // eslint-disable-next-line sonarjs/no-os-command-from-path -- git diff, not user input
+    const output = execSync('git diff --name-only', { cwd: targetPath, encoding: 'utf-8', stdio: 'pipe' }).trim();
+    const files = output ? output.split('\n').filter(Boolean) : [];
+    const frontendExts = ['.tsx', '.jsx', '.vue', '.html', '.css', '.scss', '.sass', '.less', '.astro', '.svelte'];
+    const hasFrontend = files.some((f) => frontendExts.some((ext) => f.endsWith(ext)));
+    if (context) {
+      context.gitDiffFiles = files;
+      context.has_frontend_changes = hasFrontend;
+    }
+    return `Git diff 完成: ${files.length} 个变更文件${hasFrontend ? ' (含前端)' : ''}`;
+  } catch (e) {
+    // Non-git directory or no commits: treat as no changes, do not fail the step.
+    if (context) { context.gitDiffFiles = []; context.has_frontend_changes = false; context.lastStepFailed = false; }
+    return `Git diff 跳过（非 git 仓库或无提交）: ${e.message.split('\n')[0]}`;
   }
 }
 

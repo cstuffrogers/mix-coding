@@ -15,6 +15,24 @@ const SIMPLE_CONDITIONS = {
     ctx.selectedTheme === 'liquid-glass' ||
     /液态玻璃|liquid.?glass/i.test(ctx.prompt || ''),
 
+  // File-existence guards (used by plan/cicd/setup scenes)
+  build_artifacts_exist: () => existsSync(join(PROJECT_ROOT, 'build')) || existsSync(join(PROJECT_ROOT, 'dist')) || existsSync(join(PROJECT_ROOT, '.next')),
+  planning_files_exist: () => existsSync(join(PROJECT_ROOT, 'plan.md')) || existsSync(join(PROJECT_ROOT, 'findings.md')) || existsSync(join(PROJECT_ROOT, 'progress.md')),
+  spec_file_exists: () => existsSync(join(PROJECT_ROOT, 'spec.md')) || existsSync(join(PROJECT_ROOT, 'specs')),
+  spec_file_not_exists: () => !existsSync(join(PROJECT_ROOT, 'spec.md')) && !existsSync(join(PROJECT_ROOT, 'specs')),
+  setupConfigured: (ctx) => ctx?.setupConfigured === true || ctx?.e2eConfigured === true || ctx?.monitorConfigured === true,
+  codeguardian_mcp_available: () => isConversationMode(),
+  playwright_mcp_available: () => isConversationMode(),
+  has_frontend_changes: (ctx) => ctx?.has_frontend_changes === true,
+  attestation_enabled: (ctx) => ctx?.attestation_enabled === true || ctx?.user_confirmed === true,
+  awesome_design_md_used: (ctx) => ctx?.awesome_design_md_used === true || ctx?.user_selected_brand !== undefined,
+  ai_design: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('ai_design'),
+  full_audit: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('full_audit'),
+  code_review: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('code_review'),
+  analyze_only: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('analyze_only'),
+  quality_tools: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('quality_tools'),
+  security_deep: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('security_deep'),
+
   user_confirmed_open_design: (ctx) =>
     ctx.user_confirmed_open_design === true,
 

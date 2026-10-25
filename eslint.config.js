@@ -21,6 +21,9 @@ const IGNORED_DIRS = [
   "open-design/**",
   "scripts/**",
   ".mcp/**",
+  // Flutter build artifacts (generated dart2js / canvaskit bundles)
+  "**/build/**",
+  "**/.dart_tool/**",
   // claude-scene has its own eslint.config.js; lint it via `cd claude-scene && npx eslint .`
   "claude-scene/**",
 ];

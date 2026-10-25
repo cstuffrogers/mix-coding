@@ -1,46 +1,64 @@
+import { readFileSync } from 'fs';
+import { relative } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../../lib/safe-exec.js';
+import { assertSources, listProjectCodeFiles } from '../../lib/project-sources.js';
 
 export function handleCorsCheck(_action, _params, targetPath, context) {
-  const findings = [];
-  const excludeDirs = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.claude --exclude-dir=.codegraph';
+  // [patched:cors-py] 原实现用 grep 只扫 js/ts（漏掉 Python 后端），而且不遵守
+  // .claude/scene-scan-ignore、会命中 .next/ 构建产物与 vendored 项目。
+  // 改为和 sec-bug-hunt 用同一份「项目源码清单」，0 文件即判失败。
+  const files = listProjectCodeFiles(targetPath);
+  if (!assertSources(files, context, 'CORS 配置检查')) {
+    return 'CORS 配置检查失败: 未找到任何源码文件（扫描范围为空，结果不可信）';
+  }
 
   const corsPatterns = [
-    { name: 'CORS 通配符*', grep: 'Access-Control-Allow-Origin.*[*]' },
-    { name: 'cors() 无配置', grep: 'cors()', fixed: true },
-    { name: 'credentials + *', grep: 'credentials.*true.*origin.*[*]|origin.*[*].*credentials.*true' },
+    { name: 'CORS 通配符*', test: (line) => /Access-Control-Allow-Origin.*\*/.test(line) },
+    { name: 'cors() 无配置', test: (line) => line.includes('cors()') },
+    { name: 'credentials + *', test: (line) => /credentials/i.test(line) && /[*]/.test(line) },
+    // Python 后端（FastAPI/Django）的写法
+    { name: 'allow_origins 通配 *', test: (line) => /allow_origins.*\*/i.test(line) },
+    { name: 'CORS_ALLOW_ALL_ORIGINS', test: (line) => /CORS_ALLOW_ALL_ORIGINS.*True/.test(line) },
   ];
 
-  for (const { name, grep, fixed } of corsPatterns) {
-    try {
-      const flag = fixed ? ' -Frn' : ' -rn';
-      const raw = safeExec(
-        `grep${flag} --include="*.js" --include="*.ts" --include="*.mjs" --include="*.mts" ${excludeDirs} "${grep}" . 2>&1 || true`,
-        targetPath,
-        { stdio: 'pipe', timeout: 15000 }
-      ).toString().trim();
+  // 规则文本会命中自己：检测器定义行里就写着 `test: (line) => /allow_origins.*\*/`
+  const SELF_DEF = /corsCheck|cors_check|cors-check|config-check|handleCorsCheck|security-scanning\.js|grep\s*[:=]\s*['"]|test:\s*\(line\)/i;
 
-      if (raw) {
-        const lines = raw.split('\n').filter(l => {
-          if (!l) return false;
-          if (/corsCheck|cors_check|cors-check|config-check|handleCorsCheck|security-scanning\.js/i.test(l)) return false;
-          return true;
-        });
-        if (lines.length === 0) continue;
-        lines.slice(0, 3).forEach(l => {
-          const trimmed = l.length > 150 ? l.slice(0, 150) + '...' : l;
-          findings.push(`${name}: ${trimmed}`);
-        });
+  const findings = [];
+  for (const file of files) {
+    if (!/\.(js|jsx|ts|tsx|mjs|cjs|py)$/i.test(file)) continue;
+    let content;
+    try {
+      content = readFileSync(file, 'utf-8');
+    } catch {
+      continue;
+    }
+    if (!/cors|Access-Control/i.test(content)) continue;
+    content.split('\n').forEach((line, idx) => {
+      if (SELF_DEF.test(line) || /\bnosec\b/i.test(line)) return;
+      // [patched:cors-comment-skip] 注释行不生效：里面写 “credentials + 通配符” 只是解释，不该当成 CORS 问题
+      if (/^\s*(?:#|\/\/|\/\*|\*)/.test(line)) return;
+      for (const pattern of corsPatterns) {
+        if (pattern.test(line)) {
+          findings.push(`${pattern.name}: ${relative(targetPath, file)}:${idx + 1} ${line.trim().slice(0, 120)}`);
+        }
       }
-    } catch { /* skip */ }
+    });
   }
 
   if (findings.length === 0) {
-    console.log(chalk.green('  ✅ CORS 配置安全'));
+    console.log(chalk.green(`  ✅ CORS 配置安全（检查 ${files.length} 个源码文件）`));
+  } else {
+    findings.slice(0, 10).forEach((f) => console.log(chalk.yellow(`  ⚠ ${f}`)));
   }
 
-  if (context) context.corsCheckPassed = findings.length === 0;
-  return `CORS 配置检查完成: ${findings.length ? `${findings.length} 处问题` : '安全'}`;
+  if (context) {
+    context.corsCheckPassed = findings.length === 0;
+    // [patched:verdict-unify] CORS 不安全即判本步失败，与 review 报告口径一致
+    if (findings.length > 0) context.lastStepFailed = true;
+  }
+  return `CORS 配置检查完成: ${findings.length ? `${findings.length} 处问题` : '安全'}（检查 ${files.length} 个源码文件）`;
 }
 
 function scanViteEnvLeaks(targetPath, excludeDirs) {

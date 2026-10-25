@@ -14,6 +14,19 @@ const SCENE_META = {
   'check':         { icon: '🩺', description: '引擎自检与自愈' },
   'plan':          { icon: '🗺️', description: '持久化规划（spec/plan/tasks）' },
   'update':        { icon: '⬆️', description: '系统资源更新' },
+  'cicd':          { icon: '📦', description: 'CI/CD 配置与验证' },
+  'deps':          { icon: '📦', description: '安全依赖更新' },
+  'mobile-audit':  { icon: '📱', description: '移动端安全+合规+性能审计' },
+  'mobile-e2e':    { icon: '📱', description: '移动端 E2E 测试搭建' },
+  'mobile-onboard':{ icon: '📱', description: '移动端开发环境搭建' },
+  'mobile-optimize':{ icon: '📱', description: '移动端性能优化' },
+  'mobile-release':{ icon: '📱', description: '移动端发布流程' },
+  'mobile-review': { icon: '📱', description: '移动端代码审查' },
+  'onboard':       { icon: '🧰', description: '项目初始化与环境搭建' },
+  'plan-ceo-review':{ icon: '🎯', description: 'CEO 视角产品策略审查' },
+  'qa':            { icon: '🧪', description: '浏览器 QA 验证' },
+  'release':       { icon: '🚀', description: '发布部署流程' },
+  'rollback':      { icon: '↩️', description: '回滚流程' },
 };
 function loadScene(id) {
   try {

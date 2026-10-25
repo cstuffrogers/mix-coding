@@ -1,4 +1,4 @@
-import { writeFileSync, existsSync } from 'fs';
+import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { safeExec } from '../lib/safe-exec.js';
 import { ensureDir } from '../lib/fs-utils.js';
@@ -79,17 +79,40 @@ import { GlassCard, GlassButton } from './components/liquid-glass/GlassExample'
 - **Safari/Firefox 仅部分支持**：位移（displacement）不可见，仅剩模糊/饱和度。
 - 需要背景有内容（图片/渐变/彩色区块）时效果才明显，纯色背景上几乎不可见。
 - 大面积使用会拖慢渲染（每个实例一个 WebGL 上下文），优先用于卡片/按钮/导航等小面积元素。
-- React >= 18。SSR 环境需动态导入（组件依赖浏览器 API）。
+- React >= 19（liquid-glass-react 要求；React 18 项目需使用 --legacy-peer-deps 安装，效果可能受限）
 `
+
+function detectReactMajor(targetPath) {
+  try {
+    const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf8'));
+    const reactSpec = (pkg.dependencies?.react || pkg.devDependencies?.react || '').toString();
+    const m = reactSpec.match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function installLiquidGlass(targetPath, reactMajor) {
+  const installCmd = reactMajor > 0 && reactMajor < 19
+    ? 'npm install liquid-glass-react --legacy-peer-deps'
+    : 'npm install liquid-glass-react';
+  if (reactMajor > 0 && reactMajor < 19) {
+    return { cmd: installCmd, warn: `检测到 React ${reactMajor}（liquid-glass-react 要求 >= 19），已使用 --legacy-peer-deps 安装；建议升级 React 以获得完整效果` };
+  }
+  return { cmd: installCmd, warn: null };
+}
 
 export function handleApplyLiquidGlass(targetPath, context) {
   const results = [];
 
-  // 1. 安装依赖（幂等；无 package.json 时跳过，避免 npm 向上冒泡污染其他包）
   const hasPkg = existsSync(join(targetPath, 'package.json'));
   if (hasPkg) {
+    const reactMajor = detectReactMajor(targetPath);
+    const { cmd, warn } = installLiquidGlass(targetPath, reactMajor);
+    if (warn) results.push(warn);
     try {
-      safeExec('npm install liquid-glass-react', targetPath, { stdio: 'ignore' });
+      safeExec(cmd, targetPath, { stdio: 'ignore' });
       results.push('依赖 liquid-glass-react 安装完成');
     } catch (e) {
       results.push(`依赖安装失败: ${e.message}`);
@@ -98,7 +121,6 @@ export function handleApplyLiquidGlass(targetPath, context) {
     results.push('跳过依赖安装（目标目录无 package.json；请先 npm init 或手动安装）');
   }
 
-  // 2. 生成示例组件（src/components/liquid-glass/）
   const componentDir = join(targetPath, 'src', 'components', 'liquid-glass');
   try {
     ensureDir(componentDir);

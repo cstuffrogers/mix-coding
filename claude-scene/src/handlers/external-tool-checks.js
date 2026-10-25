@@ -3,6 +3,7 @@ import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
+import { assertSources, listProjectCodeFiles } from '../lib/project-sources.js';
 
 function _resolvePythonTool(toolName, moduleName) {
   // Windows: scan Python Scripts directories for the tool executable
@@ -267,39 +268,39 @@ function _runLiveHeaderScan(targetPath, findings) {
 }
 
 export function handleRecheckCli(_action, _params, targetPath, context) {
-  let issueCount = 0;
-
-  try {
-    const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    const raw = safeExec(
-      `${cmd} recheck "src/**/*.js" 2>&1 || true`,
-      targetPath,
-      { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
-    ).toString();
-
-    // recheck-cli outputs findings as lines with file:line:column
-    // eslint-disable-next-line sonarjs/super-linear-regex
-    const lines = raw.split('\n').filter(l => /^(WARN|ERROR|VULN|✗|×)\b/i.test(l) || /\d+:\d+.*?(redos|backtrack|catastroph)/i.test(l));
-    issueCount = lines.length;
-
-    if (issueCount > 0) {
-      console.log(chalk.red(`  🔴 发现 ${issueCount} 处可疑正则（潜在 ReDoS）`));
-      lines.slice(0, 10).forEach(l => console.log(chalk.dim(`    ${l.trim().slice(0, 150)}`)));
-    } else if (raw.trim() && !raw.includes('Error') && !raw.includes('ENOENT')) {
-      // recheck exited clean with no findings
-    } else if (!raw.trim()) {
-      console.log(chalk.green('  ✅ 未发现 ReDoS 漏洞'));
-    } else {
-      console.log(chalk.dim('  ℹ recheck-cli 扫描完成（无匹配项）'));
-    }
-  } catch (e) {
-    console.log(chalk.dim('  ℹ recheck-cli 不可用或超时，跳过 ReDoS 扫描'), e.message);
+  // [patched:redos-builtin] 原来跑 `npx recheck "src/**/*.js"`：本项目没有 src/，
+  // 且 recheck-cli 不在依赖里 → 两种情况下都是「没有结果」，却都报「无问题」。
+  // 改为内置嵌套量词启发式（ReDoS 的经典形态），不依赖外部 CLI 与网络。
+  const files = listProjectCodeFiles(targetPath).filter((f) => /\.(js|jsx|mjs|cjs|ts|tsx)$/i.test(f));
+  if (!assertSources(files, context, 'ReDoS 扫描')) {
+    return 'ReDoS 扫描失败: 未找到任何 JS/TS 源码（扫描范围为空，结果不可信）';
   }
-
-  if (context) context.recheckPassed = issueCount === 0;
-  return `ReDoS 扫描完成: ${issueCount > 0 ? `${issueCount} 处可疑` : '无问题'}`;
+  // 只认「括号内以量词结尾 + 括号本身也被量词修饰」： (a+)+ / (\w*)* / (.*)+
+  // 普通算术 `(a + 3) * 2` 不会命中（`)` 前必须紧贴「原子+量词」）
+  const NESTED = /\((?:\?:)?\w+[+*]\)[+*]/;
+  const hits = [];
+  for (const file of files) {
+    let content;
+    try {
+      content = readFileSync(file, 'utf-8');
+    } catch {
+      continue;
+    }
+    if (!content.includes('/') && !content.includes('RegExp')) continue;
+    content.split('\n').forEach((line, idx) => {
+      if (!/\/|RegExp/.test(line)) return;
+      if (NESTED.test(line)) hits.push(`${file}:${idx + 1}`);
+    });
+  }
+  if (hits.length > 0) {
+    console.log(chalk.red(`  🔴 发现 ${hits.length} 处嵌套量词正则（潜在 ReDoS）`));
+    hits.slice(0, 10).forEach((h) => console.log(chalk.dim(`    ${h}`)));
+    if (context) context.lastStepFailed = true;
+    return `ReDoS 扫描完成: ${hits.length} 处可疑（扫描 ${files.length} 个文件）`;
+  }
+  console.log(chalk.green(`  ✅ 未发现嵌套量词正则（扫描 ${files.length} 个文件）`));
+  return `ReDoS 扫描完成: 未发现可疑正则（扫描 ${files.length} 个文件）`;
 }
-
 function buildScanTargets(targetPath) {
   const targets = [];
   const skillsDir = join(targetPath, '.claude', 'skills');

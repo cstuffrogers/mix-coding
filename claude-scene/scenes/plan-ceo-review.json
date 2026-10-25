@@ -59,7 +59,8 @@
       "params": {
         "prompt": "如果只给一周，10x 版本长什么样？不做渐进式修补，从第一性原理重新定义问题。不是好 10%，而是好 10 倍。"
       },
-      "description": "10x 分析：从第一性原理重新定义问题，找到突破性方案"
+      "description": "10x 分析：从第一性原理重新定义问题，找到突破性方案",
+      "condition": "conversation_mode"
     },
     {
       "step": 3,
@@ -69,7 +70,8 @@
       "params": {
         "prompt": "什么可以砍？识别 scope creep、镀金需求、过度工程化。最简可上线版本（MLP）需要哪些？哪些是一年后也没人会发现的功能？"
       },
-      "description": "精简化：识别 scope creep 和可砍功能"
+      "description": "精简化：识别 scope creep 和可砍功能",
+      "condition": "conversation_mode"
     },
     {
       "step": 4,
@@ -79,7 +81,8 @@
       "params": {
         "prompt": "用户会注意到并关心吗？这个功能移动什么核心指标？如果不上线用户会流失吗？影响哪些用户画像？"
       },
-      "description": "用户价值：评估核心指标影响和用户感知度"
+      "description": "用户价值：评估核心指标影响和用户感知度",
+      "condition": "conversation_mode"
     },
     {
       "step": 5,
@@ -93,7 +96,8 @@
           "cut": "镀金/过度工程/没人会注意，砍掉或永久推迟"
         }
       },
-      "description": "三桶分类：Must-Do / Nice-to-Have / Cut"
+      "description": "三桶分类：Must-Do / Nice-to-Have / Cut",
+      "condition": "conversation_mode"
     },
     {
       "step": 6,
@@ -104,7 +108,8 @@
         "format": "markdown",
         "output": ".claude/ceo-review-{timestamp}.md"
       },
-      "description": "生成结构化审查报告：每条建议含是什么/为什么/用户影响/建议行动"
+      "description": "生成结构化审查报告：每条建议含是什么/为什么/用户影响/建议行动",
+      "condition": "conversation_mode"
     },
     {
       "step": 7,
