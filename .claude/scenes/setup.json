@@ -28,8 +28,16 @@
       "params": {
         "prompt": "搭建什么设施？（3秒无操作默认 E2E 测试）",
         "options": [
-          { "id": "e2e", "label": "E2E 测试（MSW + Supertest + Schemathesis）", "default": true },
-          { "id": "monitor", "label": "网站监控（Upptime + GitHub Actions）", "default": false }
+          {
+            "id": "e2e",
+            "label": "E2E 测试（MSW + Supertest + Schemathesis）",
+            "default": true
+          },
+          {
+            "id": "monitor",
+            "label": "网站监控（Upptime + GitHub Actions）",
+            "default": false
+          }
         ]
       },
       "description": "选择设施类型，存入 context.setup_kind"
@@ -39,7 +47,9 @@
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
-      "params": { "skill": "review-checklist" },
+      "params": {
+        "skill": "review-checklist"
+      },
       "description": "Pre-flight: 加载审查清单",
       "condition": "conversation_mode"
     },
@@ -48,11 +58,19 @@
       "layer": "capability",
       "service": "MemoryService",
       "action": "recall",
-      "params": { "keywords": ["e2e", "test", "monitor", "uptime", "mock"] },
+      "params": {
+        "keywords": [
+          "e2e",
+          "test",
+          "monitor",
+          "uptime",
+          "mock"
+        ]
+      },
       "description": "注入测试/监控相关记忆"
     },
     {
-      "step": 2,
+      "step": 2.1,
       "layer": "capability",
       "service": "E2EService",
       "action": "setupE2E",
@@ -61,7 +79,7 @@
       "condition": "setup_kind === 'e2e'"
     },
     {
-      "step": 2,
+      "step": 2.2,
       "layer": "capability",
       "service": "MonitorService",
       "action": "setupMonitor",
@@ -74,7 +92,9 @@
       "layer": "capability",
       "service": "QualityService",
       "action": "checkGate",
-      "params": { "gate": "setup_config" },
+      "params": {
+        "gate": "setup_config"
+      },
       "description": "配置质量门禁"
     },
     {
@@ -82,7 +102,9 @@
       "layer": "capability",
       "service": "QualityService",
       "action": "autoFix",
-      "params": { "maxAttempts": 3 },
+      "params": {
+        "maxAttempts": 3
+      },
       "description": "自动修复配置问题",
       "on_error": "retry"
     },
@@ -91,7 +113,9 @@
       "layer": "capability",
       "service": "NotificationService",
       "action": "send",
-      "params": { "level": "warning" },
+      "params": {
+        "level": "warning"
+      },
       "description": "配置失败通知（仅在设施未成功搭建时触发）",
       "condition": "setupConfigured == false"
     },
@@ -100,7 +124,9 @@
       "layer": "capability",
       "service": "MemoryService",
       "action": "remember",
-      "params": { "type": "general" },
+      "params": {
+        "type": "general"
+      },
       "description": "保存搭建结果"
     },
     {
@@ -124,7 +150,9 @@
       "layer": "runtime",
       "service": "NotificationService",
       "action": "notify",
-      "params": { "title": "测试/监控设施搭建完成" },
+      "params": {
+        "title": "测试/监控设施搭建完成"
+      },
       "description": "完成通知"
     }
   ],

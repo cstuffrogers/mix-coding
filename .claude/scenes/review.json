@@ -366,7 +366,7 @@
       "condition": "selected_modes.includes('security_deep') && frontend_involved"
     },
     {
-      "step": 4.6,
+      "step": 4.55,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "sensitive-file-check",
@@ -375,7 +375,7 @@
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
-      "step": 4.45,
+      "step": 4.56,
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "security-headers",
@@ -384,7 +384,7 @@
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
-      "step": 4.47,
+      "step": 4.57,
       "layer": "capability",
       "service": "SkillSecurityService",
       "action": "skillspector-scan",
@@ -399,7 +399,7 @@
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
-      "step": 4.48,
+      "step": 4.58,
       "layer": "capability",
       "service": "CodeGraphMCP",
       "action": "analyzeSecurityVulnerabilities",
@@ -408,6 +408,26 @@
       },
       "description": "使用 CodeGraph MCP 分析代码安全漏洞和依赖关系",
       "condition": "codegraph_mcp_available && (selected_modes.includes('security_deep') || selected_modes.includes('full_audit'))"
+    },
+    {
+      "step": 4.6,
+      "layer": "capability",
+      "service": "Semgrep",
+      "action": "semgrep",
+      "params": {
+        "ruleset": "logic-io"
+      },
+      "description": "Semgrep 逻辑缺陷与输入输出校验扫描（离线规则包，覆盖 SQL 拼接/eval/反序列化/路径穿越/命令注入）",
+      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
+    },
+    {
+      "step": 4.61,
+      "layer": "capability",
+      "service": "CodeQL",
+      "action": "codeql",
+      "params": {},
+      "description": "CodeQL 数据流污点追踪（未安装则跳过并给出安装命令）",
+      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
       "step": 5,

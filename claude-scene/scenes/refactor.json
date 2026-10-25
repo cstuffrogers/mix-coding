@@ -159,7 +159,7 @@
       "description": "检测God Object、长方法、重复代码等反模式"
     },
     {
-      "step": 6.5,
+      "step": 6.4,
       "layer": "skill",
       "service": "Skill",
       "action": "invokeSkill",
@@ -170,7 +170,7 @@
       "condition": "crg_skill_available"
     },
     {
-      "step": 6.4,
+      "step": 6.5,
       "layer": "capability",
       "service": "MattPocockSkill",
       "action": "mp-zoom-out",

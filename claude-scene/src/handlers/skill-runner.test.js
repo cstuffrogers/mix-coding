@@ -32,21 +32,28 @@ describe('handleInvokeSkill', () => {
   );
 
   it('reads SKILL.md and returns checklist count for review-checklist', () => {
-    // Create the skill file at expected relative path
-    const skillDir = join(tmp, '..', '.claude', 'skills', 'review-checklist');
+    // resolveSkillPath() looks for skills at `targetPath/..`, so targetPath has to
+    // be a subdirectory of the sandbox. Passing `tmp` itself pointed the lookup at
+    // the repo's real .claude/skills/, and the fixture below overwrote the tracked
+    // SKILL.md on every test run.
+    const projectDir = join(tmp, 'project');
+    mkdirSync(projectDir, { recursive: true });
+    const skillDir = join(tmp, '.claude', 'skills', 'review-checklist');
     mkdirSync(skillDir, { recursive: true });
     writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: review-checklist\n---\n## Section\n- [ ] item one\n- [ ] item two\n');
-    const result = handleInvokeSkill('invokeSkill', { skill: 'review-checklist' }, tmp, {});
+    const result = handleInvokeSkill('invokeSkill', { skill: 'review-checklist' }, projectDir, {});
     expect(result).toContain('参考内容已展示');
     expect(result).toContain('2 项清单');
   });
 
   it('populates context with skill data when context provided', () => {
-    const skillDir = join(tmp, '..', '.claude', 'skills', 'review-checklist');
+    const projectDir = join(tmp, 'project');
+    mkdirSync(projectDir, { recursive: true });
+    const skillDir = join(tmp, '.claude', 'skills', 'review-checklist');
     mkdirSync(skillDir, { recursive: true });
     writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: review-checklist\n---\n## Section\n- [ ] item\n');
     const ctx = {};
-    handleInvokeSkill('invokeSkill', { skill: 'review-checklist' }, tmp, ctx);
+    handleInvokeSkill('invokeSkill', { skill: 'review-checklist' }, projectDir, ctx);
     expect(ctx['skill_review-checklist_checklist']).toBeDefined();
     expect(ctx['skill_review-checklist_name']).toBe('review-checklist');
   });

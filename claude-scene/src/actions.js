@@ -39,6 +39,7 @@ import { handleMemoryRecall, handleMemoryRemember, handleConsolidate, handleList
 import { handleCodeScan, handlePerformanceProfile, handleCodeMetrics, handleDetectAntiPatterns, handleGenerateReport } from './handlers/code-metrics.js';
 import { handleSecurityScan, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecurityVulnerabilities, handleLogSanitization, handleCorsCheck, handleEnvVarLeak, handleSensitiveFileCheck, handleDeprecatedDeps } from './handlers/security-scanning.js';
 import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan, handleActionlint, handleZizmor, handleJscpd, handleSizeLimit, handleStryker, handleSpectral, handleMarkdownlint, handlePa11yCi, handleDesignMdLint, handleDesignMdExport, handleCodeGraphImpact, handleCodeGraphTrace, handleCodeGuardianOptimize } from './handlers/external-tool-checks.js';
+import { handleSemgrepScan, handleCodeQLScan } from './handlers/deep-review-tools.js';
 import { handleLighthouseGate } from './handlers/lighthouse.js';
 import { handleOpenRedirectScan } from './handlers/open-redirect.js';
 import { handleI18nAudit } from './handlers/i18n.js';
@@ -372,6 +373,15 @@ export const ACTION_REGISTRY = {
 	designMdLint: handleDesignMdLint,
 	'design-md-export': handleDesignMdExport,
 	designMdExport: handleDesignMdExport,
+
+	// 深层逻辑/IO 缺陷扫描（docs/补充.md 工具落地）
+	// 只保留能离线真跑的：semgrep（模式+污点规则包）、codeql（数据流，缺失则跳过并给安装命令）。
+	// SonarQube / open-code-review / ai-codereviewer 需要自建服务器、无本地 CLI 或仅 Action 形态，
+	// 留在工作流里只会产生永久 noop，接入方式改由 review-checklist skill 记录。
+	semgrep: handleSemgrepScan,
+	'semgrep-scan': handleSemgrepScan,
+	codeql: handleCodeQLScan,
+	'codeql-scan': handleCodeQLScan,
 
   aiFriendlyReview: handleAiFriendlyReview,
   'ai-friendly-review': handleAiFriendlyReview,

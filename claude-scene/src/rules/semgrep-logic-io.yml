@@ -1,0 +1,160 @@
+# Semgrep rule pack: logic defects + input/output validation.
+#
+# Complements the "known vulnerability class" scanners (threat-scan: SQLi/XSS/
+# secrets) with *semantic* defect patterns that static grep cannot express:
+# unchecked external input reaching a dangerous sink, swallowing control flow,
+# and resource lifetime bugs.
+#
+# Constraints that shaped this file:
+#   - ASCII only. Windows Python defaults to GBK; non-ASCII messages make
+#     semgrep die with UnicodeDecodeError before producing any finding.
+#   - Offline. `--config auto` requires semgrep metrics (network), so every
+#     rule must resolve locally.
+#   - Low noise. A rule that fires on harmless code trains users to ignore it.
+#
+# Request-source metavariables are matched with metavariable-regex rather than
+# written inline: semgrep rejects `$REQ.body...` as an invalid pattern.
+rules:
+  # ── Input validation: external input reaching SQL ──────────────────
+  - id: logic-sql-string-concat
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      SQL statement built by string concatenation. External input can alter
+      query structure. Use parameterized queries.
+    patterns:
+      - pattern-either:
+          - pattern: $DB.query("..." + $X, ...)
+          - pattern: $DB.query(`...${$X}...`, ...)
+          - pattern: $DB.execute("..." + $X, ...)
+
+  # ── Dynamic code execution ─────────────────────────────────────────
+  - id: logic-dynamic-code-exec
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Dynamic evaluation of a string. If any part is request-derived this is
+      remote code execution.
+    pattern-either:
+      - pattern: eval($X)
+      - pattern: new Function(...)
+
+  # ── Unsafe deserialization ─────────────────────────────────────────
+  - id: logic-unsafe-deserialize
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Deserializing external data into live objects. Attacker-controlled
+      payloads can forge object graphs and reach gadget chains.
+    pattern-either:
+      - pattern: unserialize(...)
+      - pattern: $X.unserialize(...)
+
+  # ── IO: unvalidated external payload parse ─────────────────────────
+  - id: io-json-parse-request-body
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Parsing a request payload directly. Malformed input throws and, without
+      schema validation, unexpected fields flow downstream unchecked.
+    patterns:
+      - pattern: JSON.parse($X)
+      - metavariable-regex:
+          metavariable: $X
+          regex: ^(req|request)\.(body|query|params)\b
+
+  # ── IO: XSS sinks ──────────────────────────────────────────────────
+  - id: io-dom-innerhtml-sink
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Assigning to innerHTML/outerHTML. Values interpolated here are parsed as
+      HTML; use textContent unless the markup is trusted and sanitized.
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $X
+          - pattern: $EL.outerHTML = $X
+          - pattern: $EL.insertAdjacentHTML($POS, $X)
+      - pattern-not: $EL.innerHTML = "..."
+      - pattern-not: $EL.innerHTML = `...`
+
+  # ── IO: path traversal from request ────────────────────────────────
+  - id: io-path-from-request
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Filesystem path derived from request input without normalization.
+      A sequence of ../ escapes the intended root.
+    patterns:
+      - pattern-either:
+          - pattern: $FS.readFile($X, ...)
+          - pattern: $FS.readFileSync($X, ...)
+          - pattern: $RES.sendFile($X, ...)
+          - pattern: $RES.download($X, ...)
+      - metavariable-regex:
+          metavariable: $X
+          regex: .*\b(req|request)\.(body|query|params)\b.*
+
+  # ── IO: open redirect ──────────────────────────────────────────────
+  - id: io-open-redirect
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Redirect target comes from request input. Restrict to an allowlist or
+      relative paths only.
+    patterns:
+      - pattern-either:
+          - pattern: $RES.redirect($X, ...)
+          - pattern: $RES.location($X, ...)
+      - metavariable-regex:
+          metavariable: $X
+          regex: .*\b(req|request)\.(body|query|params)\b.*
+
+  # ── IO: command injection ──────────────────────────────────────────
+  - id: io-shell-concat-request
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Shell command built from request input. Use execFile/spawn with an
+      argument array.
+    patterns:
+      - pattern-either:
+          - pattern: $CP.exec($CMD, ...)
+          - pattern: $CP.execSync($CMD, ...)
+      - metavariable-regex:
+          metavariable: $CMD
+          regex: .*\b(req|request)\..*
+
+  # Note: empty `catch {}` is deliberately NOT a rule here. Probe/best-effort
+  # code (`try { parse() } catch { /* ignore */ }`) is legitimate, ESLint
+  # `no-empty` already reports it, and it produced 95 hits across this repo
+  # with zero true positives.
+
+  # ── Control flow: floating promise ─────────────────────────────────
+  - id: logic-floating-promise-in-try
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Promise started but never awaited inside a try block. Rejections bypass
+      the try/catch and surface as unhandled rejections.
+    patterns:
+      - pattern: |
+          try { ...; $P.then(...); ... } catch ($E) { ... }
+      - pattern-not: |
+          try { ...; await $P.then(...); ... } catch ($E) { ... }
+      - pattern-not: |
+          try { ...; return $P.then(...); ... } catch ($E) { ... }
+
+  # ── Resource lifetime ──────────────────────────────────────────────
+  - id: logic-unclosed-handle
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      File handle opened synchronously and not closed on this path. Repeated
+      calls exhaust file descriptors.
+    patterns:
+      - pattern: $H = $FS.openSync(...)
+      - pattern-not-inside: |
+          ...
+          $FS.closeSync($H)
+          ...

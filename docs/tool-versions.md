@@ -120,6 +120,40 @@
 > - Go/Rust 二进制: `trivy --version` / `gitleaks version` 等,对比 GitHub releases
 > - npx 零安装工具: 每次跑都拉最新,无需手动更新
 
+### 3.1 逻辑/输入输出缺陷扫描（review 工作流 4.6 / 4.61）
+
+现有安全步骤（`threat-scan` / `open-redirect` / `recheck-cli`）都是**浏览器端取向 + 已知注入模式**的纯正则扫描,
+缺少"外部输入是否校验""语义类缺陷"这个维度。实测量化: 一份 11 行、含 8 类漏洞的样本,
+现有步骤只抓到 2 类（SQL 拼接、innerHTML）,其余 6 类全部漏掉,其中服务端
+`res.redirect(req.query.next)` 还会被 `open-redirect` 报成"未发现风险"（它只扫 `location.href`/`window.open`）。
+
+因此 review 工作流接入两个**能离线真跑**的工具，且只留这两个：
+
+| 步骤 | 工具 | 本地规则/能力 | 缺失时行为 |
+|------|------|--------------|-----------|
+| 4.6 `semgrep` | semgrep ≥1.0（pip） | 引擎自带 `claude-scene/src/rules/semgrep-logic-io.yml`（10 条规则）,项目根 `.semgrep.yml` 优先覆盖 | 报「跳过」→ 计为 noop |
+| 4.61 `codeql` | CodeQL CLI | 跨过程数据流/污点追踪（模式匹配替代不了） | 报「跳过」并打印建库命令 |
+
+规则包覆盖: SQL 字符串拼接、动态代码执行（eval/Function）、不安全反序列化、请求体直入 JSON.parse、
+innerHTML 汇点、请求参数派生文件路径（穿越）、服务端开放重定向、请求参数拼 shell 命令、
+try 块内浮空 Promise、未关闭的文件句柄。
+
+**Windows 注意事项**: pip 装的 `semgrep.exe` 是 shim,会按名 exec `pysemgrep`,
+所以光解析绝对路径不够,必须把 `%APPDATA%\Python\Python3xx\Scripts` 注入 PATH;
+Python 默认 GBK 会让含非 ASCII 的规则文件解析失败,调用时须设 `PYTHONUTF8=1`。
+两点都由 `src/handlers/deep-review-tools.js` 的 `_probeEnv()` / `_runSemgrep()` 处理。
+
+### 3.2 有意**不**接入工作流的工具
+
+以下三个工具无法在本地 CLI 真跑,留在工作流里只会每次贡献一个永久 noop、稀释信噪比
+（而 noop 在本引擎里代表"未验证",会干扰验收判断）。接入方式记在这里,需要时手工加：
+
+| 工具 | 为何不接入 | 想用时怎么做 |
+|------|-----------|-------------|
+| SonarQube / sonar-scanner | 需自建服务器或 SonarCloud 令牌 + `sonar-project.properties` | 装 `sonar-scanner`,写好 properties 后手动跑 |
+| Alibaba open-code-review | npm/pip 均无包,无本地 CLI | 部署其 Review Agent 服务,或对话模式调用 |
+| ai-codereviewer | 仅 GitHub Action 形态 | 加 `.github/workflows/ai-review.yml`,交给 CI |
+
 ---
 
 ## 4. MCP 服务器 (`.mcp.json`)
@@ -138,6 +172,8 @@
 
 | 日期 | 工具 | 变更 | Commit | 备注 |
 |------|------|------|--------|------|
+| 2026-07-25 | `semgrep` / `CodeQL` | 新增集成 | — | review 4.6 / 4.61; 自带离线规则包 10 条; Windows 需 PATH+PYTHONUTF8 |
+| 2026-07-25 | SonarQube / open-code-review / ai-codereviewer | **不接入** | — | 无法本地 CLI 真跑, 接入方式见 3.2 |
 | 2026-10-24 | `speckit-*` (11 个) | specify-cli 0.14.3.dev0 → **1.2.3** | — | 新增 scripts/handoffs/tools 字段, hook 处理细节优化 |
 | 2026-10-24 | `speckit-*` (6 个) | 集成到场景 | — | analyze→review, checklist→feature, constitution→new-project, converge→feature, taskstoissues→feature, clarify→spec 命令 |
 | 2026-10-24 | `mattpocock` | 核查: v1.2.x 本地定制 → v1.3.1 | — | 上游有 37 个技能,本地保留 29 个定制版 |

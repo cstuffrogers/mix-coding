@@ -34,20 +34,30 @@ describe('safeExec', () => {
     );
   });
 
-  it('executes command with cd into sanitized cwd', () => {
+  it('runs the command in the sanitized cwd without a shell cd prefix', () => {
     existsSync.mockReturnValue(true);
     execSync.mockReturnValue('output');
     const result = safeExec('npm test', '/valid/path', { stdio: 'pipe' });
-    expect(execSync).toHaveBeenCalledWith('cd "/valid/path" && npm test', { stdio: 'pipe' });
+    // cwd must go through execSync's option: a shell `cd ...` prefix does not
+    // switch drives in cmd.exe, silently running in the engine directory.
+    expect(execSync).toHaveBeenCalledWith('npm test', { stdio: 'pipe', cwd: '/valid/path' });
     expect(result).toBe('output');
   });
 
   it('passes through additional execSync options', () => {
     existsSync.mockReturnValue(true);
     safeExec('npm install', '/valid/path', { stdio: 'inherit', timeout: 30000 });
-    expect(execSync).toHaveBeenCalledWith('cd "/valid/path" && npm install', {
+    expect(execSync).toHaveBeenCalledWith('npm install', {
       stdio: 'inherit',
       timeout: 30000,
+      cwd: '/valid/path',
     });
+  });
+
+  it('keeps a caller-supplied env while overriding cwd', () => {
+    existsSync.mockReturnValue(true);
+    const env = { PATH: '/custom' };
+    safeExec('semgrep --version', '/valid/path', { env });
+    expect(execSync).toHaveBeenCalledWith('semgrep --version', { env, cwd: '/valid/path' });
   });
 });
