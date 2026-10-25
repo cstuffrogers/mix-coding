@@ -120,28 +120,49 @@
 > - Go/Rust 二进制: `trivy --version` / `gitleaks version` 等,对比 GitHub releases
 > - npx 零安装工具: 每次跑都拉最新,无需手动更新
 
-### 3.1 逻辑/输入输出缺陷扫描（review 工作流 4.6 / 4.61）
+### 3.1 缺陷检测的三个维度（互不替代）
 
-现有安全步骤（`threat-scan` / `open-redirect` / `recheck-cli`）都是**浏览器端取向 + 已知注入模式**的纯正则扫描,
-缺少"外部输入是否校验""语义类缺陷"这个维度。实测量化: 一份 11 行、含 8 类漏洞的样本,
-现有步骤只抓到 2 类（SQL 拼接、innerHTML）,其余 6 类全部漏掉,其中服务端
-`res.redirect(req.query.next)` 还会被 `open-redirect` 报成"未发现风险"（它只扫 `location.href`/`window.open`）。
+| 维度 | 工具/步骤 | 抓得到 | 抓不到 |
+|------|----------|--------|--------|
+| **静态分析** | `review` 4.6 `semgrep` | 外部输入流向危险汇点（SQL/命令注入、路径穿越、反序列化、开放重定向） | 逻辑错：语法合法、无可疑模式，只是算错 |
+| **运行时 · 属性测试** | `setup` 2.3 `propertyTestScout`（fast-check / hypothesis） | 逻辑错：off-by-one、不变量违反、边界条件 | 没装库或没写用例就跑不了 |
+| **运行时 · 变异测试** | `qa` 6.5 `stryker` | 测试本身有没有效力（存活变异体 = 测试没覆盖的路径） | 耗时；需 stryker 配置 |
+| **LLM 语义审查** | `sec-bug-hunt` / `mp-review` / `review-checklist` | 跨文件意图、设计缺陷 | 不确定、不可复现，会漏也会编 |
 
-因此 review 工作流接入两个**能离线真跑**的工具，且只留这两个：
+关键认知：**semgrep 只能做上表第一行**。实测量化 —— 一份 11 行、含 8 类漏洞的样本，现有正则类安全步骤只抓到 2 类，
+semgrep 抓到 9 处；而一段「分页少返回一个元素」的代码，semgrep/CodeQL **零命中**，
+fast-check 跑 69 次后自动收缩出最小反例 `[[0,0],0,1]`。所以"加工具"不等于"能力提升"，维度才是。
 
-| 步骤 | 工具 | 本地规则/能力 | 缺失时行为 |
-|------|------|--------------|-----------|
-| 4.6 `semgrep` | semgrep ≥1.0（pip） | 引擎自带 `claude-scene/src/rules/semgrep-logic-io.yml`（10 条规则）,项目根 `.semgrep.yml` 优先覆盖 | 报「跳过」→ 计为 noop |
-| 4.61 `codeql` | CodeQL CLI | 跨过程数据流/污点追踪（模式匹配替代不了） | 报「跳过」并打印建库命令 |
+#### semgrep（`review` 4.6）
 
-规则包覆盖: SQL 字符串拼接、动态代码执行（eval/Function）、不安全反序列化、请求体直入 JSON.parse、
+自带规则包 `claude-scene/src/rules/semgrep-logic-io.yml`（10 条），项目根 `.semgrep.yml` 优先覆盖。
+覆盖：SQL 字符串拼接、动态代码执行（eval/Function）、不安全反序列化、请求体直入 JSON.parse、
 innerHTML 汇点、请求参数派生文件路径（穿越）、服务端开放重定向、请求参数拼 shell 命令、
 try 块内浮空 Promise、未关闭的文件句柄。
 
-**Windows 注意事项**: pip 装的 `semgrep.exe` 是 shim,会按名 exec `pysemgrep`,
-所以光解析绝对路径不够,必须把 `%APPDATA%\Python\Python3xx\Scripts` 注入 PATH;
-Python 默认 GBK 会让含非 ASCII 的规则文件解析失败,调用时须设 `PYTHONUTF8=1`。
+缺失时行为：报「跳过」→ 计为 noop，绝不假通过。
+
+**Windows 注意事项**：pip 装的 `semgrep.exe` 是 shim，会按名 exec `pysemgrep`，
+所以光解析绝对路径不够，必须把 `%APPDATA%\Python\Python3xx\Scripts` 注入 PATH；
+Python 默认 GBK 会让含非 ASCII 的规则文件解析失败，调用时须设 `PYTHONUTF8=1`。
 两点都由 `src/handlers/deep-review-tools.js` 的 `_probeEnv()` / `_runSemgrep()` 处理。
+
+**扫描范围**必须与源码清单对齐（`buildSemgrepTargets()`）：直接扫 `.` 会把 `coverage/` 生成物、
+vendored UMD bundle、嵌套仓库（自带 `.git`）一起扫进来。本仓库曾因此报 12 处，
+全是这类文件，真实代码 0 处。
+
+#### 属性测试（`setup` 2.3）
+
+`setup --auto` 默认走 e2e 分支，显式选 `property` 才跑：
+
+```bash
+node claude-scene/src/index.js start setup --auto   # 走 e2e
+# 交互选择「属性测试设施」→ 跑 propertyTestScout
+```
+
+检测 `fast-check`（JS）/ `hypothesis`（Python）→ 找引用该库的测试文件 → 用项目自己的 runner 跑。
+**从不擅自安装依赖、不写目标项目文件**。三条 SKIP 路径都区分清楚：
+库没装 / 装了但没有用例（runner 报 "No test files"）/ 没有 runner。
 
 ### 3.2 有意**不**接入工作流的工具
 
@@ -151,6 +172,10 @@ Python 默认 GBK 会让含非 ASCII 的规则文件解析失败,调用时须设
 | 工具 | 为何不接入 | 想用时怎么做 |
 |------|-----------|-------------|
 | SonarQube / sonar-scanner | 需自建服务器或 SonarCloud 令牌 + `sonar-project.properties` | 装 `sonar-scanner`,写好 properties 后手动跑 |
+| CodeQL | 需 GitHub 下载 ~1GB bundle；query pack 对私有仓库要 GitHub Advanced Security 许可 | 网络可达时手工建库分析 |
+| Bearer SAST | Go 二进制，需 Go proxy / GitHub releases / Docker Hub —— 三者本机均不可达（`pip bearer` 是另一个 python helper 库） | 网络恢复后 `brew install bearer/tap/bearer` |
+| Joern | CPG 代码属性图，需 GitHub release zip（含 JVM），无 pip/npm 包 | 网络恢复后下载 release 手动装 |
+| Infer (facebook) | 无 Windows 支持，需 GitHub release / opam（`npm infer` 是「从邮箱猜名字」的假包） | 在 Linux/macOS 或 WSL 下装 |
 | Alibaba open-code-review | npm/pip 均无包,无本地 CLI | 部署其 Review Agent 服务,或对话模式调用 |
 | ai-codereviewer | 仅 GitHub Action 形态 | 加 `.github/workflows/ai-review.yml`,交给 CI |
 
@@ -172,7 +197,9 @@ Python 默认 GBK 会让含非 ASCII 的规则文件解析失败,调用时须设
 
 | 日期 | 工具 | 变更 | Commit | 备注 |
 |------|------|------|--------|------|
-| 2026-07-25 | `semgrep` / `CodeQL` | 新增集成 | — | review 4.6 / 4.61; 自带离线规则包 10 条; Windows 需 PATH+PYTHONUTF8 |
+| 2026-07-25 | `fast-check` 4.10.2 / `Stryker` 10.1.1 | 新增集成 | — | setup 2.3 属性测试 / qa 6.5 变异测试; 抓静态分析抓不到的逻辑错 |
+| 2026-07-25 | `CodeQL` | **移除** | — | 需 ~1GB bundle + 私有仓库要 GHAS 许可; 网络到不了 GitHub = 永久 noop |
+| 2026-07-25 | `semgrep` | 新增集成 | — | review 4.6; 自带离线规则包 10 条; Windows 需 PATH+PYTHONUTF8 |
 | 2026-07-25 | SonarQube / open-code-review / ai-codereviewer | **不接入** | — | 无法本地 CLI 真跑, 接入方式见 3.2 |
 | 2026-10-24 | `speckit-*` (11 个) | specify-cli 0.14.3.dev0 → **1.2.3** | — | 新增 scripts/handoffs/tools 字段, hook 处理细节优化 |
 | 2026-10-24 | `speckit-*` (6 个) | 集成到场景 | — | analyze→review, checklist→feature, constitution→new-project, converge→feature, taskstoissues→feature, clarify→spec 命令 |

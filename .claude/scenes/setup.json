@@ -37,6 +37,11 @@
             "id": "monitor",
             "label": "网站监控（Upptime + GitHub Actions）",
             "default": false
+          },
+          {
+            "id": "property",
+            "label": "属性测试设施（fast-check / hypothesis：发现逻辑错，非静态扫描）",
+            "default": false
           }
         ]
       },
@@ -86,6 +91,15 @@
       "params": {},
       "description": "生成监控配置：检测项目类型 → .upptimerc.yml + GitHub Actions 工作流",
       "condition": "setup_kind === 'monitor'"
+    },
+    {
+      "step": 2.3,
+      "layer": "capability",
+      "service": "TestingService",
+      "action": "propertyTestScout",
+      "params": {},
+      "condition": "setup_kind === 'property'",
+      "description": "属性测试设施：检测 fast-check/hypothesis，跑现有属性测试。静态分析抓不到的逻辑错（off-by-one、不变量违反）只能靠它"
     },
     {
       "step": 3,

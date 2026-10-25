@@ -573,54 +573,63 @@ function parseStrykerText(raw) {
   return null;
 }
 
-function logStrykerScore(score) {
-  if (score >= 80) {
-    return true;
+// Stryker 的 json reporter 写到文件（reports/mutation/mutation.json），
+// 不是 stdout —— 原来对 stdout 整体 JSON.parse 几乎必然失败，静默退化成
+// 「通过」。这里先读报告文件，再退回文本解析。
+function readStrykerReport(targetPath) {
+  const candidates = [
+    'reports/mutation/mutation.json',
+    'reports/mutation/mutation-report.json',
+    'mutation-report.json',
+  ];
+  for (const rel of candidates) {
+    const file = join(targetPath, rel);
+    if (!existsSync(file)) continue;
+    try {
+      const parsed = parseStrykerJson(readFileSync(file, 'utf-8'));
+      if (parsed) return parsed;
+    } catch {
+      /* 试下一个候选文件 */
+    }
   }
-  if (score >= 60) {
-    return true;
-  }
-  return false;
+  return null;
 }
 
 export function handleStryker(_action, _params, targetPath, context) {
   if (!hasStrykerConfig(targetPath)) {
-    if (context) context.strykerPassed = true;
-    return 'Stryker 变异测试完成: 无 stryker 配置，已跳过';
+    // 没配置就没跑。置 passed 等于「没验证却算通过」——这正是本引擎要杜绝的。
+    if (context) context.strykerSkipped = true;
+    return 'Stryker 跳过: 无 stryker 配置（npm i -D @stryker-mutator/core 后可启用变异测试）';
   }
-
-  let isPassed = true;
-  let score = 0;
-  let killed = 0;
-  let survived = 0;
 
   try {
     const raw = safeExec(
       'npx stryker run --reporter json 2>&1 || true',
       targetPath,
-      { stdio: 'pipe', maxBuffer: 4 * 1024 * 1024, timeout: 300000 }
+      { stdio: 'pipe', maxBuffer: 4 * 1024 * 1024, timeout: 600000 },
     ).toString();
 
-    const jsonResult = parseStrykerJson(raw);
-    const textResult = jsonResult || parseStrykerText(raw);
-
-    if (textResult) {
-      score = textResult.score;
-      killed = textResult.killed;
-      survived = textResult.survived;
+    const report = readStrykerReport(targetPath) || parseStrykerText(raw);
+    if (!report || !report.score) {
+      if (context) context.strykerSkipped = true;
+      return 'Stryker 跳过: 未产生变异测试报告（检查 stryker 配置与测试命令）';
     }
 
-    if (score > 0) {
-      isPassed = logStrykerScore(score);
-    } else if (!textResult) {
-      console.log(chalk.dim('  ℹ Stryker 不可用，跳过变异测试'));
+    const { score, killed, survived } = report;
+    if (context) {
+      context.strykerScore = score;
+      context.strykerSurvived = survived;
+      context.strykerPassed = survived === 0;
     }
+    console.log(chalk.dim(`  ℹ 变异分数 ${score.toFixed(1)}%（杀死 ${killed} / 存活 ${survived}）`));
+    // 有存活变异体说明测试没覆盖到该路径 —— 归 warn，不归 pass。
+    return survived > 0
+      ? `Stryker 变异测试完成: 分数 ${score.toFixed(1)}%，${survived} 处发现（存活变异体，测试未覆盖）`
+      : `Stryker 变异测试完成: 分数 ${score.toFixed(1)}%，变异体全部被杀死`;
   } catch {
-    console.log(chalk.dim('  ℹ Stryker 不可用，跳过变异测试'));
+    if (context) context.strykerSkipped = true;
+    return 'Stryker 跳过: 执行失败';
   }
-
-  if (context) context.strykerPassed = isPassed;
-  return `Stryker 变异测试完成: ${score > 0 ? `分数 ${score.toFixed(1)}%（Killed: ${killed}, Survived: ${survived}）` : isPassed ? '通过' : '失败'}`;
 }
 
 // ── Spectral — API/OpenAPI linting (2.5k+ stars) ──

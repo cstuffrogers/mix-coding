@@ -229,30 +229,3 @@ export function handleSemgrepScan(_action, _params, targetPath, context) {
     ? `Semgrep 逻辑/IO 扫描完成: ${findings.length} 处发现（高危 ${blocking.length} 处）`
     : 'Semgrep 逻辑/IO 扫描完成: 无发现';
 }
-
-// ── CodeQL — dataflow / taint tracking ────────────────────────────────
-// Nothing here fakes a pass: without the CLI bundle the step reports skip.
-export function handleCodeQLScan(_action, _params, targetPath, context) {
-  const probe = _probeCommand('codeql', targetPath);
-  if (!probe || !/CodeQL/i.test(probe.output)) {
-    if (context) context.codeqlSkipped = true;
-    console.log(chalk.dim('  ℹ CodeQL 未安装，跳过数据流分析'));
-    console.log(chalk.dim('    安装: gh extension install github/gh-codeql  (或下载 codeql bundle 并加入 PATH)'));
-    return 'CodeQL 跳过: 未安装（数据流/污点追踪需 codeql bundle）';
-  }
-
-  const files = listProjectCodeFiles(targetPath);
-  if (!files.length) {
-    assertSources(files, context, 'CodeQL 数据流分析');
-    return 'CodeQL 失败: 扫描范围为 0 个源码文件';
-  }
-
-  // Building a CodeQL database is language- and build-system-specific; the
-  // engine cannot know the right command, so hand the exact recipe to the user
-  // instead of guessing and reporting a bogus result.
-  if (context) context.codeqlNeedsManualRun = true;
-  console.log(chalk.cyan('  ▶ 手动执行（需数分钟）:'));
-  console.log(chalk.cyan('    codeql database create /tmp/codeql-db --language=javascript --source-root .'));
-  console.log(chalk.cyan('    codeql database analyze /tmp/codeql-db codeql/javascript-security-extended --format=sarif-latest --output=codeql.sarif'));
-  return 'CodeQL 已安装: 需按上述命令手动建库与分析（构建命令因项目而异）';
-}

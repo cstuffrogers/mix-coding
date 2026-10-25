@@ -6,7 +6,6 @@ import {
   DEFAULT_RULE_PACK,
   parseSemgrepJson,
   resolveSemgrepConfig,
-  handleCodeQLScan,
 } from './deep-review-tools.js';
 
 describe('deep-review-tools', () => {
@@ -97,22 +96,6 @@ describe('deep-review-tools', () => {
     });
   });
 
-  describe('tools without a local CLI report skip, never a pass', () => {    it('codeql marks the step skipped when the CLI is absent', () => {
-      const ctx = {};
-      const dir = mkdtempSync(join(tmpdir(), 'codeql-'));
-      try {
-        const result = handleCodeQLScan(null, null, dir, ctx);
-        // Either skipped (not installed) or asked for a manual run — never a
-        // silent "passed" claiming the analysis happened.
-        expect(ctx.codeqlPassed).toBeUndefined();
-        expect(result).toMatch(/跳过|手动执行|需按/);
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
-    });
-
-  });
-
   describe('result wording drives the engine status classifier', () => {
     // start.js picks the step status from the result string:
     //   NOOP_RES -> noop, WARN_RES -> warn, /失败|阻断/ -> fail.
@@ -142,6 +125,9 @@ describe('deep-review-tools', () => {
 
     it('does not let a defect report read as failure', () => {
       expect(FAIL_RES.test('Semgrep 逻辑/IO 扫描完成: 9 处发现（高危 5 处）')).toBe(false);
+      // Same trap for the property-testing step: a found counterexample is a
+      // defect report, not a failure of the step.
+      expect(classify('属性测试执行完成: 1 处发现（存在不变量违反，已收缩出最小反例）')).toBe('warn');
     });
   });
 });

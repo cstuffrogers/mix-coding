@@ -421,15 +421,6 @@
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
-      "step": 4.61,
-      "layer": "capability",
-      "service": "CodeQL",
-      "action": "codeql",
-      "params": {},
-      "description": "CodeQL 数据流污点追踪（未安装则跳过并给出安装命令）",
-      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
-    },
-    {
       "step": 5,
       "layer": "capability",
       "service": "PerformanceService",
