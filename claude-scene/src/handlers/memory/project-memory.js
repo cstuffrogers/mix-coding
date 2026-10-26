@@ -3,7 +3,7 @@ import { join } from 'path';
 import crypto from 'crypto';
 import { MEMORY_DIR } from '../../lib/paths.js';
 import { ensureDir, writeFileAtomic, withFileLock } from '../../lib/fs-utils.js';
-import { safeTypeName } from './project-scope.js';
+import { safeTypeName, contentFingerprint } from './project-scope.js';
 
 // MEMORY_DIR 是 import 时冻结的常量（= PROJECT_ROOT/.claude/memory）。用 --target
 // 跑别的项目时 PROJECT_ROOT 仍是 cwd，项目记忆就会写进引擎目录而不是目标项目 ——
@@ -19,9 +19,12 @@ function memoryId() {
 // 去重必须看**完整内容**。旧实现拿 JSON 前 200 字符当指纹，而两次审查的前
 // 200 字符几乎一样（`{"findings":{"security":...`），于是第二次被当成重复静默
 // 丢弃，`context.last_memory_id` 还指回上一条 —— 报告说「已保存」，实际什么都没写。
+//
+// 但「完整」不等于「逐字节」：autoRemember 的 data 每轮都带新 timestamp，
+// 逐字节比对永远判不出重复，于是每跑一次场景就多一条内容一样的项目记忆。
+// 指纹统一走 contentFingerprint（结构化规范化 + 忽略易变字段）。
 export function contentHash(value) {
-  const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
-  return crypto.createHash('sha256').update(text).digest('hex').slice(0, 32);
+  return contentFingerprint(value);
 }
 
 export function loadProjectMemories(type, rootDir = null) {

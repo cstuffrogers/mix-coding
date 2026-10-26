@@ -1,4 +1,5 @@
 import { resolve, basename } from 'path';
+import crypto from 'crypto';
 import { realpathSync } from 'fs';
 import { PROJECT_ROOT } from '../../lib/paths.js';
 
@@ -101,4 +102,39 @@ export function classifyScope(storedPath, current) {
 export function includeInRecall(scope, { crossProject = false } = {}) {
   if (scope === 'project' || scope === 'unscoped') return true;
   return crossProject === true;
+}
+
+// ── 内容指纹（写入去重）────────────────────────────────────────
+// 一次场景结束会把同一份结果写进 4 个后端。project-memory 用「完整 JSON 的
+// sha256」去重，但 autoRemember 的 data 里带 timestamp，每轮都不一样 —— 于是
+// claude-mem / agentmemory / NEXO 每跑一次就多一份**内容相同**的副本。
+
+// 写入侧去重的时间窗：同一份内容 7 天内只落一份。窗口不能无限长 ——
+// 那样「每周跑一次同样的检查」就永远只在第一天留一条记录，看不出趋势；
+// 也不能太短（1 小时），否则一天连跑几次场景照样堆副本。
+export const DEDUPE_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
+// 只忽略「时间戳」这一类天然易变的字段。`id` 不能忽略 —— 它就藏在 data 里
+// 用来区分两条记录（实测把 id 当成易变字段后，两条 note 相同、id 不同的
+// 记忆被判成重复，直接丢一条）。
+
+const VOLATILE_KEYS = new Set(['timestamp', 'ts', 'created_at', 'updated_at', 'stored_at', 'archived_at']);
+
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(item => canonicalize(item));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const key of Object.keys(value).sort()) {
+      if (VOLATILE_KEYS.has(key)) continue;
+      const next = canonicalize(value[key]);
+      if (next !== undefined) out[key] = next;
+    }
+    return out;
+  }
+  return value;
+}
+
+export function contentFingerprint(value) {
+  const text = typeof value === 'string' ? value : JSON.stringify(canonicalize(value ?? ''));
+  return crypto.createHash('sha256').update(text).digest('hex').slice(0, 32);
 }

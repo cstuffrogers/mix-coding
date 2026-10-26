@@ -3,11 +3,11 @@ import { join, basename } from 'path';
 import { NEXO_DIR } from '../../lib/paths.js';
 import { scanDir } from '../../lib/scan-dir.js';
 import { writeFileAtomic } from '../../lib/fs-utils.js';
-import { normalizeProjectPath, safeTypeName } from './project-scope.js';
+import { normalizeProjectPath, safeTypeName, DEDUPE_WINDOW_MS } from './project-scope.js';
 
 // NEXO_DIR is frozen at import time; resolve per call so tests can point it at a
 // sandbox instead of the developer's real ~/.nexo.
-function nexoDir() {
+export function nexoDir() {
   return process.env.NEXO_HOME || NEXO_DIR;
 }
 
@@ -54,6 +54,33 @@ export function readNexoData(limit = 20) {
   } catch { return []; }
 }
 
+// 同一个内容在别的项目里是另一条事件：只按指纹判重会把 B 项目的记录吃掉。
+function hasRecentNexoFingerprint(runtimeDir, name, fingerprint, scopePath) {
+  try {
+    // scanDir 的 filter 收到的是**完整路径**，不是文件名 —— 拿完整路径去
+    // startsWith('qa_') 永远为假，去重会静默失效（并让每个事件都多写一份）。
+    const files = scanDir(runtimeDir, { filter: f => {
+      const base = basename(f);
+      return base.startsWith(`${name}_`) && base.endsWith('.json');
+    } })
+      .map(f => {
+        try { return { f, mtime: statSync(f).mtimeMs }; } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtime - a.mtime)
+      .slice(0, 50);
+    for (const { f, mtime } of files) {
+      if (Date.now() - mtime >= DEDUPE_WINDOW_MS) continue;
+      try {
+        const event = JSON.parse(readFileSync(f, 'utf-8'));
+        if (event?.fingerprint !== fingerprint) continue;
+        if (normalizeProjectPath(event?.project?.path) === scopePath) return true;
+      } catch { /* 坏文件跳过 */ }
+    }
+    return false;
+  } catch { return false; }
+}
+
 // 事件文件是 {type, timestamp, project?, data}。老文件没有 project 字段，
 // 解析失败也按无归属处理（召回时标记出来，而不是静默丢掉）。
 function readMeta(content) {
@@ -70,19 +97,26 @@ function typeFromFile(file) {
   return match ? match[1] : '';
 }
 
-export function writeNexoEvent(type, data, project = null) {
+export function writeNexoEvent(type, data, project = null, options = {}) {
   try {
     const runtimeDir = join(nexoDir(), 'runtime');
     if (!existsSync(runtimeDir)) mkdirSync(runtimeDir, { recursive: true });
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     const name = safeTypeName(type);
     const file = join(runtimeDir, `${name}_${ts}.json`);
+    // 最近 50 个同类型事件里已有同指纹就不写了（事件文件是按时间的流水，
+    // 没有别的去重机会，重复跑一次场景就多一份完全相同的文件）。
+    const fingerprint = options.fingerprint || '';
+    if (fingerprint && hasRecentNexoFingerprint(runtimeDir, name, fingerprint, normalizeProjectPath(project?.path))) {
+      return { skipped: true, file: null };
+    }
     const event = { type: name, timestamp: new Date().toISOString(), data };
+    if (fingerprint) event.fingerprint = fingerprint;
     // 入库前归一化：同一项目写成 'E:p' 和 'e:/p' 会分裂成两份归属。
     const scopePath = normalizeProjectPath(project?.path);
     if (scopePath) event.project = { path: scopePath, name: project.name || '' };
     writeFileAtomic(file, JSON.stringify(event, null, 2));
-    return file;
+    return { skipped: false, file };
   } catch { return null; }
 }
 

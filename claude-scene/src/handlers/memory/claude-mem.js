@@ -2,7 +2,7 @@ import { readFileSync, existsSync, readdirSync, unlinkSync, statSync, appendFile
 import { join } from 'path';
 import { CLAUDE_MEM_DIR } from '../../lib/paths.js';
 import { ensureDir, writeFileAtomic, withFileLock } from '../../lib/fs-utils.js';
-import { normalizeProjectPath, safeTypeName } from './project-scope.js';
+import { normalizeProjectPath, safeTypeName, DEDUPE_WINDOW_MS } from './project-scope.js';
 
 // CLAUDE_MEM_DIR 是 import 时冻结的常量；解析放到调用时，测试与多环境才能把
 // 全局库指到沙箱，而不是写进开发者真实的 ~/.claude/memory。
@@ -62,7 +62,7 @@ export function listClaudeMemCategories() {
   } catch { return []; }
 }
 
-export function writeClaudeMemItem(category, entry, project = null) {
+export function writeClaudeMemItem(category, entry, project = null, options = {}) {
   const name = safeTypeName(category);
   const dir = join(claudeMemDir(), 'areas', 'topics', name);
   ensureDir(dir);
@@ -80,11 +80,26 @@ export function writeClaudeMemItem(category, entry, project = null) {
       }
     }
     if (!Array.isArray(items)) { items = []; }
+    // 同分类里已有同指纹的记录就不再写：这个后端一次场景重复跑会堆出 N 份
+    // 完全相同的副本（清单计数一路涨，召回却去重成一条，用户看到的
+    // 「记忆在变多」是假的）。
+    // 只看「最新一条」会漏（两个场景交替写同一分类时重复件排第二位），
+    // 所以扫前 20 条 + 7 天窗口 + **同一项目**（别的项目写同样内容是另一条记忆）。
+    const fingerprint = options.fingerprint || '';
     // project 是这个后端唯一能区分「哪条属于哪个项目」的字段：全局库里的记录
     // 一混在一起，召回就无法分辨上下文。传 null 时不写，老条目保持无归属。
     const scopePath = normalizeProjectPath(project?.path);
+    if (fingerprint && items.slice(0, 20).some(it => (
+      it?.fingerprint === fingerprint
+      && withinWindow(it.stored_at)
+      && sameProjectPath(it?.project?.path, scopePath)
+    ))) {
+      return { skipped: true, count: items.length };
+    }
     const scoped = scopePath ? { ...entry, project: { path: scopePath, name: project.name || '' } } : { ...entry };
-    items.unshift({ ...scoped, stored_at: new Date().toISOString() });
+    const stamped = { ...scoped, stored_at: new Date().toISOString() };
+    if (fingerprint) stamped.fingerprint = fingerprint;
+    items.unshift(stamped);
     if (items.length > ITEMS_CAP) {
       // 旧实现直接 slice 掉最老的 —— 用户看不到任何提示，记忆就没了。
       const dropped = items.slice(ITEMS_CAP);
@@ -92,7 +107,7 @@ export function writeClaudeMemItem(category, entry, project = null) {
       items = items.slice(0, ITEMS_CAP);
     }
     writeFileAtomic(itemsFile, JSON.stringify(items, null, 2));
-    return items.length;
+    return { skipped: false, count: items.length };
   });
 }
 
@@ -154,10 +169,16 @@ function readMarkdownProject(content) {
   return value === '未标注' ? '' : value;
 }
 
-export function writeClaudeMemMarkdown(type, data, project = null) {
+export function writeClaudeMemMarkdown(type, data, project = null, options = {}) {
   const name = safeTypeName(type);
   const dir = join(claudeMemDir(), 'memory');
   ensureDir(dir);
+  // markdown 落的是完整正文，同类型里已有同指纹的文件就不再写一份。
+  // 只读最新 10 个文件的头部（指纹写在标题区），不做全量扫描。
+  const fingerprint = options.fingerprint || '';
+  if (fingerprint && hasFingerprintInWindow(dir, name, fingerprint, normalizeProjectPath(project?.path))) {
+    return { skipped: true, file: null };
+  }
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `${name}-${ts}.md`;
   const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
@@ -165,7 +186,7 @@ export function writeClaudeMemMarkdown(type, data, project = null) {
   const origin = scopePath
     ? `- 项目: ${project.name || ''}\n- 路径: ${scopePath}\n`
     : '- 项目: 未标注\n- 路径: 未标注\n';
-  const markdown = `# ${name} — ${new Date().toISOString()}\n\n${origin}\n${content}\n`;
+  const markdown = `# ${name} — ${new Date().toISOString()}\n\n- 内容指纹: ${fingerprint || '未标注'}\n${origin}\n${content}\n`;
   writeFileAtomic(join(dir, filename), markdown);
 
   // 超过上限时按 **mtime** 删最旧的。旧实现按文件名排序（`type-ts.md`），
@@ -194,5 +215,43 @@ export function writeClaudeMemMarkdown(type, data, project = null) {
     archiveMarkdown(pruned);
   } catch { /* cleanup best-effort */ }
 
-  return filename;
+  return { skipped: false, file: filename };
+}
+
+// 判重必须带上项目：A 项目写过一份内容，B 项目写同样的内容不能被当成重复
+// 而丢掉 —— 召回是按项目过滤的，B 就再也看不到这条记录了。
+function sameProjectPath(a, b) {
+  return normalizeProjectPath(a) === normalizeProjectPath(b);
+}
+
+const NEWLINE = String.fromCodePoint(10);
+
+function withinWindow(stamp) {
+  const t = new Date(stamp || 0).getTime();
+  return Number.isFinite(t) && Date.now() - t < DEDUPE_WINDOW_MS;
+}
+
+// 同类型最近 10 个 markdown 文件里有没有相同指纹（读不到就当没有，宁可多写不误判）。
+function hasFingerprintInWindow(dir, name, fingerprint, scopePath) {
+  try {
+    const files = readdirSync(dir)
+      .filter(f => f.startsWith(`${name}-`) && f.endsWith('.md'))
+      .map(f => {
+        try { return { f, mtime: statSync(join(dir, f)).mtimeMs }; } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtime - a.mtime)
+      .slice(0, 10);
+    for (const { f, mtime } of files) {
+      if (Date.now() - mtime >= DEDUPE_WINDOW_MS) continue;
+      const head = readFileSync(join(dir, f), 'utf-8').slice(0, 400);
+      const hit = /内容指纹:\s*([0-9a-f]{8,})/.exec(head);
+      if (!hit || hit[1] !== fingerprint) continue;
+      // 同一份内容在另一个项目里是另一条记忆，不能跳过。
+      // 按行切分而不是正则取整行：不会回溯，也不怕 CRLF。
+      const pathLine = head.split(NEWLINE).find(line => line.startsWith('- 路径:'));
+      if (sameProjectPath(pathLine?.slice(6).trim(), scopePath)) return true;
+    }
+    return false;
+  } catch { return false; }
 }

@@ -4,7 +4,8 @@ import { readAgentmemory, writeAgentmemory, getAgentmemoryStats, getAgentmemoryS
 import { readNexoData, writeNexoEvent, pruneNexo, countNexoFiles } from './memory/nexo.js';
 import { queryCodeGraph } from './memory/codegraph.js';
 import { loadProjectMemories, loadAllProjectMemories, saveProjectMemory, matchFilter, deduplicateProjectMemories, pruneProjectMemories } from './memory/project-memory.js';
-import { projectScope, classifyScope, includeInRecall, safeTypeName } from './memory/project-scope.js';
+import { projectScope, classifyScope, includeInRecall, safeTypeName, contentFingerprint } from './memory/project-scope.js';
+import { compactArchives } from './memory/archive.js';
 import { join } from 'path';
 import { statSync } from 'fs';
 import { ensureDir, writeFileAtomic } from '../lib/fs-utils.js';
@@ -265,6 +266,77 @@ export async function handleMemoryRecall(_action, params, targetPath, context) {
   return `项目记忆已召回（${total} 条${sourceNote}${scopeSuffix(unscoped, excluded)}）`;
 }
 
+
+/**
+ * 把一份结果写进 4 个后端，返回 { entry, count, skipped, duplicated }。
+ * 两条写路径（显式 remember / 自动 remember）共用，避免「一边加了去重
+ * 另一边忘了」——之前就是 auto 只写 markdown、显式写 items+markdown，
+ * 两个存储的条数对不上。
+ * - 每个后端单独 try/catch：一个后端坏了不能拖垮其余写入，但必须说出来。
+ * - 指纹忽略 timestamp 等易变字段：autoRemember 的 data 每轮都带新 timestamp，
+ *   不忽略就永远判不出「内容相同」。
+ */
+function writeAllBackends(type, data, scope, targetPath, { meta = {}, itemId, fingerprint }) {
+  const fp = fingerprint || contentFingerprint(data);
+  let count = 0;
+  let skipped = 0;
+  let entry = null;
+  let duplicated = false;
+
+  try {
+    entry = saveProjectMemory(type, data, meta, targetPath);
+    duplicated = entry?.duplicate === true;
+    // 命中相同内容就不算「写了」：否则消息变成「4 后端」，用户以为又存了一份。
+    if (duplicated) skipped++;
+    else count++;
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ 项目记忆写入失败: ${e.message}`));
+  }
+
+  try {
+    const snippet = typeof data === 'string' ? data.slice(0, 200) : JSON.stringify(data).slice(0, 200);
+    const item = writeClaudeMemItem(type, { id: itemId ?? entry?.id, type, data_snippet: snippet }, scope, { fingerprint: fp });
+    const md = writeClaudeMemMarkdown(type, data, scope, { fingerprint: fp });
+    if (item?.skipped && md?.skipped) skipped++;
+    else count++;
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ Claude-Mem 写入失败: ${e.message}`));
+  }
+
+  try {
+    const result = writeAgentmemory(type, data, [], scope.path, { fingerprint: fp });
+    if (result?.skipped) skipped++;
+    else if (result?.ok) count++;
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ agentmemory 写入失败: ${e.message}`));
+  }
+
+  try {
+    const result = writeNexoEvent(type, data, scope, { fingerprint: fp });
+    if (result?.skipped) skipped++;
+    else count++;
+  } catch (e) {
+    console.log(chalk.yellow(`  ⚠ NEXO 写入失败: ${e.message}`));
+  }
+
+  return { entry, count, skipped, duplicated };
+}
+
+// 「已保存到记忆」这句话必须交代清楚写了几家、跳过几家 —— 用户看到条数
+// 不涨了得知道为什么，否则会以为记忆坏了。
+function savedMessage(count, { duplicated = false, skipped = 0 } = {}) {
+  if (count === 0 && skipped > 0) {
+    // 一家都没写：不能报成「已保存」。措辞里也**不能出现「失败」二字** ——
+    // 引擎的 detectHandlerFailure 是正则匹配 /失败|阻断|FAIL/，去重不是错误。
+    return `记忆内容与最近记录相同，${skipped} 个后端均未重复写入（正常去重，本轮无新增）`;
+  }
+  const notes = [
+    duplicated ? '项目记忆命中相同内容未重复写入' : '',
+    skipped > 0 ? `${skipped} 个后端命中相同内容未重复写入` : '',
+  ].filter(Boolean).join('，');
+  return `已保存到记忆（${count} 后端${notes ? `，${notes}` : ''}）`;
+}
+
 export async function handleMemoryRemember(_action, params, targetPath, context) {
   const type = params?.type || 'general';
   const scope = projectScope(targetPath);
@@ -300,49 +372,17 @@ export async function handleMemoryRemember(_action, params, targetPath, context)
         workflow: context?._sceneId || baseData.source || baseData.workflow,
       }
     : baseData;
-  let count = 0;
-  let entry;
-  let duplicated = false;
-
-  try {
-    entry = saveProjectMemory(type, data, {
+  const { entry, count, skipped, duplicated } = writeAllBackends(type, data, scope, targetPath, {
+    meta: {
       selection: context?.selectedOption,
       consistencyScore: context?.consistencyScore,
-    }, targetPath);
-    // duplicate = 1 小时内已有**完全相同**的内容，没再写一份。
-    duplicated = entry?.duplicate === true;
-    if (context) context.last_memory_id = entry.id;
-    count++;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 项目记忆写入失败: ${e.message}`));
-  }
-
-  try {
-    writeClaudeMemItem(type, { id: entry?.id, type, data_snippet: typeof data === 'string' ? data.slice(0, 200) : JSON.stringify(data).slice(0, 200) }, scope);
-    writeClaudeMemMarkdown(type, data, scope);
-    count++;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ Claude-Mem 写入失败: ${e.message}`));
-  }
-
-  try {
-    const amResult = writeAgentmemory(type, data, [], scope.path);
-    if (amResult.ok) {
-      count++;
-    }
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ agentmemory 写入失败: ${e.message}`));
-  }
-
-  try {
-    writeNexoEvent(type, data, scope);
-    count++;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ NEXO 写入失败: ${e.message}`));
-  }
+    },
+    fingerprint: contentFingerprint(data),
+  });
+  if (context && entry) context.last_memory_id = entry.id;
 
   if (context) context._memorySaved = true;
-  return `已保存到记忆（${count} 后端${duplicated ? '，项目记忆命中相同内容未重复写入' : ''}）`;
+  return savedMessage(count, { duplicated, skipped });
 }
 
 export function handleConsolidate(_action, _params, targetPath) {
@@ -372,7 +412,8 @@ export function handleConsolidate(_action, _params, targetPath) {
     : '';
   const skipNote = pmStats.skipped > 0 ? `，${pmStats.skipped} 条无内容不可比对未动` : '';
   const pruneNote = prune.total > 0 ? `，归档 ${prune.total} 条（保留策略: NEXO ${prune.nexo} / agentmemory ${prune.agentmemory} / 项目记忆 ${prune.project}）` : '';
-  return `记忆整理完成（项目 ${stats.projectMemory.kept}${removedNote}${skipNote} / Claude-Mem ${stats.claudeMem.entries} / agentmemory ${amStats.count} / CodeGraph ${cg.nodes} 节点${pruneNote}）`;
+  const gzNote = prune.compressed > 0 ? `，压缩旧归档 ${prune.compressed} 个` : '';
+  return `记忆整理完成（项目 ${stats.projectMemory.kept}${removedNote}${skipNote} / Claude-Mem ${stats.claudeMem.entries} / agentmemory ${amStats.count} / CodeGraph ${cg.nodes} 节点${pruneNote}${gzNote}）`;
 }
 
 /**
@@ -384,8 +425,27 @@ export function pruneAll(targetPath, options = {}) {
   const nexo = pruneNexo({ maxFiles: options.nexoMaxFiles ?? 2000, maxAgeDays: options.nexoMaxAgeDays ?? 30 });
   const agentmemory = pruneAgentmemory({ maxPerType: options.agentmemoryMaxPerType ?? 200, maxAgeDays: options.agentmemoryMaxAgeDays ?? 365 });
   const project = pruneProjectMemories(targetPath, { maxPerType: options.projectMaxPerType ?? 300 });
+  // 归档只增不减，所以顺手压一下 30 天前的归档件（压缩不丢数据，删除才丢）。
+  let archive = { compressed: 0, failed: 0, skipped: 0 };
+  try {
+    archive = compactArchives(targetPath, { olderThanDays: options.archiveOlderThanDays ?? 30 });
+    if (archive.failed > 0) {
+      console.error(`  ⚠ 归档压缩有 ${archive.failed} 个文件失败（原文件已保留，未丢数据）`);
+    }
+    if (archive.tooLarge > 0) {
+      console.error(`  ⚠ 归档里有 ${archive.tooLarge} 个文件超过 64MB 未压缩（保留原样）`);
+    }
+  } catch (e) {
+    console.error(`  ⚠ 归档压缩执行失败: ${e.message}（归档文件保持原样，未删除任何数据）`);
+  }
   const total = nexo.archived + agentmemory.archived + project.archived;
-  return { total, nexo: nexo.archived, agentmemory: agentmemory.archived, project: project.archived };
+  return {
+    total,
+    nexo: nexo.archived,
+    agentmemory: agentmemory.archived,
+    project: project.archived,
+    compressed: archive.compressed,
+  };
 }
 
 // 自动节流：每次场景结束都跑一遍清库太重（NEXO 要 statSync 全目录）。
@@ -425,7 +485,8 @@ export function handleMemoryPrune(_action, params, targetPath) {
   const detail = result.total > 0
     ? `（NEXO ${result.nexo} / agentmemory ${result.agentmemory} / 项目记忆 ${result.project}，均已归档）`
     : '（没有超过保留阈值的记录）';
-  return `记忆保留策略执行完成: 归档 ${result.total} 条${detail}`;
+  const gzNote = result.compressed > 0 ? `，另压缩旧归档 ${result.compressed} 个文件` : '';
+  return `记忆保留策略执行完成: 归档 ${result.total} 条${detail}${gzNote}`;
 }
 
 export function handleListMemories(_action, _params, targetPath) {
@@ -479,43 +540,11 @@ export function handleAutoRemember(_action, _params, targetPath, context) {
     },
   };
 
-  let count = 0;
-
-  try {
-    saveProjectMemory(workflowType, data, {}, targetPath);
-    // Count this one too: without it auto-remember reported "3 后端" while
-    // explicit remember reported 4 (project-memory + claude-mem + agentmemory +
-    // NEXO), even though both wrote the same four stores.
-    count++;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 项目记忆写入失败: ${e.message}`));
-  }
-
-  try {
-    // 显式 remember 会同时写 items 与 markdown，auto 只写 markdown 会让两个存储
-    // 对不上（list 的条数漏掉 auto 记录）。两边写同一份。
-    writeClaudeMemItem(workflowType, { type: workflowType, data_snippet: JSON.stringify(data).slice(0, 200) }, scope);
-    writeClaudeMemMarkdown(workflowType, data, scope);
-    count++;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ Claude-Mem 写入失败: ${e.message}`));
-  }
-
-  try {
-    const amResult = writeAgentmemory(workflowType, data, [], scope.path);
-    if (amResult.ok) {
-      count++;
-    }
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ agentmemory 写入失败: ${e.message}`));
-  }
-
-  try {
-    writeNexoEvent(workflowType, data, scope);
-    count++;
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ NEXO 写入失败: ${e.message}`));
-  }
+  // autoRemember 的 data 每轮都带新 timestamp，靠内容指纹（忽略易变字段）
+  // 才能认出「这次跑出来的是同一份结果」，不重复写 4 份副本。
+  const { count, skipped } = writeAllBackends(workflowType, data, scope, targetPath, {
+    fingerprint: contentFingerprint(data),
+  });
 
   const pruneNote = (() => {
     try {
@@ -523,5 +552,10 @@ export function handleAutoRemember(_action, _params, targetPath, context) {
       return pruned ? `，归档 ${pruned.archived} 条旧项目记忆（保留策略）` : '';
     } catch { return ''; }
   })();
-  return `自动记忆已保存 (${count} 后端, 类型: ${workflowType})${pruneNote}`;
+  // 一家都没写的时候不能说「已保存」：用户会以为又存了一份。
+  const skipNote = skipped > 0 ? `，${skipped} 个后端命中相同内容未重复写入` : '';
+  if (count === 0 && skipped > 0) {
+    return `自动记忆未新增（内容与最近记录相同${skipNote}，类型: ${workflowType}）${pruneNote}`;
+  }
+  return `自动记忆已保存 (${count} 后端${skipNote}, 类型: ${workflowType})${pruneNote}`;
 }

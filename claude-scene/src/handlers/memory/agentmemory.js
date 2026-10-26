@@ -4,13 +4,13 @@ import { execSync } from 'child_process';
 import crypto from 'crypto';
 import { AGENTMEMORY_DIR } from '../../lib/paths.js';
 import { ensureDir, writeFileAtomic } from '../../lib/fs-utils.js';
-import { normalizeProjectPath, safeTypeName } from './project-scope.js';
+import { normalizeProjectPath, safeTypeName, DEDUPE_WINDOW_MS } from './project-scope.js';
 
 // AGENTMEMORY_DIR is a module-level constant, so it is frozen at import time and
 // an env override set later never takes effect. Resolve per call instead, so
 // tests (and multi-home setups) can redirect the store without touching the
 // developer's real ~/.agentmemory database.
-function agentmemoryDir() {
+export function agentmemoryDir() {
   return process.env.AGENTMEMORY_HOME || AGENTMEMORY_DIR;
 }
 
@@ -33,10 +33,14 @@ function initAgentmemory() {
 // 所以先查 pragma；老行该列为 NULL，召回时按「无归属」处理（不静默丢）。
 function ensureProjectColumn(dbPath) {
   try {
-    const cols = execSync(`sqlite3 "${dbPath}" "SELECT name FROM pragma_table_info('memories');"`, { stdio: 'pipe' })
-      .toString().split('\n').map(s => s.trim()).filter(Boolean);
-    if (!cols.includes('project_path')) {
+    const cols = new Set(execSync(`sqlite3 "${dbPath}" "SELECT name FROM pragma_table_info('memories');"`, { stdio: 'pipe' })
+      .toString().split('\n').map(s => s.trim()).filter(Boolean));
+    if (!cols.has('project_path')) {
       execSync(`sqlite3 "${dbPath}" "ALTER TABLE memories ADD COLUMN project_path TEXT;"`, { stdio: 'pipe' });
+    }
+    // 内容指纹列：写入去重用。历史行是 NULL，比较时自然不命中。
+    if (!cols.has('content_hash')) {
+      execSync(`sqlite3 "${dbPath}" "ALTER TABLE memories ADD COLUMN content_hash TEXT;"`, { stdio: 'pipe' });
     }
   } catch { /* 迁移失败不阻断写入：宁可无归属，也不要丢数据 */ }
 }
@@ -108,7 +112,7 @@ export function readAgentmemory(limit = 20, tags = null, projectPath = null) {
   } catch { return []; }
 }
 
-export function writeAgentmemory(type, content, tags = [], projectPath = '') {
+export function writeAgentmemory(type, content, tags = [], projectPath = '', options = {}) {
   try {
     const dbPath = initAgentmemory();
     const id = memoryId();
@@ -125,9 +129,21 @@ export function writeAgentmemory(type, content, tags = [], projectPath = '') {
     // 于是 JSON 内容里的 `"` 被 shell 吃掉（`{"a":1}` 变成 `{a:1}`），`$`/反引号
     // 还会被解释。SQL 层面转义了单引号，却漏了 shell 这一层，写入总是报
     // "unrecognized token"。stdin 让 shell 只看到 `sqlite3 "<db>"`。
-    const sql = `INSERT OR REPLACE INTO memories (id, type, content, tags, created_at, updated_at, project_path) VALUES ('${id}', '${safeType}', '${safeContent}', '${safeTags}', '${now}', '${now}', '${safeProject}');`;
+    // 同 type + 同项目 + 同内容指纹的旧行还在就不再插一份。判重必须在 SQL 里做：
+    // 召回侧读的是截断后的 content，JS 比对会误判（前 500 字相同、后面不同）。
+    const fingerprint = options.fingerprint || '';
+    if (fingerprint) {
+      // created_at 存的是 ISO 串，字典序比较即时间序，窗口也能下推到 SQL。
+      const cutoff = new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString();
+      const dup = execSync(
+        `sqlite3 "${dbPath}" "SELECT COUNT(*) FROM memories WHERE content_hash = '${fingerprint}' AND type = '${safeType}' AND project_path = '${safeProject}' AND created_at >= '${cutoff}';"`,
+        { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER }
+      ).toString().trim();
+      if (Number(dup) > 0) return { skipped: true, ok: true };
+    }
+    const sql = `INSERT OR REPLACE INTO memories (id, type, content, tags, created_at, updated_at, project_path, content_hash) VALUES ('${id}', '${safeType}', '${safeContent}', '${safeTags}', '${now}', '${now}', '${safeProject}', '${fingerprint}');`;
     execSync(`sqlite3 "${dbPath}"`, { input: sql, stdio: ['pipe', 'pipe', 'pipe'] });
-    return { id, type, ok: true };
+    return { id, type, ok: true, skipped: false };
   } catch (e) {
     console.error(`  ⚠ agentmemory 写入失败: ${e.message}`);
     return { ok: false };

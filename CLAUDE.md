@@ -26,7 +26,9 @@
 
 5 个后端，**作用域不同**：`project-memory`（`<项目>/.claude/memory/`）与 `codegraph` 是项目级；`claude-mem`（`~/.claude/memory/`）、`agentmemory`（`~/.agentmemory/memory.db`）、`NEXO`（`~/.nexo/runtime/`）是全局库，写入时带**项目绝对路径**（归一化后），召回默认只取本项目 + 标记出的历史无归属记录，别的项目记录需 `cross_project: true`。用 `--target` 跑别的项目时，项目记忆跟着 targetPath 走，不跟 cwd。
 
-召回会**打印摘要到 stdout**（`↳ 历史记忆: 1. [review] …`）并做**跨后端去重**（同一条记忆只算一条，按新→旧轮转交错取，预算 `limit×6`）；分类目录按真实工作流类型动态枚举，不是固定四类。`remember` 只写当轮结果，不把召回行回写。写入走原子 rename + 跨进程锁（`items.json` 读-改-写不再丢更新），`items.json` 损坏会先归档再重建。**保留策略只归档不删**：`consolidate` / `pruneMemories` 按「每类型条数 / 天数」把超出的移进各后端的 `archive/`，`autoRemember` 每 6 小时最多收拾一次 project-memory。详见 `docs/memory-scope.md`。会话内规划用 `plan.md`/`findings.md`/`progress.md`（详见 `conditional/planning-with-files.md`）。
+召回会**打印摘要到 stdout**（`↳ 历史记忆: 1. [review] …`）并做**跨后端去重**（同一条记忆只算一条，按新→旧轮转交错取，预算 `limit×6`）；分类目录按真实工作流类型动态枚举，不是固定四类。`remember` 只写当轮结果，不把召回行回写。
+
+**写入侧也去重**：4 个后端共用同一份内容指纹（规范化 JSON，忽略 `timestamp` 等易变字段、带项目、7 天窗口），重复跑同一场景不会每家再堆一份副本；跳过的后端会如实写在返回语里（`3 个后端命中相同内容未重复写入`）。写入走原子 rename + 跨进程锁（`items.json` 读-改-写不再丢更新），`items.json` 损坏会先归档再重建。**保留策略只归档不删**：`consolidate` / `pruneMemories` 按「每类型条数 / 天数」把超出的移进各后端的 `archive/`，随后把 30 天前的归档压成 `.gz`（无损，只压不删）；`autoRemember` 每 6 小时最多收拾一次 project-memory。详见 `docs/memory-scope.md`。会话内规划用 `plan.md`/`findings.md`/`progress.md`（详见 `conditional/planning-with-files.md`）。
 
 ## 引擎
 

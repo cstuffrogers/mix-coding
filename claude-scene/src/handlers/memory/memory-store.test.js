@@ -553,3 +553,194 @@ describe('agentmemory 保留策略的边界', () => {
     expect(readAgentmemory(5).some(r => String(r.content).includes('null-tags'))).toBe(true);
   });
 });
+
+// 写入侧去重：一次场景跑两遍，5 个后端本来会各存一份完全相同的内容。
+// 这里固化两条底线：(1) 指纹必须忽略时间戳这类天然易变字段，否则永远判不出
+// 重复；(2) 判重不能把「不同的东西」当重复 —— 宁可多存一份也不能丢。
+describe('写入侧去重（内容指纹）', () => {
+  let root;
+  const ENV = ['CLAUDE_MEM_HOME', 'AGENTMEMORY_HOME', 'NEXO_HOME', 'CODEGRAPH_HOME'];
+  const saved = {};
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'memdedupe-'));
+    for (const key of ENV) {
+      saved[key] = process.env[key];
+      process.env[key] = join(root, key.toLowerCase());
+    }
+  });
+
+  afterEach(() => {
+    for (const key of ENV) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('指纹忽略 timestamp 等易变字段，且与键序无关', async () => {
+    const { contentFingerprint } = await import('./project-scope.js');
+    const a = contentFingerprint({ b: 2, a: 1, timestamp: '2026-01-01T00:00:00.000Z' });
+    const b = contentFingerprint({ a: 1, b: 2, timestamp: '2026-09-09T09:09:09.000Z' });
+    expect(a).toBe(b);
+    expect(contentFingerprint({ a: 1 })).not.toBe(contentFingerprint({ a: 2 }));
+  });
+
+  it('指纹不忽略 data 里的 id（那是区分两条记录的字段）', async () => {
+    const { contentFingerprint } = await import('./project-scope.js');
+    expect(contentFingerprint({ note: 'x', id: 'AAA' }))
+      .not.toBe(contentFingerprint({ note: 'x', id: 'BBB' }));
+  });
+
+  it('claude-mem 条目与 markdown 都按指纹跳过，换内容照写', async () => {
+    const { writeClaudeMemItem, writeClaudeMemMarkdown, readClaudeMemItems } = await import('./claude-mem.js');
+    const scope = { path: join(root, 'p'), name: 'p' };
+    expect(writeClaudeMemItem('qa', { type: 'qa' }, scope, { fingerprint: 'f'.repeat(32) }).skipped).toBe(false);
+    expect(writeClaudeMemItem('qa', { type: 'qa' }, scope, { fingerprint: 'f'.repeat(32) }).skipped).toBe(true);
+    expect(writeClaudeMemItem('qa', { type: 'qa' }, scope, { fingerprint: 'e'.repeat(32) }).skipped).toBe(false);
+    expect(readClaudeMemItems('qa', 10)).toHaveLength(2);
+    expect(writeClaudeMemMarkdown('qa', { a: 1 }, scope, { fingerprint: 'f'.repeat(32) }).skipped).toBe(false);
+    expect(writeClaudeMemMarkdown('qa', { a: 1 }, scope, { fingerprint: 'f'.repeat(32) }).skipped).toBe(true);
+  });
+
+  it('agentmemory 同 type+项目+指纹只留一行，不同项目各留一行', async () => {
+    const { writeAgentmemory, readAgentmemory } = await import('./agentmemory.js');
+    const fp = 'c'.repeat(32);
+    expect(writeAgentmemory('qa', { a: 1 }, [], 'proj-a', { fingerprint: fp }).skipped).toBe(false);
+    expect(writeAgentmemory('qa', { a: 1 }, [], 'proj-a', { fingerprint: fp }).skipped).toBe(true);
+    expect(writeAgentmemory('qa', { a: 1 }, [], 'proj-b', { fingerprint: fp }).skipped).toBe(false);
+    expect(readAgentmemory(50)).toHaveLength(2);
+  });
+
+  it('NEXO 同指纹不再多写一个事件文件', async () => {
+    const { writeNexoEvent } = await import('./nexo.js');
+    const { readdirSync } = await import('fs');
+    const scope = { path: join(root, 'p'), name: 'p' };
+    const fp = 'd'.repeat(32);
+    expect(writeNexoEvent('qa', { a: 1 }, scope, { fingerprint: fp }).skipped).toBe(false);
+    expect(writeNexoEvent('qa', { a: 1 }, scope, { fingerprint: fp }).skipped).toBe(true);
+    expect(readdirSync(join(root, 'nexo_home', 'runtime'))).toHaveLength(1);
+  });
+
+  it('没有指纹的旧调用方行为不变（照写，不做误判）', async () => {
+    const { writeAgentmemory } = await import('./agentmemory.js');
+    const { writeNexoEvent } = await import('./nexo.js');
+    const scope = { path: join(root, 'p'), name: 'p' };
+    expect(writeAgentmemory('qa', { a: 1 }, [], 'p').ok).toBe(true);
+    expect(writeAgentmemory('qa', { a: 1 }, [], 'p').ok).toBe(true);
+    expect(writeNexoEvent('qa', { a: 1 }, scope).skipped).toBe(false);
+  });
+
+  it('handleMemoryRemember 连跑两次：第二次一个后端都不写，且不说「失败」', async () => {
+    const { handleMemoryRemember } = await import('../memory.js');
+    const proj = join(root, 'proj');
+    const first = await handleMemoryRemember('a', { type: 'review', data: { marker: 'SAME' } }, proj, {});
+    const second = await handleMemoryRemember('a', { type: 'review', data: { marker: 'SAME' } }, proj, {});
+    expect(first).toContain('已保存到记忆');
+    expect(second).not.toContain('已保存到记忆');
+    expect(second).toContain('未重复写入');
+    // detectHandlerFailure 匹配 /失败|阻断|FAIL/：这句话不能触发它
+    expect(second).not.toContain('失败');
+  });
+
+  it('handleAutoRemember 每轮都带新 timestamp，仍能认出「内容相同」', async () => {
+    const { handleAutoRemember, handleListMemories } = await import('../memory.js');
+    const proj = join(root, 'proj');
+    const ctx = () => ({ prompt: 'same', completedSteps: ['x'], _sceneId: 'qa' });
+    handleAutoRemember('a', {}, proj, ctx());
+    const second = handleAutoRemember('a', {}, proj, ctx());
+    expect(second).toContain('未新增');
+    const list = await handleListMemories('l', {}, proj);
+    // 4 个后端各一行，没有因为连跑两轮翻倍
+    expect(list).toMatch(/1 条（project-memory）/);
+    expect(list).toMatch(/Claude-Mem 全局 1/);
+    expect(list).toMatch(/agentmemory 全局 1/);
+    expect(list).toMatch(/NEXO 全局 1/);
+  });
+});
+
+// 归档只增不减是保留策略的已知代价。压缩能收敛空间且**不丢数据**，
+// 但绝不能在压缩失败时把原文件删掉 —— 那是不可逆的数据丢失。
+describe('归档压缩', () => {
+  let root;
+  const ENV = ['CLAUDE_MEM_HOME', 'AGENTMEMORY_HOME', 'NEXO_HOME', 'CODEGRAPH_HOME'];
+  const saved = {};
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'memarchive-'));
+    for (const key of ENV) {
+      saved[key] = process.env[key];
+      process.env[key] = join(root, key.toLowerCase());
+    }
+  });
+
+  afterEach(() => {
+    for (const key of ENV) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  const ageFile = (file, days) => {
+    const t = Date.now() / 1000 - days * 86400;
+    utimesSync(file, t, t);
+  };
+
+  it('只压 N 天以前的文件，新文件不动，数据可解压还原', async () => {
+    const { compactArchives } = await import('./archive.js');
+    const { mkdirSync: mkd, writeFileSync: wf } = await import('fs');
+    const dir = join(root, 'nexo_home', 'archive');
+    mkd(dir, { recursive: true });
+    const old = join(dir, 'old.json');
+    const fresh = join(dir, 'fresh.json');
+    wf(old, JSON.stringify({ marker: 'KEEP-ME', pad: 'x'.repeat(500) }));
+    wf(fresh, JSON.stringify({ marker: 'NEW' }));
+    ageFile(old, 60);
+    const res = compactArchives(join(root, 'proj'), { olderThanDays: 30 });
+    expect(res.compressed).toBe(1);
+    expect(res.failed).toBe(0);
+    expect(existsSync(old)).toBe(false);
+    expect(existsSync(`${old}.gz`)).toBe(true);
+    expect(existsSync(fresh)).toBe(true);
+    const { gunzipSync } = await import('zlib');
+    expect(gunzipSync(readFileSync(`${old}.gz`)).toString()).toContain('KEEP-ME');
+  });
+
+  it('已有 .gz 时跳过，不覆盖也不重复计数', async () => {
+    const { compactArchives } = await import('./archive.js');
+    const { mkdirSync: mkd, writeFileSync: wf } = await import('fs');
+    const dir = join(root, 'nexo_home', 'archive');
+    mkd(dir, { recursive: true });
+    const old = join(dir, 'dup.json');
+    wf(old, '{"a":1}');
+    wf(`${old}.gz`, 'already-here');
+    ageFile(old, 60);
+    const res = compactArchives(join(root, 'proj'), { olderThanDays: 30 });
+    expect(res.compressed).toBe(0);
+    expect(res.skipped).toBe(1);
+    expect(readFileSync(`${old}.gz`, 'utf-8')).toBe('already-here');
+  });
+
+  it('pruneAll 会在归档之后压缩旧归档，且不影响归档条数统计', async () => {
+    const { pruneAll } = await import('../memory.js');
+    const { writeNexoEvent } = await import('./nexo.js');
+    const { mkdirSync: mkd, writeFileSync: wf } = await import('fs');
+    const arch = join(root, 'nexo_home', 'archive');
+    mkd(arch, { recursive: true });
+    const stale = join(arch, 'stale.jsonl');
+    wf(stale, '{"old":true}');
+    ageFile(stale, 90);
+    // 造一条超龄 NEXO 事件，让保留策略真的归档一个文件
+    const scope = { path: join(root, 'proj'), name: 'proj' };
+    const written = writeNexoEvent('review', { a: 1 }, scope);
+    const file = written.file;
+    const ancient = Date.now() / 1000 - 90 * 86400;
+    utimesSync(file, ancient, ancient);
+    const res = pruneAll(join(root, 'proj'), { nexoMaxAgeDays: 30 });
+    expect(res.nexo).toBe(1);
+    expect(res.compressed).toBeGreaterThanOrEqual(1);
+    expect(existsSync(stale)).toBe(false);
+    expect(existsSync(`${stale}.gz`)).toBe(true);
+  });
+});

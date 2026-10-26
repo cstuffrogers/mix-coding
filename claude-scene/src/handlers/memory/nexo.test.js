@@ -57,7 +57,8 @@ describe('readNexoData', () => {
   });
 
   it('writes into the redirected store, never the real one', () => {
-    const file = writeNexoEvent('probe', { ok: true });
+    const { file, skipped } = writeNexoEvent('probe', { ok: true });
+    expect(skipped).toBe(false);
     expect(file.startsWith(home)).toBe(true);
   });
 });

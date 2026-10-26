@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 import chalk from 'chalk';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -81,9 +81,12 @@ program
   .option('-d, --data <json>', '要保存的数据（JSON 字符串）')
   .option('-c, --category <cat>', '过滤类别')
   .option('-l, --limit <n>', '限制条数', '10')
+  .option('-T, --target <path>', '目标项目路径（默认当前目录；-t 是记忆类型，别混用）')
   .action(async (action, options) => {
     const { executeAction } = await import('./actions.js');
-    const targetPath = process.cwd();
+    // 记忆库按项目归属：没有 --target 时只能操作 cwd，跨项目查/写会落错地方。
+    // （-t 是记忆类型，不是 target，两者混用会把类型变成路径。）
+    const targetPath = options.target ? resolve(options.target) : process.cwd();
     const context = { _sceneId: 'cli' };
     const actionMap = {
       recall: 'recall',

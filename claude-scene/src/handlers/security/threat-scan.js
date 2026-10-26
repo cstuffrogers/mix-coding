@@ -144,6 +144,12 @@ const VULN_PATTERNS = [
   { name: '命令注入: exec/spawn 包含变量', regex: /(?<!safeE)(?:execSync|exec|spawnSync|spawn)\s*\(\s*(?:`[^`]*\$\{|'[^']*\+|"[^"]*\+)/g, severity: 'critical', ext: ['.js', '.jsx', '.ts', '.tsx'], excludeFiles: ['src/lib/safe-exec.js', 'src/handlers/memory/agentmemory.js', 'src/handlers/memory/codegraph.js', 'src/handlers/llm-proxy-audit.js'] },
   { name: '硬编码密钥: 长随机字符串赋值', regex: /(?:SECRET|TOKEN|API_KEY|PASSWORD)\s*[:=]\s*['"`][A-Za-z0-9+/_-]{20,}['"`]/g, severity: 'critical', ext: ['.js', '.jsx', '.ts', '.tsx'] },
   { name: '路径遍历: 未验证的相对路径', regex: /(?:readFile|writeFile|createReadStream|createWriteStream)\s*\(\s*(?:`[^`]*\.\.\/|['"][^'"]*\.\.\/)/g, severity: 'medium', ext: ['.js', '.jsx', '.ts', '.tsx'] },
+  // [patched:open-redirect] 盲区：服务端直接把请求参数当跳转目标，攻击者用
+  // `?next=https://evil.example` 就能把用户带去任意外站（钓鱼/偷 token）。
+  // 三种写法分开列（直取 / 模板串 / Python 侧），漏一种就等于没扫。
+  { name: '开放重定向: redirect 目标直接取自请求参数', regex: /(?:res|response|reply)\.redirect\s*\(\s*(?:req|request)\.(?:query|params|body)\b/g, severity: 'high', ext: ['.js', '.jsx', '.ts', '.tsx'] },
+  { name: '开放重定向: redirect 模板串里拼请求参数', regex: /(?:res|response|reply)\.redirect\s*\(\s*`[^`]*\b(?:req|request)\.(?:query|params|body)\b/g, severity: 'high', ext: ['.js', '.jsx', '.ts', '.tsx'] },
+  { name: '开放重定向(Python): redirect 目标取自 request.args/GET', regex: /(?:redirect|HttpResponseRedirect)\s*\(\s*request\.(?:args|GET|form|POST)\b/g, severity: 'high', ext: ['.py'] },
   // [patched:scan-all-sources] 原规则只覆盖 JS/TS，Python 后端（本仓库 backend/）完全不可见
   { name: 'SQL注入(Python): f-string 拼接查询', regex: /(?:execute|executemany)\s*\(\s*(?:text\s*\(\s*)?f["']/g, severity: 'critical', ext: ['.py'] },
   { name: '命令注入(Python): os.system / subprocess shell=True', regex: /(?:os\.system\s*\(|subprocess\.\w+\s*\([^)]*shell\s*=\s*True)/g, severity: 'critical', ext: ['.py'] },
