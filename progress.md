@@ -587,3 +587,31 @@ md 100 个、本项目 `.claude/memory` 63 个 —— 全部复制到
 **仍需人做**：轮换密钥（后台操作）；`git filter-repo` 重写历史属破坏性，未获授权不动。
 
 **验证**：487 tests / 43 files 全绿，两个根目录 eslint 零错误，`audit-scenes.mjs` 0 错误 / 15 警告。
+
+---
+
+## 2026-10-27 只保留工作流需要的工具（环境清理）
+
+按「不要那些 AI 编程工具，只保留工作流需要的」执行清理。**移动不删除**，全部落在
+`E:/ai-tools-backup-20261027/`，附 `MANIFEST.md`（含每个目录的大小与还原 `mv` 命令）。
+
+保留依据 = `claude-scene/src/lib/platform.js` 的 `PLATFORM_MARKERS`：Claude Code / opencode /
+Codex / ZCode / pi（+ Percho），加上 `~/.cc-switch`（Claude Code、Codex 的模型密钥中转，
+删了这两家就没 key）、记忆后端（agentmemory / claude-mem / NEXO / CodeGraph）、工具链
+（semgrep / sqlite3 / aislop / python / node）。
+
+清掉（工作流零引用）：
+
+- 家目录 20 个：`.codewhale` `.deepseek` `.claude-code-router`(914MB) `.chelper` `.kimi`
+  `.cline` `.roo` `.antigravity` `.openclaw` `.archon`(222MB) `.claude-flow` `.zagent`
+  `.costrict` `.stc` `.factory`(170MB) `.qoder`(687MB) `.ai_completion` `.gemini` `.cc-connect`
+- npm 全局 6 个：`codewhale` `deepseek-tui`（无 bin 的死安装）`mythos-agent` `cc-connect`
+  `@bearer/cli`（文档本就说「不接入」）`skills`
+- 仓库内连带：删 `start-codewhale.bat`（工具没了，启动器是死文件）；
+  `update-all.bat` 的 `[3/7] mythos-agent 安装/更新` 改成「工作流依赖 CLI 检查」——
+  否则每次全量更新会把刚删掉的东西装回来。
+
+合计释放约 **2.0 GB**。副作用：泄露的 `sk-SW1…` 在仓库外从 7 处降到 5 处，
+`~/.cc-switch/cc-switch.db` 是唯一还在被工具读取的副本。
+
+验证：487 tests / 43 files 全绿，`claude-scene list` 正常输出 25 个场景。

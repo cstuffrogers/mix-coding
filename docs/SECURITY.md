@@ -24,15 +24,25 @@
 
 | 位置 | 使用方 | 说明 |
 |------|--------|------|
-| `~/.codewhale/config.toml` | **codewhale**（`npm i -g codewhale`，启动脚本 `start-codewhale.bat`） | 当前真实配置，凭据正确 |
-| `~/.deepseek/config.json` | **deepseek CLI** | `api_key` / `api_base` 同值 |
-| `~/.cc-switch/cc-switch.db` | **cc-switch**（多 provider 切换器） | `providers` 表 `codex / supxh` 一行；另有 11 份 `backups/*.db` 备份同样含明文 |
+| `~/.cc-switch/cc-switch.db` | **cc-switch**（Claude Code / Codex 的 provider 中转） | `providers` 表 `codex / supxh` 一行；另有 11 份 `backups/*.db` 备份同样含明文。**唯一仍在用的副本** |
 | `~/.claude/history.jsonl` | Claude Code 命令历史 | 调试 curl 时打印过 `Authorization: Bearer sk-…` |
 | `~/.pi/agent/sessions/**` `traces/**` | pi / percho 会话转录 | 文件内容进过上下文，被原样写入转录 |
-| `~/.ai_completion/.code_contribution/_code_commit.db` | AI 补全插件 | 历史提交记录 |
 | `~/Documents/xwechat_files/**/API.txt` | 微信收发文件 | **已外流**，属于最高优先级泄露 |
+| ~~`~/.codewhale/config.toml`~~ | codewhale CLI | **已随工具清理移出**（见 §1.3） |
+| ~~`~/.deepseek/config.json`~~ | deepseek CLI | **已移出**（该包无 bin，属死安装） |
+| ~~`~/.ai_completion/.code_contribution/_code_commit.db`~~ | AI 补全插件 | **已移出** |
 
 处置原则：家目录下这些是**用户数据**，agent 不擅自删除或改写（最多先备份再脱敏）。真正有效的动作只有一个 —— 在服务商后台轮换。
+
+### 1.3 工具清理（2026-10-27）
+
+按「只保留工作流需要的工具」的要求，工作流未引用的 AI 编程工具已整体移到 `E:/ai-tools-backup-20261027/`（移动 + `MANIFEST.md` 记录还原命令，**没有删除**）。
+
+- 家目录数据 20 个：`.codewhale` `.deepseek` `.claude-code-router` `.chelper` `.kimi` `.cline` `.roo` `.antigravity` `.openclaw` `.archon` `.claude-flow` `.zagent` `.costrict` `.stc` `.factory` `.qoder` `.ai_completion` `.gemini` `.cc-connect`
+- npm 全局包 6 个：`codewhale` `deepseek-tui` `mythos-agent` `cc-connect` `@bearer/cli` `skills`
+- 保留的宿主：Claude Code / Codex / opencode / ZCode / pi / Percho（`platform.js` 的 `PLATFORM_MARKERS` 就是这五个），以及 `~/.cc-switch`（上面两家的密钥中转）。
+
+直接后果：这把 key 在仓库外从 7 处降到 **5 处**，其中 `~/.cc-switch` 是唯一还在被工具读取的。
 
 ### 1.2 为什么之前扫不出来（已修）
 

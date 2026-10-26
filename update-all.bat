@@ -31,13 +31,11 @@ if %errorlevel% equ 0 (
     echo   [WARN] 根依赖安装有错误
 )
 
-echo   [3/7] mythos-agent 安装/更新...
-where mythos-agent >nul 2>&1
-if %errorlevel% equ 0 (
-    call npm update -g mythos-agent 2>&1 && echo   [OK] mythos-agent 已更新 || echo   [OK] mythos-agent 保持当前版本
-) else (
-    call npm install -g mythos-agent 2>&1 && echo   [OK] mythos-agent 安装完成 || echo   [WARN] mythos-agent 安装失败
+echo   [3/7] 工作流依赖 CLI 检查...
+for %%C in (claude codex agentmemory aislop) do (
+    where %%C >nul 2>&1 && echo   [OK] %%C || echo   [--] %%C 未安装
 )
+where semgrep >nul 2>&1 && echo   [OK] semgrep || echo   [--] semgrep 未安装
 
 REM ── 2. Python 包更新 ──
 echo.
