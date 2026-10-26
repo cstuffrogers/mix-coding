@@ -23,7 +23,7 @@ function memoryId() {
 // 但「完整」不等于「逐字节」：autoRemember 的 data 每轮都带新 timestamp，
 // 逐字节比对永远判不出重复，于是每跑一次场景就多一条内容一样的项目记忆。
 // 指纹统一走 contentFingerprint（结构化规范化 + 忽略易变字段）。
-export function contentHash(value) {
+function contentHash(value) {
   return contentFingerprint(value);
 }
 

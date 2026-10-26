@@ -19,7 +19,7 @@ const __dirname = dirname(__filename);
 // 为什么拆开：早期 PROJECT_ROOT 由 __dirname 上溯三级得到，等于把引擎绑定在
 // 仓库结构上，装到全局后所有路径都指向 npm 全局目录，其他项目无法使用。
 export const PACKAGE_ROOT = join(__dirname, '..', '..');
-export const PACKAGE_SCENES_DIR = join(PACKAGE_ROOT, 'scenes');
+const PACKAGE_SCENES_DIR = join(PACKAGE_ROOT, 'scenes');
 
 /** 允许通过环境变量强制切换工作目录（CI、测试、脚本化调用） */
 export const PROJECT_ROOT = process.env.MIX_CODING_PROJECT_DIR
@@ -38,7 +38,8 @@ export const USER_DATA_DIR = process.env.MIX_CODING_HOME
  *   3. ~/.mix-coding/scenes        用户级自建/覆盖场景
  *   4. <包>/scenes                 随包分发的内置场景（兜底，永远存在）
  */
-export function getSceneDirs() {
+/** 场景目录优先级：项目覆盖 → 用户级 → 包内置（内部使用，非公开 API） */
+function getSceneDirs() {
   const explicit = process.env.MIX_CODING_SCENES_DIR;
   if (explicit) return [resolve(explicit)];
   return [
@@ -70,11 +71,6 @@ export function listSceneIds() {
     }
   }
   return [...seen].sort();
-}
-
-/** 首个存在的场景目录（用于 --list 之类需要单一目录的场景） */
-export function getPrimarySceneDir() {
-  return getSceneDirs().find((d) => existsSync(d)) || PACKAGE_SCENES_DIR;
 }
 
 // ── 项目级资源（属于「被操作的那个项目」） ───────────────────────────────

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreBinaries": [
+    "xdg-open",
+    "go",
+    "sqlite3",
+    "pip",
+    "dependency-check",
+    "mythos-agent"
+  ]
+}

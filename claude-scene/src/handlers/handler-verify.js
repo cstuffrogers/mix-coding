@@ -127,27 +127,121 @@ export function isTrivialLine(line) {
   return false;
 }
 
-export function extractFunctionBody(src, startIndex) {
-  // Find the end: next 'export function' at top level, or end of file
-  // This avoids complex brace matching completely
-  const nextExport = src.slice(startIndex + 1).search(/^export\s+(async\s+)?function\s+\w+/m);
-  if (nextExport >= 0) {
-    return src.slice(startIndex, startIndex + 1 + nextExport);
+/**
+ * 从 `startIndex`（必须是 `{` 或 `(`）起按括号配对找配对的闭合符，跳过字符串/模板/注释。
+ * 返回闭合符的下标，找不到返回 -1。
+ */
+// 字符串/注释扫描拆成小函数：混在一个循环里 cognitive complexity 直接爆表，
+// 也不好看清哪一种情况没有处理。返回「最后一个属于该结构的字符下标」，-1 表示没走到结尾。
+const QUOTES = new Set(["'", '"', '`']);
+
+function skipQuoted(src, startIndex, quote) {
+  for (let i = startIndex + 1; i < src.length; i++) {
+    if (src[i] === '\\') { i++; continue; }
+    if (src[i] === quote) return i;
   }
-  return src.slice(startIndex);
+  return -1;
 }
 
-function analyzeExportedFunction(src, funcName, funcIndex, file) {
-  const braceIdx = src.indexOf('{', funcIndex + funcName.length + 15);
+function skipLineComment(src, startIndex) {
+  for (let i = startIndex + 2; i < src.length; i++) {
+    if (src[i] === '\n') return i;
+  }
+  return src.length - 1;
+}
+
+function skipBlockComment(src, startIndex) {
+  for (let i = startIndex + 2; i < src.length; i++) {
+    if (src[i] === '*' && src[i + 1] === '/') return i + 1;
+  }
+  return -1;
+}
+
+/** 若 `startIndex` 处是注释，返回注释末尾下标；不是注释返回 -1。 */
+function skipComment(src, startIndex) {
+  if (src[startIndex] !== '/') return -1;
+  if (src[startIndex + 1] === '/') return skipLineComment(src, startIndex);
+  if (src[startIndex + 1] === '*') return skipBlockComment(src, startIndex);
+  return -1;
+}
+
+function matchPair(src, startIndex) {
+  const open = src[startIndex];
+  const close = open === '{' ? '}' : ')';
+  let depth = 0;
+  let i = startIndex;
+  while (i < src.length) {
+    const ch = src[i];
+    const skipped = skipComment(src, i);
+    if (skipped >= 0) { i = skipped + 1; continue; }
+    if (QUOTES.has(ch)) {
+      const end = skipQuoted(src, i, ch);
+      if (end === -1) return -1;
+      i = end + 1;
+      continue;
+    }
+    if (ch === open) depth++;
+    else if (ch === close) {
+      depth--;
+      if (depth === 0) return i;
+    }
+    i++;
+  }
+  return -1;
+}
+
+/**
+ * 从函数体的 `{` 起按括号配对取到配对的 `}`。
+ *
+ * 老实现是「切到下一个 `export function` 为止」，等于把后面的全部模块级代码都算进
+ * 这个函数体 —— 一个空壳函数后面跟着真实现，就会被判成「有逻辑」。
+ */
+export function extractFunctionBody(src, startIndex) {
+  const end = matchPair(src, startIndex);
+  return end >= 0 ? src.slice(startIndex, end + 1) : src.slice(startIndex);
+}
+
+/**
+ * 定位函数体的 `{`。参数表里也会出现 `{`（`options = {}`、解构参数、TS 注解），
+ * 直接 indexOf('{') 会从默认值那里开始取，函数被截得只剩两行，就误报成空转。
+ * 正确做法：先配对参数表的 `(`…`)`，再往后找第一个 `{`。
+ */
+export function findBodyBrace(src, funcIndex) {
+  const parenIdx = src.indexOf('(', funcIndex);
+  if (parenIdx === -1) return -1;
+  const parenEnd = matchPair(src, parenIdx);
+  if (parenEnd === -1) return -1;
+  const braceIdx = src.indexOf('{', parenEnd + 1);
+  if (braceIdx === -1) return -1;
+  // 参数表与函数体之间不应该出现另一个 export（否则这压根不是一个函数定义）
+  const between = src.slice(parenEnd + 1, braceIdx);
+  return between.includes('export') ? -1 : braceIdx;
+}
+
+// 一次「有意义的调用」= 调用了非日志类函数。老实现只认一份白名单（fs/数组方法/if/for…），
+// 于是 handleExportAssets 这种「调自己的辅助函数干活」的壳被全判成空转。
+const CALL_RE = /\b([A-Za-z_$][\w$]*)\s*\(/g;
+const NON_CALL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return',
+  'typeof', 'console', 'chalk', 'require', 'import', 'await']);
+
+function hasMeaningfulCall(line) {
+  for (const m of line.matchAll(CALL_RE)) {
+    if (!NON_CALL_KEYWORDS.has(m[1])) return true;
+  }
+  return false;
+}
+
+// 诚实跳过：缺工具时返回「跳过/未配置/不可用」，这不是空转，是设计。
+const SKIP_MESSAGE_RE = /跳过|未配置|不可用|未安装|未测量|不计为通过|skipped|not configured|unavailable/i;
+
+export function analyzeExportedFunction(src, funcName, funcIndex, file) {
+  const braceIdx = findBodyBrace(src, funcIndex);
   if (braceIdx === -1) return null;
   const body = extractFunctionBody(src, braceIdx);
-  const lines = body.split('\n');
-  let meaningful = 0;
-  for (const line of lines) {
-    if (!isTrivialLine(line) && MEANINGFUL_LINES.some(re => re.test(line))) {
-      meaningful++;
-    }
-  }
+  const codeLines = body.split('\n').filter((l) => !isTrivialLine(l));
+  // 只返回一句「跳过」的函数，是本环境缺工具时的正常出口，不算空转
+  if (codeLines.length === 0 && SKIP_MESSAGE_RE.test(body)) return null;
+  const meaningful = codeLines.filter((l) => MEANINGFUL_LINES.some((re) => re.test(l)) || hasMeaningfulCall(l)).length;
   if (meaningful < 1) {
     return { name: funcName, file, snippet: body.replace(/[\r\n]/g, ' ').trim().slice(0, 140) };
   }
@@ -425,19 +519,21 @@ function checkRegistryEntry(handlerName, modPath, crashes) {
 
   if (!isDirectExport) return;
 
-  const fnBodyMatch = modSrc.match(new RegExp(
-    `export\\s+(?:async\\s+)?function\\s+${handlerName}\\s*\\([^)]*\\)\\s*\\{([^}]*(?:\\{[^}]*\\}[^}]*)*)\\}`, 's'
-  ));
-  if (!fnBodyMatch) return;
+  const declIdx = modSrc.search(new RegExp(`export\\s+(?:async\\s+)?function\\s+${handlerName}\\b`));
+  if (declIdx === -1) return;
+  const braceIdx = findBodyBrace(modSrc, declIdx);
+  if (braceIdx === -1) return;
+  const body = extractFunctionBody(modSrc, braceIdx);
 
-  const code = fnBodyMatch[1]
+  const code = body
     .replace(/console\.(log|warn|error|info|debug)\s*\([^)]*\)/g, '')
     .replace(/chalk\.\w+\s*\([^)]*\)/g, '')
     .replace(/return\s+['"`][^'"`]*['"`]\s*;?/g, '')
     .replace(/\s+/g, '')
     .trim();
 
-  if (code.length < 5) {
+  // 只返回一句「跳过/未配置」的不算空转：那是缺工具时的设计出口，不是没实现。
+  if (code.length < 5 && !SKIP_MESSAGE_RE.test(body)) {
     crashes.push({ handler: handlerName, file: modPath.replace(SRC_DIR, '.'), error: '函数体过于简单(疑似空转)' });
   }
 }

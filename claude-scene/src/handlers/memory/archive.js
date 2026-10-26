@@ -30,7 +30,7 @@ function writeBufferAtomic(file, buffer) {
 }
 
 /** 四个后端各自的归档根目录（不存在的直接跳过，不算错）。 */
-export function archiveRoots(targetPath) {
+function archiveRoots(targetPath) {
   const project = normalizeProjectPath(targetPath);
   const roots = [
     join(claudeMemDir(), 'archive'),

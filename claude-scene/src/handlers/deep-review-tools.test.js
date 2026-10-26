@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
   DEFAULT_RULE_PACK,
+  buildSemgrepTargets,
   parseSemgrepJson,
   resolveSemgrepConfig,
 } from './deep-review-tools.js';
@@ -66,6 +67,57 @@ describe('deep-review-tools', () => {
       const raw = JSON.stringify({ results: [{ check_id: 'r.one' }] });
       const { findings } = parseSemgrepJson(raw);
       expect(findings[0]).toMatchObject({ rule: 'one', line: 0, severity: 'WARNING' });
+    });
+  });
+
+  // 扫描目标错了 semgrep 会静默地什么都不扫（或者扫进 node_modules 拖到超时），
+  // 这两种都不会报错，只会让「0 处命中」看起来像安全。
+  describe('buildSemgrepTargets', () => {
+    const mk = () => mkdtempSync(join(tmpdir(), 'semgrep-targets-'));
+
+    it('扫描根取源码顶层目录，噪声目录全部排除', () => {
+      const dir = mk();
+      try {
+        const files = [join(dir, 'src', 'a.js'), join(dir, 'lib', 'b.ts')];
+        const { targets, excludes } = buildSemgrepTargets(dir, files);
+        expect(targets).toBe('"src" "lib"');
+        for (const noise of ['node_modules', 'dist', 'coverage', '.git', '.claude']) {
+          expect(excludes).toContain(`--exclude "${noise}"`);
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('只有根级文件时回落到 .（而不是空字符串，空 targets 会让 semgrep 无输入）', () => {
+      const dir = mk();
+      try {
+        const { targets } = buildSemgrepTargets(dir, [join(dir, 'index.js')]);
+        expect(targets).toBe('"."');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('没有任何文件时也给 .，不会产出空的 targets', () => {
+      const dir = mk();
+      try {
+        expect(buildSemgrepTargets(dir, []).targets).toBe('.');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('把带独立 .git 的嵌套仓库也排除掉', () => {
+      const dir = mk();
+      const nested = join(dir, 'vendored');
+      mkdirSync(join(nested, '.git'), { recursive: true });
+      try {
+        const { excludes } = buildSemgrepTargets(dir, [join(dir, 'src', 'a.js')]);
+        expect(excludes).toContain('--exclude "vendored"');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     });
   });
 

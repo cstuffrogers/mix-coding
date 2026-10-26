@@ -3,6 +3,9 @@
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+// 变更/验证分类必须与引擎门禁同源：以前这里自己写了一份窄正则，
+// 引擎认的 runLint / smoke / verifyHandlers 它都不认，于是 15 个场景被误报。
+import { classifyAction } from '../claude-scene/src/lib/acceptance-check.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
@@ -133,8 +136,9 @@ for (const file of sceneFiles) {
     }
 
     // ── 变更/验证类动作统计（验收三元组门禁）──
-    if (/^(lint|test|build|typecheck|verify|runTests|verifyBuild)$/i.test(step.action)) hasVerifyAction = true;
-    if (/(implement|apply|write|create|generate|fix|refactor)/i.test(step.action)) hasChangeAction = true;
+    const kind = classifyAction(step.action);
+    if (kind === 'verify') hasVerifyAction = true;
+    if (kind === 'edit') hasChangeAction = true;
 
     // ── 记录 context 写入 ──
     for (const k of Object.keys(step.params || {})) {
@@ -142,7 +146,7 @@ for (const file of sceneFiles) {
     }
   }
 
-  if (hasChangeAction && !hasVerifyAction) {
+  if (hasChangeAction && !hasVerifyAction && !scene.allow_no_verify) {
     push('warn', file, '-', 'no-verify-step', '场景含变更类动作但没有验证类步骤（验收三元组门禁会阻断）');
   }
 

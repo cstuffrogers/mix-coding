@@ -767,3 +767,37 @@ pi 用的是 `~/.pi/agent/auth.json` 里的 key，删这两个不影响任何工
 - knip 5 个未用导出（`resolveSemgrep` / `buildSemgrepTargets` / `archiveRoots` / `contentHash` / `sleepSync`）
 - Pass 3 逻辑密度 10 个「疑似空转」里多数是真实现（`handleExportAssets`、`handleMemoryPrune`）
   或诚实的跳过（`handleCodeGraph*`），属启发式误报
+
+### 收尾轮：把自检剩下的噪音变成 0
+
+上一轮做到 `/check` 6 个问题。这一轮把最后 6 个也清了，但没有靠「调宽度」清，而是修了探测器本身：
+
+1. **审计脚本自己写了一套分类正则**（又一次违反「审计要建模引擎现实」）。`scripts/audit-scenes.mjs`
+   的验证动作白名单是 `^(lint|test|build|typecheck|verify|runTests|verifyBuild)$`，而引擎门禁
+   （`acceptance-check.js` 的 `VERIFY_RE`）认的是 `runLint/smoke/verifyHandlers/reviewDiff…`。
+   于是 15 个场景被误报「含变更类动作但没有验证类步骤」。改为直接 import 引擎的 `classifyAction`，
+   **警告 15 → 0**，并加了 `scene-acceptance.test.js`（4 个用例）把这条一致性钉住 ——
+   以后场景漏验证动作会在测试里红，而不是等跑到最后一步 exit 1。
+2. **Pass 3/9 的「空转」判定有两处真 bug**：
+   - `extractFunctionBody` 原来是「切到下一个 `export function` 为止」，等于把后面的模块级代码
+     都算进这个函数体（空壳后面跟真实现 → 判成有逻辑；模板字符串里的 `}` 又会提前截断）。
+     改成真正的括号配对（拆出 `skipQuoted`/`skipLineComment`/`skipBlockComment`，压住复杂度）。
+   - 定位函数体 `{` 用的是 `indexOf('{')`，撞上 `options = {}`、解构参数、TS 注解就从头开始取，
+     函数被截成两行 → 误报。新增 `findBodyBrace()`：先配对参数表的 `(`…`)` 再找 `{`。
+   - 「有意义」的行只认白名单（fs/数组方法/if/for…），`ensureDir(t); exportTokens(t);` 这种
+     「调自己的辅助函数干活」被判空转 → 加通用调用识别；同时把「只返回一句跳过/不可用」的
+     函数认定为**诚实跳过**而不是空转。
+   **Pass 3：10/237 → 231/231 全通过；Pass 9：241 个全通过。**
+3. **knip 噪音**：新增 `claude-scene/knip.json` 的 `ignoreBinaries`（`xdg-open`/`go`/`sqlite3`/
+   `pip`/`dependency-check`/`mythos-agent` —— 这些是引擎主动探测的可选外部工具，不是依赖），
+   删掉真死函数 `getPrimarySceneDir()`（无人调用），把仅内部使用的 `PACKAGE_SCENES_DIR`/
+   `getSceneDirs`/`resolveSemgrep`/`archiveRoots`/`contentHash`/`sleepSync` 取消 `export`。
+   **Pass 7：9 未用导出 + 1 死文件 → 0/0/0。**
+4. `buildSemgrepTargets` 补了 4 个用例（扫描根 / 回落 `.` / 空输入不出空 targets / 排除嵌套仓库）——
+   这个函数决定 semgrep 扫什么，错了只会静默扫不到东西。
+5. `enhancements.md` / `enhancements-summary.md` 加了说明：探测器依赖外部工具，本机
+   `mythos-agent`（已随工具清理卸载）与 `gepa` 未装，所以 mythos/GEPA 的增强项不会出现 ——
+   不是配置漏了。代码保留（装回即恢复），但文档不再假装它们可用。
+
+**收尾状态**：`/check` **11 道全绿 / 0 问题**（起点 38）；审计 **0 错误 0 警告**（起点 0/15）；
+25 场景 dry-run 全 exit 0；**521 tests / 46 files 全绿**；eslint 两个 root 均 0 error；knip 全清。

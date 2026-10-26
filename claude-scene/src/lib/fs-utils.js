@@ -27,7 +27,7 @@ export function writeFileAtomic(file, content) {
 }
 
 /** 同步 sleep。Atomics.wait 是唯一不引依赖、不烧 CPU 的同步等待。 */
-export function sleepSync(ms) {
+function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 

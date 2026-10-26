@@ -87,7 +87,7 @@ function _probeCommand(tool, cwd) {
  * Probe for a working semgrep binary.
  * @returns {{command: string, extraPath: string|null}|null}
  */
-export function resolveSemgrep() {
+function resolveSemgrep() {
   const hit = _probeCommand('semgrep', process.cwd());
   return hit ? { command: hit.command, extraPath: hit.extraPath } : null;
 }
