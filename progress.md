@@ -386,3 +386,18 @@ md 100 个、本项目 `.claude/memory` 63 个 —— 全部复制到
 - **439 测试 / 40 文件**绿（新增 `memory/memory-store.test.js` 10 例：hash 去重、
   dedupe 保留最新、空 data 不动、mtime 裁剪、truncated 标记、归档、type 收敛、
   codegraph 路径、三栏计数）。ESLint 双 0，场景审计 0 错误 / 15 警告。
+
+### 备份的处置结论（同日追加）
+
+清空前的快照逐条验过内容，判定**没有保留价值**，已删除（2.0M / 1070 文件）：
+
+- `general` 494 条几乎全是 `{"findings":{"security":{}},"completedSteps":[],"prompt":""}` —— 自动摘要空壳；
+- 大量条目里带**未渲染的模板占位符**（`{{backupConfigured}}`、`{{monitorConfigured}}`、`{{changelogPath}}`…），
+  证明是跑场景时自动写入的元数据，重跑即可再生成，不是知识；
+- `general` 里还有**嵌套自我复制**（`data_snippet` 套着上一层的完整 JSON），是这轮修掉的
+  「回写放大」缺陷留下的膨胀物；
+- 唯一有实质内容的是 `security` 里一条 `E:/dgsq` 的 CRITICAL 清单，其原文件仍在
+  `E:/dgsq/docs/audit-report.md`，不是唯一副本。
+
+`.codegraph/`（130MB）**保留**：它不是记忆，是外部 codegraph MCP 产出的代码索引，引擎只读；
+删掉会让 recall 的 codegraph 维度直接归零，重建要外部工具。它已在 `.gitignore` 内。
