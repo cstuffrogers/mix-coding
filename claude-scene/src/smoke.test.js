@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterAll } from 'vitest';
 import { readFileSync, existsSync, mkdirSync, rmSync, readdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
@@ -36,9 +36,23 @@ function readJsonOrNull(p) {
   try { return JSON.parse(readFileSync(p, 'utf-8')); } catch { return null; }
 }
 
+// 这些临时目录必须登记并统一清理：旧实现只在个别用例里 rmSync，跑一次全套
+// 就在 %TEMP% 留下几十个 smoke-<ts> 目录（本机实测积累了 80+ 个）。
+// 序号用自增计数而不是随机数：同一毫秒建两个目录时会撞名。
+const TEMP_DIRS = [];
+let tempSeq = 0;
+
+afterAll(() => {
+  for (const dir of TEMP_DIRS) {
+    try { rmSync(dir, { recursive: true, force: true }); } catch { /* 清理尽力而为 */ }
+  }
+});
+
 function makeTempDir() {
-  const dir = join(tmpdir(), `smoke-${Date.now()}`);
+  tempSeq += 1;
+  const dir = join(tmpdir(), `smoke-${Date.now()}-${tempSeq}`);
   mkdirSync(dir, { recursive: true });
+  TEMP_DIRS.push(dir);
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'smoke', type: 'module' }));
   return dir;
 }

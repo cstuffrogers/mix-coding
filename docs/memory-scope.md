@@ -147,15 +147,16 @@ CLAUDE_MEM_HOME / AGENTMEMORY_HOME / NEXO_HOME
 |---|---|
 | 指纹 = 规范化 JSON 的 sha256（键排序 + 忽略 `timestamp` / `ts` / `created_at` / `updated_at` / `stored_at` / `archived_at`） | `autoRemember` 的 data 每轮都带新 `timestamp`，逐字节比对永远判不出重复 |
 | **不忽略 `id`** | `id` 常常是 data 里用来区分两条记录的字段；当成易变字段会把两条真实不同的记忆判成重复，直接丢一条（实测踩到过） |
+| 判重窗口按「时间窗」而非「最近 N 条」 | 只看最近 N 条时，别的项目交替写同一类型就会把本项目那条挤出窗口，同内容又落一份（实测 12 个其他项目即复现） |
 | 判重必须带**项目** | A 项目写过的内容，B 项目写同样的内容不能被跳过 —— 召回按项目过滤，跳过就等于 B 永远看不到这条 |
 | 窗口 7 天 | 窗口无限长会让「每周跑一次的检查」永远只有第一天那条；太短（1 小时）则一天连跑几次照样堆副本 |
 | 判重失败一律「照写」 | 宁可多存一份，也不能把不同内容当重复丢掉 |
 | `{skipped:true}` 不等于失败 | 消息是「N 个后端命中相同内容未重复写入」，**不能出现「失败」二字**（引擎按 `/失败|阻断|FAIL/` 判步骤失败） |
 
-覆盖范围：project-memory（完整内容 hash）、claude-mem items（前 20 条内查指纹）、
-claude-mem markdown（标题区写 `- 内容指纹:`，查该类型最近 10 个文件）、
+覆盖范围：project-memory（完整内容 hash）、claude-mem items（窗口内全部条目，已被 500 封顶）、
+claude-mem markdown（标题区写 `- 内容指纹:` + 项目路径，新→旧扫到窗口外为止，最多 60 个文件）、
 agentmemory（新增 `content_hash` 列，判定下推到 SQL）、NEXO（事件 JSON 带 `fingerprint`，
-查最近 50 个同类型文件）。
+新→旧扫到窗口外为止，最多 200 个文件）。
 
 ## 归档压缩（只压不删）
 
@@ -167,6 +168,7 @@ agentmemory（新增 `content_hash` 列，判定下推到 SQL）、NEXO（事件
 | 压缩件非空才删原文件 | 压缩失败还删原件就是不可逆的数据丢失 |
 | 已有 `.gz` 就跳过，不覆盖 | 覆盖等于用新内容顶掉旧归档 |
 | 单文件上限 64MB | `gzipSync` 是一次性读进内存，误归档的大日志会把内存打爆 |
+| 压缩后不变小就留原文 | 小文件 gzip 反而变大（头就 18 字节）：压缩是为了省空间，不是把可读文件换成更大且不可读的；这类计入 `noGain` |
 | 失败数、超大文件数必须打印 | 静默失败的压缩等于「以为省了空间其实没省」 |
 | 覆盖四个归档根 | claude-mem `archive/`、NEXO `archive/`、agentmemory `archive/`、项目 `.claude/memory/.archive/` |
 

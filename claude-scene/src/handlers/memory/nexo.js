@@ -55,6 +55,11 @@ export function readNexoData(limit = 20) {
 }
 
 // 同一个内容在别的项目里是另一条事件：只按指纹判重会把 B 项目的记录吃掉。
+// 只看「最近 50 个」不够：别的项目交替写同一类型时，本项目那条会被挤出窗口，
+// 同内容又落一份（markdown 后端实测 12 个其他项目就复现）。按 mtime 新→旧扫，
+// 遇到比窗口更老的就停，另加 MAX_FP_SCAN 兜底（runtime 目录可能有几千文件）。
+const MAX_FP_SCAN = 200;
+
 function hasRecentNexoFingerprint(runtimeDir, name, fingerprint, scopePath) {
   try {
     // scanDir 的 filter 收到的是**完整路径**，不是文件名 —— 拿完整路径去
@@ -67,10 +72,13 @@ function hasRecentNexoFingerprint(runtimeDir, name, fingerprint, scopePath) {
         try { return { f, mtime: statSync(f).mtimeMs }; } catch { return null; }
       })
       .filter(Boolean)
-      .sort((a, b) => b.mtime - a.mtime)
-      .slice(0, 50);
+      .sort((a, b) => b.mtime - a.mtime);
+    const cutoff = Date.now() - DEDUPE_WINDOW_MS;
+    let inspected = 0;
     for (const { f, mtime } of files) {
-      if (Date.now() - mtime >= DEDUPE_WINDOW_MS) continue;
+      if (mtime < cutoff) break;
+      if (inspected >= MAX_FP_SCAN) break;
+      inspected++;
       try {
         const event = JSON.parse(readFileSync(f, 'utf-8'));
         if (event?.fingerprint !== fingerprint) continue;

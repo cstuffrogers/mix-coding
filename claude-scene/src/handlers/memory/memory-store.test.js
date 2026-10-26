@@ -603,6 +603,21 @@ describe('写入侧去重（内容指纹）', () => {
     expect(writeClaudeMemMarkdown('qa', { a: 1 }, scope, { fingerprint: 'f'.repeat(32) }).skipped).toBe(true);
   });
 
+  it('markdown 判重不被其他项目插队挤出窗口（12 个项目交替写同一类型）', async () => {
+    const { writeClaudeMemMarkdown } = await import('./claude-mem.js');
+    const { readdirSync } = await import('fs');
+    const mine = { path: join(root, 'mine'), name: 'mine' };
+    const fp = 'b'.repeat(32);
+    expect(writeClaudeMemMarkdown('architecture', { mine: true }, mine, { fingerprint: fp }).skipped).toBe(false);
+    for (let i = 0; i < 12; i++) {
+      writeClaudeMemMarkdown('architecture', { other: i }, { path: join(root, `o${i}`), name: `o${i}` }, { fingerprint: String(i).repeat(32) });
+    }
+    // 本项目同内容再写一次：不能因为前面插了 12 个其他项目的文件就漏判
+    expect(writeClaudeMemMarkdown('architecture', { mine: true }, mine, { fingerprint: fp }).skipped).toBe(true);
+    const mineFiles = readdirSync(join(root, 'claude_mem_home', 'memory')).filter(f => f.startsWith('architecture-')).length;
+    expect(mineFiles).toBe(13);
+  });
+
   it('agentmemory 同 type+项目+指纹只留一行，不同项目各留一行', async () => {
     const { writeAgentmemory, readAgentmemory } = await import('./agentmemory.js');
     const fp = 'c'.repeat(32);
@@ -707,6 +722,21 @@ describe('归档压缩', () => {
     expect(gunzipSync(readFileSync(`${old}.gz`)).toString()).toContain('KEEP-ME');
   });
 
+  it('压缩后不变小的文件保留原文（不把可读小文件换成更大且不可读的 .gz）', async () => {
+    const { compactArchives } = await import('./archive.js');
+    const { mkdirSync: mkd, writeFileSync: wf } = await import('fs');
+    const dir = join(root, 'nexo_home', 'archive');
+    mkd(dir, { recursive: true });
+    const tiny = join(dir, 'tiny.jsonl');
+    wf(tiny, '{"a":1}');
+    ageFile(tiny, 90);
+    const res = compactArchives(join(root, 'proj'), { olderThanDays: 30 });
+    expect(res.compressed).toBe(0);
+    expect(res.noGain).toBe(1);
+    expect(existsSync(tiny)).toBe(true);
+    expect(existsSync(`${tiny}.gz`)).toBe(false);
+  });
+
   it('已有 .gz 时跳过，不覆盖也不重复计数', async () => {
     const { compactArchives } = await import('./archive.js');
     const { mkdirSync: mkd, writeFileSync: wf } = await import('fs');
@@ -729,7 +759,8 @@ describe('归档压缩', () => {
     const arch = join(root, 'nexo_home', 'archive');
     mkd(arch, { recursive: true });
     const stale = join(arch, 'stale.jsonl');
-    wf(stale, '{"old":true}');
+    // 内容要足够大：几十字节的文件 gzip 后反而变大，会被判为 no-gain 留下原文。
+    wf(stale, JSON.stringify({ old: true, pad: 'x'.repeat(4000) }));
     ageFile(stale, 90);
     // 造一条超龄 NEXO 事件，让保留策略真的归档一个文件
     const scope = { path: join(root, 'proj'), name: 'proj' };

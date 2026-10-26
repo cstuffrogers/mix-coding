@@ -56,11 +56,12 @@ function walkFiles(dir, out = []) {
 
 /**
  * 把 N 天以前的归档文件压成 .gz，压缩成功且非空才删原文件。
- * 返回 { compressed, skipped, failed, bytesBefore, bytesAfter }，失败数 > 0 时
- * 调用方必须打印出来 —— 静默失败的压缩等于「以为省了空间其实没省」。
+ * 返回 { compressed, skipped, noGain, failed, tooLarge, bytesBefore, bytesAfter }，
+ * 失败数 > 0 时调用方必须打印出来 —— 静默失败的压缩等于「以为省了空间其实没省」。
+ *
+ * 单文件压缩。成功返回压缩后字节数，跳过/失败返回 null 并标原因 ——
+ * 让调用方能把「失败」和「本来就不该压」分开统计。
  */
-// 单文件压缩。成功返回压缩后字节数，跳过/失败返回 null 并标原因 ——
-// 让调用方能把「失败」和「本来就不该压」分开统计。
 function compressOne(entry) {
   const { file, size } = entry;
   if (!COMPRESSIBLE.has(extname(file).toLowerCase())) return { state: 'ignore' };
@@ -69,6 +70,9 @@ function compressOne(entry) {
   try {
     const gz = zlib.gzipSync(readFileSync(file));
     if (!gz || gz.length === 0) return { state: 'failed' };
+    // 小文件压完反而变大（gzip 头就要 18 字节）：那就留着原文 ——
+    // 压缩是为了省空间，不是为了把可读文件变成更大且不可读。
+    if (gz.length >= size) return { state: 'no-gain' };
     writeBufferAtomic(`${file}.gz`, gz);
     // 落盘后回读校验：压缩件必须非空，否则宁可留着原文件。
     if (statSync(`${file}.gz`).size === 0) return { state: 'failed' };
@@ -89,7 +93,7 @@ export function compactArchives(targetPath, options = {}) {
   const days = Number.isFinite(olderThanDays) && olderThanDays >= 0 ? olderThanDays : 30;
   const cutoff = Date.now() - days * 24 * 3600 * 1000;
 
-  const result = { compressed: 0, skipped: 0, failed: 0, tooLarge: 0, bytesBefore: 0, bytesAfter: 0, roots: 0 };
+  const result = { compressed: 0, skipped: 0, noGain: 0, failed: 0, tooLarge: 0, bytesBefore: 0, bytesAfter: 0, roots: 0 };
   const roots = archiveRoots(targetPath);
   result.roots = roots.length;
 
@@ -106,6 +110,12 @@ export function compactArchives(targetPath, options = {}) {
           break;
         case 'skipped':
           result.skipped++;
+          result.bytesAfter += entry.size;
+          break;
+        case 'no-gain':
+          // 压了不变小：留下原文件（体积没变），不计入压缩数。
+          result.noGain++;
+          result.bytesAfter += entry.size;
           break;
         case 'too-large':
           result.tooLarge++;
@@ -117,7 +127,8 @@ export function compactArchives(targetPath, options = {}) {
           result.bytesAfter += entry.size;
           break;
         default:
-          // 'ignore'：不是可压缩的归档类型
+          // 'ignore'：不是可压缩的归档类型，原样留着，体积不变
+          result.bytesAfter += entry.size;
           break;
       }
     }

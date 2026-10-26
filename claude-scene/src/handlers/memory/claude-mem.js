@@ -84,12 +84,13 @@ export function writeClaudeMemItem(category, entry, project = null, options = {}
     // 完全相同的副本（清单计数一路涨，召回却去重成一条，用户看到的
     // 「记忆在变多」是假的）。
     // 只看「最新一条」会漏（两个场景交替写同一分类时重复件排第二位），
-    // 所以扫前 20 条 + 7 天窗口 + **同一项目**（别的项目写同样内容是另一条记忆）。
+    // 所以扫「窗口内全部条目」+ **同一项目**（别的项目写同样内容是另一条记忆）。
+    // 条目数已由 ITEMS_CAP（500/类型）封顶，比再拍一个 slice 窗口更不会漏。
     const fingerprint = options.fingerprint || '';
     // project 是这个后端唯一能区分「哪条属于哪个项目」的字段：全局库里的记录
     // 一混在一起，召回就无法分辨上下文。传 null 时不写，老条目保持无归属。
     const scopePath = normalizeProjectPath(project?.path);
-    if (fingerprint && items.slice(0, 20).some(it => (
+    if (fingerprint && items.some(it => (
       it?.fingerprint === fingerprint
       && withinWindow(it.stored_at)
       && sameProjectPath(it?.project?.path, scopePath)
@@ -231,7 +232,12 @@ function withinWindow(stamp) {
   return Number.isFinite(t) && Date.now() - t < DEDUPE_WINDOW_MS;
 }
 
-// 同类型最近 10 个 markdown 文件里有没有相同指纹（读不到就当没有，宁可多写不误判）。
+// 同类型最近的文件里有没有相同指纹（读不到就当没有，宁可多写不误判）。
+// 窗口只看「最近 10 个文件」不够：别的项目交替写同一类型时，本项目那条
+// 会被挤出窗口，于是同内容又落一份（实测 12 个其他项目插在中间就复现）。
+// 按 mtime 新→旧扫，遇到比窗口更老的就停，另加 MAX_FP_SCAN 兜底。
+const MAX_FP_SCAN = 60;
+
 function hasFingerprintInWindow(dir, name, fingerprint, scopePath) {
   try {
     const files = readdirSync(dir)
@@ -240,10 +246,13 @@ function hasFingerprintInWindow(dir, name, fingerprint, scopePath) {
         try { return { f, mtime: statSync(join(dir, f)).mtimeMs }; } catch { return null; }
       })
       .filter(Boolean)
-      .sort((a, b) => b.mtime - a.mtime)
-      .slice(0, 10);
+      .sort((a, b) => b.mtime - a.mtime);
+    const cutoff = Date.now() - DEDUPE_WINDOW_MS;
+    let inspected = 0;
     for (const { f, mtime } of files) {
-      if (Date.now() - mtime >= DEDUPE_WINDOW_MS) continue;
+      if (mtime < cutoff) break;
+      if (inspected >= MAX_FP_SCAN) break;
+      inspected++;
       const head = readFileSync(join(dir, f), 'utf-8').slice(0, 400);
       const hit = /内容指纹:\s*([0-9a-f]{8,})/.exec(head);
       if (!hit || hit[1] !== fingerprint) continue;
