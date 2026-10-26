@@ -279,3 +279,72 @@ remember 报「4 后端」）；统一为 4。`recall` 在 codegraph 库为空�
 E2E（临时夹具，5 文件含 3 真 3 假）：`6 处候选（5 类）`，`tests/fixture.js`
 被排除，`PORT`/`etag` 被证伪；场景 `review` 日志中 `step 4.61 status = warn`，
 总计 pass 18 / fail 0 / warn 1 / skip 14 / noop 6。
+
+---
+
+## 2026-10-26 · 记忆系统作用域：全局后端补归属，修 `--target` 写错项目
+
+上一轮修的 4 个召回缺陷都在「同一个库内怎么读」这一层。这一轮回答一个更前面的问题：
+**记忆到底属于哪个项目？** 实测（A 项目写一条 → B 项目召回）：
+
+| 后端 | 作用域 | B 能否读到 A 的 |
+|---|---|---|
+| project-memory | 项目级 | ❌ |
+| codegraph | 项目级（只读） | ❌ |
+| claude-mem | 全局 | ✅ |
+| agentmemory | 全局 | ✅ |
+| NEXO | 全局 | ✅ |
+
+而且全局库那三条记录**没有任何项目标识**（`tags: []`，`type` 是工作流名不是项目名），
+事后无法归属 —— 在 B 项目跑 `/review` 会把 A 项目的审查结论当上下文注入。
+
+### 两个真 bug（实测发现，不是推断）
+
+1. **`--target` 时项目记忆写错项目**。`MEMORY_DIR` 是 `paths.js` import 时冻结的
+   `PROJECT_ROOT/.claude/memory`，而 `PROJECT_ROOT` = cwd。所以
+   `start review --auto -t <别的项目>` 时：报告写到目标项目，项目记忆却写进**引擎自己的
+   目录**（实测在 `claude-scene/.claude/memory/review/` 留下一条）。下次真 cd 到那个
+   项目反而读不到。改为所有 memory 入口按调用时的 `targetPath` 现算
+   （`memoryRoot(rootDir)`）。
+2. **测试往真实全局库写垃圾**。`smoke.test.js` 的 handler 遍历会真的调 remember，
+   而三个全局后端的路径常量（agentmemory/NEXO 已改成调用时读 env，claude-mem 还没有）
+   让它落到 `~/.agentmemory`。实测库里留下 8 条 `smoke-*` 记录。修：`claude-mem`
+   也改成调用时读 `CLAUDE_MEM_HOME`；`smoke.test.js` 加 `isolateStores()` 把三个
+   HOME 指进沙箱。验证方式：跑整份 smoke 前后 `count` 不变（1054 → 1054）。
+
+### 新增
+- `src/handlers/memory/project-scope.js`
+  - `normalizeProjectPath()`：绝对路径 + 分隔符统一 + 去尾斜杠 + Windows 转小写 +
+    `realpathSync.native` 展开（**路径不存在时向上找最近的存在祖先**再拼回剩余段 ——
+    直接 realpath 一个还没创建的目录会抛错，于是「刚写入时」和「目录建好后」算出两个
+    不同字符串，记忆就分裂了；这是单测逼出来的）。
+  - `projectScope()` / `classifyScope()` / `includeInRecall()`。
+- 三个全局 writer 带归属：`claude-mem` items 存 `project:{path,name}`、markdown 头部写
+  `- 路径: <abs>`、`agentmemory` 增列 `project_path`（`ALTER TABLE` 前查
+  `pragma_table_info`，幂等；老行为 NULL）、`NEXO` 事件存 `project`。
+- 召回过滤：本项目 → 召回；无归属历史 → 召回但标 `scope: 'unscoped'` 并在消息里报条数；
+  别的项目 → 默认排除，消息里报「已排除 N 条其他项目记录」；`params.cross_project: true`
+  才跨项目。
+- 回写堵截：`wholeRecalled` 只接受 `scope === 'project'` 的行。
+- 文档 `docs/memory-scope.md`（作用域表 / 归一化规则 / 召回矩阵 / 已知限制）、
+  `CLAUDE.md` §记忆系统、`.claude/rules/conditional/memory-auto-save.md` 同步。
+
+### 计数措辞的一个坑
+第一版把「扫描到的无归属总数」写进召回消息，实测显示「602 条历史记录未标归属」——
+读起来像召回了 602 条。改成只统计真正进入召回池的条数（`annotateScope(..., cap)`），
+现在是「14 条未标归属的旧记录（打标前写入）」。
+
+### 清理（有记录，非静默）
+- `~/.agentmemory` 8 条 `project_path LIKE %smoke-%`；`~/.claude/memory` general items
+  6 条；`~/.nexo/runtime` 8 个事件文件 —— 全部指向已删除的 `smoke-*` 临时目录，可判定
+  为测试产物。
+- `claude-scene/.claude/memory/review/342dbc53c501.json` —— 上面 bug 1 留下的错位记忆。
+
+### 验证
+- **429 测试 / 39 文件**绿（新增 `project-scope.test.js` 18 例：归一化 6、作用域 3、
+  归属判定 2、以及真实落盘的跨项目隔离 5 例）。ESLint 双 0。
+- 真实引擎 E2E：`start review --auto -t <临时项目>` → 记忆写到该项目的
+  `.claude/memory/review/`，引擎目录不再新增；三个全局后端记录都带
+  `c:/users/administrator/appdata/local/temp/proja2`。
+- 互换验证：A 自己召回 17 条（3 条 project + 14 条 unscoped）；C 项目召回 15 条、
+  0 条来自 A，消息报「已排除 2 条其他项目记录」。

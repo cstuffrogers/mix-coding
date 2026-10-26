@@ -27,7 +27,7 @@ export function readNexoData(limit = 20) {
       for (const f of files.slice(0, cap)) {
         try {
           const content = readFileSync(f, 'utf-8');
-          entries.push({ source: 'nexo', file: basename(f), content: content.slice(0, 300) });
+          entries.push({ source: 'nexo', file: basename(f), content: content.slice(0, 300), projectPath: readProjectPath(content) });
         } catch { /* skip unreadable */ }
       }
     }
@@ -35,13 +35,24 @@ export function readNexoData(limit = 20) {
   } catch { return []; }
 }
 
-export function writeNexoEvent(type, data) {
+// 事件文件是 {type, timestamp, project?, data}。老文件没有 project 字段，
+// 解析失败也按无归属处理（召回时标记出来，而不是静默丢掉）。
+function readProjectPath(content) {
+  try {
+    const parsed = JSON.parse(content);
+    return parsed?.project?.path || '';
+  } catch { return ''; }
+}
+
+export function writeNexoEvent(type, data, project = null) {
   try {
     const runtimeDir = join(nexoDir(), 'runtime');
     if (!existsSync(runtimeDir)) mkdirSync(runtimeDir, { recursive: true });
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     const file = join(runtimeDir, `${type}_${ts}.json`);
-    writeFileSync(file, JSON.stringify({ type, timestamp: new Date().toISOString(), data }, null, 2), 'utf-8');
+    const event = { type, timestamp: new Date().toISOString(), data };
+    if (project?.path) event.project = { path: project.path, name: project.name };
+    writeFileSync(file, JSON.stringify(event, null, 2), 'utf-8');
     return file;
   } catch { return null; }
 }

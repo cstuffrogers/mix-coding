@@ -24,7 +24,7 @@
 
 ## 记忆系统
 
-Claude Code auto-memory（`~/.claude/.../memory/` + MEMORY.md 索引）：用户画像/偏好/项目事实，自动保存。会话内规划用 `plan.md`/`findings.md`/`progress.md`（详见 `conditional/planning-with-files.md`）。
+5 个后端，**作用域不同**：`project-memory`（`<项目>/.claude/memory/`）与 `codegraph` 是项目级；`claude-mem`（`~/.claude/memory/`）、`agentmemory`（`~/.agentmemory/memory.db`）、`NEXO`（`~/.nexo/runtime/`）是全局库，写入时带**项目绝对路径**（归一化后），召回默认只取本项目 + 标记出的历史无归属记录，别的项目记录需 `cross_project: true`。用 `--target` 跑别的项目时，项目记忆跟着 targetPath 走，不跟 cwd。详见 `docs/memory-scope.md`。会话内规划用 `plan.md`/`findings.md`/`progress.md`（详见 `conditional/planning-with-files.md`）。
 
 ## 引擎
 

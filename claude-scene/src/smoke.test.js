@@ -131,6 +131,20 @@ async function runHandler(name, handler, tempDir) {
   return result;
 }
 
+// 记忆 handler 会写「全局」后端（claude-mem / agentmemory / NEXO）。不隔离的话，
+// 每跑一次测试就往开发者真实库里塞一条 smoke 记录 —— 测试不得写沙箱之外。
+const STORE_ENV = ['CLAUDE_MEM_HOME', 'AGENTMEMORY_HOME', 'NEXO_HOME'];
+
+function isolateStores(dir) {
+  const saved = STORE_ENV.map(k => [k, process.env[k]]);
+  for (const k of STORE_ENV) process.env[k] = join(dir, 'stores', k.toLowerCase());
+  return () => {
+    for (const [k, v] of saved) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  };
+}
+
 describe('handler smoke tests', () => {
   it('all ACTION_REGISTRY handlers return a value without throwing', async () => {
     const { ACTION_REGISTRY } = await import('./actions.js');
@@ -138,6 +152,7 @@ describe('handler smoke tests', () => {
     expect(entries.length).toBeGreaterThanOrEqual(70);
 
     const tempDir = makeTempDir();
+    const restoreEnv = isolateStores(tempDir);
     const failures = [];
     try {
       for (const [name, handler] of entries) {
@@ -150,6 +165,7 @@ describe('handler smoke tests', () => {
         }
       }
     } finally {
+      restoreEnv();
       try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* ok */ }
     }
 
