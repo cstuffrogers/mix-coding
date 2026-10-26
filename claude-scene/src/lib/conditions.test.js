@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { evaluateCondition } from './conditions.js';
+import { hasMcpServer } from './mcp-config.js';
 
 // Mock fs for file-existence-based conditions
 vi.mock('fs', () => {
@@ -127,6 +128,28 @@ describe('evaluateCondition', () => {
     it('plugin_ce_available returns boolean', () => {
       const result = evaluateCondition('plugin_ce_available', {});
       expect(typeof result).toBe('boolean');
+    });
+
+    // 回归锁定：MCP 条件必须等于「配置里真有这个 server」。
+    // 老实现是 isConversationMode()，等于「在对话里就假定什么 MCP 都有」，
+    // 配置只剩三个 server 时它们依然全为 true。
+    it('MCP 条件与真实配置一致（不是「在对话里就算有」）', () => {
+      const pairs = [
+        ['github_mcp_available', 'github'],
+        ['sentry_mcp_available', 'sentry'],
+        ['tavily_mcp_available', 'tavily'],
+        ['context7_mcp_available', 'context7'],
+        ['codegraph_mcp_available', 'codegraph'],
+        ['supabase_mcp_available', 'supabase'],
+        ['stripe_mcp_available', 'stripe'],
+        ['resend_mcp_available', 'resend'],
+        ['mobsf_mcp_available', 'mobsf'],
+        ['bearer_mcp_available', 'bearer'],
+        ['playwright_mcp_available', 'playwright'],
+      ];
+      for (const [condition, kind] of pairs) {
+        expect(evaluateCondition(condition, {})).toBe(hasMcpServer(kind));
+      }
     });
   });
 

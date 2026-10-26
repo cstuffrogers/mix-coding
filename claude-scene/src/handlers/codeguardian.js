@@ -1,0 +1,143 @@
+import { existsSync, readFileSync, realpathSync } from 'fs';
+import { join } from 'path';
+import { safeExec } from '../lib/safe-exec.js';
+
+/**
+ * CodeGuardian 变更边界验证。
+ *
+ * 之前这里是个纯桩：`return 'CodeGuardian 优化仅对话模式可用（需 codeguardian MCP），CLI 模式跳过'`。
+ * 但 refactor/optimize/loop 三个场景把它标成「最关键防线」并挂了 `on_error: abort`，
+ * 也就是说这条门禁号称会拦截过度膨胀，实际什么都没测。
+ *
+ * 现在真的量两个可以离线测的维度：
+ *   - 变更行数（git diff --numstat + 未跟踪文件，相对 base）
+ *   - 新增依赖数（package.json 的 dependencies/devDependencies 键集合差）
+ * 复杂度没有可靠的离线工具，不猜，明说未测量。
+ */
+
+export const DEFAULT_LIMITS = {
+  maxLines: 50,      // ±50 行
+  maxDeps: 0,        // 0 个新依赖
+  maxComplexityPct: 130,
+};
+
+const UNTRACKED_FILE_CAP = 500;
+
+function git(targetPath, args) {
+  try {
+    const out = safeExec(`git ${args}`, targetPath, { stdio: 'pipe', timeout: 30000 });
+    return out === undefined || out === null ? '' : String(out);
+  } catch {
+    return null;
+  }
+}
+
+function normPath(p) {
+  // realpath 是必需的：mkdtemp 给的路径可能带 8.3 短名（ADMINI~1），而 git 回报
+  // 完整名（Administrator），不比 realpath 就会永远不相等。
+  let real = p;
+  try { real = realpathSync.native(p); } catch { /* 不存在就按原样比 */ }
+  let out = real.replaceAll('\\', '/');
+  while (out.endsWith('/')) out = out.slice(0, -1);
+  return out.toLowerCase();
+}
+
+function changedLines(targetPath, base) {
+  const numstat = git(targetPath, `diff --numstat ${base}`);
+  if (numstat === null) return null;
+
+  let added = 0;
+  let removed = 0;
+  let files = 0;
+  for (const line of numstat.split('\n')) {
+    const m = line.trim().match(/^(\d+)\s+(\d+)\s+\S/);
+    if (!m) continue; // 二进制文件是 "-  -  path"，不计量
+    added += Number(m[1]);
+    removed += Number(m[2]);
+    files++;
+  }
+
+  // git diff 看不到新建的未跟踪文件，而重构/优化经常新增文件 —— 漏掉就会把
+  // 「加了 300 行新文件」判成「变更 0 行」。
+  const listed = git(targetPath, 'ls-files --others --exclude-standard') || '';
+  let untrackedLines = 0;
+  for (const rel of listed.split('\n').slice(0, UNTRACKED_FILE_CAP)) {
+    const name = rel.trim();
+    if (!name) continue;
+    try {
+      untrackedLines += readFileSync(join(targetPath, name), 'utf-8').split('\n').length;
+      files++;
+    } catch { /* 二进制/不可读，不计量 */ }
+  }
+
+  return { added, removed, total: added + removed + untrackedLines, files };
+}
+
+function depSet(pkgJson) {
+  if (!pkgJson) return new Set();
+  try {
+    const parsed = JSON.parse(pkgJson);
+    return new Set([
+      ...Object.keys(parsed.dependencies || {}),
+      ...Object.keys(parsed.devDependencies || {}),
+    ]);
+  } catch {
+    return new Set();
+  }
+}
+
+function addedDeps(targetPath, base) {
+  const pkgPath = join(targetPath, 'package.json');
+  if (!existsSync(pkgPath)) return [];
+  const before = git(targetPath, `show ${base}:package.json`);
+  if (before === null) return [];
+  const oldDeps = depSet(before);
+  return [...depSet(readFileSync(pkgPath, 'utf-8'))].filter((d) => !oldDeps.has(d));
+}
+
+export function handleCodeGuardianOptimize(_action, params = {}, targetPath, context) {
+  const limits = {
+    maxLines: Number(params.max_lines ?? params.maxLines ?? DEFAULT_LIMITS.maxLines),
+    maxDeps: Number(params.max_deps ?? params.maxDeps ?? DEFAULT_LIMITS.maxDeps),
+  };
+  const base = params.base || 'HEAD';
+
+  if (!targetPath || !existsSync(targetPath)) {
+    return 'CodeGuardian 边界检查跳过：未指定目标目录';
+  }
+
+  const toplevel = git(targetPath, 'rev-parse --show-toplevel');
+  if (toplevel === null || normPath(toplevel.trim()) !== normPath(targetPath)) {
+    // 子目录也「在仓库里」，但统计会混进别的目录，宁可不量。
+    return 'CodeGuardian 边界检查跳过：目标目录不是 git 仓库根，无法量化变更';
+  }
+
+  const lines = changedLines(targetPath, base);
+  if (lines === null) {
+    return `CodeGuardian 边界检查跳过：无法读取 ${base} 的 diff`;
+  }
+  const newDeps = addedDeps(targetPath, base);
+
+  const violations = [];
+  if (lines.total > limits.maxLines) {
+    violations.push(`变更 ${lines.total} 行（+${lines.added}/-${lines.removed}）超过上限 ${limits.maxLines}`);
+  }
+  if (newDeps.length > limits.maxDeps) {
+    violations.push(`新增依赖 ${newDeps.length} 个（${newDeps.join(', ')}）超过上限 ${limits.maxDeps}`);
+  }
+
+  if (context) {
+    context.boundaryChecked = true;
+    context.boundaryLinesChanged = lines.total;
+    context.boundaryNewDeps = newDeps;
+    context.boundaryViolations = violations;
+    context.boundaryOk = violations.length === 0;
+    if (violations.length > 0) context.lastStepFailed = true;
+  }
+
+  const measured = `变更 ${lines.total} 行 / ${lines.files} 个文件（上限 ${limits.maxLines}），新增依赖 ${newDeps.length} 个（上限 ${limits.maxDeps}），复杂度未测量`;
+  if (violations.length > 0) {
+    return `CodeGuardian 边界超出：${violations.join('；')}。${measured}。请缩小改动范围，超出部分应回滚。`;
+  }
+  return `CodeGuardian 边界检查通过：${measured}`;
+}

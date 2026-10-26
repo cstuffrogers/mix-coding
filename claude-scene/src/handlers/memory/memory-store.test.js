@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, utimesSync } from 'fs';
 import { spawnSync } from 'child_process';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// 本文件在 <repo>/claude-scene/src/handlers/memory/ 下，用文件位置而不是
+// process.cwd() 定位被测模块 —— /check 的冒烟步骤在仓库根跑 vitest。
+const MEM_DIR = dirname(fileURLToPath(import.meta.url));
 
 // 这些用例固化的是「不能悄悄吃掉用户记忆」的几条底线：
 // 去重指纹必须看完整内容、超容量要归档而不是删除、截断要显式标记、
@@ -408,7 +413,7 @@ describe('保留策略与跨进程锁', () => {
     const writer = join(root, 'writer.mjs');
     const itemsDir = join(process.env.CLAUDE_MEM_HOME, 'areas', 'topics', 'general');
     writeFileSync(writer, `
-      const { writeClaudeMemItem } = await import('file:///${join(process.cwd(), 'src/handlers/memory/claude-mem.js').replaceAll('\\', '/')}');
+      const { writeClaudeMemItem } = await import('file:///${join(MEM_DIR, 'claude-mem.js').replaceAll('\\', '/')}');
       for (let i = 0; i < 3; i++) writeClaudeMemItem('general', { marker: process.pid + '-' + i });
     `);
     const procs = [0, 1, 2].map(() => spawnSync(process.execPath, [writer], { env: process.env, encoding: 'utf-8' }));

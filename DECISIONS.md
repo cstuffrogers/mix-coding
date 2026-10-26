@@ -164,3 +164,34 @@ Harness Engineering Audit 发现 3 个关键状态文件缺失 (feature_list.jso
 
 - 正向: 不引入无法验证的破坏性操作
 - 负向: 本地磁盘占用 130MB；数据库内容随代码演进会过时（`codegraph` 查询结果可能滞后）
+
+---
+
+## ADR-007: MCP 可用性以配置文件为准，不以「是不是在对话里」为准
+
+**Status**: ACCEPTED
+**Date**: 2026-10-26
+**Decided By**: 全工作流健康检查
+
+### Context
+
+`conditions.js` 里所有 `*_mcp_available` 都是 `isConversationMode()`。这在 Claude Code 时代
+勉强成立（那个宿主会自动加载 `.claude/mcp.json`），但它表达的是「我在对话里，所以什么
+MCP 都有」——和真实配置无关。宿主收敛到 pi 之后，配置里只剩 schemaforge / a11y / detox
+三个 server，而 github / sentry / tavily / context7 / codegraph / supabase / stripe / resend
+的条件依然全部判「满足」，场景于是排了一串「调用不存在的工具」的步骤，跑起来才发现
+工具不在，而且步骤状态是 pass。
+
+### Decision
+
+新增 `src/lib/mcp-config.js`，按 `项目 .pi/mcp.json → 用户 ~/.pi/agent/mcp.json →
+.claude/mcp.json` 的顺序读配置，`hasMcpServer(kind)` 只认配置里真实存在且未
+`enabled: false` 的条目；`conditions.js` 的 MCP 条件改为走它。`memory` / `codeguardian`
+是引擎自带 handler，恒为真；`crg_skill_available` 是技能不是 MCP，仍按对话模式判断。
+
+### Consequences
+
+- 正向: 缺工具时步骤显示「跳过」而不是假装可用；`/check` Pass 10 与条件判定使用同一份配置
+- 正向: 加装 MCP 后条件自动变真，不需要改代码
+- 负向: 同一份配置在两处（项目级 / 用户级）需要同步维护
+- 负向: 配置文件写错（JSON 语法错）会被判成「没有 server」，需靠 Pass 10 报错提示

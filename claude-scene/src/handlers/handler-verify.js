@@ -5,6 +5,10 @@ import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 import { PACKAGE_ROOT, PROJECT_ROOT } from '../lib/paths.js';
+import { mcpConfigCandidates, loadMcpServers } from '../lib/mcp-config.js';
+
+// 兼容：既有测试从本模块导入 mcpConfigCandidates
+export { mcpConfigCandidates };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -326,11 +330,35 @@ function parseRegistryKeys(src) {
   const keys = new Set();
   const registryMatch = src.match(/const ACTION_REGISTRY\s*=\s*\{([\s\S]*?)\n\};/);
   if (registryMatch) {
-    const keyRe = /^\s{0,100}['"]?([-\w]+)['"]?\s{0,100}:/gm;
+    // 键有两种写法：裸标识符 `gitLeaks:` 和带引号的任意串 `'git diff --name-only':`
+    const keyRe = /^\s{0,100}(?:['"]([^'"]+)['"]|([-\w]+))\s{0,100}:/gm;
     let km;
     while ((km = keyRe.exec(registryMatch[1])) !== null) {
-      keys.add(km[1]);
+      keys.add(km[1] ?? km[2]);
     }
+  }
+  return keys;
+}
+
+// 有些场景不走 ACTION_REGISTRY：ui-polish 自己有 UI_POLISH_ACTIONS 分发表，
+// 分发表里的动作会带具名参数（args）调用；另有几个伪动作由 start.js 在
+// 步骤循环之前拦下来（选择模式 / 选择 setup 形态）。不把这些算进来就会报
+// 一堆假的「动作不存在」，把真问题淹掉。
+const SCENE_LOCAL_TABLES = [
+  { file: 'handlers/ui-polish.js', table: 'UI_POLISH_ACTIONS' },
+];
+const PSEUDO_ACTIONS = new Set(['selectModes', 'selectSetupKind']);
+
+function parseSceneLocalActionKeys() {
+  const keys = new Set(PSEUDO_ACTIONS);
+  for (const { file, table } of SCENE_LOCAL_TABLES) {
+    const src = readOrNull(join(SRC_DIR, file));
+    if (!src) continue;
+    const block = src.match(new RegExp(`const ${table}\\s*=\\s*\\{([\\s\\S]*?)\\n\\};`));
+    if (!block) continue;
+    const keyRe = /^\s{0,100}['"]?([-\w]+)['"]?\s{0,100}:/gm;
+    let km;
+    while ((km = keyRe.exec(block[1])) !== null) keys.add(km[1]);
   }
   return keys;
 }
@@ -357,6 +385,7 @@ function detectOrphanActions() {
   if (!src) return { orphans: [], sceneCount: 0, summary: 'actions.js 不可读' };
 
   const registryKeys = parseRegistryKeys(src);
+  for (const key of parseSceneLocalActionKeys()) registryKeys.add(key);
   const ceActions = new Set(['ce-compound', 'ce-plan', 'ce-review', 'ce-debug', 'ce-brainstorm', 'ce-work']);
 
   const scenesDir = join(PACKAGE_ROOT_DIR, 'scenes');
@@ -453,20 +482,6 @@ function detectHandlerCrashes() {
 // ═══════════════════════════════════════════════════
 // Pass 10: MCP config validation
 // ═══════════════════════════════════════════════════
-// 宿主配置位置不止一个：项目级 .pi/mcp.json 优先，其次 pi 用户级 ~/.pi/agent/mcp.json，
-// 最后是老的 Claude Code 位置（宿主已卸载，留着只为其它机器）。
-// 项目级条目按 pi 的语义覆盖同名用户级条目。
-const MCP_CONFIG_RELS = [
-  ['.pi', 'mcp.json'],
-  ['HOME', '.pi', 'agent', 'mcp.json'],
-  ['.claude', 'mcp.json'],
-];
-
-export function mcpConfigCandidates(root = PROJECT_ROOT, home = homedir()) {
-  return MCP_CONFIG_RELS.map(([base, ...rest]) =>
-    (base === 'HOME' ? join(home, ...rest) : join(root, base, ...rest)));
-}
-
 // 两种写法都要认：pi 用 ${VAR}，Claude Code 用 ${env:VAR}。
 // 只认一种会让 ${VAR} 被当成变量名 "${VAR"，报一条假的“未配置”。
 export function envVarName(value) {
@@ -548,6 +563,10 @@ function detectMcpIssues(targetPath) {
     ? mcpPath.slice(root.length).replace(/\\/g, '/')
     : mcpPath.replace(homedir(), '~').replace(/\\/g, '/');
 
+  const loaded = loadMcpServers(root);
+  if (loaded.broken) {
+    return { errors: [{ server: 'mcp.json', issue: 'JSON 解析失败（语法错误）' }], warnings: [], infos: [], ok: false, total: 0, okCount: 0 };
+  }
   let config;
   try {
     config = JSON.parse(readFileSync(mcpPath, 'utf-8'));

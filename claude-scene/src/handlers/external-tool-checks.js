@@ -863,13 +863,11 @@ export function handleDesignMdExport(_action, _params, targetPath) {
 // ── CodeGraph / CodeGuardian — MCP 工具（仅对话模式可用）──
 
 export function handleCodeGraphImpact() {
-  return 'CodeGraph 影响分析仅对话模式可用（需 codegraph MCP），CLI 模式跳过';
+  // 未配置 codegraph MCP 时这里是明确的跳过，不是「通过」
+  return '未配置 codegraph MCP，跳过 CodeGraph 影响分析（未测量）';
 }
 
 export function handleCodeGraphTrace() {
-  return 'CodeGraph 依赖追踪仅对话模式可用（需 codegraph MCP），CLI 模式跳过';
+  return '未配置 codegraph MCP，跳过 CodeGraph 依赖追踪（未测量）';
 }
 
-export function handleCodeGuardianOptimize() {
-  return 'CodeGuardian 优化仅对话模式可用（需 codeguardian MCP），CLI 模式跳过';
-}

@@ -1,4 +1,5 @@
 import { isConversationMode } from './platform.js';
+import { hasMcpServer } from './mcp-config.js';
 import { existsSync } from "fs";
 import { join } from 'path';
 import { execSync } from 'child_process';
@@ -21,8 +22,6 @@ const SIMPLE_CONDITIONS = {
   spec_file_exists: () => existsSync(join(PROJECT_ROOT, 'spec.md')) || existsSync(join(PROJECT_ROOT, 'specs')),
   spec_file_not_exists: () => !existsSync(join(PROJECT_ROOT, 'spec.md')) && !existsSync(join(PROJECT_ROOT, 'specs')),
   setupConfigured: (ctx) => ctx?.setupConfigured === true || ctx?.e2eConfigured === true || ctx?.monitorConfigured === true,
-  codeguardian_mcp_available: () => isConversationMode(),
-  playwright_mcp_available: () => isConversationMode(),
   has_frontend_changes: (ctx) => ctx?.has_frontend_changes === true,
   attestation_enabled: (ctx) => ctx?.attestation_enabled === true || ctx?.user_confirmed === true,
   awesome_design_md_used: (ctx) => ctx?.awesome_design_md_used === true || ctx?.user_selected_brand !== undefined,
@@ -88,24 +87,26 @@ const SIMPLE_CONDITIONS = {
 
   webapp_testing_available: () => isConversationMode(),
 
-  // MCP tools require Claude Code conversation-level tool calling.
-  // When running inside a Claude Code session (CLAUDECODE=1), MCP tools ARE
-  // available at the conversation level. When running in a standalone CLI, they're not.
-  // In conversation mode, Claude handles MCP steps directly (reads command file and
-  // calls MCP tools). In CLI mode, these steps are skipped to avoid stub 空转.
-  github_mcp_available: () => isConversationMode(),
-  sentry_mcp_available: () => isConversationMode(),
-  tavily_mcp_available: () => isConversationMode(),
-  context7_mcp_available: () => isConversationMode(),
-  codegraph_mcp_available: () => isConversationMode(),
-  crg_mcp_available: () => isConversationMode(),
+  // MCP 条件看的是**真配置**（.pi/mcp.json / ~/.pi/agent/mcp.json / .claude/mcp.json）。
+  // 以前这里是 isConversationMode()：在对话里就假定什么 MCP 都有，结果配置里只剩
+  // 三个 server 时 github/sentry/tavily/context7 依然判「满足」，场景排了一堆
+  // 调用不存在的工具的步骤。缺工具就把步骤跳过，比假装能用诚实。
+  github_mcp_available: () => hasMcpServer('github'),
+  sentry_mcp_available: () => hasMcpServer('sentry'),
+  tavily_mcp_available: () => hasMcpServer('tavily'),
+  context7_mcp_available: () => hasMcpServer('context7'),
+  codegraph_mcp_available: () => hasMcpServer('codegraph'),
+  crg_mcp_available: () => hasMcpServer('codegraph'),
   crg_skill_available: () => isConversationMode(),
   // CRG graph already built for this repo (.code-review-graph/ dir exists)
   crg_graph_built: () => existsSync(join(PROJECT_ROOT, '.code-review-graph')),
-  supabase_mcp_available: () => isConversationMode(),
-  stripe_mcp_available: () => isConversationMode(),
-  resend_mcp_available: () => isConversationMode(),
-  memory_mcp_available: () => isConversationMode(),
+  supabase_mcp_available: () => hasMcpServer('supabase'),
+  stripe_mcp_available: () => hasMcpServer('stripe'),
+  resend_mcp_available: () => hasMcpServer('resend'),
+  // memory/codeguardian 是引擎自带的 handler，不依赖 MCP
+  memory_mcp_available: () => true,
+  codeguardian_mcp_available: () => true,
+  playwright_mcp_available: () => hasMcpServer('playwright'),
 
   // Mobile platform guards
   mobile_platform: (ctx) => ctx.platform === 'android' || ctx.platform === 'ios' || ctx.platform === 'both',
@@ -113,7 +114,7 @@ const SIMPLE_CONDITIONS = {
   android_platform: (ctx) => ctx.platform === 'android' || ctx.platform === 'both',
 
   // Mobile tool availability
-  mobsf_mcp_available: () => isConversationMode(),
+  mobsf_mcp_available: () => hasMcpServer('mobsf'),
   mobsfscan_available: () => {
     try {
       // eslint-disable-next-line sonarjs/no-os-command-from-path -- tool detection, not user-controlled
@@ -121,7 +122,7 @@ const SIMPLE_CONDITIONS = {
       return true;
     } catch { return false; }
   },
-  bearer_mcp_available: () => isConversationMode(),
+  bearer_mcp_available: () => hasMcpServer('bearer'),
   dependencycheck_available: () => {
     try {
       // eslint-disable-next-line sonarjs/no-os-command-from-path -- tool detection, not user-controlled
@@ -131,7 +132,7 @@ const SIMPLE_CONDITIONS = {
     const dcBat = join(PROJECT_ROOT, 'tools', 'dependency-check', 'bin', 'dependency-check.bat');
     return existsSync(dcBat);
   },
-  detox_mcp_available: () => isConversationMode(),
+  detox_mcp_available: () => hasMcpServer('detox'),
 };
 
 // eslint-disable-next-line sonarjs/super-linear-regex

@@ -718,3 +718,52 @@ pi 用的是 `~/.pi/agent/auth.json` 里的 key，删这两个不影响任何工
 `docs/tools-inventory.md` 的「活跃 MCP 服务器」从 7 个改为 3 个。
 
 验证：491 tests / 43 files 全绿，两个 root 的 eslint 0 error，两个目录下 Pass 10 都正确命中。
+
+---
+
+## 2026-10-26 全工作流健康检查（25 个场景）
+
+检查方法：`--dry-run --auto` 跑遍 25 个场景 + 真跑 `/check` + 引擎自检 11 道 + 抽查 3 个真实 handler。
+
+**发现的真问题（均已修）**
+
+1. **`/check` 的冒烟测试一直是红的**。它在仓库根跑 `vitest`，而两个测试文件的夹具用
+   `process.cwd()` 定位仓库：`skill-runner.test.js` 的 `cwd/..` 在根目录下变成盘符根
+   `E:\`，`memory-store.test.js` 的子进程 import 路径变成 `E:/auto-coding/src/...`。
+   从 `claude-scene/` 跑是绿的，从根跑 14 个红 —— 所以「本地全绿、自检报错」。
+   两处都改成按 `import.meta.url` 定位。**现在根目录跑 504 tests / 45 files 全绿。**
+2. **MCP 条件全是假的**（见 ADR-007）。github 12 处、context7 6 处、codegraph 5 处步骤
+   之前在「工具不存在」的情况下被判可执行。
+3. **`/check` Pass 9 报了 8 个假孤儿动作**：`ui-polish` 走自己的 `UI_POLISH_ACTIONS`
+   分发表，`selectModes`/`selectSetupKind` 由 `start.js` 拦截，都不在 `ACTION_REGISTRY`。
+   另外注册表键有两种写法（`gitLeaks:` / `'git diff --name-only':`），解析器只认裸标识符，
+   于是真动作也被判「不存在」。修完 Pass 8 = 25 场景全部有效。
+4. **CodeGuardian 边界门禁是个纯桩**。`refactor` / `optimize` / `loop` 都把它标成
+   「最关键防线」并挂了 `on_error: abort`，而实现只有一行 `return '仅对话模式可用…'`。
+   现在真量：`git diff --numstat` + 未跟踪文件行数、`package.json` 依赖键集合差，
+   超限置 `context.lastStepFailed` + `boundaryViolations`；复杂度没有可靠离线工具，
+   输出里明写「未测量」，不猜。新增 `codeguardian.js` + 5 个用例（含 8.3 短名路径坑、
+   子目录不是仓库根时不冒充通过）。
+5. **移动端几个 handler 拿「没跑」当「通过」**：`privacyPassed = true`（Bearer 没装）、
+   `tools_installed = missing`（什么都没装却记成已装）、`app_built` / `source_scanned` /
+   `deps_scanned`（同样的模式）。全部改成「跳过/未执行（不计为通过）」，且只在对应 MCP
+   真配了时才请求执行。
+6. 删掉死文件 `handlers/new-external-tools.js`（两个 "not yet implemented" 桩，无人引用）
+   与 `security-scanning.js` 里的 `handleTrivyScan` 桩。
+
+**当前状态**
+
+- 25 个场景 dry-run 全部 exit 0；条件统计与配置文件一致（github 0/12、context7 0/6）
+- `/check`：pass 9 / fail 0 / warn 2（warn 是已知的可选工具缺失与自检启发式）
+- 引擎自检问题数 38 → 22（剩下的多为 knip「未用导出」与逻辑密度启发式的误报）
+- 504 tests / 45 files 全绿（仓库根与 `claude-scene/` 两处跑都绿），eslint 两个 root 均 0 error
+- 真实执行抽查：`git-leaks`（19.7s，1 个文件仅历史）、`insecure-defaults-scan`（230 文件 0 候选）、
+  `codeguardian_optimize`（如实报 614 行超限）、`ui-polish` 的 `removeHardcodedColors` /
+  `applyDaisyUIComponents`（经 `UI_POLISH_ACTIONS` 分发表正常执行）
+
+**未处理（已知，不影响运行）**
+
+- `enhancements.js` 仍引用已卸载的 `mythos-agent`（探测器失败即不出现，属优雅降级）
+- knip 5 个未用导出（`resolveSemgrep` / `buildSemgrepTargets` / `archiveRoots` / `contentHash` / `sleepSync`）
+- Pass 3 逻辑密度 10 个「疑似空转」里多数是真实现（`handleExportAssets`、`handleMemoryPrune`）
+  或诚实的跳过（`handleCodeGraph*`），属启发式误报

@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { writeFileSync, mkdirSync, rmSync, readFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname, relative } from 'path';
+import { fileURLToPath, URL } from 'url';
 import { randomBytes } from 'crypto';
 import { handleInvokeSkill, resolveSkillCandidates } from './skill-runner.js';
+
+// 本文件在 <repo>/claude-scene/src/handlers/ 下，往上 3 层就是仓库根。
+const ENGINE_DIR = fileURLToPath(new URL('../../', import.meta.url)).replace(/[\\/]$/, '');
+const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url)).replace(/[\\/]$/, '');
 
 vi.mock('chalk', () => {
   const noop = (s) => s;
@@ -75,9 +80,9 @@ describe('handleInvokeSkill', () => {
 // directory would otherwise degrade the scene into a no-op that reads as pass.
 describe('vendored Trail of Bits skills', () => {
   const TOB = ['property-based-testing', 'variant-analysis', 'sharp-edges', 'insecure-defaults'];
-  // `..` of the engine dir is the repo root, which is where .claude/skills lives.
-  const engineDir = process.cwd();
-  const skillFile = (name) => join(engineDir, '..', '.claude', 'skills', name, 'SKILL.md');
+  // 仓库根由本文件位置推导，不用 process.cwd()：/check 的冒烟步骤是在仓库根跑
+  // vitest 的，那时 cwd 是仓库根而非 claude-scene，`cwd/..` 会变成盘符根 E:\。
+  const skillFile = (name) => join(REPO_ROOT, '.claude', 'skills', name, 'SKILL.md');
 
   it.each(TOB)('%s ships a SKILL.md with frontmatter', (name) => {
     const content = readFileSync(skillFile(name), 'utf-8');
@@ -88,14 +93,14 @@ describe('vendored Trail of Bits skills', () => {
 
   it.each(TOB)('%s is loadable through handleInvokeSkill', (name) => {
     const ctx = {};
-    const result = handleInvokeSkill('invokeSkill', { skill: name }, engineDir, ctx);
+    const result = handleInvokeSkill('invokeSkill', { skill: name }, ENGINE_DIR, ctx);
     expect(result).not.toContain('需要在对话模式中执行');
     expect(result).toContain('参考内容已展示');
     expect(ctx[`skill_${name}_name`]).toBeTruthy();
   });
 
   it.each(TOB)('%s has no dangling relative markdown links', (name) => {
-    const dir = join(engineDir, '..', '.claude', 'skills', name);
+    const dir = join(REPO_ROOT, '.claude', 'skills', name);
     const dangling = [];
     const walk = (d) => {
       for (const entry of readdirSync(d, { withFileTypes: true })) {
@@ -118,13 +123,13 @@ describe('vendored Trail of Bits skills', () => {
   it('runs no external process and installs nothing', () => {
     // The whole point of vendoring: usable with no network and no npm install.
     // Guard the handler contract rather than the (absent) subprocess plumbing.
-    const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges' }, engineDir, null);
+    const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges' }, ENGINE_DIR, null);
     expect(result).toContain('参考内容已展示');
   });
 
   it.each(TOB)('%s keeps its CC BY-SA attribution notice', (name) => {
     const notice = readFileSync(
-      join(engineDir, '..', '.claude', 'skills', name, 'NOTICE.md'), 'utf-8',
+      join(REPO_ROOT, '.claude', 'skills', name, 'NOTICE.md'), 'utf-8',
     );
     // These files must not drift into being presented as Elastic License 2.0.
     expect(notice).toContain('CC BY-SA 4.0');
@@ -134,8 +139,6 @@ describe('vendored Trail of Bits skills', () => {
 });
 
 describe('skill resolution from an arbitrary project directory', () => {
-  const engineDir = process.cwd();
-
   it('lists a target-project skill as the highest-priority candidate', () => {
     const target = join(tmp, 'some-other-project');
     const candidates = resolveSkillCandidates('sharp-edges', target);
@@ -169,7 +172,7 @@ describe('skill resolution from an arbitrary project directory', () => {
     expect(resolveSkillCandidates('no-such-skill', tmp)).toEqual([]);
   });
 
-  it('leaves engineDir untouched by the resolution probe', () => {
-    expect(existsSync(join(engineDir, '..', '.claude', 'skills'))).toBe(true);
+  it('leaves the engine repo untouched by the resolution probe', () => {
+    expect(existsSync(join(REPO_ROOT, '.claude', 'skills'))).toBe(true);
   });
 });

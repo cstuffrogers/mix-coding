@@ -106,6 +106,14 @@ export function handleCheckTools(_action, params, _targetPath, context) {
   return `工具检测完成: ${Object.keys(available).filter(k => available[k]).length}/${tools.length} 可用`;
 }
 
+function hasTool(cmd) {
+  try {
+    const out = safeExec(`${cmd} --version 2>&1`, undefined, { stdio: 'pipe', timeout: 10000 });
+    const text = String(out || '');
+    return !/NOT_FOUND|not found|not recognized/i.test(text);
+  } catch { return false; }
+}
+
 export function handleMobileAutoInstall(_action, params, targetPath, context) {
   const missing = context?.tools_missing || params?.missing || [];
 
@@ -113,29 +121,28 @@ export function handleMobileAutoInstall(_action, params, targetPath, context) {
     return '所有工具已就绪';
   }
 
-  if (context) context.tools_installed = missing;
-  return `安装指南已提供: ${missing.join(', ')}`;
+  // 之前这里把 missing 写进 context.tools_installed —— 什么都没装却记成已安装。
+  if (context) context.tools_install_plan = missing;
+  return `未执行安装（引擎不代装工具），需手动准备: ${missing.join(', ')}`;
 }
 
 export function handleBuildApp(_action, params, _targetPath, context) {
   const platform = params?.platform || context?.platform || 'both';
 
-  if (context) context.app_built = true;
-  return `App 构建完成（CLI 轻量模式，平台: ${platform}）`;
+  // 不置 app_built：构建没跑过，产物就不存在，后面依赖产物的步骤应该看得见这一点
+  return `App 构建需在本地/CI 执行（平台: ${platform}），CLI 下未构建`;
 }
 
-export function handleScanSource(_action, params, _targetPath, context) {
+export function handleScanSource(_action, params, _targetPath, _context) {
   const rules = params?.rules || 'default';
-
-  if (context) context.source_scanned = true;
-  return `源代码扫描完成（CLI 轻量模式，规则集: ${rules}）`;
+  const installed = hasTool('mobsfscan');
+  if (!installed) return 'mobsfscan 未安装，源代码 SAST 未执行（不计为通过）';
+  return `mobsfscan 已安装，源码扫描需手动/对话执行（规则集: ${rules}），本轮未测量`;
 }
 
-export function handleScanDependencies(_action, params, _targetPath, context) {
+export function handleScanDependencies(_action, params, _targetPath, _context) {
   const source = params?.source || 'npm';
-
-  if (context) context.deps_scanned = true;
-  return `依赖扫描完成（CLI 轻量模式，来源: ${source}）`;
+  return `依赖扫描需外部工具（来源: ${source}），本轮未执行（不计为通过）`;
 }
 
 export function handleMasvsCheck(_action, params, _targetPath, context) {

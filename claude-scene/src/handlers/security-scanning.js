@@ -16,8 +16,3 @@ export {
   handleCorsCheck,
   handleEnvVarLeak,
 } from './security/config-check.js';
-
-// Trivy scanner - placeholder until implemented
-export async function handleTrivyScan(_action, _params, _targetPath, _context) {
-  return '[TRIVY] Trivy container scanner not yet implemented. Skipping for now.';
-}
