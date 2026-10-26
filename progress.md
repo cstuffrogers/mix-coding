@@ -650,3 +650,21 @@ Codex / ZCode / pi（+ Percho），加上 `~/.cc-switch`（Claude Code、Codex �
 
 验证：487 tests / 43 files 全绿，`claude-scene list` 正常，`install-global.sh --dry-run`
 正确输出「未检测到 claude CLI —— 跳过」。
+
+---
+
+## 2026-10-27 第三批：TRAE Work CN / Kiro / ZCode
+
+- **TRAE Work CN 0.1.36**：注册表 DisplayName 是 `TRAE Work CN (User)`，但安装目录叫
+  `AppData\Local\Programs\TRAE SOLO CN`（很容易看漏）。Inno Setup 静默卸载
+  `unins000.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`，exit=0；uninstaller 只留下
+  `debug.log`，目录已清。
+- **Kiro 0.8.0**：同样 Inno Setup 静默卸载，注册表条目消失；`~/.kiro`、
+  `AppData\Roaming\Kiro` 移到备份。
+- **ZCode**：应用本来就没装（只有 `AppData\Roaming\ZCode` 与上一批移走的 `~/.zcode`），
+  两处数据都在备份里。
+- **未动**：`TRAE CN 3.4.4`（用户只点名 Work CN），其共享数据 `AppData\Roaming\Trae CN`
+  与 `~/.trae-cn` 一并保留。
+
+至此本机 AI 工具只剩：pi / Percho（宿主）、VS Code 里的 pencil + v0 + figma 扩展、
+以及 TRAE CN 3.4.4。备份 `E:/ai-tools-backup-20261027/` 约 4.0GB，`MANIFEST.md` 三段齐全。
