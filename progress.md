@@ -348,3 +348,41 @@ E2E（临时夹具，5 文件含 3 真 3 假）：`6 处候选（5 类）`，`te
   `c:/users/administrator/appdata/local/temp/proja2`。
 - 互换验证：A 自己召回 17 条（3 条 project + 14 条 unscoped）；C 项目召回 15 条、
   0 条来自 A，消息报「已排除 2 条其他项目记录」。
+
+---
+
+## 2026-10-26 · 记忆系统深度审计：7 个缺陷（3 个会吃掉真实记忆），随后清空存量
+
+上一轮解决「记忆属于哪个项目」。这一轮问的是「记忆会不会被悄悄弄丢」。全部结论都先
+写成探针脚本跑出来（`E:/tmp/memprobe{,2,3,4}.mjs`），不靠读代码猜。
+
+### 找到并修掉的 7 个缺陷
+
+| # | 缺陷 | 实证 | 修法 |
+|---|---|---|---|
+| A | `saveProjectMemory` 用 JSON **前 200 字符**当去重指纹 | 两次不同内容审查返回**同一个 id**，磁盘只有 1 条 | 指纹改为完整内容的 sha256；命中时返回 `duplicate: true`，调用方如实说「未重复写入」 |
+| B | `deduplicateProjectMemories` 用前 100 字符当 key | 手工放 3 条内容不同的记忆，**删掉 2 条** | 完整 hash；按 timestamp 倒序保留最新；`data` 为空的条目一律不动 |
+| C | markdown 归档 cap 100 按**文件名**排序 | 新写的 general/review 归档被删，最旧的 `aaa` 反而留下 | 按 mtime 排序删最旧，被删的名单落 `archive/markdown-pruned.log` |
+| D | markdown 读回截断 500 字符但**没有 `truncated` 标记** | `truncated: undefined` → 回写会把残片固化成完整记忆 | 补 `truncated` + `length` |
+| G | claude-mem items 到 500 条**静默挤掉最老的**（真实库 805 条跨类，马上触发） | 第 501 条写入后最老那条无影无踪 | 超出部分写 `archive/<dir>-items.jsonl`，可追溯 |
+| E | `queryCodeGraph` 用 import 时冻结的 `PROJECT_ROOT/.codegraph` | `--target` 时读的是**引擎自己的**符号图 | 按 `targetPath/.codegraph/codegraph.db` 定位，支持 `CODEGRAPH_HOME` |
+| F | `list` 的「本项目 N」把无归属行也算进去 | SQL 条件是「本项目 OR 无归属」 | 分三栏：本项目 / 无归属 / 其他 |
+
+顺带加固：三个 writer 内部归一化项目路径（防止直接调用方传 `e:/p/` 造成分裂）；
+`type`/`category` 过 `safeTypeName`（`../../escaped` 不再写到意料之外的目录）；
+auto-remember 也写 items（原先只写 markdown，两个存储条数对不上）；
+`consolidate` 返回消息里报告删了几条（去重是删文件，不能静默）。
+
+### 清空存量（已授权，备份先行）
+
+`~/.agentmemory` 1046 行、`~/.nexo/runtime` 894 文件、`~/.claude/memory` items 805 条 +
+md 100 个、本项目 `.claude/memory` 63 个 —— 全部复制到
+`E:/tmp/memory-backup-20261026-113342/`（1070 个文件 / 2.0M）后才删。
+保留 `~/.claude/memory/MEMORY.md`（外部模板）与 `~/.agentmemory/preferences.json`
+（工具配置，不是记忆）。`.codegraph` 是索引不是记忆，未动。
+清空后跑一遍 recall/list/remember/consolidate：0 条、无异常、codegraph 3567 节点仍可读。
+
+### 验证
+- **439 测试 / 40 文件**绿（新增 `memory/memory-store.test.js` 10 例：hash 去重、
+  dedupe 保留最新、空 data 不动、mtime 裁剪、truncated 标记、归档、type 收敛、
+  codegraph 路径、三栏计数）。ESLint 双 0，场景审计 0 错误 / 15 警告。

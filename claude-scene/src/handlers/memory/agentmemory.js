@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import crypto from 'crypto';
 import { AGENTMEMORY_DIR } from '../../lib/paths.js';
 import { ensureDir } from '../../lib/fs-utils.js';
+import { normalizeProjectPath } from './project-scope.js';
 
 // AGENTMEMORY_DIR is a module-level constant, so it is frozen at import time and
 // an env override set later never takes effect. Resolve per call instead, so
@@ -67,7 +68,9 @@ function whereClause(tags, projectPath) {
   const tagPart = tagClause(tags);
   if (tagPart) conditions.push(tagPart.replace(/^ WHERE /, ''));
   if (projectPath) {
-    const safe = String(projectPath).replace(/'/g, "''");
+    // 入库前归一化，读时也归一化：直接调这个函数的人不一定走了 scope.path，
+    // 存进去的 'e:/p/' 和 'e:/p' 不归一就会互相看不见（同一项目分裂）。
+    const safe = normalizeProjectPath(projectPath).replace(/'/g, "''");
     conditions.push(`(project_path = '${safe}' OR project_path IS NULL OR project_path = '')`);
   }
   if (!conditions.length) return '';
@@ -104,7 +107,7 @@ export function writeAgentmemory(type, content, tags = [], projectPath = '') {
     const safeContent = (typeof content === 'string' ? content : JSON.stringify(content)).replace(/'/g, "''");
     const safeTags = tags.join(',').replace(/'/g, "''");
     const safeType = type.replace(/'/g, "''");
-    const safeProject = String(projectPath || '').replace(/'/g, "''");
+    const safeProject = normalizeProjectPath(projectPath).replace(/'/g, "''");
     // SQL 走 stdin，不经过 shell。先前的写法把 SQL 包进双引号再交给 Shell，
     // 于是 JSON 内容里的 `"` 被 shell 吃掉（`{"a":1}` 变成 `{a:1}`），`$`/反引号
     // 还会被解释。SQL 层面转义了单引号，却漏了 shell 这一层，写入总是报

@@ -54,6 +54,18 @@ export function normalizeProjectPath(targetPath) {
 }
 
 /**
+ * 把任意字符串收敛成安全的「记忆类型」目录名。`type` 来自场景参数，
+ * `type: '../../escaped'` 虽然没跑到沙箱外，但会写到意料之外的目录。
+ */
+export function safeTypeName(type, fallback = 'general') {
+  const raw = String(type ?? '').toLowerCase();
+  let out = raw.replace(/[^a-z0-9_-]+/g, '-');
+  while (out.startsWith('-')) out = out.slice(1);
+  while (out.endsWith('-')) out = out.slice(0, -1);
+  return out || fallback;
+}
+
+/**
  * 当前项目的作用域。`targetPath` 来自场景步骤（`--target`）或 handler 参数；
  * 缺省回落到 PROJECT_ROOT（= $MIX_CODING_PROJECT_DIR || cwd）。
  */

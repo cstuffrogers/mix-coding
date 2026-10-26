@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'fs
 import { join, basename } from 'path';
 import { NEXO_DIR } from '../../lib/paths.js';
 import { scanDir } from '../../lib/scan-dir.js';
+import { normalizeProjectPath, safeTypeName } from './project-scope.js';
 
 // NEXO_DIR is frozen at import time; resolve per call so tests can point it at a
 // sandbox instead of the developer's real ~/.nexo.
@@ -27,7 +28,9 @@ export function readNexoData(limit = 20) {
       for (const f of files.slice(0, cap)) {
         try {
           const content = readFileSync(f, 'utf-8');
-          entries.push({ source: 'nexo', file: basename(f), content: content.slice(0, 300), projectPath: readProjectPath(content) });
+          // 截断必须显式：被截断的内容回写成新记忆就把残片固化了。
+          const truncated = content.length > 300;
+          entries.push({ source: 'nexo', file: basename(f), content: content.slice(0, 300), truncated, length: content.length, projectPath: readProjectPath(content) });
         } catch { /* skip unreadable */ }
       }
     }
@@ -49,9 +52,12 @@ export function writeNexoEvent(type, data, project = null) {
     const runtimeDir = join(nexoDir(), 'runtime');
     if (!existsSync(runtimeDir)) mkdirSync(runtimeDir, { recursive: true });
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
-    const file = join(runtimeDir, `${type}_${ts}.json`);
-    const event = { type, timestamp: new Date().toISOString(), data };
-    if (project?.path) event.project = { path: project.path, name: project.name };
+    const name = safeTypeName(type);
+    const file = join(runtimeDir, `${name}_${ts}.json`);
+    const event = { type: name, timestamp: new Date().toISOString(), data };
+    // 入库前归一化：同一项目写成 'E:p' 和 'e:/p' 会分裂成两份归属。
+    const scopePath = normalizeProjectPath(project?.path);
+    if (scopePath) event.project = { path: scopePath, name: project.name || '' };
     writeFileSync(file, JSON.stringify(event, null, 2), 'utf-8');
     return file;
   } catch { return null; }

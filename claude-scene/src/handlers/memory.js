@@ -46,6 +46,24 @@ function scopeSuffix(unscoped, excluded) {
   return parts.length ? `；${parts.join('，')}` : '';
 }
 
+// 一处算清「本项目 / 无归属 / 其他」。旧实现直接用 readAgentmemory(..., scope.path)
+// 的长度当「本项目 N 条」，而那个 SQL 条件是「本项目 OR 无归属」，于是把历史垃圾
+// 也算进了本项目。
+function scopeCounts(records, scope, pathOf = r => r.projectPath || r.project?.path) {
+  const counts = { project: 0, unscoped: 0, other: 0 };
+  for (const record of records) {
+    const kind = classifyScope(pathOf(record), scope);
+    if (kind === 'project') counts.project++;
+    else if (kind === 'unscoped') counts.unscoped++;
+    else counts.other++;
+  }
+  return counts;
+}
+
+function formatCounts(counts) {
+  return `本项目 ${counts.project} / 无归属 ${counts.unscoped} / 其他 ${counts.other}`;
+}
+
 // ── Public handlers ──────────────────────────────────────────────
 export async function handleMemoryRecall(_action, params, targetPath, context) {
   const mode = params?.mode;
@@ -89,7 +107,9 @@ export async function handleMemoryRecall(_action, params, targetPath, context) {
   const nexoScoped = annotateScope(readNexoData(perSourceLimit), scope, crossProject, perSourceLimit);
   allMemories.push(...nexoScoped.kept);
 
-  const cg = queryCodeGraph(perSourceLimit);
+  // codegraph 也必须按 targetPath 定位：它是外部工具在图项目里生成的，
+  // 用 import 时冻结的 PROJECT_ROOT 就会把引擎自己的符号图当目标项目的。
+  const cg = queryCodeGraph(perSourceLimit, targetPath);
   if (cg.nodes > 0) allMemories.push({ source: 'codegraph', summary: cg });
 
   // 5 backends total (project-memory, claude-mem, agentmemory, NEXO, CodeGraph)
@@ -147,12 +167,15 @@ export async function handleMemoryRemember(_action, params, targetPath, context)
     : baseData;
   let count = 0;
   let entry;
+  let duplicated = false;
 
   try {
     entry = saveProjectMemory(type, data, {
       selection: context?.selectedOption,
       consistencyScore: context?.consistencyScore,
     }, targetPath);
+    // duplicate = 1 小时内已有**完全相同**的内容，没再写一份。
+    duplicated = entry?.duplicate === true;
     if (context) context.last_memory_id = entry.id;
     count++;
   } catch (e) {
@@ -184,7 +207,7 @@ export async function handleMemoryRemember(_action, params, targetPath, context)
   }
 
   if (context) context._memorySaved = true;
-  return `已保存到记忆（${count} 后端）`;
+  return `已保存到记忆（${count} 后端${duplicated ? '，项目记忆命中相同内容未重复写入' : ''}）`;
 }
 
 export function handleConsolidate(_action, _params, targetPath) {
@@ -203,21 +226,28 @@ export function handleConsolidate(_action, _params, targetPath) {
   const amStats = getAgentmemoryStats();
   stats.agentmemory = amStats;
 
-  const cg = queryCodeGraph();
+  const cg = queryCodeGraph(20, targetPath);
   stats.codegraph = { nodes: cg.nodes, edges: cg.edges, files: cg.files };
 
-  return `记忆整理完成（项目 ${stats.projectMemory.kept} / Claude-Mem ${stats.claudeMem.entries} / agentmemory ${amStats.count} / CodeGraph ${cg.nodes} 节点）`;
+  // 去重就是删文件，删了几条必须说出来 —— 静默删除用户的记忆不可接受。
+  const removedNote = pmStats.removed > 0
+    ? `，删除重复 ${pmStats.removed} 条`
+    : '';
+  const skipNote = pmStats.skipped > 0 ? `，${pmStats.skipped} 条无内容不可比对未动` : '';
+  return `记忆整理完成（项目 ${stats.projectMemory.kept}${removedNote}${skipNote} / Claude-Mem ${stats.claudeMem.entries} / agentmemory ${amStats.count} / CodeGraph ${cg.nodes} 节点）`;
 }
 
 export function handleListMemories(_action, _params, targetPath) {
   const scope = projectScope(targetPath);
   const memories = loadAllProjectMemories(targetPath);
   const cmAll = ['general', 'architecture', 'decision', 'pattern'].flatMap(c => readClaudeMemItems(c));
-  // 计数要能区分本项目/其他项目，否则「1026 条」看着像全是本项目的
-  const cmMine = cmAll.filter(i => classifyScope(i.project?.path, scope) === 'project').length;
-  const amMine = readAgentmemory(10000, null, scope.path).length;
+  const cmCounts = scopeCounts(cmAll, scope, i => i.project?.path);
+  const amAll = readAgentmemory(10000);
+  const amCounts = scopeCounts(amAll, scope);
+  const nexoAll = readNexoData(5000);
+  const nexoCounts = scopeCounts(nexoAll, scope);
   const amStats = getAgentmemoryStats();
-  const cg = queryCodeGraph();
+  const cg = queryCodeGraph(20, targetPath);
 
   if (memories.length) {
     memories.slice(0, 10).forEach((m, i) => {
@@ -226,7 +256,11 @@ export function handleListMemories(_action, _params, targetPath) {
   } else {
     console.log(chalk.dim('  （暂无）'));
   }
-  return `记忆列表: ${memories.length} 条（project-memory）+ Claude-Mem 全局 ${cmAll.length} / 本项目 ${cmMine} + agentmemory 全局 ${amStats.count} / 本项目 ${amMine} + ${cg.nodes}（codegraph）`;
+  return `记忆列表: ${memories.length} 条（project-memory）` +
+    ` + Claude-Mem 全局 ${cmAll.length}（${formatCounts(cmCounts)}）` +
+    ` + agentmemory 全局 ${amStats.count}（${formatCounts(amCounts)}）` +
+    ` + NEXO 全局 ${nexoAll.length}（${formatCounts(nexoCounts)}）` +
+    ` + codegraph ${cg.nodes} 节点`;
 }
 
 export function handleAutoRemember(_action, _params, targetPath, context) {
@@ -265,6 +299,9 @@ export function handleAutoRemember(_action, _params, targetPath, context) {
   }
 
   try {
+    // 显式 remember 会同时写 items 与 markdown，auto 只写 markdown 会让两个存储
+    // 对不上（list 的条数漏掉 auto 记录）。两边写同一份。
+    writeClaudeMemItem(workflowType, { type: workflowType, data_snippet: JSON.stringify(data).slice(0, 200) }, scope);
     writeClaudeMemMarkdown(workflowType, data, scope);
     count++;
   } catch (e) {

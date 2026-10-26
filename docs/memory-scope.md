@@ -63,9 +63,29 @@ CLAUDE_MEM_HOME / AGENTMEMORY_HOME / NEXO_HOME
 测试必须设它们，否则每跑一次就往开发者真实库里塞记录。`smoke.test.js` 通过
 `isolateStores()` 统一隔离；`project-scope.test.js` 自带沙箱。
 
+## 存储卫生（写入侧的四条硬约束）
+
+| 约束 | 为什么 |
+|---|---|
+| 去重指纹 = **完整内容** 的 sha256 | 旧实现拿 JSON 前 200 字符当指纹，两次审查前缀一样，第二次被静默丢弃、`last_memory_id` 还指回上一条 —— 报告说「已保存」，实际没写 |
+| `deduplicate` 也按完整 hash，且**保留最新** | 旧实现用前 100 字符，实测把 3 条内容不同的记忆删成 1 条。`data` 为空的老条目一律不动 |
+| 超容量**归档**，不删除 | claude-mem items 上限 500、markdown 上限 100；超出的条目写进 `~/.claude/memory/archive/*.jsonl` 或 `markdown-pruned.log`，可追溯 |
+| 容量裁剪按 **mtime** | 旧实现按文件名排序（`<type>-<ts>.md`），等价于先按类型字母序分组 —— 实测把最新的 general/review 归档全删了，却留下最旧的 aaa |
+
+读回时 `content` 被截断（claude-mem markdown 500 / NEXO 300 / agentmemory 500）必须带
+`truncated: true`，回写时过滤掉 —— 否则残片会被固化成「完整记忆」。
+
+## 计数要说实话
+
+`list` 的计数分三栏：**本项目 / 无归属 / 其他**。旧实现把
+`readAgentmemory(..., scope.path)` 的长度当「本项目 N 条」，而这个 SQL 条件是
+「本项目 OR 无归属」，等于把历史垃圾算进了本项目。
+
 ## 已知限制
 
-- **CodeGraph 是外部工具产物**，引擎只读不重建；`--target` 只影响读哪个库。
+- **CodeGraph 是外部工具产物**，引擎只读不重建；按 `targetPath/.codegraph/codegraph.db`
+  定位（可用 `CODEGRAPH_HOME` 覆盖），目标项目没有库时返回 0 —— 不能回退去读引擎自己的图。
 - **`consolidate` 只对 project-memory 去重**，三个全局后端仅打印计数（跨项目的
-  「近似重复」无法安全自动合并）。
-- 没有保留期/轮转：全局库只增不减，需要显式策略。
+  「近似重复」无法安全自动合并）。删了几条会在返回消息里说出来。
+- **没有保留期/轮转**：agentmemory 与 NEXO 只增不减（NEXO 每次召回还要全目录
+  `statSync`）。需要显式的用户策略再动。
