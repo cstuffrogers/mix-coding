@@ -18,9 +18,11 @@ const isFix = process.argv.includes('--fix');
 let errors = 0;
 let warnings = [];
 
+// shell: true 是必须的：Windows 上 execSync('npm test') 不带 shell 会 ENOENT
+// （npm 是 npm.cmd，不加 shell 找不到），于是脚本会谎报「No test script」。
 function run(cmd, opts = {}) {
   try {
-    return execSync(cmd, { encoding: 'utf8', stdio: 'pipe', timeout: 60000, ...opts }).trim();
+    return execSync(cmd, { encoding: 'utf8', stdio: 'pipe', timeout: 600000, shell: true, ...opts }).trim();
   } catch {
     return null;
   }
@@ -80,7 +82,8 @@ if (testOk !== null && !testOk.includes('FAIL')) {
 } else if (testOk !== null) {
   check('Tests pass', false, testOk.slice(0, 200));
 } else {
-  warn('No test script', '');
+  // null = 命令失败/超时/没有脚本，三者都不是「通过」
+  check('Tests pass', false, 'npm test 执行失败或超时');
 }
 
 // 3. Lint

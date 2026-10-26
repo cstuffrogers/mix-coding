@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Mix-Coding System — AI-driven development with Scene + Archon dual engines",
   "scripts": {
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "visual-test": "playwright test",
     "lint": "eslint .",
     "lint:biome": "biome check .",
