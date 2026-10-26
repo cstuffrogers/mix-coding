@@ -449,14 +449,26 @@ function formatResultForDisplay(result) {
   return String(result);
 }
 
-function deriveStepStatus(result, context) {
+export function deriveStepStatus(result, context) {
   if (!context.lastStepFailed && detectHandlerFailure(result)) {
     context.lastStepFailed = true;
   }
-  const resultStr = typeof result === 'string' ? result : '';
-  const isNoop = !context.lastStepFailed && NOOP_RES.some(re => re.test(resultStr));
-  const isWarn = !context.lastStepFailed && !isNoop && WARN_RES.some(re => re.test(resultStr));
-  return { resultStr, stepStatus: context.lastStepFailed ? 'fail' : (isNoop ? 'noop' : (isWarn ? 'warn' : 'pass')) };
+  const resultStr = typeof result === 'string' ? result : formatResultForDisplay(result);
+  if (context.lastStepFailed) return { resultStr, stepStatus: 'fail' };
+  // 处理器可直接布状态（三态检查/跳过不再靠正则猜），正则启发式仅作兵底。
+  const explicit = getExplicitStatus(result);
+  if (explicit) return { resultStr, stepStatus: explicit };
+  const isNoop = NOOP_RES.some(re => re.test(resultStr));
+  const isWarn = !isNoop && WARN_RES.some(re => re.test(resultStr));
+  return { resultStr, stepStatus: isNoop ? 'noop' : (isWarn ? 'warn' : 'pass') };
+}
+
+const EXPLICIT_STATUSES = new Set(['pass', 'fail', 'skip', 'noop', 'warn']);
+
+/** 处理器返回 { status, message } 时以 status 为准（不再被正则误判为 pass）。 */
+function getExplicitStatus(result) {
+  if (!result || typeof result !== 'object') return null;
+  return EXPLICIT_STATUSES.has(result.status) ? result.status : null;
 }
 
 function recordStepResult(step, stepNum, status, duration, resultStr, context) {
@@ -467,7 +479,7 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context) {
     case 'warn': LOG_SUMMARY.warn++; break;
     default: LOG_SUMMARY.pass++; break;
   }
-  appendLog({ step: stepNum, action: step.action, status, duration_ms: duration, result: resultStr.slice(0, 200), time: new Date().toISOString() });
+  appendLog({ step: stepNum, action: step.action, status, iteration: context.iteration || 1, duration_ms: duration, result: resultStr.slice(0, 200), time: new Date().toISOString() });
   // Track per-step { action, status } for the acceptance reviewed-check gate.
   if (!Array.isArray(context.stepResults)) context.stepResults = [];
   context.stepResults.push({ action: step.action, status });
@@ -502,7 +514,7 @@ async function runStep(sceneId, step, context, options) {
 
   await handleStepError(step, context, sceneId, resolvedParams);
 
-  if (step.action.includes('deploy') && result.includes('部署')) {
+  if (step.action.includes('deploy') && resultStr.includes('部署')) {
     console.log(chalk.yellow('⚠️  部署步骤已完成，请手动验证部署结果'));
   }
 
@@ -562,6 +574,62 @@ function enforceAcceptanceGate(scene, context, sceneId) {
   }
 }
 
+const MAX_ITERATIONS = 20;
+
+/** `--iterations N`（或场景里声明的 iterations）。默认 1 = 与旧行为一致。 */
+export function resolveIterations(options, scene) {
+  const requested = options?.iterations ?? scene?.iterations ?? 1;
+  const parsed = Number.parseInt(requested, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.min(parsed, MAX_ITERATIONS);
+}
+
+/**
+ * 收敛判据：之前“循环 N 次”只是一句没人消费的 prompt 文本（引擎没有迭代概念）。
+ * 本轮干净就停；发现数没下降也停，否则 10 轮都在同一批问题上空转。
+ */
+export function shouldStopLooping({ iteration, max, prevFindings, findings }) {
+  if (iteration >= max) return { stop: true, reason: 'max', message: `已跑满 ${max} 轮` };
+  if (findings === 0) return { stop: true, reason: 'clean', message: '本轮无新发现，提前结束' };
+  if (prevFindings !== null && findings >= prevFindings) {
+    return { stop: true, reason: 'no-progress', message: `发现数未下降（${prevFindings} → ${findings}），停止空转` };
+  }
+  return { stop: false, reason: 'continue', message: '' };
+}
+
+function countFindings(context) {
+  return (context.aislop_issue_count || 0) + (context.review_issue_count || 0);
+}
+
+async function runFlow(sceneId, scene, context, options) {
+  for (const step of scene.flow) {
+    if (options.dryRun) {
+      previewDryRunStep(step, context, options);
+      continue;
+    }
+    await runStep(sceneId, step, context, options);
+  }
+}
+
+async function runIterations(sceneId, scene, context, options) {
+  const iterations = options.dryRun ? 1 : resolveIterations(options, scene);
+  let prevFindings = null;
+  for (let iteration = 1; iteration <= iterations; iteration++) {
+    if (iterations > 1) console.log(chalk.cyan(`\n🔁 第 ${iteration}/${iterations} 轮`));
+    context.iteration = iteration;
+    await runFlow(sceneId, scene, context, options);
+    if (options.dryRun) break;
+    const findings = countFindings(context);
+    if (iterations > 1) console.log(chalk.dim(`   本轮发现 ${findings} 处`));
+    const decision = shouldStopLooping({ iteration, max: iterations, prevFindings, findings });
+    if (decision.stop) {
+      if (iterations > 1) console.log(chalk.dim(`   ↳ ${decision.message}`));
+      break;
+    }
+    prevFindings = findings;
+  }
+}
+
 export async function startScene(sceneId, options) {
   let scene;
   try {
@@ -587,13 +655,7 @@ export async function startScene(sceneId, options) {
     console.log(chalk.cyan('🔍 试运行模式 — 仅预览不执行'));
   }
 
-  for (const step of scene.flow) {
-    if (options.dryRun) {
-      previewDryRunStep(step, context, options);
-      continue;
-    }
-    await runStep(sceneId, step, context, options);
-  }
+  await runIterations(sceneId, scene, context, options);
 
   // Post-execution: auto-save workflow context to memory (unless explicitly saved)
   if (!options.dryRun) {

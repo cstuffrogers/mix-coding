@@ -3,7 +3,11 @@
   "workflow": "loop",
   "name": "自动迭代循环",
   "description": "无人值守自动迭代（集成CE知识沉淀）",
-  "trigger_keywords": ["通宵", "自动迭代", "Ralph Loop"],
+  "trigger_keywords": [
+    "通宵",
+    "自动迭代",
+    "Ralph Loop"
+  ],
   "flow": [
     {
       "step": 0.3,
@@ -24,7 +28,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["loop", "review", "iteration"]
+          "type": [
+            "loop",
+            "review",
+            "iteration"
+          ]
         }
       },
       "description": "注入历史上下文和相关记忆"
@@ -60,7 +68,10 @@
       "params": {
         "mode": "full",
         "options": {
-          "rules": ["eslint", "typescript"],
+          "rules": [
+            "eslint",
+            "typescript"
+          ],
           "autoFix": true
         }
       },
@@ -69,11 +80,12 @@
     {
       "layer": "capability",
       "service": "AISlopService",
-      "action": "aislop-scan",
+      "action": "aislop-fix",
       "params": {
-        "mode": "scan"
+        "mode": "fix",
+        "maxFindings": 200
       },
-      "description": "AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper/过多抽象（子秒级确定性）",
+      "description": "AI 代码气味扫描+安全修复：扫描结果落盘 .claude/reports/aislop-*.json；可修复项 ≤200 时自动 fix --safe，超过上限只报警交人工（防无人值守批量改写）",
       "step": 4.1
     },
     {
@@ -140,7 +152,11 @@
       "action": "report",
       "params": {
         "format": "summary",
-        "include": ["tokens", "api_calls", "mcp_usage"]
+        "include": [
+          "tokens",
+          "api_calls",
+          "mcp_usage"
+        ]
       },
       "description": "输出本轮迭代的Token/API调用/MCP使用成本汇总"
     },

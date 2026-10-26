@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
@@ -88,39 +88,94 @@ function runNpmAudit(targetPath, autoFix) {
   return { foundIssues: false, foundSecurityIssues: false };
 }
 
+// [patched:tri-state] 三个检查都返回三态：issues（真有问题）/ pass（真跑过且干净）/
+// skip（没跑成）。原先只有 true/false，把「没跑成」和「跑过且干净」合并成 false，
+// 上层 deriveStepStatus 就把跳过报成 pass —— 假绿。
+const TS_CONFIG_SKIP_DIRS = new Set([
+  'node_modules', '.git', 'dist', 'build', 'coverage', '.next', 'target', '.mcp', '.claude', 'open-design',
+]);
+
+/**
+ * 根目录没有 tsconfig.json 时向下探一层。本仓库源码在 claude-scene/ 这类子项目里，
+ * 在根跑 `npx tsc --noEmit` 只会打印帮助并退出 1，命中 /error|Error/ 就被误判成
+ * 「配置问题」而静默跳过类型检查。
+ */
+export function findTsconfigs(targetPath, maxDepth = 1) {
+  if (existsSync(path.join(targetPath, 'tsconfig.json'))) return [targetPath];
+  const found = [];
+  const walk = (dir, depth) => {
+    if (depth > maxDepth || found.length >= 3) return;
+    const entries = readdirSyncOrEmpty(dir);
+    for (const entry of entries) {
+      if (!entry.isDirectory() || TS_CONFIG_SKIP_DIRS.has(entry.name)) continue;
+      const sub = path.join(dir, entry.name);
+      if (existsSync(path.join(sub, 'tsconfig.json'))) found.push(sub);
+      else walk(sub, depth + 1);
+      if (found.length >= 3) return;
+    }
+  };
+  walk(targetPath, 1);
+  return found;
+}
+
+function readdirSyncOrEmpty(dir) {
+  try {
+    return readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+}
+
+function classifyTscOutput(result) {
+  if (/\berror\s+TS\d+/i.test(result)) return 'issues';
+  // tsc 找不到入口时打印帮助/退出，含 --noEmitOnError 等字样，不能当类型错误。
+  if (/COMMON COMMANDS|No inputs were found|--noEmitOnError/i.test(result)) return 'skip';
+  return 'pass';
+}
+
+function classifyLintOutput(result) {
+  if (_hasLintIssues(result)) return 'issues';
+  if (result.includes('fixed')) return 'issues';
+  if (/No files matching|Could not find config|Cannot find module|Invalid option|ESLint couldn't find/i.test(result)) {
+    return 'skip';
+  }
+  return 'pass';
+}
+
 function runEslintCheck(targetPath, autoFix) {
   const lintScript = _projectScript(targetPath, 'lint');
-  let cmd = lintScript
+  const cmd = lintScript
     ? `npm run lint${autoFix ? ' -- --fix' : ''}`
     : `npx eslint src --ext .js,.jsx,.ts,.tsx${autoFix ? ' --fix' : ''}`;
-  const result = runDiagnostic(cmd, targetPath);
-  // Distinguish config/runtime errors from actual lint issues — only
-  // file:line:column patterns count as real code problems.
-  const hasFileIssues = _hasLintIssues(result);
-  if (hasFileIssues) {
-    return true;
-  }
-  if (result.includes('fixed')) {
-    return true;
-  }
-  if (/No files matching|Could not find config|Cannot find module|Invalid option|ESLint couldn't find/i.test(result)) {
-    console.log(chalk.dim('  ℹ ESLint 配置/环境问题（非代码问题），跳过'));
-  }
-  return false;
+  const status = classifyLintOutput(runDiagnostic(cmd, targetPath));
+  if (status === 'skip') console.log(chalk.dim('  ℹ ESLint 配置/环境问题（非代码问题），跳过'));
+  return { status, detail: status === 'skip' ? 'eslint 未跑成（配置/环境问题）' : 'eslint' };
 }
 
 function runTypeCheck(targetPath) {
   const tsScript = _projectScript(targetPath, 'typecheck');
-  const result = runDiagnostic(tsScript ? 'npm run typecheck' : 'npx tsc --noEmit', targetPath);
-  // tsc outputs "error TS<code>" for type errors, config errors look different
-  const hasTypeErrors = /\berror\s+TS\d+/i.test(result);
-  if (hasTypeErrors) {
-    return true;
+  const configs = tsScript ? [] : findTsconfigs(targetPath);
+  if (!tsScript && configs.length === 0) {
+    console.log(chalk.dim('  ℹ 未找到 tsconfig.json（根及一层子目录），类型检查跳过'));
+    return { status: 'skip', detail: '未找到 tsconfig.json' };
   }
-  if (/error|Error/.test(result)) {
-    console.log(chalk.dim('  ℹ TypeScript 配置/环境问题（非代码问题），跳过'));
+  const runs = tsScript
+    ? [{ cmd: 'npm run typecheck', label: 'npm run typecheck' }]
+    : configs.map(cfg => {
+      const rel = path.relative(targetPath, cfg) || '.';
+      return { cmd: `npx tsc --noEmit -p "${rel}"`, label: `tsc ${rel}` };
+    });
+  const results = runs.map(r => ({ label: r.label, status: classifyTscOutput(runDiagnostic(r.cmd, targetPath)) }));
+  const failing = results.filter(r => r.status === 'issues');
+  const passed = results.filter(r => r.status === 'pass');
+  if (failing.length > 0) {
+    console.log(chalk.red(`  ❌ 类型检查: ${failing.map(r => r.label).join(', ')}`));
+    return { status: 'issues', detail: `类型错误（${failing.map(r => r.label).join(', ')}）` };
   }
-  return false;
+  if (passed.length === 0) {
+    return { status: 'skip', detail: '类型检查未跑成（tsc 无入口）' };
+  }
+  return { status: 'pass', detail: `类型检查通过（${passed.map(r => r.label).join(', ')}）` };
 }
 
 function runPa11yCheck(targetPath) {
@@ -251,21 +306,42 @@ function runRuleGatedCheck(active, runner, accum) {
   accum.security ||= r.foundSecurityIssues;
 }
 
-// Run eslint/tsc gates; flips context flags + isFoundIssues when active.
+// Run eslint/tsc gates; flips context flags + returns per-check tri-state.
 function runQualityGates(rules, mode, targetPath, autoFix, context) {
-  let isFoundIssues = false;
-
+  const checks = [];
   if (rules.includes('eslint') || mode === 'full') {
-    const lintIssues = runEslintCheck(targetPath, autoFix);
-    if (lintIssues) isFoundIssues = true;
-    if (context) context.lintPassed = !lintIssues;
+    const r = runEslintCheck(targetPath, autoFix);
+    checks.push({ name: 'eslint', ...r });
+    if (context) context.lintPassed = r.status === 'pass';
   }
   if (rules.includes('typescript') || mode === 'full') {
-    const tsIssues = runTypeCheck(targetPath);
-    if (tsIssues) isFoundIssues = true;
-    if (context) context.typecheckPassed = !tsIssues;
+    const r = runTypeCheck(targetPath);
+    checks.push({ name: 'typescript', ...r });
+    if (context) context.typecheckPassed = r.status === 'pass';
   }
-  return isFoundIssues;
+  return checks;
+}
+
+function summariseChecks(checks) {
+  const issues = checks.filter(c => c.status === 'issues');
+  const ran = checks.filter(c => c.status === 'pass' || c.status === 'issues');
+  const skipped = checks.filter(c => c.status === 'skip');
+  return { issues, ran, skipped, detail: checks.map(c => `${c.name}:${c.status}`).join(' / ') };
+}
+
+function reviewStatus({ issues, ran, skipped }) {
+  if (issues.length > 0) return 'warn';
+  if (ran.length === 0) return 'skip';
+  return skipped.length > 0 ? 'warn' : 'pass';
+}
+
+function reviewMessage({ issues, ran, skipped, detail }) {
+  if (issues.length > 0) return `代码审查完成（发现问题：${issues.map(c => c.name).join(', ')}）— ${detail}`;
+  if (ran.length === 0) return `代码审查跳过（无可执行的检查）— ${detail}`;
+  if (skipped.length > 0) {
+    return `代码审查完成（部分检查未执行：${skipped.map(c => c.name).join(', ')}）— ${detail}`;
+  }
+  return `代码审查完成（无问题）— ${detail}`;
 }
 
 export function handleRunReview(_action, params, targetPath, context) {
@@ -289,13 +365,19 @@ export function handleRunReview(_action, params, targetPath, context) {
   runRuleGatedCheck(runSecurity, () => runSecurityEslint(targetPath, autoFix), accum);
   runRuleGatedCheck(runAudit, () => runNpmAudit(targetPath, autoFix), accum);
 
-  const isFoundIssues = runQualityGates(rules, mode, targetPath, autoFix, context) || accum.issues;
+  const checks = runQualityGates(rules, mode, targetPath, autoFix, context);
+  if (accum.issues) checks.push({ name: 'security-lint', status: 'issues' });
+  const summary = summariseChecks(checks);
+  const isFoundIssues = summary.issues.length > 0;
   const isFoundSecurityIssues = accum.security;
 
   applyReviewResults(context, isFoundSecurityIssues, isFoundIssues, autoFix);
+  if (context) context.review_issue_count = summary.issues.length;
 
-  if (isFoundSecurityIssues) return '代码审查完成（发现安全问题）';
-  return isFoundIssues ? '代码审查完成（发现问题已标记）' : '代码审查完成（无问题）';
+  return {
+    status: isFoundSecurityIssues ? 'warn' : reviewStatus(summary),
+    message: (isFoundSecurityIssues ? '代码审查完成（发现安全问题）— ' : '') + reviewMessage(summary),
+  };
 }
 
 export function handleReviewFull(_action, _params, targetPath) {
