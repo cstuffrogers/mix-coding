@@ -164,8 +164,14 @@ else
     fi
 
     hdr "5. 安装 Claude Code 命令"
-    [ "$CMD_N" -gt 0 ] && install_tree "$SRC_CLAUDE_CMDS" "$CLAUDE_CMDS_DST" "*.md"
-    ok "$CMD_N 个命令 → $CLAUDE_CMDS_DST"
+    if command -v claude &> /dev/null; then
+      [ "$CMD_N" -gt 0 ] && install_tree "$SRC_CLAUDE_CMDS" "$CLAUDE_CMDS_DST" "*.md"
+      ok "$CMD_N 个命令 → $CLAUDE_CMDS_DST"
+    else
+      # 没装 Claude Code 时不要凭空造一个 ~/.claude/commands —— pi/percho 走的是
+      # ~/.pi/agent/prompts，这条路径只会变成无人读取的死目录。
+      dim "未检测到 claude CLI（Claude Code 未安装）—— 跳过，不创建 $CLAUDE_CMDS_DST"
+    fi
 
     hdr "6. 安装引擎技能"
     ENGINE_N=$(find "$SRC_ENGINE_SKILLS" -name '*.md' -type f 2>/dev/null | wc -l | tr -d ' ')

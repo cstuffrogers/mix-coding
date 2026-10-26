@@ -38,11 +38,22 @@
 
 按「只保留工作流需要的工具」的要求，工作流未引用的 AI 编程工具已整体移到 `E:/ai-tools-backup-20261027/`（移动 + `MANIFEST.md` 记录还原命令，**没有删除**）。
 
+**第一批（工作流零引用的工具）**
+
 - 家目录数据 20 个：`.codewhale` `.deepseek` `.claude-code-router` `.chelper` `.kimi` `.cline` `.roo` `.antigravity` `.openclaw` `.archon` `.claude-flow` `.zagent` `.costrict` `.stc` `.factory` `.qoder` `.ai_completion` `.gemini` `.cc-connect`
 - npm 全局包 6 个：`codewhale` `deepseek-tui` `mythos-agent` `cc-connect` `@bearer/cli` `skills`
-- 保留的宿主：Claude Code / Codex / opencode / ZCode / pi / Percho（`platform.js` 的 `PLATFORM_MARKERS` 就是这五个），以及 `~/.cc-switch`（上面两家的密钥中转）。
 
-直接后果：这把 key 在仓库外从 7 处降到 **5 处**，其中 `~/.cc-switch` 是唯一还在被工具读取的。
+**第二批（四个非当前宿主，用户明确不要）**
+
+- 卸：`@anthropic-ai/claude-code`、`@openai/codex`（npm）→ Codex 另有 MSIX 商店包 `OpenAI.Codex` + `CodexSandboxService.OpenAI.Codex` 服务，已卸包（服务随包移除）
+- 卸：OpenCode（NSIS）、CC Switch（MSI）
+- 移：`~/.claude/*`（除 `memory/`）→ `hosts/claude-home/`；`~/.codex` `~/.zcode` `~/.cc-switch` `~/.config/opencode` → `hosts/`
+
+**`~/.claude/memory` 原地保留**——它是 claude-mem 记忆后端的数据目录（`src/lib/paths.js:85`），删了等于删用户记忆。
+
+当前只剩 **pi + Percho** 一个宿主（`platform.js` 仍保留 claude / codex / opencode / zcode 的适配代码，重装即可恢复）。`scripts/install-global.sh` 与 `scripts/install-percho.bat` 已改成：检测不到 `claude` CLI 就不再创建 `~/.claude/commands`。
+
+直接后果：这把 key 在仓库外从 7 处降到 **2 处活跃**（`~/.pi/agent/sessions/**` 与 `~/.pi/agent/traces/**` 转录），其余副本全在备份目录里（含 `~/.cc-switch/cc-switch.db` 及其 10 份 backups、`~/.claude/history.jsonl`）。
 
 ### 1.2 为什么之前扫不出来（已修）
 

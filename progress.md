@@ -615,3 +615,38 @@ Codex / ZCode / pi（+ Percho），加上 `~/.cc-switch`（Claude Code、Codex �
 `~/.cc-switch/cc-switch.db` 是唯一还在被工具读取的副本。
 
 验证：487 tests / 43 files 全绿，`claude-scene list` 正常输出 25 个场景。
+
+---
+
+## 2026-10-27 第二批：只留 pi / Percho
+
+用户明确「Claude Code · opencode · Codex · ZCode 都不要了」。清理后本机**只剩 pi + Percho**
+一个宿主；`platform.js` 的适配代码原样保留，重装任一宿主即可恢复。
+
+实际拆掉的比预期多，因为每家都装了两份：
+
+- **Claude Code**：npm 包 `@anthropic-ai/claude-code` + 原生 `~/.local/bin/claude.exe`(232MB)
+  + VS Code 扩展 `anthropic.claude-code` + `~/.local/share/claude`(222MB)
+- **Codex**：npm 包 `@openai/codex` + **MSIX 商店包** `OpenAI.Codex`（带
+  `CodexSandboxService.OpenAI.Codex` Windows 服务，会自动拉起 `codex.exe` 反复锁住
+  `~/.codex/*.sqlite`）+ `AppData/Local/OpenAI/Codex`。要删干净必须先
+  `Remove-AppxPackage`，光 `npm rm -g` 不够——这也是 `.codex` 前两次 `mv` 失败的原因。
+- **opencode**：应用（NSIS）+ `~/.config/opencode` + `~/.local/share/opencode`(408MB)
+- **ZCode**：只有 `~/.zcode`（应用本就未装）
+- 连带：CC Switch（MSI，Claude Code/Codex 的密钥中转，没了宿主就没意义）
+- VS Code 里的 AI 代理类扩展：`openai.chatgpt` `saoudrizwan.claude-dev` `moonshot-ai.kimi-code`
+  `zgsm-ai.zgsm` `google.gemini-cli-vscode-ide-companion`
+
+**`~/.claude/memory` 原地保留**——`src/lib/paths.js:85` 的 `CLAUDE_MEM_DIR` 指向它，
+那是 claude-mem 记忆后端的数据目录，整目录搬走等于删用户记忆。
+
+代码侧只改一处：`scripts/install-global.sh` 与 `scripts/install-percho.bat` 现在先
+`command -v claude`，装不上就跳过并在输出里说明——否则每次安装都会凭空造一个没人读的
+`~/.claude/commands`。
+
+备份仍全部落在 `E:/ai-tools-backup-20261027/`（合计约 4.0GB），`MANIFEST.md` 补齐了第二批。
+副作用：泄露的 `sk-SW1…` 活跃副本从 5 处降到 **2 处**（`~/.pi/agent/sessions/**`、
+`~/.pi/agent/traces/**` 转录），其余全在备份目录里躺着。
+
+验证：487 tests / 43 files 全绿，`claude-scene list` 正常，`install-global.sh --dry-run`
+正确输出「未检测到 claude CLI —— 跳过」。

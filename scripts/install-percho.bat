@@ -162,8 +162,13 @@ robocopy "%PROJECT%\.pi\prompts" "%PI_DIR%\prompts" *.md /NFL /NDL /NJH /NJS /NP
 call :robocopy_step "pi 命令模板 → %PI_DIR%\prompts"
 robocopy "%PROJECT%\.pi\skills" "%PI_DIR%\skills" /E /NFL /NDL /NJH /NJS /NP >nul
 call :robocopy_step "scene-runner skill → %PI_DIR%\skills"
-robocopy "%PROJECT%\.claude\commands" "%CLAUDE_DIR%\commands" *.md /NFL /NDL /NJH /NJS /NP >nul
-call :robocopy_step "Claude 命令 → %CLAUDE_DIR%\commands"
+where claude >nul 2>&1
+if errorlevel 1 (
+    echo     [SKIP] Claude Code not installed - %CLAUDE_DIR%\commands not created
+) else (
+    robocopy "%PROJECT%\.claude\commands" "%CLAUDE_DIR%\commands" *.md /NFL /NDL /NJH /NJS /NP >nul
+    call :robocopy_step "Claude   %CLAUDE_DIR%\commands"
+)
 echo    （同名文件会被更新；幂等可重复执行）
 goto :smoke
 
