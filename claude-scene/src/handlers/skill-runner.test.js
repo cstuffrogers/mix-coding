@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { writeFileSync, mkdirSync, rmSync } from 'fs';
-import { join } from 'path';
+import { writeFileSync, mkdirSync, rmSync, readFileSync, readdirSync, existsSync } from 'fs';
+import { join, dirname, relative } from 'path';
 import { randomBytes } from 'crypto';
-import { handleInvokeSkill } from './skill-runner.js';
+import { handleInvokeSkill, resolveSkillCandidates } from './skill-runner.js';
 
 vi.mock('chalk', () => {
   const noop = (s) => s;
@@ -66,5 +66,110 @@ describe('handleInvokeSkill', () => {
   it('handles null context gracefully', () => {
     const result = handleInvokeSkill('invokeSkill', { skill: 'nonexistent' }, tmp, null);
     expect(result).toContain('需要在对话模式中执行');
+  });
+});
+
+// Vendored Trail of Bits skills. These are real files pulled from upstream, so
+// the guards below check they are still present, still loadable, still
+// internally consistent, and still correctly attributed. A silently emptied
+// directory would otherwise degrade the scene into a no-op that reads as pass.
+describe('vendored Trail of Bits skills', () => {
+  const TOB = ['property-based-testing', 'variant-analysis', 'sharp-edges', 'insecure-defaults'];
+  // `..` of the engine dir is the repo root, which is where .claude/skills lives.
+  const engineDir = process.cwd();
+  const skillFile = (name) => join(engineDir, '..', '.claude', 'skills', name, 'SKILL.md');
+
+  it.each(TOB)('%s ships a SKILL.md with frontmatter', (name) => {
+    const content = readFileSync(skillFile(name), 'utf-8');
+    expect(content.startsWith('---')).toBe(true);
+    expect(content).toMatch(/^name:\s*\S+/m);
+    expect(content).toMatch(/^description:\s*\S+/m);
+  });
+
+  it.each(TOB)('%s is loadable through handleInvokeSkill', (name) => {
+    const ctx = {};
+    const result = handleInvokeSkill('invokeSkill', { skill: name }, engineDir, ctx);
+    expect(result).not.toContain('需要在对话模式中执行');
+    expect(result).toContain('参考内容已展示');
+    expect(ctx[`skill_${name}_name`]).toBeTruthy();
+  });
+
+  it.each(TOB)('%s has no dangling relative markdown links', (name) => {
+    const dir = join(engineDir, '..', '.claude', 'skills', name);
+    const dangling = [];
+    const walk = (d) => {
+      for (const entry of readdirSync(d, { withFileTypes: true })) {
+        const full = join(d, entry.name);
+        if (entry.isDirectory()) { walk(full); continue; }
+        if (!entry.name.endsWith('.md')) continue;
+        const text = readFileSync(full, 'utf-8');
+        for (const m of text.matchAll(/\]\(([^)\s]+)\)/g)) {
+          const href = m[1];
+          if (/^(https?:|mailto:|#)/.test(href)) continue;
+          let target = join(dirname(full), href.split('#')[0]);
+          if (!existsSync(target)) dangling.push(`${relative(dir, full)} -> ${href}`);
+        }
+      }
+    };
+    walk(dir);
+    expect(dangling).toEqual([]);
+  });
+
+  it('runs no external process and installs nothing', () => {
+    // The whole point of vendoring: usable with no network and no npm install.
+    // Guard the handler contract rather than the (absent) subprocess plumbing.
+    const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges' }, engineDir, null);
+    expect(result).toContain('参考内容已展示');
+  });
+
+  it.each(TOB)('%s keeps its CC BY-SA attribution notice', (name) => {
+    const notice = readFileSync(
+      join(engineDir, '..', '.claude', 'skills', name, 'NOTICE.md'), 'utf-8',
+    );
+    // These files must not drift into being presented as Elastic License 2.0.
+    expect(notice).toContain('CC BY-SA 4.0');
+    expect(notice).toContain('trailofbits/skills');
+    expect(notice).toContain('NOT covered by this repository');
+  });
+});
+
+describe('skill resolution from an arbitrary project directory', () => {
+  const engineDir = process.cwd();
+
+  it('lists a target-project skill as the highest-priority candidate', () => {
+    const target = join(tmp, 'some-other-project');
+    const candidates = resolveSkillCandidates('sharp-edges', target);
+    expect(candidates[0]).toBe(join(target, '.claude', 'skills', 'sharp-edges', 'SKILL.md'));
+  });
+
+  it('still resolves skills when the target is unrelated to the engine repo', () => {
+    // This is the regression: resolution used to be `targetPath/..` only, so a
+    // real project (/tmp/vuln etc.) resolved to a nonexistent path and every
+    // invokeSkill step silently degraded to "no SKILL.md".
+    const target = join(tmp, 'unrelated-project');
+    mkdirSync(target, { recursive: true });
+    const ctx = {};
+    const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges' }, target, ctx);
+    expect(result).not.toContain('需要在对话模式中执行');
+    expect(result).toContain('参考内容已展示');
+  });
+
+  it('prefers a project-local override over the engine copy', () => {
+    const target = join(tmp, 'override-project');
+    const skillDir = join(target, '.claude', 'skills', 'sharp-edges');
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: sharp-edges\n---\n## Local\n- [ ] local-only item\n');
+    const ctx = {};
+    const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges' }, target, ctx);
+    expect(result).toContain('1 项清单');
+    expect(ctx['skill_sharp-edges_checklist'][0].text).toBe('local-only item');
+  });
+
+  it('returns an empty candidate list for an unknown skill', () => {
+    expect(resolveSkillCandidates('no-such-skill', tmp)).toEqual([]);
+  });
+
+  it('leaves engineDir untouched by the resolution probe', () => {
+    expect(existsSync(join(engineDir, '..', '.claude', 'skills'))).toBe(true);
   });
 });

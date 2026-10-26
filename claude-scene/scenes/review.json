@@ -421,6 +421,39 @@
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
+      "step": 4.62,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "variant-analysis"
+      },
+      "description": "变体分析：把 semgrep 命中的每一处扩成规则族，跨库搜同模式漏洞",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 4.63,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "sharp-edges"
+      },
+      "description": "易误用 API：auth/crypto/config 的危险调用形态 + 12 语言陷阱表",
+      "condition": "conversation_mode"
+    },
+    {
+      "step": 4.64,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "insecure-defaults"
+      },
+      "description": "不安全默认值：兜底密钥/默认凭据/fail-open 开关/弱加密/过度开放权限/调试泄漏，6 类种子正则 + 逐条证伪",
+      "condition": "conversation_mode"
+    },
+    {
       "step": 5,
       "layer": "capability",
       "service": "PerformanceService",

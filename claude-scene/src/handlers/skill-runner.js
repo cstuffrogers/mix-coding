@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
+import { PACKAGE_ROOT, USER_DATA_DIR } from '../lib/paths.js';
 
 /**
  * CLI-mode Skill content display.
@@ -21,14 +22,43 @@ const SKILL_PATHS = {
   'mobile-ui-review': '.claude/skills/mobile-ui-review/SKILL.md',
   'review': '.claude/skills/mattpocock/skills/skills/in-progress/review/SKILL.md',
   'webapp-testing': '.claude/skills/mattpocock/skills/skills/deprecated/qa/SKILL.md',
+  // Trail of Bits security skills, vendored under CC BY-SA 4.0 (see each
+  // directory's NOTICE.md - they are NOT under this repo's Elastic License).
+  'property-based-testing': '.claude/skills/property-based-testing/SKILL.md',
+  'variant-analysis': '.claude/skills/variant-analysis/SKILL.md',
+  'sharp-edges': '.claude/skills/sharp-edges/SKILL.md',
+  'insecure-defaults': '.claude/skills/insecure-defaults/SKILL.md',
 };
 
-function resolveSkillPath(skillName, targetPath) {
+/**
+ * 把 skill 名解析为已存在的文件路径。
+ *
+ * 原来只有 `targetPath/..` 一种候选，那仅在「引擎仓库自身当目标」时成立。
+ * 真实项目（/tmp/vuln 之类）下 `targetPath/..` 指向别处，于是每个 invokeSkill
+ * 步骤都报「无 SKILL.md」静默降级成 noop —— 技能形同不存在。
+ *
+ * 优先级与场景查找一致（项目覆盖 → 用户级 → 包内）：
+ *   1. targetPath/relPath      目标项目自带的技能（覆盖引擎版本）
+ *   2. targetPath/../relPath   兼容旧行为（引擎目录作为 targetPath）
+ *   3. PACKAGE_ROOT/../relPath 仓库内开发布局（<repo>/.claude/skills）
+ *   4. USER_DATA_DIR/relPath   全局安装（~/.mix-coding/.claude/skills）
+ *   5. PACKAGE_ROOT/relPath    技能随包分发
+ */
+export function resolveSkillCandidates(skillName, targetPath) {
   const relPath = SKILL_PATHS[skillName];
-  if (!relPath) return null;
-  // targetPath is the project under analysis; skills live one level up
-  // (e.g., targetPath=e:/auto-coding/claude-scene, skills at e:/auto-coding/.claude/skills/)
-  return join(targetPath, '..', relPath);
+  if (!relPath) return [];
+  return [
+    join(targetPath, relPath),
+    join(targetPath, '..', relPath),
+    join(PACKAGE_ROOT, '..', relPath),
+    join(USER_DATA_DIR, relPath),
+    join(PACKAGE_ROOT, relPath),
+  ];
+}
+
+function resolveSkillPath(skillName, targetPath) {
+  const candidates = resolveSkillCandidates(skillName, targetPath);
+  return candidates.find((p) => existsSync(p)) || null;
 }
 
 function extractChecklist(content) {

@@ -140,3 +140,47 @@
 - 其余 11 处（低中复杂度 16-23）提取各自 helper
 
 **v6 Result**: 0 个 cognitive-complexity disable 剩余 · 根 lint 0/0 · claude-scene lint 0/0（--max-warnings 0）· 28 文件 / 276 测试全过（+50 测试）。复杂度边界现机械强制（无 per-file 豁免口子）。
+
+---
+
+## 2026-07-25 · vendored 逻辑/IO 审查技能（Trail of Bits）+ 两个真实缺陷
+
+### 背景
+上一轮已把缺陷检测拆成四维（静态分析 / 属性测试 / 变异测试 / LLM 审查），并接入
+semgrep + fast-check + Stryker。这轮补 LLM 审查层的**方法**（此前只有「人设型」skill，
+缺可执行的目录与证伪规则）。
+
+### 引入 4 个 vendored 技能（`.claude/skills/`）
+- `property-based-testing` — 9 类属性目录（roundtrip/inverse/oracle/idempotence/invariant…）、
+  属性强度分级、两类「什么都没断言」的假测试（tautology / vacuity）
+- `variant-analysis` — 确认一处 bug 后跨库搜同模式
+- `sharp-edges` — 易误用 API / 危险配置形态，12 语言陷阱表（Scott Arciszewski）
+- `insecure-defaults` — 6 类不安全默认值，含 grep 可直接用的 seed 正则集
+  与逐类 **Report when / Skip when** 证伪规则
+- 来源 trailofbits/skills，**CC BY-SA 4.0**（非本仓库 ELv2），每目录 `NOTICE.md`
+  记录上游路径、抓取日期、逐文件 sha256、verbatim/adapted 状态
+- 通路：github.com 不可达，用 `cdn.jsdelivr.net/gh/<owner>/<repo>@main/<path>` 代理
+- 场景挂钩：`setup` 2.35、`review` 4.62 / 4.63 / 4.64（均 `conversation_mode` 门控）
+
+### 修复 1：skill 路径解析只在「引擎仓库当目标」时成立
+`resolveSkillPath` 只有 `targetPath/..` 一种候选。真实项目（/tmp/vuln）下它指向别处，
+于是**每个** invokeSkill 步骤都报「无 SKILL.md」静默降级为 noop —— 技能形同不存在，
+且状态显示 ✔ 看起来像跑过了。
+改为 5 级链（`resolveSkillCandidates`）：目标项目覆盖 → 旧行为 → 仓库内 → `~/.mix-coding`
+→ 包内。E2E：review 的 pass 14→18、noop 8→4。
+配套：`install-global.sh` 新增第 6 步把 `.claude/skills`（276 文件）装到
+`~/.mix-coding/.claude/skills`（npm 全局包的 `files` 只含 `src/`+`scenes/`，
+不带技能）；`pi-setup.sh` 把 4 个 vendored 技能镜像到 git-ignored 的 `.agents/skills/`，
+否则 pi 的技能清单里看不到它们。
+
+### 修复 2：agentmemory 写库被 shell 吃掉引号
+SQL 先做 SQL 层单引号转义，再**整体包进 shell 双引号**——内容里的 `"` 被 shell 吞掉
+（`{"a":1}` → `{a:1}`），`$`/反引号还会被解释，sqlite 报 `unrecognized token`，review
+结束的 remember 步骤每次都失败。改为 SQL 走 stdin（shell 只见 `sqlite3 "<db>"`）。
+顺带修 `AGENTMEMORY_DIR` 在 import 时冻结导致 env 覆盖无效——改为调用时解析，
+否则测试会写进开发者真实的 `~/.agentmemory`（本轮已发生并清理）。
+
+### 验证
+根 + claude-scene 双侧 **349 测试 / 35 文件**全绿；ESLint 双 0；场景审计 0 错误 / 15 警告。
+E2E `/tmp/vuln` review：pass 18 / fail 1 / warn 1 / skip 14 / noop 4
+（fail 1 为 `sec-bug-hunt` 命中 critical SQL 注入，block-merge 门禁**有意**失败）。

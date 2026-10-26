@@ -102,6 +102,17 @@
       "description": "属性测试设施：检测 fast-check/hypothesis，跑现有属性测试。静态分析抓不到的逻辑错（off-by-one、不变量违反）只能靠它"
     },
     {
+      "step": 2.35,
+      "layer": "skill",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "property-based-testing"
+      },
+      "description": "属性测试方法论：9 类属性目录（roundtrip/inverse/oracle/idempotence/invariant…）、属性强度分级、假测试识别（tautology / vacuity）",
+      "condition": "conversation_mode && setup_kind === 'property'"
+    },
+    {
       "step": 3,
       "layer": "capability",
       "service": "QualityService",

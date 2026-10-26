@@ -99,6 +99,22 @@ hdr "5. 接入文件确认"
 [ -f ".pi/AGENTS.md" ] && ok ".pi/AGENTS.md 就位 (pi 专属入口指南)" || fail ".pi/AGENTS.md 缺失"
 [ -d ".pi/skills" ] && ok ".pi/skills/ 就位 (pi Skills)" || warn ".pi/skills/ 缺失"
 [ -d ".pi/prompts" ] && ok ".pi/prompts/ 就位 (pi Prompt Templates)" || warn ".pi/prompts/ 缺失"
+
+# pi 的技能发现目录是 .agents/skills/（Claude Code 读 .claude/skills/）。
+# .agents 被 git 忽略，所以要在这里补同步，否则新抄进来的技能不会进 pi 的清单。
+VENDORED_SKILLS="property-based-testing variant-analysis sharp-edges insecure-defaults"
+if [ -d ".agents/skills" ]; then
+  synced=0
+  for s in $VENDORED_SKILLS; do
+    if [ -f ".claude/skills/$s/SKILL.md" ]; then
+      mkdir -p ".agents/skills/$s"
+      cp -R ".claude/skills/$s/." ".agents/skills/$s/" 2>/dev/null && synced=$((synced + 1))
+    fi
+  done
+  ok "vendored 技能已同步到 .agents/skills ($synced/$(( $(echo $VENDORED_SKILLS | wc -w) )) — pi 可发现)"
+else
+  warn ".agents/skills/ 缺失 — pi 无法发现 vendored 技能"
+fi
 [ -f "AGENTS.md" ] && ok "根 AGENTS.md 就位" || warn "根 AGENTS.md 缺失"
 
 # 全局安装检查：项目级斜杠命令只在 cd 到本仓库时可用

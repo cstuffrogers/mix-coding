@@ -127,7 +127,9 @@
 | **静态分析** | `review` 4.6 `semgrep` | 外部输入流向危险汇点（SQL/命令注入、路径穿越、反序列化、开放重定向） | 逻辑错：语法合法、无可疑模式，只是算错 |
 | **运行时 · 属性测试** | `setup` 2.3 `propertyTestScout`（fast-check / hypothesis） | 逻辑错：off-by-one、不变量违反、边界条件 | 没装库或没写用例就跑不了 |
 | **运行时 · 变异测试** | `qa` 6.5 `stryker` | 测试本身有没有效力（存活变异体 = 测试没覆盖的路径） | 耗时；需 stryker 配置 |
-| **LLM 语义审查** | `sec-bug-hunt` / `mp-review` / `review-checklist` | 跨文件意图、设计缺陷 | 不确定、不可复现，会漏也会编 |
+| **LLM 语义审查** | `sec-bug-hunt` / `mp-review` / `review-checklist` / vendored `sharp-edges`、`insecure-defaults`、`variant-analysis` | 跨文件意图、设计缺陷、易误用 API 形态、不安全默认值 | 不确定、不可复现，会漏也会编 |
+
+vendored 技能的来源、许可与更新方式见 [vendored-skills.md](./vendored-skills.md)。
 
 关键认知：**semgrep 只能做上表第一行**。实测量化 —— 一份 11 行、含 8 类漏洞的样本，现有正则类安全步骤只抓到 2 类，
 semgrep 抓到 9 处；而一段「分页少返回一个元素」的代码，semgrep/CodeQL **零命中**，

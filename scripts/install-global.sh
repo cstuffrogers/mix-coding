@@ -51,6 +51,12 @@ esac
 SRC_PROMPTS=".pi/prompts"
 SRC_SKILLS=".pi/skills"
 SRC_CLAUDE_CMDS=".claude/commands"
+# 引擎技能（review-checklist、vendored 的 Trail of Bits 等）。全局安装（npm i -g）
+# 时包内不含 .claude/skills（它在仓库根，不在 claude-scene/ 里），所以必须装到
+# ~/.mix-coding/.claude/skills —— 那是 skill-runner 的最后一级候选目录。
+SRC_ENGINE_SKILLS=".claude/skills"
+MIX_HOME="${MIX_CODING_HOME:-$HOME/.mix-coding}"
+ENGINE_SKILLS_DST="$MIX_HOME/.claude/skills"
 
 echo -e "${CYAN}╔══════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║  Mix-Coding 斜杠命令 — 用户级安装（任意目录可用）  ║${NC}"
@@ -126,6 +132,11 @@ if [ "$MODE" = "uninstall" ]; then
     dst="$PI_SKILLS_DST/$rel"
     [ -f "$dst" ] && rm -f "$dst" && REMOVED=$((REMOVED+1))
   done < <(find "$SRC_SKILLS" -name SKILL.md -type f -print0 2>/dev/null)
+  while IFS= read -r -d '' f; do
+    rel="${f#"$SRC_ENGINE_SKILLS"/}"
+    dst="$ENGINE_SKILLS_DST/$rel"
+    [ -f "$dst" ] && rm -f "$dst" && REMOVED=$((REMOVED+1))
+  done < <(find "$SRC_ENGINE_SKILLS" -name '*.md' -type f -print0 2>/dev/null)
   ok "已删除 $REMOVED 个文件（用户自有文件未触碰）"
 else
   if [ "$MODE" = "check" ]; then
@@ -155,6 +166,19 @@ else
     hdr "5. 安装 Claude Code 命令"
     [ "$CMD_N" -gt 0 ] && install_tree "$SRC_CLAUDE_CMDS" "$CLAUDE_CMDS_DST" "*.md"
     ok "$CMD_N 个命令 → $CLAUDE_CMDS_DST"
+
+    hdr "6. 安装引擎技能"
+    ENGINE_N=$(find "$SRC_ENGINE_SKILLS" -name '*.md' -type f 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$ENGINE_N" -gt 0 ]; then
+      while IFS= read -r -d '' f; do
+        rel="${f#"$SRC_ENGINE_SKILLS"/}"
+        copy_one "$f" "$ENGINE_SKILLS_DST/$(dirname "$rel")"
+      done < <(find "$SRC_ENGINE_SKILLS" -name '*.md' -type f -print0 2>/dev/null)
+      ok "$ENGINE_N 个技能文件 → $ENGINE_SKILLS_DST"
+      dim "invokeSkill 步骤在任意项目目录下都能找到这些技能"
+    else
+      warn "$SRC_ENGINE_SKILLS 无 .md —— invokeSkill 步骤会退化为 noop"
+    fi
   fi
 fi
 
