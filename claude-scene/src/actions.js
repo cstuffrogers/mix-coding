@@ -222,6 +222,7 @@ export const ACTION_REGISTRY = {
   depcruiseArchitecture: handleDepcruiseArchitecture,
   'depcruise-architecture': handleDepcruiseArchitecture,
   gitLeaks: handleGitLeaks,
+  'git-leaks': handleGitLeaks,
   generateChangelog: handleChangelog,
   generateTest: handleGenerateTest,
   generateRefactorPlan: handleGenerateRefactorPlan,

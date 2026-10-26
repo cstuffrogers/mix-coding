@@ -375,6 +375,15 @@
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
+      "step": 4.551,
+      "layer": "capability",
+      "service": "SecuritySkill",
+      "action": "git-leaks",
+      "params": {},
+      "description": "Git 明文密钥扫描（HEAD 树 + 历史，含已删除但仍留在历史里的密钥）",
+      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
+    },
+    {
       "step": 4.56,
       "layer": "capability",
       "service": "SecuritySkill",

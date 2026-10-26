@@ -305,6 +305,7 @@ const ACTION_MESSAGES = {
 
   // Code analysis
   gitLeaks: 'Git 历史密钥扫描完成',
+  'git-leaks': 'Git 明文密钥扫描完成（HEAD + 历史）',
   knipCheck: '死代码检测完成（knip）',
 
   // Migration
