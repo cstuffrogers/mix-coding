@@ -618,6 +618,20 @@ describe('写入侧去重（内容指纹）', () => {
     expect(mineFiles).toBe(13);
   });
 
+  it('同一项目的大小写 / 斜杠 / 尾斜杠写法等价：只留一条，召回一致', async () => {
+    const { handleMemoryRemember, handleListMemories } = await import('../memory.js');
+    const proj = join(root, 'Proj');
+    const variants = [proj, proj.replaceAll('\\', '/'), proj.toUpperCase(), proj.toLowerCase(), `${proj}/`, `${proj}\\`];
+    for (const v of variants) {
+      await handleMemoryRemember('a', { type: 'qa', data: { marker: 'CASE' } }, v, {});
+    }
+    const list = await handleListMemories('l', {}, proj);
+    expect(list).toMatch(/1 条（project-memory）/);
+    expect(list).toMatch(/Claude-Mem 全局 1/);
+    expect(list).toMatch(/agentmemory 全局 1/);
+    expect(list).toMatch(/NEXO 全局 1/);
+  });
+
   it('agentmemory 同 type+项目+指纹只留一行，不同项目各留一行', async () => {
     const { writeAgentmemory, readAgentmemory } = await import('./agentmemory.js');
     const fp = 'c'.repeat(32);
