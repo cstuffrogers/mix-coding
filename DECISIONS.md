@@ -195,3 +195,53 @@ MCP 都有」——和真实配置无关。宿主收敛到 pi 之后，配置里
 - 正向: 加装 MCP 后条件自动变真，不需要改代码
 - 负向: 同一份配置在两处（项目级 / 用户级）需要同步维护
 - 负向: 配置文件写错（JSON 语法错）会被判成「没有 server」，需靠 Pass 10 报错提示
+
+## ADR-008: 检查步骤一律三态（issues/pass/skip），跳过不许报 pass
+
+### Context
+
+`loop` 场景一次 run 报 9 pass / 0 fail，工作区却 0 变更。根因不止一处，但共性是同一个：
+**「没跑成」和「跑过且干净」在代码里都是 `false`**。
+
+- `runTypeCheck` 返回 boolean：根目录没有 `tsconfig.json` 时 `npx tsc --noEmit` 打印帮助并
+  exit 1，帮助文本里的 `--noEmitOnError` 命中 `/error|Error/` → 判「配置问题，跳过」→
+  `return false` → 上层 `deriveStepStatus` 只能从自由文本猜状态，猜成 pass。
+- `handleRunReview` 返回纯字符串，状态由 `NOOP_RES` / `WARN_RES` 正则反推，处理器
+  无法表达「这步跳过了」。
+- `runAislopFixMode` 连 catch 都写 `aislop_fixed = true`，失败也报「修复完成」。
+
+### Decision
+
+1. 检查类 handler 返回 `{ status: 'issues'|'pass'|'skip', detail }`，由 `runQualityGates`
+   汇总：有 issues → warn；全部 skip → skip；部分 skip → warn（通过但结论不完整）。
+2. `deriveStepStatus` 优先认 `result.status`（白名单 pass/fail/skip/noop/warn），
+   正则启发式只作为纯字符串返回值的兜底。
+3. 允许多个 tsconfig：根 → 一层子目录探测（跳过 node_modules/dist/coverage 等），
+   逐个 `tsc --noEmit -p`，不再假设「根必须有 tsconfig.json」。
+
+### Consequences
+
+- 正向：跳过会显示成 skip/warn 并写明「部分检查未执行」，不再产出假绿
+- 正向：本仓库根无 tsconfig.json 的现状被如实覆盖（探到 `claude-scene/tsconfig.json`）
+- 负向：返回类型从 string 变成 string|object，所有读 `result` 的调用点需经
+  `formatResultForDisplay` / `deriveStepStatus`（已改 `runStep` 的 deploy 分支）
+
+## ADR-009: 自动修复要有上限，超限只报警
+
+### Context
+
+`loop` 场景定位是无人值守自动迭代修复，但 `aislop fix` 没有 `--include`/`--changes`
+之类收窄参数。本仓库当前 945 处发现、543 处可自动修复 —— 放它跑就是一次动几百个文件，
+而 loop 的每一步都在无人复核的情况下执行。
+
+### Decision
+
+`aislop-fix` handler 分两段：先扫（JSON 解析 + 落盘），可修复数 ≤ `maxFindings`
+（循环场景设 200）才执行 `aislop fix --safe` 并复扫对比；超限只返回 warn + 报告路径，
+把「要不要批量改」留给人工。
+
+### Consequences
+
+- 正向：无人值守场景不会因为一个工具的默认行为把仓库改乱
+- 正向：每次扫描都有 `.claude/reports/aislop-*.json` 存档，超限情况可人工按报告处理
+- 负向：945/543 的仓库实际上永远走「只报警」分支，自动修复只在干净项目里生效

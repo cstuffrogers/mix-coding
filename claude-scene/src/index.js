@@ -49,9 +49,17 @@ program
   .option('--theme <name>', '指定主题（daisyui/animal-island/custom）')
   .option('-k, --kind <id>', '指定单选分支（setup: e2e/monitor/property）')
   .option('-i, --iterations <n>', '迭代轮数（loop 等自动迭代场景，默认 1，上限 20）')
-  .action(async (...args) => {
+  // 旧习惯 `start loop --auto "需求"` 会把需求当多余位置参数直接报错退出。
+  // 允许通过，但明确提示应该写 -p，并把它当需求用（否则用户只看到一行 red 报错）。
+  .allowExcessArguments(true)
+  .action(async (sceneId, options, command) => {
+    const extraArgs = (command?.args || []).slice(1);
+    if (extraArgs.length > 0) {
+      console.log(chalk.yellow(`  ⚠ 需求应写成 -p "..."，已把多余的位置参数当作需求：${extraArgs.join(' ').slice(0, 40)}`));
+      options.prompt = options.prompt || extraArgs.join(' ');
+    }
     const { startScene } = await import('./commands/start.js');
-    return startScene(...args);
+    return startScene(sceneId, options);
   });
 
 program

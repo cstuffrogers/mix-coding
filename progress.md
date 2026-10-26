@@ -842,3 +842,35 @@ pi 用的是 `~/.pi/agent/auth.json` 里的 key，删这两个不影响任何工
 **状态**：`/check` 11 道全绿 / 0 问题（Pass 3 233 个函数 / Pass 9 241 个）；`audit-scenes`
 25 场景 **0 错误 0 警告**；deadcode **0**；**528 tests / 46 files 全绿**；eslint 两 root 0 error。
 提交 `191cf16`（脚本/钩子）+ `090ac59`（setup --kind + 提示词门禁）。
+
+## 2026-10-27 `loop` 场景真迭代 + 三态检查 + aislop 落盘（4 个 bug）
+
+**触发**：要求「全面深入检查所有工作流和记忆系统并修复bug，循环10次」。结果发现命令本身
+和场景本身都有问题 —— 一次 run 报 9 pass/0 fail 但工作区 0 变更，属于空转绿。
+
+1. **命令形式**：`claude-scene start loop --auto "循环10次"` 直接报
+   `too many arguments`（需求必须走 `-p`）。位置参数给个友好提示仍待办。
+2. **「循环10次」根本不存在**：引擎 grep 无 iteration/maxIterations/loopCount ——
+   那句话只是塞进 prompt 的纯文本。新增 `--iterations N`（默认 1、上限 20）+ 收敛判据
+   `shouldStopLooping`（本轮干净即停 / 发现数不降即停，防空转）。
+3. **994 个 AI 代码气味是假的**：`aislop ci` 默认输出 JSON，`countAislopIssues` 只认
+   `N issues` 文本，退化成逐行数 json 里的 issue 字样 → 报 994，实际 summary 是
+   939（现在 945）。改为 JSON 优先解析，并把完整报告落盘
+   `.claude/reports/aislop-*.json`（之前 994 条发现只活在 stdout 一行里，跑完即丢）。
+   loop 场景 step 4.1 由 `aislop-scan` 改 `aislop-fix`（mode=fix, maxFindings=200）：
+   可修复数超上限只报警不动文件，避免无人值守批量改写。
+4. **review 假绿**：根目录没有 `tsconfig.json` 时 `npx tsc --noEmit` 打印帮助并退出 1，
+   帮助里的 `--noEmitOnError` 命中 `/error|Error/` → 判「配置问题」静默跳过 → 上层
+   仍报「代码审查完成（无问题）」pass。改为三态（issues/pass/skip）+ `findTsconfigs`
+   向下探一层用 `-p` 指定（本仓库命中 `claude-scene/tsconfig.json`）。
+   `deriveStepStatus` 同时支持处理器返回 `{status, message}`，跳过不再靠正则猜。
+
+**验证**：新增 3 个测试文件 29 用例（`aislop.test.js` / `review-tsconfig.test.js` /
+`loop-iterations.test.js`）；`--iterations 3` 实跑：第 1/3 轮发现 945 → 第 2/3 轮
+仍 945 → `发现数未下降（945 → 945），停止空转` 提前收敛；review 显示
+`eslint:pass / typescript:pass`（类型检查真跑了）；aislop 报告落盘；CodeGuardian 0 变更。
+**557 tests / 49 files 全绿**，eslint 两个 root 0 error，pre-commit（test+deadcode）通过。
+提交 `1479535`。
+
+**遗留**：CodeGuardian 数的是「工作区全部未提交变更」，工作区脏时会把上一轮无关改动算进
+±50 边界直接 abort（第一次验证时就被自己 756 行改动挡下）。是否改成「按本轮 diff 计」待议。
