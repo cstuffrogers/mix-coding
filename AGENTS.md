@@ -84,7 +84,7 @@ bash init.sh
 | `/simplify` | 代码简化（→ `/refactor` 的 simplify 模式） |
 | `/optimize` | 性能优化 |
 | `/refactor` | 重构 |
-| `/setup` | 测试/监控设施搭建 |
+| `/setup [kind]` | 测试/监控/属性测试设施搭建（`--kind e2e\|monitor\|property`，默认 e2e） |
 | `/release` | 发布部署 |
 | `/deps` | 依赖更新 |
 | `/check` | 引擎自检+自愈 |

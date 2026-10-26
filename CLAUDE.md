@@ -41,7 +41,7 @@ Scene 引擎在对话内执行工作流。25 个场景。`node src/index.js star
 | `/review` | 代码审查 + 安全审计（含审计/分析/安全深度/质量工具链/AI设计） | `/bugfix` | Bug 修复 |
 | `/refactor` | 重构 + 简化 | `/feature` | 新功能开发 |
 | `/ui-polish` | 前端美化 + 设计 | `/optimize` | 性能优化 |
-| `/setup` | 测试/监控设施搭建 | `/new-project` | 新建项目 |
+| `/setup [kind]` | 测试/监控/属性测试设施搭建（`--kind` 选分支，默认 e2e） | `/new-project` | 新建项目 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
 | `/check` | 引擎自检+自愈 | `/plan` | Manus 持久规划 |
 | `/enhance-prompt` | UI prompt 精炼 | — | — |

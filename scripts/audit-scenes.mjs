@@ -154,6 +154,32 @@ for (const file of sceneFiles) {
   if (!scene.status) push('warn', file, '-', 'missing-status', '缺少 status 字段');
 }
 
+// ── Prompt ↔ 场景一致性 ──
+// 场景存在 ≠ 用户能调到：/setup 曾经「文档里有、提示词没有」，pi 里根本敲不出来。
+const sceneIds = new Set();
+for (const file of sceneFiles) {
+  const s = JSON.parse(readFileSync(join(sceneDir, file), 'utf8'));
+  sceneIds.add(s.scene_id || file.replace(/\.json$/, ''));
+}
+const promptsDir = join(root, '.pi', 'prompts');
+if (existsSync(promptsDir)) {
+  const promptFiles = readdirSync(promptsDir).filter((f) => f.endsWith('.md'));
+  const prompted = new Set(promptFiles.map((f) => f.slice(0, -3)));
+  for (const id of sceneIds) {
+    if (!prompted.has(id)) {
+      push('warn', `${id}.json`, '-', 'scene-without-prompt', `场景 ${id} 没有 .pi/prompts/${id}.md（pi 里调不到）`);
+    }
+  }
+  for (const file of promptFiles) {
+    const body = readFileSync(join(promptsDir, file), 'utf8');
+    for (const m of body.matchAll(/claude-scene\s+start\s+([\w-]+)/g)) {
+      if (!sceneIds.has(m[1])) {
+        push('error', file, '-', 'prompt-bad-scene', `提示词引用了不存在的场景: ${m[1]}`);
+      }
+    }
+  }
+}
+
 // 是否可能是 context key（handler 运行时写入）
 function isContextKey(name) {
   if (CONTEXT_KEYS.has(name)) return true;

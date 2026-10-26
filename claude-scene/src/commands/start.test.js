@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { resolve } from 'node:path';
-import { defaultTargetPath, sanitizeTargetPath } from './start.js';
+import { defaultTargetPath, sanitizeTargetPath, resolveChoiceOverride } from './start.js';
 import { PROJECT_ROOT } from '../lib/paths.js';
 
 // 回归：resolveTargetPath 曾用 process.cwd() 作默认值，导致
@@ -55,5 +55,40 @@ describe('环境变量驱动的目标项目', () => {
     vi.resetModules();
     const { PROJECT_ROOT: fresh } = await import('../lib/paths.js');
     expect(fresh).toBe(resolve(process.cwd()));
+  });
+});
+
+// --kind 是 pi 里唯一能选到 setup 非默认分支的入口（agent 非交互，--auto 只会取 default）。
+// 参数写错时要明说可用值，不能静默回落成默认分支。
+describe('resolveChoiceOverride', () => {
+  const step = {
+    action: 'selectSetupKind',
+    params: {
+      options: [
+        { id: 'e2e', label: 'E2E', default: true },
+        'monitor',
+        { id: 'property', label: '属性测试' },
+      ],
+    },
+  };
+
+  it('没传值时不做覆盖', () => {
+    expect(resolveChoiceOverride(step)).toEqual({ id: null, warning: null });
+    expect(resolveChoiceOverride(step, '  ')).toEqual({ id: null, warning: null });
+  });
+
+  it('传合法值（字符串与对象两种 option 写法都认）', () => {
+    expect(resolveChoiceOverride(step, 'monitor').id).toBe('monitor');
+    expect(resolveChoiceOverride(step, 'property').id).toBe('property');
+  });
+
+  it('传非法值时给出可用值清单，且不覆盖', () => {
+    const r = resolveChoiceOverride(step, 'nope');
+    expect(r.id).toBeNull();
+    expect(r.warning).toContain('e2e / monitor / property');
+  });
+
+  it('步骤没有 options 时也不炸', () => {
+    expect(resolveChoiceOverride({ action: 'x' }, 'e2e').id).toBeNull();
   });
 });

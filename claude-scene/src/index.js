@@ -47,6 +47,7 @@ program
   .option('--auto', '自动模式，跳过所有交互式提示，使用默认值')
   .option('--enh <keys>', '逗号分隔的增强项键名（覆盖默认勾选）')
   .option('--theme <name>', '指定主题（daisyui/animal-island/custom）')
+  .option('-k, --kind <id>', '指定单选分支（setup: e2e/monitor/property）')
   .action(async (...args) => {
     const { startScene } = await import('./commands/start.js');
     return startScene(...args);

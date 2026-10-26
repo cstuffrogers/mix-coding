@@ -49,3 +49,39 @@ describe('场景验收三元组约定', () => {
     }
   });
 });
+
+// 场景存在 ≠ 用户能调到。pi 里唯一的入口是 .pi/prompts/，而 /setup 曾经
+// 「AGENTS.md 写了、场景引擎里有、提示词却没有」，等于文档骗人 + 敲不出来。
+describe('场景 ↔ 提示词一致性', () => {
+  const PROMPTS_DIR = join(REPO_ROOT, '.pi', 'prompts');
+  const promptFiles = readdirSync(PROMPTS_DIR).filter((f) => f.endsWith('.md'));
+  const sceneIds = sceneFiles.map((f) => {
+    const scene = JSON.parse(readFileSync(join(SCENES_DIR, f), 'utf-8'));
+    return scene.scene_id || f.replace(/\.json$/, '');
+  });
+
+  it('每个场景都有对应提示词', () => {
+    const prompted = new Set(promptFiles.map((f) => f.slice(0, -3)));
+    expect(sceneIds.filter((id) => !prompted.has(id))).toEqual([]);
+  });
+
+  it('提示词里引用的场景都存在（防止指向已删除的场景）', () => {
+    const bad = [];
+    for (const file of promptFiles) {
+      const body = readFileSync(join(PROMPTS_DIR, file), 'utf-8');
+      for (const m of body.matchAll(/claude-scene\s+start\s+([\w-]+)/g)) {
+        if (!sceneIds.includes(m[1])) bad.push(`${file} -> ${m[1]}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('setup 提示词写全了引擎声明的每种 kind', () => {
+    const scene = JSON.parse(readFileSync(join(SCENES_DIR, 'setup.json'), 'utf-8'));
+    const selector = (scene.flow || []).find((s) => s.action === 'selectSetupKind');
+    const kinds = (selector?.params?.options || []).map((o) => o.id);
+    const body = readFileSync(join(PROMPTS_DIR, 'setup.md'), 'utf-8');
+    expect(body).toContain('--kind');
+    for (const k of kinds) expect(body, k).toContain(k);
+  });
+});

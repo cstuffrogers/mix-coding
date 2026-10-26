@@ -202,6 +202,21 @@ async function handleModeSelection(step, options, context) {
 }
 
 /**
+ * 把 CLI 覆盖值（如 --kind monitor）对照步骤声明的 options 校验。
+ * 识别不了时返回 id: null + 可用值清单，由调用方回落默认值 ——
+ * 静默忽略用户传的参数比报错更难查。
+ */
+export function resolveChoiceOverride(step, requested) {
+  const raw = String(requested || '').trim();
+  if (!raw) return { id: null, warning: null };
+  const ids = (step.params?.options || [])
+    .map(o => (typeof o === 'string' ? o : o.id))
+    .filter(Boolean);
+  if (ids.includes(raw)) return { id: raw, warning: null };
+  return { id: null, warning: `未知的分支 "${raw}"，可用: ${ids.join(' / ')}` };
+}
+
+/**
  * 单选分支器：把选中的 option id 写入 context[key]。
  * 用于 setup 场景的 e2e/monitor 二选一（两者流程同构，只差一个动作）。
  */
@@ -216,6 +231,20 @@ async function handleSingleChoice(step, options, context) {
     typeof o === 'string' ? { id: o, label: o, default: false } : o,
   );
   const fallback = opts.find(o => o.default) ?? opts[0];
+
+  // CLI 覆盖（--kind monitor）优先于默认值：pi 里的 agent 是非交互的，
+  // 没有这条就只能永远拿到 default 那一支。
+  const override = resolveChoiceOverride(step, options.kind);
+  if (override.warning) {
+    console.log(chalk.yellow(`  ⚠ ${override.warning}（改用默认 ${fallback?.id}）`));
+  }
+  if (override.id) {
+    context[contextKey] = override.id;
+    console.log(chalk.green(`
+✅ 已选择：${override.id}
+`));
+    return true;
+  }
 
   if (options.auto) {
     context[contextKey] = fallback?.id;
@@ -496,7 +525,7 @@ function buildSceneContext(options) {
   };
 }
 
-function previewDryRunStep(step, context) {
+function previewDryRunStep(step, context, options = {}) {
   const icon = LAYER_ICONS[step.layer] || '📦';
   const stepIcon = step.auto_execute === false ? '⏸' : '▶';
   const autoLabel = step.auto_execute === false ? '需确认' : '自动';
@@ -506,6 +535,11 @@ function previewDryRunStep(step, context) {
   if (step.condition) {
     const condMet = evaluateCondition(step.condition, context);
     console.log(chalk.gray(`     └─ 条件 [${step.condition}]: ${condMet ? chalk.green('满足') : chalk.red('跳过')}`));
+  }
+  if (step.action === 'selectSetupKind') {
+    const override = resolveChoiceOverride(step, options.kind);
+    if (override.warning) console.log(chalk.yellow(`     └─ ⚠ ${override.warning}`));
+    else if (override.id) console.log(chalk.gray(`     └─ CLI 覆盖: ${override.id}`));
   }
   context.completedSteps.push(step.step);
 }
@@ -555,7 +589,7 @@ export async function startScene(sceneId, options) {
 
   for (const step of scene.flow) {
     if (options.dryRun) {
-      previewDryRunStep(step, context);
+      previewDryRunStep(step, context, options);
       continue;
     }
     await runStep(sceneId, step, context, options);

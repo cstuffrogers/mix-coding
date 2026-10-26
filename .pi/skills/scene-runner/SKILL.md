@@ -26,7 +26,7 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | /onboard | onboard | 环境搭建 |
 | /cicd | cicd | CI/CD 流水线 |
 | /rollback | rollback | 紧急回滚 |
-| /setup | setup | 测试/监控设施搭建 |
+| /setup | setup | 测试/监控/属性测试设施搭建（`--kind e2e\|monitor\|property`） |
 | /loop | loop | 自动迭代循环 |
 | /spec | analyze | Spec-Driven 开发 |
 | /plan-ceo-review | plan-ceo-review | 创始人策略审查 |
@@ -49,8 +49,9 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | /simplify | /refactor | refactor 场景勾选"代码简化"模式 |
 | /design | /ui-polish | 使用 ui-polish 场景 |
 | /polish | /ui-polish | 使用 ui-polish 场景 |
-| /e2e | /setup | setup 场景，kind 选 e2e（默认） |
-| /monitor | /setup | setup 场景，kind 选 monitor |
+| /e2e | /setup | `claude-scene start setup --kind e2e`（默认） |
+| /monitor | /setup | `claude-scene start setup --kind monitor` |
+| /property | /setup | `claude-scene start setup --kind property` |
 
 ## 用法
 
