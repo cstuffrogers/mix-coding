@@ -421,6 +421,17 @@
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
     },
     {
+      "step": 4.61,
+      "layer": "capability",
+      "service": "InsecureDefaults",
+      "action": "insecure-defaults-scan",
+      "params": {
+        "scope": "code"
+      },
+      "description": "不安全默认值候选扫描：读技能 references/*.json 的 6 类种子（兜底密钥/默认凭据/fail-open/弱加密/过度放行/调试泄漏），先做可判定证伪，只输出候选",
+      "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
+    },
+    {
       "step": 4.62,
       "layer": "skill",
       "service": "SkillRunner",

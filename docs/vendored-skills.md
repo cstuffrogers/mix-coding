@@ -10,7 +10,7 @@ dimension that static analyzers cannot cover — see
 | `property-based-testing` | Logic — writes/reviews property tests (Hypothesis, fast-check, proptest, jqwik, Echidna, Medusa) | `setup` 2.35 (after the executable `propertyTestScout` step) |
 | `variant-analysis` | IO — after one confirmed bug, hunt the same pattern repository-wide | `review` 4.62 (after semgrep) |
 | `sharp-edges` | IO — error-prone APIs, dangerous config surfaces, 12-language footgun table | `review` 4.63 |
-| `insecure-defaults` | IO — fallback secrets, seeded credentials, fail-open switches, weak crypto, permissive access, debug leakage (6 grep-ready seed sets) | `review` 4.64 |
+| `insecure-defaults` | IO — fallback secrets, seeded credentials, fail-open switches, weak crypto, permissive access, debug leakage (6 grep-ready seed sets) | `review` 4.61 (deterministic scan) → 4.64 (skill) |
 
 ## Why these four
 
@@ -19,6 +19,49 @@ The project already had three of the four dimensions:
 - **Static analysis** — `semgrep` with the offline rule pack (`review` 4.6)
 - **Runtime property testing** — `propertyTestScout` (`setup` 2.3)
 - **Runtime mutation testing** — `stryker` (`qa` 6.5)
+
+## `insecure-defaults`: from prompt to deterministic detector
+
+A skill is a prompt — non-deterministic, and it can only refute what it happens
+to think of. `insecure-defaults` ships **6 machine-readable seed sets**
+(`references/*.json`, grep `-E` syntax), so that half of it can be executed
+deterministically. Two steps, in this order:
+
+1. **`review` 4.61 `insecure-defaults-scan`** — `src/handlers/security/insecure-defaults.js`
+   reads the seeds **from the vendored skill directory at runtime** (no copy in
+   `src/`, so the two can never drift), compiles them with JS `RegExp`, scans the
+   project source + config manifests (`.yml/.toml/.json/.tf/.env/Dockerfile/…`),
+   applies a deterministic refutation pass, and emits **candidates** into
+   `context.insecureDefaultsCandidates`. It also lands in the review report.
+2. **`review` 4.64** — the skill then does what only an LLM can: read each
+   candidate in context and decide with its Report when / Skip when rules.
+
+Discipline that keeps the two steps honest:
+
+- **Seed hit ≠ vulnerability.** Every message says 候选 and 需逐条证伪; the
+  handler never emits 失败/阻断 for a candidate list (that wording would turn
+  `detectHandlerFailure` into a merge block).
+- **Seeds are compiled case-sensitively**, as `grep -E` does. Upstream lists
+  `md5|MD5` and `(True|true|1)` — enumerating both cases is the proof that `/i`
+  is wrong. Compiling with `/i` made `let hasVerify = false` match the fail-open
+  seed; on this repository it was the difference between 28 candidates and 1.
+- **POSIX classes inside a character class** (`[^:@[:space:]]`) must be translated
+  structurally, not by string replacement — naive replacement yields
+  `[^:@[\s]]`, which requires a literal `]` and silently never matches.
+- **Deterministic refutation** runs before anything is reported: whole-line
+  comments, docs/vendor/test paths (reversed for `scope: tests`), template
+  interpolation (`${…}`, `#{…}`), rule-definition lines, object-field
+  assignments (vs config keys), hex colors / escape sequences, standard file
+  modes (755/644 …), plus per-category rules (non-secret env suffixes like
+  `PORT`/`TMPDIR`, path-like fallbacks, placeholder credentials, role keys whose
+  value is not a known default, checksum/temp-filename `md5`, `0.0.0.0` bind vs
+  CIDR `0.0.0.0/0`, log sinks for stack traces).
+- **Zero scanned files is a failure**, same as semgrep (`assertSources`); a
+  missing rule corpus is a `noop` (`未找到`).
+
+Known recall limit (upstream seed shape, not a bug here): `tls_verify: false` in
+YAML is not matched by the fail-open seeds, which expect `TLS_VERIFY = false` or
+`verify = False`. That is exactly what step 4.64 exists for.
 
 Trail of Bits splits their own marketplace the same way
 (`static-analysis`, `property-based-testing`, `mutation-testing`,

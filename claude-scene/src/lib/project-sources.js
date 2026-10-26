@@ -7,14 +7,13 @@
 // 前端在 frontend/*/、后端在 backend/ 的项目（例如本仓库）会扫到 0 个文件，
 // 而「0 命中」又被当成「无问题」→ 空转也算通过。
 // 这里统一提供项目源码清单，并要求调用方在清单为空时判定失败（assertSources）。
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join, relative, sep } from 'path';
-import { scanDir } from './scan-dir.js';
 
 export const CODE_EXTS = ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.py', '.go', '.rb', '.php', '.java', '.kt'];
 
-// scanDir 只跳过 node_modules/dist/build/.git/coverage 与点开头目录，
-// 各语言/各端的产物目录需要在这里再排一次（android/ios 是 Capacitor 产物）。
+// 点开头目录永远跳过；各语言/各端的产物目录需要在这里再排一次
+// （android/ios 是 Capacitor 产物）。
 const SKIP_SEGMENTS = new Set([
   'node_modules', 'dist', 'build', 'coverage', '.git', '.claude', '.codegraph',
   'android', 'ios', '__pycache__', 'vendor', 'venv', '.venv', 'target', '.next',
@@ -57,21 +56,53 @@ function isNestedRepo(targetPath, relDir) {
   return found;
 }
 
-export function listProjectCodeFiles(targetPath, exts = CODE_EXTS) {
+// scanDir 一律跳过点开头的文件，所以 `.env.example` / `.eslintrc` 这类文件它根本看不到。
+// 大多数扫描器不需要它们，但「不安全默认值」这类审计恰恰要看 .env* 与配置点文件，
+// 所以这里自带一个 walker：点目录永远跳过，点文件按需纳入。
+function walkFiles(rootDir, includeDotFiles) {
+  const out = [];
+  const visit = (dir) => {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name.startsWith('.') || SKIP_SEGMENTS.has(entry.name)) continue;
+        visit(full);
+      } else if (entry.isFile()) {
+        if (entry.name.startsWith('.') && !includeDotFiles) continue;
+        out.push(full);
+      }
+    }
+  };
+  visit(rootDir);
+  return out;
+}
+
+/**
+ * 项目文件清单。
+ * @param {string} targetPath 项目根
+ * @param {{exts?: string[], namePattern?: RegExp, includeDotFiles?: boolean}} [opts]
+ *   namePattern 命中相对路径时无视 exts（用于 Dockerfile / Makefile 这类无扩展名文件）
+ */
+export function listProjectFiles(targetPath, opts = {}) {
   if (!existsSync(targetPath)) return [];
+  const exts = opts.exts || CODE_EXTS;
   const want = exts.map((e) => e.toLowerCase());
   const ignore = loadScanIgnore(targetPath);
-  return scanDir(targetPath, {
-    filter: (file) => {
-      const rel = relative(targetPath, file).split(sep).join('/').toLowerCase();
-      const segs = rel.split('/');
-      if (segs.some((seg) => SKIP_SEGMENTS.has(seg))) return false;
-      if (want.every((ext) => !rel.endsWith(ext))) return false;
-      if (ignore.some((prefix) => rel === prefix || rel.startsWith(`${prefix}/`))) return false;
-      const dir = segs.length > 1 ? segs.slice(0, -1).join('/') : '';
-      return !isNestedRepo(targetPath, dir);
-    },
+  return walkFiles(targetPath, Boolean(opts.includeDotFiles)).filter((file) => {
+    const rel = relative(targetPath, file).split(sep).join('/').toLowerCase();
+    const segs = rel.split('/');
+    const extOk = want.some((ext) => rel.endsWith(ext)) || Boolean(opts.namePattern && opts.namePattern.test(rel));
+    if (!extOk) return false;
+    if (ignore.some((prefix) => rel === prefix || rel.startsWith(`${prefix}/`))) return false;
+    const dir = segs.length > 1 ? segs.slice(0, -1).join('/') : '';
+    return !isNestedRepo(targetPath, dir);
   });
+}
+
+export function listProjectCodeFiles(targetPath, exts = CODE_EXTS) {
+  return listProjectFiles(targetPath, { exts });
 }
 
 export function codeRoots(targetPath, files, maxRoots = 8) {

@@ -224,3 +224,58 @@ remember 报「4 后端」）；统一为 4。`recall` 在 codegraph 库为空�
 - 巡检写进真实库的约 5 条探针残留（与真实记录无法区分，未强删）。
 
 验证：362 测试 / 36 文件全绿，ESLint 双 0。
+
+---
+
+## 2026-10-26 · insecure-defaults：从「提示词」接成「确定性检测器」
+
+上一轮把 4 个 Trail of Bits 技能 vendored 进来时，`insecure-defaults` 只做了两层：
+4.64 的 `invokeSkill`（把 Report when / Skip when 贴给 LLM）。但它自带 6 类机读种子
+（`references/*.json`，grep -E 语法），这半边是可以确定性跑起来的。这轮补齐。
+
+### 新增
+- `claude-scene/src/handlers/security/insecure-defaults.js`
+  - `loadCorpus()` **运行时读 vendored 技能里的种子**（不在 `src/` 复制 37 条正则，
+    避免两处漂移）；找不到 → `未找到 … 规则集` → noop。
+  - `toJsRegExp()` 把 grep -E 的 POSIX 类翻成 JS 语法；`scanText()` 逐行匹配并合并同类目；
+    `refute()` 是可判定的证伪层；`handleInsecureDefaults()` 输出契约化措辞。
+  - 扫描面 = 源码 + 配置清单（`.yml/.yaml/.toml/.json/.tf/.env/Dockerfile/…`），
+    复用 `listProjectFiles`（本轮给它加了自带 walker + `includeDotFiles`）。
+- `scenes/review.json` 新增 **4.61 `insecure-defaults-scan`**（条件同 4.6 semgrep），
+  位于 4.6 与 4.62 之间；候选写入 `context.insecureDefaultsCandidates`，并被
+  `generateReviewReport` 渲染成报告里的一节。
+- `actions.js` + `action-messages.js` 注册动作与消息。
+- 测试：`insecure-defaults.test.js`（36 例）+ `lib/project-sources.test.js`（11 例）
+  + `review.test.js` 报告两例。全量 **411 测试 / 38 文件**绿，ESLint 双 0，
+  场景审计 0 错误 / 15 警告。
+
+### 三个真 bug（都是测试和自扫逼出来的，不是推测）
+1. **`/i` 编译种子 = 系统性误报源**。上游是 `grep -E`，大小写敏感——种子自己列了
+   `md5|MD5`、`(True|true|1)` 就是证据。带 `/i` 时 `let hasVerify = false` 会命中
+   fail-open 种子。改回大小写敏感后：本仓库候选 **28 → 1**。
+2. **POSIX 类嵌在字符类里会被转坏**。`[^:@[:space:]]` 做字符串替换得到 `[^:@[\s]]`，
+   多出一个 `]`，于是 default-credentials 的 DSN 种子**永远不命中**（静默漏报）。
+   改成按 token 逐字符翻译（`[:space:]` → `\s`，按是否已在字符类内决定补不补外层括号）。
+3. **`refute()` 不传 `rel` 会 TypeError**（`pathSegments(undefined)`），
+   已加默认值与空值保护。
+
+### 证伪层（可判定，全部有单测）
+全局：整行注释；文档/vendor/测试路径（`scope: tests` 反向）；模板插值 `${…}`；
+正则字面量/箭头规则定义（检测器自身）；对象字段赋值 vs 配置项声明；
+十六进制颜色/转义序列（`\u0000`、`#0000EE` 里的 `000` 不是权限位）；标准权限位
+（755/644 不算，只认 777/776/766/707/666/000）。
+分类：`PORT/TMPDIR/…` 非秘密后缀与路径型回落值；占位符凭据；角色键的值必须正好是
+已知默认凭据（否则 `test: 'testPassed'` 也会中）；校验和/etag/临时文件名用途的 md5；
+`0.0.0.0` 监听 vs CIDR `0.0.0.0/0`；日志 sink 里的 stack trace；`DISABLE_*/SKIP_*` 极性。
+实测本仓库：28 → 1 处候选，且这 1 处是**真的** —— `codewhale-config.toml:11` 里有一个
+已提交进 git 的 `api_key`（代理站 key）。检测器第一次自扫就抓到了它。
+
+### 设计纪律
+- 措辞锁死：有候选 → `N 处候选（… 需逐条证伪）` → warn；0 文件 → fail；无规则集 → noop。
+  候选用「失败」会被 `detectHandlerFailure` 判成阻断门禁，是回归。
+- 已知召回上限（上游种子形态，不是本仓库 bug）：YAML 里 `tls_verify: false` 不命中，
+  种子只认 `TLS_VERIFY = false` / `verify = False`——这正是 4.64 存在的原因。
+
+E2E（临时夹具，5 文件含 3 真 3 假）：`6 处候选（5 类）`，`tests/fixture.js`
+被排除，`PORT`/`etag` 被证伪；场景 `review` 日志中 `step 4.61 status = warn`，
+总计 pass 18 / fail 0 / warn 1 / skip 14 / noop 6。

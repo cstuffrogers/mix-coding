@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import chalk from 'chalk';
 import { PACKAGE_ROOT, USER_DATA_DIR } from '../lib/paths.js';
 
@@ -54,6 +54,12 @@ export function resolveSkillCandidates(skillName, targetPath) {
     join(USER_DATA_DIR, relPath),
     join(PACKAGE_ROOT, relPath),
   ];
+}
+
+/** 解析后的技能目录（含 references/），找不到返回 null。 */
+export function resolveSkillDir(skillName, targetPath) {
+  const file = resolveSkillPath(skillName, targetPath);
+  return file ? dirname(file) : null;
 }
 
 function resolveSkillPath(skillName, targetPath) {

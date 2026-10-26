@@ -515,6 +515,8 @@ const ACTION_MESSAGES = {
   designMdExport: 'designMdExport 检查完成',
   semgrep: 'Semgrep 逻辑/IO 缺陷扫描完成',
   'semgrep-scan': 'Semgrep 逻辑/IO 缺陷扫描完成',
+  insecureDefaultsScan: '不安全默认值候选扫描完成',
+  'insecure-defaults-scan': 'insecure defaults 候选扫描完成',
   generateReviewReport: 'generateReviewReport 检查完成',
   'generate-review-report': 'generate review report 检查完成',
   odBrandList: 'odBrandList 检查完成',

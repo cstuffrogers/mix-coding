@@ -41,6 +41,7 @@ import { handleSecurityScan, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecu
 import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan, handleActionlint, handleZizmor, handleJscpd, handleSizeLimit, handleStryker, handleSpectral, handleMarkdownlint, handlePa11yCi, handleDesignMdLint, handleDesignMdExport, handleCodeGraphImpact, handleCodeGraphTrace, handleCodeGuardianOptimize } from './handlers/external-tool-checks.js';
 import { handleSemgrepScan } from './handlers/deep-review-tools.js';
 import { handlePropertyTestScout } from './handlers/logic-testing.js';
+import { handleInsecureDefaults } from './handlers/security/insecure-defaults.js';
 import { handleLighthouseGate } from './handlers/lighthouse.js';
 import { handleOpenRedirectScan } from './handlers/open-redirect.js';
 import { handleI18nAudit } from './handlers/i18n.js';
@@ -386,6 +387,11 @@ export const ACTION_REGISTRY = {
 	// 逻辑错检测（运行时）：属性测试 / 变异测试。静态分析抓不到这类缺陷。
 	propertyTestScout: handlePropertyTestScout,
 	'property-test-scout': handlePropertyTestScout,
+
+	// 不安全默认值的确定性候选扫描：规则集读 vendored 的 insecure-defaults 技能，
+	// 只产出候选（种子命中 ≠ 漏洞），证伪由 4.64 的 invokeSkill 接力。
+	insecureDefaultsScan: handleInsecureDefaults,
+	'insecure-defaults-scan': handleInsecureDefaults,
 
   aiFriendlyReview: handleAiFriendlyReview,
   'ai-friendly-review': handleAiFriendlyReview,

@@ -127,7 +127,8 @@
 | **静态分析** | `review` 4.6 `semgrep` | 外部输入流向危险汇点（SQL/命令注入、路径穿越、反序列化、开放重定向） | 逻辑错：语法合法、无可疑模式，只是算错 |
 | **运行时 · 属性测试** | `setup` 2.3 `propertyTestScout`（fast-check / hypothesis） | 逻辑错：off-by-one、不变量违反、边界条件 | 没装库或没写用例就跑不了 |
 | **运行时 · 变异测试** | `qa` 6.5 `stryker` | 测试本身有没有效力（存活变异体 = 测试没覆盖的路径） | 耗时；需 stryker 配置 |
-| **LLM 语义审查** | `sec-bug-hunt` / `mp-review` / `review-checklist` / vendored `sharp-edges`、`insecure-defaults`、`variant-analysis` | 跨文件意图、设计缺陷、易误用 API 形态、不安全默认值 | 不确定、不可复现，会漏也会编 |
+| **LLM 语义审查** | `sec-bug-hunt` / `mp-review` / `review-checklist` / vendored `sharp-edges`、`variant-analysis` | 跨文件意图、设计缺陷、易误用 API 形态 | 不确定、不可复现，会漏也会编 |
+| **确定性语料扫描** | `review` 4.61 `insecure-defaults-scan` | 不安全默认值 6 类（兜底密钥/默认凭据/fail-open/弱加密/过度放行/调试泄漏）：规则集是机读种子，跑得出来就能复现 | 只出候选：种子命中 ≠ 漏洞，仍需 4.64 逐条证伪 |
 
 vendored 技能的来源、许可与更新方式见 [vendored-skills.md](./vendored-skills.md)。
 
@@ -143,6 +144,17 @@ innerHTML 汇点、请求参数派生文件路径（穿越）、服务端开放�
 try 块内浮空 Promise、未关闭的文件句柄。
 
 缺失时行为：报「跳过」→ 计为 noop，绝不假通过。
+
+#### insecure-defaults 候选扫描（`review` 4.61）
+
+`src/handlers/security/insecure-defaults.js` **运行时读** `.claude/skills/insecure-defaults/references/*.json`
+（6 类共 37 条 seed，不在 `src/` 复制正则），编译成 JS `RegExp` 后扫源码 + 配置清单
+（`.yml/.yaml/.toml/.json/.tf/.env/Dockerfile/…`），先过一层可判定证伪再输出候选。
+
+与 4.64 的分工：4.61 确定性给候选，4.64 由技能逐条证伪判定。措辞纪律：有候选 →
+`N 处候选（… 需逐条证伪）` → warn；0 文件 → `未找到可扫描的源文件` → fail；
+无规则集 → `未找到 … 规则集` → noop。细节（大小写敏感、POSIX 类嵌套、证伪规则表）
+见 [vendored-skills.md](./vendored-skills.md#insecure-defaults-from-prompt-to-deterministic-detector)。
 
 **Windows 注意事项**：pip 装的 `semgrep.exe` 是 shim，会按名 exec `pysemgrep`，
 所以光解析绝对路径不够，必须把 `%APPDATA%\Python\Python3xx\Scripts` 注入 PATH；

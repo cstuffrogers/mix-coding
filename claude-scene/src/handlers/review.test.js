@@ -22,3 +22,37 @@ describe('runDiagnostic', () => {
     expect(() => out).not.toThrow();
   });
 });
+
+describe('审查报告里的不安全默认值候选', () => {
+  async function runWith(context) {
+    const { handleGenerateReviewReport } = await import('./review.js');
+    const { mkdtempSync, readFileSync, readdirSync, rmSync } = await import('fs');
+    const { tmpdir } = await import('os');
+    const { join } = await import('path');
+    const dir = mkdtempSync(join(tmpdir(), 'revrep-'));
+    try {
+      await handleGenerateReviewReport(null, {}, dir, context);
+      const reviewsDir = join(dir, '.claude', 'reviews');
+      const file = readdirSync(reviewsDir).find((f) => f.endsWith('.md'));
+      return readFileSync(join(reviewsDir, file), 'utf-8');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('有候选时写出候选清单，并标明需逐条证伪', async () => {
+    const report = await runWith({
+      insecureDefaultsCandidates: [
+        { file: 'src/app.js', line: 2, categories: ['fallback-secrets'], snippet: "const K = 'x'" },
+      ],
+    });
+    expect(report).toContain('不安全默认值候选');
+    expect(report).toContain('需逐条证伪');
+    expect(report).toContain('src/app.js:2');
+  });
+
+  it('没有候选时不写这一节', async () => {
+    const report = await runWith({});
+    expect(report).not.toContain('不安全默认值候选');
+  });
+});
