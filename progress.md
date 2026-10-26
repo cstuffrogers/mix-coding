@@ -668,3 +668,18 @@ Codex / ZCode / pi（+ Percho），加上 `~/.cc-switch`（Claude Code、Codex �
 
 至此本机 AI 工具只剩：pi / Percho（宿主）、VS Code 里的 pencil + v0 + figma 扩展、
 以及 TRAE CN 3.4.4。备份 `E:/ai-tools-backup-20261027/` 约 4.0GB，`MANIFEST.md` 三段齐全。
+
+---
+
+## 2026-10-27 第四批：TRAE CN 卸载 + `docs/llm-api-config.md`
+
+- **TRAE CN 3.4.4**：Inno Setup 静默卸载，注册表条目消失；残留目录（`debug.log` + `mcp.json`）、
+  `~/.trae-cn`(243MB)、`AppData\Roaming\Trae CN`(2146MB) 全部移入备份。
+- 卸载后在 `Trae CN/mcp.json` 里发现**又一个明文 key**：`sk-5470…`（iflow，`apis.iflow.cn`，
+  配给本地 `E:\多agent协作框架（开发版）` 的 MCP server）。该文件已随备份移出活跃目录。
+- 本机现在**只剩 Percho 一个 AI 应用**。
+- 新增 `docs/llm-api-config.md`：清理后「谁还需要大模型 API」的定稿答案。
+  核心结论 —— **只有 pi/Percho 需要**（`~/.pi/agent/models.json` + `auth.json`，3 家 provider）；
+  引擎不直连 LLM；MCP server 需要的是服务 token，而且 `.claude/mcp.json` **pi 根本不读**
+  （pi 读 `~/.pi/agent/mcp.json` / `.pi/mcp.json`，两个都空）→ 目前没有任何 MCP 接入；
+  `FACTORY_API_KEY` / `GLM_API_KEY` 是孤儿变量。
