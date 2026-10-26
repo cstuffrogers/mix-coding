@@ -555,3 +555,35 @@ md 100 个、本项目 `.claude/memory` 63 个 —— 全部复制到
 | 并发写 | 4 进程同写 → claude-mem 1 条（有锁），其余三家各 2 条（先查后写，已在 `docs/memory-scope.md` 标为已知限制） |
 
 最终：**480 tests / 42 files** 全绿，eslint 两个根目录零错误，`audit-scenes.mjs` 0 错误 / 15 警告。
+
+---
+
+## 2026-XX-XX 密钥扫描盲区修复（`de81eea`）
+
+**起因**：用户问「那把 DeepSeek 代理密钥配在哪、给谁用的」。查清后发现 `secret-scan` 根本扫不到它。
+
+**密钥归属**（`sk-SW1…`，`base_url = https://api.supxh.xin/v1`，模型 `deepseek-v4-pro`）：
+
+| 位置 | 使用方 |
+|---|---|
+| `~/.codewhale/config.toml` | codewhale（`npm i -g codewhale`，`start-codewhale.bat`） |
+| `~/.deepseek/config.json` | deepseek CLI |
+| `~/.cc-switch/cc-switch.db` | cc-switch（`providers` 表 `codex / supxh`，另有 11 份 backups） |
+| `~/.claude/history.jsonl` | Claude Code 命令历史（curl 打印过 Bearer） |
+| `~/.pi/agent/sessions/**`、`traces/**` | pi/percho 转录 |
+| `~/.ai_completion/.code_contribution/_code_commit.db` | AI 补全插件 |
+| `~/Documents/xwechat_files/**/API.txt` | 微信收发（已外流） |
+| git 历史 `013c00c` | 仓库首个提交里的 `codewhale-config.toml` |
+
+**修复的四个缺陷**（全部有回归测试）：
+
+1. 规则里没有 `sk-` 风格 —— 只有 `ghp_`/`AKIA`/`api_key` 字面前缀，DeepSeek/OpenAI 裸 key 完全不匹配。
+2. `SAFE_FILES` 白名单连**历史**一起豁免，`codewhale-config.toml` 在里面 → 真泄露被静默跳过；同时把该文件移出白名单（模板里若写回真 key 也要报）。
+3. `git log -S` 只看最近 5 个提交，而「删除密钥」的最新提交同样命中 `-S`，真正的引入点被挤出分页 → 改 `git log --all -G <regex>` + 命中提交整棵树 `git grep`（不能按 `show --name-only` 截断：初始提交上千文件，实测正好把密钥文件筛掉）。
+4. **Windows 引号静默失败**：`escapeArg` 一律单引号，而 `execSync` 在 Windows 走 `cmd.exe` —— `'ghp_'` 引号被原样传入，等于搜带引号的字面量，永远 0 命中；`git commit -m 'x'` 也会把单引号写进提交信息。
+
+**接入**：`review` 场景 step **4.551 `git-leaks`**（`security_deep` / `full_audit`），输出分「当前仍是明文」与「仅在历史里」两档，两者都置 `gitLeaksPassed = false`。实测本仓库：`1 个文件仅在历史里 → codewhale-config.toml（提交 013c00c）`，耗时约 19s（`git log -G` 单次 8s 占大头）。
+
+**仍需人做**：轮换密钥（后台操作）；`git filter-repo` 重写历史属破坏性，未获授权不动。
+
+**验证**：487 tests / 43 files 全绿，两个根目录 eslint 零错误，`audit-scenes.mjs` 0 错误 / 15 警告。
