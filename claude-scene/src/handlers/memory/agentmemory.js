@@ -27,13 +27,32 @@ function initAgentmemory() {
   return dbPath;
 }
 
-export function readAgentmemory(limit = 20) {
+// Recall-time cap. Rows are stored whole; cutting on read keeps prompts small.
+// The cut is reported via `truncated` rather than silently applied, because a
+// truncated row fed back into `remember` would persist a lossy copy forever.
+export const CONTENT_CAP = 500;
+
+function truncateContent(content) {
+  if (typeof content !== 'string') return { content, truncated: false };
+  if (content.length <= CONTENT_CAP) return { content, truncated: false };
+  return { content: content.slice(0, CONTENT_CAP), truncated: true };
+}
+
+// Tag values may only contain word characters and dashes, so stitching them
+// into the WHERE clause cannot break out of the string literal.
+function tagClause(tags) {
+  const safe = (Array.isArray(tags) ? tags : []).filter(t => typeof t === 'string' && /^[\w-]+$/.test(t));
+  if (!safe.length) return '';
+  return ` WHERE (${safe.map(t => `',' || tags || ',' LIKE '%,${t},%'`).join(' OR ')})`;
+}
+
+export function readAgentmemory(limit = 20, tags = null) {
   const dbPath = join(agentmemoryDir(), 'memory.db');
   if (!existsSync(dbPath)) return [];
   const safeLimit = parseInt(limit, 10) || 20;
   try {
     const rows = execSync(
-      `sqlite3 "${dbPath}" ".mode json" "SELECT id, type, content, tags, created_at FROM memories ORDER BY updated_at DESC LIMIT ${safeLimit};"`,
+      `sqlite3 "${dbPath}" ".mode json" "SELECT id, type, content, tags, created_at FROM memories${tagClause(tags)} ORDER BY updated_at DESC LIMIT ${safeLimit};"`,
       { stdio: 'pipe' }
     ).toString().trim();
     if (!rows) return [];
@@ -41,7 +60,7 @@ export function readAgentmemory(limit = 20) {
       source: 'agentmemory',
       id: r.id,
       type: r.type,
-      content: r.content?.slice(0, 500),
+      ...truncateContent(r.content),
       tags: r.tags ? r.tags.split(',') : [],
       timestamp: r.created_at,
     }));

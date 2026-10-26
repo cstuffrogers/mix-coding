@@ -5,6 +5,15 @@ import { readNexoData, writeNexoEvent } from './memory/nexo.js';
 import { queryCodeGraph } from './memory/codegraph.js';
 import { loadProjectMemories, loadAllProjectMemories, saveProjectMemory, matchFilter, deduplicateProjectMemories } from './memory/project-memory.js';
 
+// 每个后端的召回配额。旧实现是 max(5, ceil(limit/5))，而拼接顺序把 project-memory
+// 和 claude-mem 排在最前，于是 limit=10 时这两家各占 5 条就把配额吃光，NEXO /
+// agentmemory / codegraph 一条都进不来 —— 返回语却宣称五个来源都有。改成均分。
+export function recallQuota(limit, backendCount) {
+  const n = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 10;
+  const b = Number.isFinite(backendCount) && backendCount > 0 ? backendCount : 1;
+  return Math.max(1, Math.ceil(n / b));
+}
+
 // ── Public handlers ──────────────────────────────────────────────
 export async function handleMemoryRecall(_action, params, _targetPath, context) {
   const mode = params?.mode;
@@ -19,7 +28,7 @@ export async function handleMemoryRecall(_action, params, _targetPath, context) 
   let projectMemories;
   projectMemories = category ? loadProjectMemories(category) : loadAllProjectMemories();
   // Cap per-backend to avoid one source dominating the limit
-  const perSourceLimit = Math.max(5, Math.ceil(limit / Math.max(backendCount, 1)));
+  const perSourceLimit = recallQuota(limit, backendCount);
   allMemories.push(...projectMemories.slice(0, perSourceLimit).map(m => ({ ...m, source: 'project-memory' })));
 
   const cmItems = category ? readClaudeMemItems(category) : [];
@@ -36,11 +45,11 @@ export async function handleMemoryRecall(_action, params, _targetPath, context) 
   const amMemories = readAgentmemory(perSourceLimit);
   allMemories.push(...amMemories);
 
-  const nexo = readNexoData();
+  const nexo = readNexoData(perSourceLimit);
   allMemories.push(...nexo.slice(0, perSourceLimit));
 
   const cg = queryCodeGraph(perSourceLimit);
-  allMemories.push({ source: 'codegraph', summary: cg });
+  if (cg.nodes > 0) allMemories.push({ source: 'codegraph', summary: cg });
 
   // 5 backends total (project-memory, claude-mem, agentmemory, NEXO, CodeGraph)
 
@@ -57,7 +66,11 @@ export async function handleMemoryRecall(_action, params, _targetPath, context) 
 
 export async function handleMemoryRemember(_action, params, _targetPath, context) {
   const type = params?.type || 'general';
-  const baseData = params?.data || params?.content || (context?.recalled_memories?.length ? context.recalled_memories : null) || {};
+  // Recall truncates long rows for prompt size; re-saving those would persist a
+  // lossy copy into all four backends, then the truncation compounds on the next
+  // round. Only reuse recall rows that came back whole.
+  const wholeRecalled = (context?.recalled_memories || []).filter(m => m.truncated !== true);
+  const baseData = params?.data || params?.content || (wholeRecalled.length ? wholeRecalled : null) || {};
 
   // Enrich with context findings (same richness as autoRemember)
   const data = typeof baseData === 'object' && !Array.isArray(baseData)
@@ -191,6 +204,10 @@ export function handleAutoRemember(_action, _params, _targetPath, context) {
 
   try {
     saveProjectMemory(workflowType, data, {});
+    // Count this one too: without it auto-remember reported "3 后端" while
+    // explicit remember reported 4 (project-memory + claude-mem + agentmemory +
+    // NEXO), even though both wrote the same four stores.
+    count++;
   } catch (e) {
     console.log(chalk.yellow(`  ⚠ 项目记忆写入失败: ${e.message}`));
   }

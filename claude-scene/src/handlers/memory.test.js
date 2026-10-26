@@ -35,6 +35,7 @@ vi.mock('../lib/fs-utils.js', () => ({
 import {
   handleMemoryRecall,
   handleMemoryRemember,
+  recallQuota,
   handleConsolidate,
   handleListMemories,
 } from './memory.js';
@@ -145,5 +146,42 @@ describe('handleListMemories', () => {
   it('returns a string', () => {
     const result = handleListMemories('listMemories', {}, '/tmp');
     expect(typeof result).toBe('string');
+  });
+});
+
+describe('recallQuota', () => {
+  it('splits the limit evenly across backends so no source is starved', () => {
+    // Regression: the old max(5, ceil(limit/5)) gave each backend 5 slots while
+    // project-memory and claude-mem were concatenated first, so limit=10
+    // returned only those two sources while the summary claimed five.
+    expect(recallQuota(10, 5)).toBe(2);
+    expect(recallQuota(50, 5)).toBe(10);
+    expect(recallQuota(3, 5)).toBe(1);
+  });
+
+  it('never returns zero slots', () => {
+    expect(recallQuota(1, 5)).toBe(1);
+    expect(recallQuota(0, 5)).toBe(2);
+    expect(recallQuota(NaN, 5)).toBe(2);
+  });
+
+  it('degrades safely on a nonsense backend count', () => {
+    expect(recallQuota(10, 0)).toBe(10);
+    expect(recallQuota(10, NaN)).toBe(10);
+  });
+});
+
+describe('handleMemoryRecall distribution', () => {
+  it('never returns more rows than the requested limit', async () => {
+    const context = {};
+    await handleMemoryRecall('memoryRecall', { mode: 'full', limit: 10 }, process.cwd(), context);
+    expect(context.recalled_memories.length).toBeLessThanOrEqual(10);
+  });
+
+  it('does not pad the result with an empty codegraph row when the db is missing', async () => {
+    const context = {};
+    await handleMemoryRecall('memoryRecall', { mode: 'full', limit: 10 }, '/tmp', context);
+    const cg = context.recalled_memories.filter(m => m.source === 'codegraph');
+    for (const row of cg) expect(row.summary.nodes).toBeGreaterThan(0);
   });
 });

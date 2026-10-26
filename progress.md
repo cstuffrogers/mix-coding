@@ -184,3 +184,43 @@ SQL 先做 SQL 层单引号转义，再**整体包进 shell 双引号**——内
 根 + claude-scene 双侧 **349 测试 / 35 文件**全绿；ESLint 双 0；场景审计 0 错误 / 15 警告。
 E2E `/tmp/vuln` review：pass 18 / fail 1 / warn 1 / skip 14 / noop 4
 （fail 1 为 `sec-bug-hunt` 命中 critical SQL 注入，block-merge 门禁**有意**失败）。
+
+## 2026-10-26 · 记忆系统巡检（5 后端）+ 4 个真缺陷
+
+巡检方式：在临时项目里跑 remember → recall → list → consolidate，再对每个后端做读回校验。
+
+### 发现的缺陷
+1. **NEXO 召回读不到最新写入**：`readNexoData` 对 `scanDir` 的**未排序**结果取前 20，
+   而 `~/.nexo/runtime` 有 872 个文件 → 每次召回读的是任意 20 个历史文件，
+   刚写入的那条永远不在里面（`remember` 却计为「4 后端」成功）。改为按 mtime 倒序取。
+2. **召回配额只喂饱前两个后端**：`perSourceLimit = max(5, ceil(limit/5))`，而拼接顺序
+   project-memory / claude-mem 在前，limit=10 时两家各 5 条吃光配额，
+   NEXO / agentmemory / codegraph 一条都进不来 —— 返回语却宣称五个来源都有。
+   改为 `recallQuota()` 均分（实际观察到的分布：2/4/2/2）。
+3. **agentmemory 读取静默截断**：写入完整（2010 字符），`readAgentmemory` 却 `slice(0,500)`
+   且不标记。`remember` 在无入参时以 recalled_memories 为底稿，于是把截断副本再存回
+   四个后端，误差逐轮回累积。改为返回 `truncated` 标记，且 remember 的回落路径丢弃
+   被截断的行。
+4. **`readAgentmemory(limit, tags)` 的 tags 参数从未实现**：调用方传了也不过滤，
+   测试里那几条「按 tag 找」其实是空断言。已实现精确成员匹配（`','||tags||','`
+   包逗号，避免 `len` 命中 `len2`），并把测试改成带反例。
+
+顺带：`handleAutoRemember` 保存了 project-memory 却不计数（报「3 后端」，而显式
+remember 报「4 后端」）；统一为 4。`recall` 在 codegraph 库为空时仍塞一条空行，改为跳过。
+
+### 健康度实测（本机）
+- project-memory `PROJECT_ROOT/.claude/memory/` 34 条 / 53K — 正常
+- claude-mem `~/.claude/memory/` 40 分类 / 503 条 / 467K — 正常
+- agentmemory `~/.agentmemory/memory.db` sqlite 1026 行 / 209K — 正常
+- NEXO `~/.nexo/runtime/` 874 文件 / 1.6M — 修复后可读
+- CodeGraph `PROJECT_ROOT/.codegraph/codegraph.db` 3567 节点 / 7090 边 / 278 文件 — 可查，
+  但**引擎不负责重建**（外部工具产物），本仓库那份停留在 10-24，且 `file_path` 带
+  尾随 `\r`（索引侧 CRLF 没清）
+
+### 已知未做（如实记录）
+- 无保留期/轮转：nexo 872 文件、agentmemory 1026 行、claude-mem 503 条只增不减。
+  `consolidate` 实际只对 project-memory 去重，另三个后端仅打印计数。删用户记忆数据
+  不可静默做，故未加。
+- 巡检写进真实库的约 5 条探针残留（与真实记录无法区分，未强删）。
+
+验证：362 测试 / 36 文件全绿，ESLint 双 0。

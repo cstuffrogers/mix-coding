@@ -34,6 +34,30 @@ describe('writeAgentmemory', () => {
     expect(scoped.some(r => r.id === res.id)).toBe(true);
   });
 
+  it('filters by tag with exact membership, not substring', () => {
+    writeAgentmemory('coding-test', 'tagged-len', ['len']);
+    writeAgentmemory('coding-test', 'tagged-len2', ['len2']);
+    const rows = readAgentmemory(200, ['len']);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every(r => r.tags.includes('len'))).toBe(true);
+    // 'len' must not match the 'len2' row.
+    expect(rows.some(r => r.tags.includes('len2'))).toBe(false);
+  });
+
+  it('flags truncation instead of silently cutting long content', () => {
+    const res = writeAgentmemory('coding-test', 'Z'.repeat(1200), ['long']);
+    const row = readAgentmemory(200, ['long']).find(r => r.id === res.id);
+    expect(row.truncated).toBe(true);
+    expect(row.content).toHaveLength(500);
+  });
+
+  it('does not flag short content as truncated', () => {
+    const res = writeAgentmemory('coding-test', 'short', ['short']);
+    const row = readAgentmemory(200, ['short']).find(r => r.id === res.id);
+    expect(row.truncated).toBe(false);
+    expect(row.content).toBe('short');
+  });
+
   it('round-trips JSON containing double quotes', () => {
     // Regression: the INSERT used to be embedded in a shell double-quoted
     // string, so `"` in the payload was consumed by the shell and SQLite
@@ -64,6 +88,6 @@ describe('writeAgentmemory', () => {
     const row = readAgentmemory(100, ['q3']).find(r => r.id === res.id);
     expect(row.content).toBe(payload);
     // Table still there, so the injection attempt did not execute.
-    expect(readAgentmemory(1, [])).toBeDefined();
+    expect(readAgentmemory(1)).toBeDefined();
   });
 });
