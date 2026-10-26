@@ -115,11 +115,15 @@ export function pruneNexo({ maxFiles = 2000, maxAgeDays = 30 } = {}) {
         // 同名已存在时加 pid 后缀：rename 在 Windows 上会直接覆盖旧归档，
         // 那等于用新文件吃掉历史归档。
         const target = join(archiveDir, basename(f));
-        const dest = existsSync(target) ? join(archiveDir, `${process.pid}-${basename(f)}`) : target;
+        // 用时间戳而不是 pid：同一进程连续两次 prune 也可能撞名，pid 相同就覆盖了。
+        const dest = existsSync(target) ? join(archiveDir, `${Date.now()}-${basename(f)}`) : target;
         renameSync(f, dest);
         archived++;
       } catch { /* 文件被删或目标不可写 */ }
     }
     return { archived };
-  } catch { return { archived: 0 }; }
+  } catch (e) {
+    console.error(`  ⚠ NEXO 保留策略执行失败: ${e.message}（未移动任何文件）`);
+    return { archived: 0 };
+  }
 }

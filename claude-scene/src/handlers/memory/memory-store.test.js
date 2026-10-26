@@ -515,3 +515,41 @@ describe('召回装配（交错 + 去重 + 顺序）', () => {
     expect(context.recalled_memories.length).toBeLessThanOrEqual(6);
   });
 });
+
+// 保留策略的边界：库里可能存在**不是本引擎写的**行（别的工具直接写 SQL），
+// type 没经过 safeTypeName 归一化。拿归一化后的名字当 WHERE 条件，这些行
+// 就永远不会被按类型裁剪 —— 保留策略看上去在跑，实际漏掉整类历史数据。
+describe('agentmemory 保留策略的边界', () => {
+  let root;
+  const saved = {};
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'memprune-'));
+    saved.AGENTMEMORY_HOME = process.env.AGENTMEMORY_HOME;
+    process.env.AGENTMEMORY_HOME = join(root, 'am');
+  });
+  afterEach(() => {
+    if (saved.AGENTMEMORY_HOME === undefined) delete process.env.AGENTMEMORY_HOME;
+    else process.env.AGENTMEMORY_HOME = saved.AGENTMEMORY_HOME;
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('未归一化的历史 type（含空格大写）也能按类型裁剪', async () => {
+    const { writeAgentmemory, pruneAgentmemory } = await import('./agentmemory.js');
+    const { execSync } = await import('child_process');
+    for (const c of ['a', 'b', 'c']) writeAgentmemory('review', `legacy-${c}`, [], 'p');
+    const db = join(root, 'am', 'memory.db');
+    execSync(`sqlite3 "${db}" "UPDATE memories SET type='Security Audit' WHERE content IN ('legacy-a','legacy-b');"`);
+    const result = pruneAgentmemory({ maxPerType: 1, maxAgeDays: 3650 });
+    expect(result.byType['Security Audit']).toBe(1);
+    const left = execSync(`sqlite3 "${db}" "SELECT content FROM memories ORDER BY content;"`)
+      .toString().split('\n').map(line => line.trim()).filter(Boolean);
+    expect(left).toEqual(['legacy-b', 'legacy-c']);
+  });
+
+  it('tags 传 null 不会让整条写入静默失败', async () => {
+    const { writeAgentmemory, readAgentmemory } = await import('./agentmemory.js');
+    const written = writeAgentmemory('review', 'null-tags', null, 'p');
+    expect(written.ok).toBe(true);
+    expect(readAgentmemory(5).some(r => String(r.content).includes('null-tags'))).toBe(true);
+  });
+});

@@ -114,7 +114,8 @@ export function writeAgentmemory(type, content, tags = [], projectPath = '') {
     const id = memoryId();
     const now = new Date().toISOString();
     const safeContent = (typeof content === 'string' ? content : JSON.stringify(content)).replace(/'/g, "''");
-    const safeTags = tags.join(',').replace(/'/g, "''");
+    // 默认参数只兜 undefined，传 null 时 tags.join 会抛，整条写入静默失败。
+    const safeTags = (Array.isArray(tags) ? tags : []).join(',').replace(/'/g, "''");
     // type 可能来自场景参数，不一定是字符串。旧实现直接 type.replace 会抛
     // TypeError，被 catch 成 ok:false，于是这一轮静默少了一个后端。
     // 统一过 safeTypeName，和目录名/items.json 用同一套名字。
@@ -186,10 +187,13 @@ export function pruneAgentmemory({ maxPerType = 200, maxAgeDays = 365 } = {}) {
       .toString().trim().split('\n').map(s => s.trim()).filter(Boolean);
     const stale = [];
     for (const type of types) {
-      const safe = safeTypeName(type);
+      // 不能拿 safeTypeName(type) 当 WHERE 条件：写入侧确实会归一化，但历史行
+      // （别的工具写的）可能存着 `Security Audit`，归一化后的名字匹配不上，
+      // 这些行就永远不会被按类型裁剪。改成对原始值做 SQL 转义。
+      const literal = String(type).replace(/'/g, "''");
       const rows = sqliteJson(dbPath,
         `SELECT id, type, content, tags, created_at, project_path FROM memories ` +
-        `WHERE type = '${safe}' ORDER BY created_at DESC LIMIT -1 OFFSET ${Number(maxPerType) || 200};`);
+        `WHERE type = '${literal}' ORDER BY created_at DESC LIMIT -1 OFFSET ${Number(maxPerType) || 200};`);
       if (rows) stale.push(...JSON.parse(rows));
     }
     const cutoff = new Date(Date.now() - (Number(maxAgeDays) || 365) * 86_400_000).toISOString();
@@ -207,7 +211,11 @@ export function pruneAgentmemory({ maxPerType = 200, maxAgeDays = 365 } = {}) {
     const byType = {};
     for (const row of uniq) byType[row.type || 'unknown'] = (byType[row.type || 'unknown'] || 0) + 1;
     return { archived: uniq.length, byType };
-  } catch { return { archived: 0, byType: {} }; }
+  } catch (e) {
+    // 静默返回 0 会让「保留策略从来没生效」永远看不出来。
+    console.error(`  ⚠ agentmemory 保留策略执行失败: ${e.message}（未删除任何记录）`);
+    return { archived: 0, byType: {} };
+  }
 }
 
 function archiveAgentmemoryRows(rows) {
