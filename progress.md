@@ -683,3 +683,38 @@ Codex / ZCode / pi（+ Percho），加上 `~/.cc-switch`（Claude Code、Codex �
   引擎不直连 LLM；MCP server 需要的是服务 token，而且 `.claude/mcp.json` **pi 根本不读**
   （pi 读 `~/.pi/agent/mcp.json` / `.pi/mcp.json`，两个都空）→ 目前没有任何 MCP 接入；
   `FACTORY_API_KEY` / `GLM_API_KEY` 是孤儿变量。
+
+---
+
+## 2026-10-27 第五批：MCP 配置迁到 pi + 清掉孤儿环境变量
+
+**1) `.claude/mcp.json` → `.pi/mcp.json`（先迁无需凭据的 3 个）**
+
+pi 只读 `.pi/mcp.json` / `~/.pi/agent/mcp.json`，Claude Code 那个位置它根本不看。迁移时踩到的两点：
+
+- **变量语法不同**：pi 用 `${VAR}`，Claude Code 用 `${env:VAR}`；`type: "stdio"` 在 pi 里可以省（有 `command` 即 stdio）
+- **`npx` 直接用**：`command: "schemaforge-mcp"` 这种裸命令在 Windows 上 `spawn ENOENT`（没有 `.cmd` 解析），
+  用 `command: "npx", args: ["-y", ...]` 才是 pi 文档里支持的写法
+
+三个 server 都实测过 MCP 握手（`initialize` → `serverInfo`）：`schemaforge-mcp`、`a11y-mcp-server`
+（自报 `axe-accessibility-server`）、`detox-mcp`。项目级和用户级各放一份（内容相同），任意目录可用。
+
+**2) `handler-verify.js` Pass 10 跟着修了三处**
+
+- 配置路径从硬编码 `.claude/mcp.json` 改为按 **项目 `.pi/mcp.json` → 用户 `~/.pi/agent/mcp.json` → `.claude/mcp.json`**
+  取第一个存在的（导出 `mcpConfigCandidates()` 便于测试）
+- `checkServerEnv` 原来只会剥 `${env:` 前缀，遇到 `${VAR}` 会把变量名读成 `${VAR`，误报「API Key 未配置」；
+  改为正则 `^\$\{(?:env:)?([A-Za-z_]\w*)\}$`（导出 `envVarName()`）
+- `detectMcpIssues(_targetPath)` 的参数之前是**被忽略的**，所以在别的项目跑 `/check` 也会读本项目配置；
+  现在按 targetPath 解析，输出里的路径对项目内文件显示相对路径、对用户级显示 `~/...`
+- 成功时不再沉默，打印 `✅ Pass 10 — MCP 配置: 3/3 个 server 就绪 (~/.pi/agent/mcp.json)`
+
+**3) 孤儿环境变量已删**
+
+`FACTORY_API_KEY` / `GLM_API_KEY` 的值先写进 `E:/ai-tools-backup-20261027/env-vars-backup.txt`，再从用户环境删除。
+pi 用的是 `~/.pi/agent/auth.json` 里的 key，删这两个不影响任何工具。
+
+**4) `.claude/mcp.json` 已删**（宿主卸载后是死文件，内容在 git 历史 + `docs/llm-api-config.md` §3 的现成片段里）。
+`docs/tools-inventory.md` 的「活跃 MCP 服务器」从 7 个改为 3 个。
+
+验证：491 tests / 43 files 全绿，两个 root 的 eslint 0 error，两个目录下 Pass 10 都正确命中。

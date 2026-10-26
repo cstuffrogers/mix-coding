@@ -1,5 +1,6 @@
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
+import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
@@ -452,6 +453,28 @@ function detectHandlerCrashes() {
 // ═══════════════════════════════════════════════════
 // Pass 10: MCP config validation
 // ═══════════════════════════════════════════════════
+// 宿主配置位置不止一个：项目级 .pi/mcp.json 优先，其次 pi 用户级 ~/.pi/agent/mcp.json，
+// 最后是老的 Claude Code 位置（宿主已卸载，留着只为其它机器）。
+// 项目级条目按 pi 的语义覆盖同名用户级条目。
+const MCP_CONFIG_RELS = [
+  ['.pi', 'mcp.json'],
+  ['HOME', '.pi', 'agent', 'mcp.json'],
+  ['.claude', 'mcp.json'],
+];
+
+export function mcpConfigCandidates(root = PROJECT_ROOT, home = homedir()) {
+  return MCP_CONFIG_RELS.map(([base, ...rest]) =>
+    (base === 'HOME' ? join(home, ...rest) : join(root, base, ...rest)));
+}
+
+// 两种写法都要认：pi 用 ${VAR}，Claude Code 用 ${env:VAR}。
+// 只认一种会让 ${VAR} 被当成变量名 "${VAR"，报一条假的“未配置”。
+export function envVarName(value) {
+  if (typeof value !== 'string') return '';
+  const m = value.match(/^\$\{(?:env:)?([A-Za-z_]\w*)\}$/);
+  return m ? m[1] : '';
+}
+
 function checkCommandArgs(cfg) {
   if (!cfg.args || !Array.isArray(cfg.args)) return [];
   const errors = [];
@@ -487,7 +510,7 @@ function checkServerEnv(cfg) {
   const infos = [];
   if (cfg.env) {
     for (const envVal of Object.values(cfg.env)) {
-      const envName = typeof envVal === 'string' ? envVal.replace(/^\$\{env:/, '').replace(/\}$/, '') : '';
+      const envName = envVarName(envVal);
       if (envName && !process.env[envName]) {
         infos.push(`环境变量未设置: ${envName} (API Key 未配置)`);
       }
@@ -515,9 +538,15 @@ function pushServerIssues(name, serverErrors, serverWarnings, serverInfos, error
   return true;
 }
 
-function detectMcpIssues(_targetPath) {
-  const mcpPath = join(PROJECT_ROOT, '.claude', 'mcp.json');
-  if (!existsSync(mcpPath)) return { errors: [], warnings: [], infos: [], summary: 'mcp.json 不存在', total: 0, okCount: 0, ok: true };
+function detectMcpIssues(targetPath) {
+  // targetPath 之前被忽略，导致在别的项目里 /check 也会读本项目（PROJECT_ROOT）的配置。
+  const root = targetPath || PROJECT_ROOT;
+  const mcpPath = mcpConfigCandidates(root).find((p) => existsSync(p));
+  if (!mcpPath) return { errors: [], warnings: [], infos: [], summary: 'MCP 配置不存在（.pi/mcp.json / ~/.pi/agent/mcp.json / .claude/mcp.json）', total: 0, okCount: 0, ok: true };
+  // 路径展示：项目内的用相对路径，用户级的用 ~ 简写（否则会出现半截目录名）。
+  const configPath = mcpPath.startsWith(root)
+    ? mcpPath.slice(root.length).replace(/\\/g, '/')
+    : mcpPath.replace(homedir(), '~').replace(/\\/g, '/');
 
   let config;
   try {
@@ -540,7 +569,7 @@ function detectMcpIssues(_targetPath) {
   }
 
   const issueCount = errors.length + warnings.length;
-  return { errors, warnings, infos, ok: errors.length === 0, total: Object.keys(servers).length, okCount, issueCount };
+  return { errors, warnings, infos, ok: errors.length === 0, total: Object.keys(servers).length, okCount, issueCount, configPath };
 }
 
 // ═══════════════════════════════════════════════════
@@ -751,6 +780,7 @@ function runSafetyChecks(targetPath) {
   if (mcpConfig.total === 0) {
     console.log(chalk.dim(`  ⏭ Pass 10 — MCP 配置: ${mcpConfig.summary || '无配置'}`));
   } else if (mcpConfig.ok) {
+    console.log(chalk.green(`  ✅ Pass 10 — MCP 配置: ${mcpConfig.okCount}/${mcpConfig.total} 个 server 就绪 (${mcpConfig.configPath})`));
     if (mcpConfig.infos.length) {
       for (const s of mcpConfig.infos) console.log(chalk.dim(`     ℹ ${s.server}: ${s.issues.join('; ')}`));
     }

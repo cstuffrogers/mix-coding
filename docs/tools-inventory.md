@@ -48,7 +48,23 @@
 
 ## MCP 服务器（14个）与场景使用矩阵
 
-### 活跃 MCP 服务器（7个，定义在 `.claude/mcp.json`）
+### 活跃 MCP 服务器（3 个，定义在 `.pi/mcp.json`）
+
+| # | 服务器 | 运行时 | 依赖环境变量 |
+|---|--------|--------|-------------|
+| 1 | **schemaforge** | npx `schemaforge-mcp` | 无 |
+| 2 | **a11y** | npx `a11y-mcp-server` | 无 |
+| 3 | **detox** | npx `detox-mcp` | 无 |
+
+> 宿主只剩 pi/Percho，而 **pi 只读 `.pi/mcp.json`（项目级）或 `~/.pi/agent/mcp.json`（用户级）**。
+> 这 3 个 server 两处都装了一份（内容相同），所以任意目录可用；`/check` Pass 10 按
+> 项目 → 用户 → `.claude` 顺序取第一个存在的文件。
+> 原来的 `.claude/mcp.json` 是 Claude Code 的格式与位置，宿主卸载后已成死文件（已删，见 git 历史）。
+> 7 个需要凭据的 server（github / context7 / sentry / supabase / stripe / resend / tavily / mobsf）的
+> 现成配置片段（`${VAR}` 写法）在 [`docs/llm-api-config.md`](./llm-api-config.md) §3，拿到 token 后粘贴进
+> `.pi/mcp.json` 即可。
+
+#### 原「需要凭据」的 server（已从活配置移除）
 
 | # | 服务器 | 运行时 | 依赖环境变量 | 代码位置 |
 |---|--------|--------|-------------|---------|

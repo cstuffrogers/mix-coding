@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isTrivialLine, extractFunctionBody } from './handler-verify.js';
+import { sep } from 'path';
+import { isTrivialLine, extractFunctionBody, envVarName, mcpConfigCandidates } from './handler-verify.js';
 
 describe('isTrivialLine', () => {
   it('treats blank, brace, and comment lines as trivial', () => {
@@ -38,5 +39,33 @@ describe('extractFunctionBody', () => {
     const src = 'export function a() {\n  doThing();\n}';
     const body = extractFunctionBody(src, src.indexOf('{'));
     expect(body).toContain('doThing()');
+  });
+});
+
+describe('envVarName', () => {
+  it('accepts pi syntax ${VAR}', () => {
+    expect(envVarName('${GITHUB_PERSONAL_ACCESS_TOKEN}')).toBe('GITHUB_PERSONAL_ACCESS_TOKEN');
+  });
+  it('accepts Claude Code syntax ${env:VAR}', () => {
+    expect(envVarName('${env:TAVILY_API_KEY}')).toBe('TAVILY_API_KEY');
+  });
+  it('rejects partial or unrelated values', () => {
+    expect(envVarName('$GITHUB_TOKEN')).toBe('');
+    expect(envVarName('prefix${X}')).toBe('');
+    expect(envVarName('Bearer abc')).toBe('');
+    expect(envVarName('${1BAD}')).toBe('');
+    expect(envVarName('')).toBe('');
+    expect(envVarName(null)).toBe('');
+    expect(envVarName(42)).toBe('');
+  });
+});
+
+describe('mcpConfigCandidates', () => {
+  it('tries project pi config, then user-level pi config, then Claude Code', () => {
+    const [project, user, claude] = mcpConfigCandidates('/proj', '/home/u');
+    const norm = (p) => p.split(sep).join('/');
+    expect(norm(project)).toBe('/proj/.pi/mcp.json');
+    expect(norm(user)).toBe('/home/u/.pi/agent/mcp.json');
+    expect(norm(claude)).toBe('/proj/.claude/mcp.json');
   });
 });

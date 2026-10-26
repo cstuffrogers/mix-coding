@@ -29,31 +29,50 @@ Percho 的界面设置直接读写这两个文件；在 Percho 里换模型/加 
 
 ## 3. 需要「服务 token」但**不是** LLM key 的：MCP servers
 
-`.claude/mcp.json` 里声明了 7 类 server，其中只有 3 个无需凭据：
+pi 只读 `.pi/mcp.json`（项目级，需先授予项目信任）或 `~/.pi/agent/mcp.json`（用户级）。
+Claude Code 卸载后，原来的 `.claude/mcp.json` 成了死文件，已删（内容在 git 历史里）。
 
-| server | 需要的凭据 | 当前 |
+当前 `.pi/mcp.json` 只放了 3 个**无需凭据**且已实测能握手的 server：
+
+| server | 运行时 | 验证 |
 |---|---|---|
-| `schemaforge` / `a11y` / `detox` | 无需 | 可直接用 |
-| `github` | `GITHUB_PERSONAL_ACCESS_TOKEN` | 未设 |
-| `context7` | `CONTEXT7_API_KEY` | 未设 |
-| `sentry` | OAuth 登录（远程 server） | 未登录 |
-| `tavily-search` / `supabase` / `stripe` / `resend` | 各自 API key | 未设 |
+| `schemaforge` | `npx -y schemaforge-mcp` | ✅ `serverInfo.name = schemaforge-mcp` |
+| `a11y` | `npx -y a11y-mcp-server` | ✅ `serverInfo.name = axe-accessibility-server` |
+| `detox` | `npx -y detox-mcp` | ✅ `serverInfo.name = detox-mcp` |
 
-> **⚠ 这段配置目前是死的**：`mcp.json` 是 Claude Code 的格式与位置（`.claude/mcp.json`），
-> 而 pi 只读 `~/.pi/agent/mcp.json`（用户级）或 `.pi/mcp.json`（项目级，需先授予项目信任）。
-> 两个文件都不存在 → 现在没有任何 MCP server 真正接进 pi。
->
-> 迁移方式：把 `.claude/mcp.json` 的条目搬到 `.pi/mcp.json`，`type/command/args/env` 结构基本相同，
-> 差异见 Percho 的 `docs/mcp.md`（`${env:VAR}` 写法一致；远程 server 走 OAuth 时不要写凭据）。
+> 语法差异：pi 用 `${VAR}`，Claude Code 用 `${env:VAR}`；`type: "stdio"` 在 pi 里不需要（有 `command` 就是 stdio）。
+> 引擎 `handler-verify.js` 两种写法都认，按 **项目 `.pi/mcp.json` → 用户 `~/.pi/agent/mcp.json` → `.claude/mcp.json`**
+> 的顺序取第一个存在的（与 pi 的「项目级覆盖同名用户级」语义一致），`/check` 的 Pass 10 会打印
+> `okCount/total` 与命中的文件。
 
-## 4. 孤儿环境变量（无人读取）
+同样这 3 个 server 也装了一份在用户级 `~/.pi/agent/mcp.json`，所以任意项目目录下都能用。
+两边内容相同 —— 项目级只是为了保证「克隆下来即能跑」，改的时候要一起改。
 
-| 变量 | 原属工具 | 建议 |
+### 拿到 token 后追加到 `.pi/mcp.json` 的片段
+
+```jsonc
+"github":    { "command": "docker", "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+               "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}" } },
+"context7":  { "command": "npx", "args": ["-y", "@upstash/context7-mcp"], "env": { "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}" } },
+"tavily":    { "command": "npx", "args": ["-y", "tavily-mcp"], "env": { "TAVILY_API_KEY": "${TAVILY_API_KEY}" } },
+"supabase":  { "command": "npx", "args": ["-y", "@supabase/mcp-server-supabase@latest"], "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" } },
+"stripe":    { "command": "npx", "args": ["-y", "@stripe/mcp"], "env": { "STRIPE_SECRET_KEY": "${STRIPE_SECRET_KEY}" } },
+"resend":    { "command": "node", "args": ["./.mcp/resend-mcp/dist/index.js"], "env": { "RESEND_API_KEY": "${RESEND_API_KEY}" } },
+"mobsf":     { "command": "npx", "args": ["-y", "mobsf-mcp"], "env": { "MOBSF_URL": "${MOBSF_URL}", "MOBSF_API_KEY": "${MOBSF_API_KEY}" } }
+```
+
+`sentry` 现在是远程 server（OAuth 登录，不写凭据）：`{ "url": "https://mcp.sentry.dev/mcp" }`。
+`bearer` 已死（`@bearer/mcp` 与 `@bearer/cli` 均不可用，工具已卸载），不要再加。
+
+## 4. 孤儿环境变量（已清理）
+
+| 变量 | 原属工具 | 处理 |
 |---|---|---|
-| `FACTORY_API_KEY` | Factory（`~/.factory` 已移入备份） | 可删；删除前把值记到本地备份 |
+| `FACTORY_API_KEY` | Factory（`~/.factory` 已移入备份） | 值已记入 `E:/ai-tools-backup-20261027/env-vars-backup.txt`，变量已删 |
 | `GLM_API_KEY` | ZCode / Codex 链路（均已卸载） | 同上 |
 
-两者都不在 pi 的读取路径上（pi 用的是 `auth.json` 里的 key）。
+两者都不在 pi 的读取路径上（pi 用的是 `auth.json` 里的 key），删掉不影响任何工具。
+
 
 ## 5. 已卸载工具曾经的 key 归属
 

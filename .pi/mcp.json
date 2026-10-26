@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "schemaforge": {
+      "command": "npx",
+      "args": ["-y", "schemaforge-mcp"],
+      "description": "数据库 schema 设计/迁移审查（无需 API Key）"
+    },
+    "a11y": {
+      "command": "npx",
+      "args": ["-y", "a11y-mcp-server"],
+      "description": "无障碍检查 axe-core（无需 API Key）"
+    },
+    "detox": {
+      "command": "npx",
+      "args": ["-y", "detox-mcp"],
+      "description": "Detox 移动端 E2E 工作流（无需 API Key）"
+    }
+  }
+}
