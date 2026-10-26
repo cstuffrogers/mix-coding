@@ -11,32 +11,45 @@
 | 泄露内容 | `api_key = "sk-SW1…"`（DeepSeek 兼容代理的明文密钥） |
 | 当前状态 | 仓库内已替换为占位符 `${CODEWHALE_API_KEY}` |
 
-**必须由密钥所有者完成（agent 做不到）**：
+### 1.0 处置决定（2026-10-27，用户明确授权）
 
-1. **轮换密钥** —— 到代理服务商后台吊销并重新签发。这是唯一真正有效的补救。
-2. 新密钥只写进 `%USERPROFILE%\.codewhale\config.toml`（本地文件，不入库），或设成环境变量 `CODEWHALE_API_KEY`。
+| 动作 | 决定 | 理由 |
+|------|------|------|
+| 轮换密钥 | **不轮换** | 使用它的工具（codewhale / deepseek / cc-switch / Claude Code）全部已卸载，已无使用者；轮换要所有者登录 `api.supxh.xin` 后台 |
+| 抹除本机明文副本 | **做，全部** | 用户：「副本也可以不要」。结果见 §1.1 |
+| 删除清理备份 `E:/ai-tools-backup-20261027/` | **做，8.0 GB 已删** | 备份里 20+ 个文件含同一把明文 key，留着等于留副本 |
+| 重写 git 历史（`filter-repo`） | **不做** | 破坏性：重写全部提交 ID、打断所有克隆与 PR；且仓库不公开、无协作者 |
+| 后续新密钥怎么放 | 只写 `%USERPROFILE%\.codewhale\config.toml`（不入库）或环境变量 `CODEWHALE_API_KEY` | 仓库里永远是 `${CODEWHALE_API_KEY}` 占位符 |
 
-**关于 git 历史**：密钥仍然存在于 `013c00c` 之后的所有历史提交里。真正清除需要 `git filter-repo --invert-paths` + 强制推送到所有远端，这会重写全部提交 ID、打断所有已克隆仓库和 PR —— 属于破坏性操作，**未经明确授权不执行**。在密钥已轮换的前提下，历史里的旧字符串就只是失效文本，保留成本低于重写成本。
+**残留风险（知情接受）**：这把 key **从未被吊销**，所以历史 `013c00c` 里的明文**在技术上仍然可用**——它不是失效文本，而是活凭据。接受这一点的前提是「仓库不公开、只有所有者能读」。**一旦仓库要公开或加协作者，必须先轮换或先重写历史。**
 
-### 1.1 这把 key 是配给谁的 · 完整副本清单
+### 1.1 这把 key 是配给谁的 · 副本清单与处置结果
 
-它是**第三方 DeepSeek 兼容代理**（`base_url = https://api.supxh.xin/v1`，模型名 `deepseek-v4-pro`）的 key，被三个工具分别配置过：
+它是**第三方 DeepSeek 兼容代理**（`base_url = https://api.supxh.xin/v1`，模型名 `deepseek-v4-pro`）的 key，被多个工具分别配置过。全盘扫描（**598 272 个文件**，跳过 >32 MB 与缓存目录，14m44s）命中 **12 个实际副本**，逐一处置：
 
-| 位置 | 使用方 | 说明 |
-|------|--------|------|
-| `~/.cc-switch/cc-switch.db` | **cc-switch**（Claude Code / Codex 的 provider 中转） | `providers` 表 `codex / supxh` 一行；另有 11 份 `backups/*.db` 备份同样含明文。**唯一仍在用的副本** |
-| `~/.claude/history.jsonl` | Claude Code 命令历史 | 调试 curl 时打印过 `Authorization: Bearer sk-…` |
-| `~/.pi/agent/sessions/**` `traces/**` | pi / percho 会话转录 | 文件内容进过上下文，被原样写入转录 |
-| `~/Documents/xwechat_files/**/API.txt` | 微信收发文件 | **已外流**，属于最高优先级泄露 |
-| ~~`~/.codewhale/config.toml`~~ | codewhale CLI | **已随工具清理移出**（见 §1.3） |
-| ~~`~/.deepseek/config.json`~~ | deepseek CLI | **已移出**（该包无 bin，属死安装） |
-| ~~`~/.ai_completion/.code_contribution/_code_commit.db`~~ | AI 补全插件 | **已移出** |
+| 位置 | 使用方 | 处置结果 |
+|------|--------|----------|
+| `~/.pi/agent/sessions/**`（1 个会话转录）+ `traces/**`（5 个） | pi / percho 会话转录 | **原地脱敏**：等长覆盖为 `sk-REDACTED---…`，**文件长度不变** |
+| `~/Documents/xwechat_files/**/API.txt` | 微信收发文件 | **脱敏 2 处**。这个文件本身已经外流，抹本机副本只能止损 |
+| `~/AppData/Roaming/Code/User/settings.json` + 2 份 `History/*.json` | VS Code 配置与本地历史 | **脱敏** |
+| `~/AppData/Local/aardio/std/example/ai/agent4.table` | aardio 示例工程 | **脱敏 2 处** |
+| `~/Desktop/新建文本文档 (7).txt` | 桌面便签 | **脱敏 1 处**（同文件另有 3 把别的服务商 key，不在本次范围） |
+| `~/.cc-switch/cc-switch.db` + 11 份 `backups/*.db` | cc-switch provider 中转 | **已删**（随 CC Switch 卸载 + 备份目录删除） |
+| `~/.claude/history.jsonl` | Claude Code 命令历史 | **已删**（`~/.claude` 只剩 `memory/`） |
+| `~/AppData/Local/aardio/...` 之外的 `~/.codewhale` `~/.deepseek` `~/.ai_completion` | codewhale / deepseek / AI 补全 | **随备份目录已删**（见 §1.2） |
+| `E:/ai-tools-backup-20261027/**` | 清理备份 | **整目录已删**（8.0 GB，20+ 个文件含该 key） |
+| 仓库内 `codewhale-config.toml` | — | 已改 `${CODEWHALE_API_KEY}`（`cf3fadf`） |
+| git 历史 `013c00c` | — | **保留**（见 §1.0 的决定与风险） |
 
-处置原则：家目录下这些是**用户数据**，agent 不擅自删除或改写（最多先备份再脱敏）。真正有效的动作只有一个 —— 在服务商后台轮换。
+**为什么用等长覆盖而不是重写整文件**：`sessions/**` 与 `traces/**` 正被 pi 以追加方式写入。读全文件 → 改 → 整文件写回，会把扫描期间新追加的轮次截掉。只在原偏移写入同样长度的字节，既抹掉密钥也不影响并发追加（脱敏期间会话文件还增长了 23 KB，事后校验 8 072 行 JSON **0 坏行**）。
 
-### 1.3 工具清理（2026-10-27）
+**复核**：12 个文件逐一 `grep` 残留 = 0；探针脚本本身按前缀搜索会自命中，已从扫描范围排除。
 
-按「只保留工作流需要的工具」的要求，工作流未引用的 AI 编程工具已整体移到 `E:/ai-tools-backup-20261027/`（移动 + `MANIFEST.md` 记录还原命令，**没有删除**）。
+### 1.2 工具清理（2026-10-27，备份已于 10-27 删除）
+
+按「只保留工作流需要的工具」的要求，工作流未引用的 AI 编程工具整体移到 `E:/ai-tools-backup-20261027/`（移动 + `MANIFEST.md` 记录还原命令，当时**没有删除**）。
+
+> **2026-10-27 更新**：该备份目录已按用户要求**整体删除（8.0 GB）**。删除前确认：仓库与脚本中没有任何引用（只有文档提到路径）；里面 20+ 个文件含同一把明文 key，留着就是留副本。**还原能力随之消失**——这些工具要回来只能重装。
 
 **第一批（工作流零引用的工具）**
 
@@ -53,9 +66,9 @@
 
 当前只剩 **pi + Percho** 一个宿主（`platform.js` 仍保留 claude / codex / opencode / zcode 的适配代码，重装即可恢复）。`scripts/install-global.sh` 与 `scripts/install-percho.bat` 已改成：检测不到 `claude` CLI 就不再创建 `~/.claude/commands`。
 
-直接后果：这把 key 在仓库外从 7 处降到 **2 处活跃**（`~/.pi/agent/sessions/**` 与 `~/.pi/agent/traces/**` 转录），其余副本全在备份目录里（含 `~/.cc-switch/cc-switch.db` 及其 10 份 backups、`~/.claude/history.jsonl`）。
+直接后果：这把 key 在仓库外的副本从 7 处降到 2 处（`~/.pi` 转录），其余在备份目录里。**随后这最后 2 处也被脱敏、备份目录被删除**，现在本机明文副本为 **0**（只剩 git 历史，见 §1.0）。
 
-### 1.2 为什么之前扫不出来（已修）
+### 1.3 为什么之前扫不出来（已修）
 
 `secret-scan.js` 的 `handleGitLeaks` 有三个叠加缺陷，导致这次泄露从头到尾报「未发现明文密钥」：
 

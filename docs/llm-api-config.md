@@ -68,7 +68,7 @@ Claude Code 卸载后，原来的 `.claude/mcp.json` 成了死文件，已删（
 
 | 变量 | 原属工具 | 处理 |
 |---|---|---|
-| `FACTORY_API_KEY` | Factory（`~/.factory` 已移入备份） | 值已记入 `E:/ai-tools-backup-20261027/env-vars-backup.txt`，变量已删 |
+| `FACTORY_API_KEY` | Factory（`~/.factory` 已卸） | 变量已删；值随 10-27 的备份目录删除一并消失 |
 | `GLM_API_KEY` | ZCode / Codex 链路（均已卸载） | 同上 |
 
 两者都不在 pi 的读取路径上（pi 用的是 `auth.json` 里的 key），删掉不影响任何工具。
@@ -76,14 +76,15 @@ Claude Code 卸载后，原来的 `.claude/mcp.json` 成了死文件，已删（
 
 ## 5. 已卸载工具曾经的 key 归属
 
-见 [`docs/SECURITY.md`](./SECURITY.md) §1.1 / §1.3。当前**活跃目录里**的明文 key 只剩：
+见 [`docs/SECURITY.md`](./SECURITY.md) §1.0 / §1.1。**2026-10-27 之后的当前状态**：
 
-1. `~/.pi/agent/auth.json`（3 把，正常配置，不是泄露）
-2. `~/.pi/agent/sessions/**` + `traces/**` 转录里被打印过的旧 key（`sk-SW1…`、`sk-5470…`）
-3. `~/Documents/xwechat_files/**/API.txt`（外部聊天记录，已外流）
+1. `~/.pi/agent/auth.json`（3 把，pi 的正常配置，不是泄露）
+2. ~~`~/.pi/agent/sessions/**` + `traces/**`~~ —— 已原地脱敏（12 个副本全部抹除，残留复核 = 0）
+3. ~~`~/Documents/xwechat_files/**/API.txt`~~ —— 已脱敏（该文件早已外流，抹本机副本只能止损）
 
-其余副本（`cc-switch.db` 及 10 份备份、`.claude/history.jsonl`、TRAE 的 `mcp.json`、
-各家 config）全部随工具移入 `E:/ai-tools-backup-20261027/`。
+其余副本（`cc-switch.db` 及 11 份备份、`.claude/history.jsonl`、各家 config、整个
+`E:/ai-tools-backup-20261027/`）**全部已删除**。用户已决定**不轮换**密钥、**不重写** git 历史，
+这两件事的知情风险写在 §1.0。
 
 ## 6. 验证命令
 
