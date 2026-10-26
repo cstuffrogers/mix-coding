@@ -1,12 +1,12 @@
 import { readFileSync, existsSync, readdirSync, unlinkSync, statSync, appendFileSync, renameSync } from 'fs';
 import { join } from 'path';
 import { CLAUDE_MEM_DIR } from '../../lib/paths.js';
-import { ensureDir, writeFileAtomic } from '../../lib/fs-utils.js';
+import { ensureDir, writeFileAtomic, withFileLock } from '../../lib/fs-utils.js';
 import { normalizeProjectPath, safeTypeName } from './project-scope.js';
 
 // CLAUDE_MEM_DIR 是 import 时冻结的常量；解析放到调用时，测试与多环境才能把
 // 全局库指到沙箱，而不是写进开发者真实的 ~/.claude/memory。
-function claudeMemDir() {
+export function claudeMemDir() {
   return process.env.CLAUDE_MEM_HOME || CLAUDE_MEM_DIR;
 }
 
@@ -67,29 +67,33 @@ export function writeClaudeMemItem(category, entry, project = null) {
   const dir = join(claudeMemDir(), 'areas', 'topics', name);
   ensureDir(dir);
   const itemsFile = join(dir, 'items.json');
-  let items = [];
-  if (existsSync(itemsFile)) {
-    try {
-      items = JSON.parse(readFileSync(itemsFile, 'utf-8'));
-    } catch {
-      // 文件坏了不能当空数组直接盖掉：先整份搬到 archive 留底，再重建。
-      salvageCorrupt(itemsFile, name);
+  // 读-改-写必须互斥：两个会话同时跑同一个项目时，后写的一方会拿旧快照
+  // 覆盖前一方，条目静默消失（实测 4 进程 × 5 次只落 23 条）。
+  return withFileLock(join(dir, '.items.lock'), () => {
+    let items = [];
+    if (existsSync(itemsFile)) {
+      try {
+        items = JSON.parse(readFileSync(itemsFile, 'utf-8'));
+      } catch {
+        // 文件坏了不能当空数组直接盖掉：先整份搬到 archive 留底，再重建。
+        salvageCorrupt(itemsFile, name);
+      }
     }
-  }
-  if (!Array.isArray(items)) { items = []; }
-  // project 是这个后端唯一能区分「哪条属于哪个项目」的字段：全局库里的记录
-  // 一混在一起，召回就无法分辨上下文。传 null 时不写，老条目保持无归属。
-  const scopePath = normalizeProjectPath(project?.path);
-  const scoped = scopePath ? { ...entry, project: { path: scopePath, name: project.name || '' } } : { ...entry };
-  items.unshift({ ...scoped, stored_at: new Date().toISOString() });
-  if (items.length > ITEMS_CAP) {
-    // 旧实现直接 slice 掉最老的 —— 用户看不到任何提示，记忆就没了。
-    const dropped = items.slice(ITEMS_CAP);
-    archiveRecords(name, dropped);
-    items = items.slice(0, ITEMS_CAP);
-  }
-  writeFileAtomic(itemsFile, JSON.stringify(items, null, 2));
-  return items.length;
+    if (!Array.isArray(items)) { items = []; }
+    // project 是这个后端唯一能区分「哪条属于哪个项目」的字段：全局库里的记录
+    // 一混在一起，召回就无法分辨上下文。传 null 时不写，老条目保持无归属。
+    const scopePath = normalizeProjectPath(project?.path);
+    const scoped = scopePath ? { ...entry, project: { path: scopePath, name: project.name || '' } } : { ...entry };
+    items.unshift({ ...scoped, stored_at: new Date().toISOString() });
+    if (items.length > ITEMS_CAP) {
+      // 旧实现直接 slice 掉最老的 —— 用户看不到任何提示，记忆就没了。
+      const dropped = items.slice(ITEMS_CAP);
+      archiveRecords(name, dropped);
+      items = items.slice(0, ITEMS_CAP);
+    }
+    writeFileAtomic(itemsFile, JSON.stringify(items, null, 2));
+    return items.length;
+  });
 }
 
 /**
@@ -118,6 +122,10 @@ export function readClaudeMemMarkdown() {
   try {
     return readdirSync(mdDir)
       .filter(f => f.endsWith('.md'))
+      // 文件名是 `<type>-<ISO>.md`，倒序就是「新 → 旧」。不排序时 readdir 给的
+      // 是正序，召回把最旧的 markdown 记录当成最新的抬到前面，其余后端却是新的在前，
+      // 两边的“第一条”根本不是同一件事，去重配不上对。
+      .sort((a, b) => b.localeCompare(a))
       .map(f => {
         const content = readFileSync(join(mdDir, f), 'utf-8');
         // truncated 必须显式 —— 截断后的内容一旦被回写成新记忆，500 字的残片
@@ -173,7 +181,15 @@ export function writeClaudeMemMarkdown(type, data, project = null) {
       .sort((a, b) => b.mtime - a.mtime); // 新 → 旧
     const pruned = files.slice(MD_CAP).map(x => x.f);
     for (const old of pruned) {
-      try { unlinkSync(join(dir, old)); } catch { /* 已被别处删掉 */ }
+      // 归档而不是只记下名字：日志里只有文件名的话，内容就真没了。
+      // （markdown 与 items.json 内容重叠，但两者不保证同时存在。）
+      try {
+        const archiveDir = join(claudeMemDir(), 'archive', 'markdown');
+        ensureDir(archiveDir);
+        renameSync(join(dir, old), join(archiveDir, old));
+      } catch {
+        try { unlinkSync(join(dir, old)); } catch { /* 已被别处删掉 */ }
+      }
     }
     archiveMarkdown(pruned);
   } catch { /* cleanup best-effort */ }

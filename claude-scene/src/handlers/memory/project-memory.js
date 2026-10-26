@@ -1,8 +1,8 @@
-import { readFileSync, existsSync, readdirSync, unlinkSync, statSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync, statSync, renameSync } from 'fs';
 import { join } from 'path';
 import crypto from 'crypto';
 import { MEMORY_DIR } from '../../lib/paths.js';
-import { ensureDir, writeFileAtomic } from '../../lib/fs-utils.js';
+import { ensureDir, writeFileAtomic, withFileLock } from '../../lib/fs-utils.js';
 import { safeTypeName } from './project-scope.js';
 
 // MEMORY_DIR 是 import 时冻结的常量（= PROJECT_ROOT/.claude/memory）。用 --target
@@ -114,9 +114,55 @@ export function deduplicateProjectMemories(rootDir = null) {
     if (mem.data == null) { skipped++; continue; }
     const key = `${mem.type}::${contentHash(mem.data)}`;
     if (seen.has(key)) {
-      try { unlinkSync(join(root, safeTypeName(mem.type), `${mem.id}.json`)); removed++; }
-      catch { /* 已经被删掉或文件不存在 */ }
+      // 内容完全相同的重复件。即使如此也归档而不是删：
+      // 「去重」错了就是不可逆的数据丢失，而归档体量很小。
+      const from = join(root, safeTypeName(mem.type), `${mem.id}.json`);
+      const to = join(root, '.archive', safeTypeName(mem.type), `${mem.id}.json`);
+      try {
+        ensureDir(join(root, '.archive', safeTypeName(mem.type)));
+        renameSync(from, to);
+        removed++;
+      } catch {
+        try { unlinkSync(from); removed++; } catch { /* 已经被删掉或文件不存在 */ }
+      }
     } else { seen.set(key, mem); }
   }
   return { total: all.length, removed, kept: seen.size + skipped, skipped };
+}
+
+/**
+ * 保留策略：每个类型只留最新的 maxPerType 条，其余搬进 `<root>/.archive/<type>/`。
+ *
+ * 项目记忆是「每次场景跑一遍写一条」，不设上限就是无限增长（旧库实测 rollup
+ * 到几百条全是空壳自动摘要）。这里**只搬不删**：`loadAllProjectMemories` 跳过
+ * 点开头目录，所以归档件不会进召回，但用户仍能找到。
+ */
+export function pruneProjectMemories(rootDir = null, { maxPerType = 300 } = {}) {
+  const root = memoryRoot(rootDir);
+  if (!existsSync(root)) return { archived: 0, types: [] };
+  const lock = join(root, '.prune.lock');
+  return withFileLock(lock, () => {
+    let archived = 0;
+    const types = [];
+    let dirs;
+    try {
+      dirs = readdirSync(root).filter(d => !d.startsWith('.') && statSync(join(root, d)).isDirectory());
+    } catch { return { archived: 0, types: [] }; }
+    for (const type of dirs) {
+      const dir = join(root, type);
+      const all = loadProjectMemories(type, rootDir); // 已按 timestamp 倒序
+      if (all.length <= maxPerType) continue;
+      const stale = all.slice(maxPerType);
+      const archiveDir = join(root, '.archive', safeTypeName(type));
+      ensureDir(archiveDir);
+      for (const mem of stale) {
+        try {
+          renameSync(join(dir, `${mem.id}.json`), join(archiveDir, `${mem.id}.json`));
+          archived++;
+        } catch { /* 文件可能已被别处清理 */ }
+      }
+      types.push(type);
+    }
+    return { archived, types };
+  });
 }

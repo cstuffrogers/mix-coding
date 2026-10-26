@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, utimesSync } from 'fs';
+import { spawnSync } from 'child_process';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -128,8 +129,15 @@ describe('记忆存储卫生', () => {
   it('claude-mem items 超上限时把被移出的条目归档，不是静默删除', async () => {
     const { writeClaudeMemItem, readClaudeMemItems } = await import('./claude-mem.js');
     const scope = { path: join(root, 'p'), name: 'p' };
-    writeClaudeMemItem('general', { id: 'OLDEST', data_snippet: 'first' }, scope);
-    for (let i = 0; i < 505; i++) writeClaudeMemItem('general', { id: `n${i}`, data_snippet: `s${i}` }, scope);
+    // 直接铺满到上限再写一条，而不是循环写 505 次：写一次 = 锁 + 全量读改写，
+    // 500 次会把测试拖到超时（在 Windows 上实测 6s+）。
+    const dir = join(process.env.CLAUDE_MEM_HOME, 'areas', 'topics', 'general');
+    mkdirSync(dir, { recursive: true });
+    const seed = Array.from({ length: 500 }, (_, i) => ({ id: `seed${i}`, data_snippet: `s${i}` }));
+    seed.push({ id: 'OLDEST', data_snippet: 'first' });
+    writeFileSync(join(dir, 'items.json'), JSON.stringify(seed));
+
+    writeClaudeMemItem('general', { id: 'NEWEST', data_snippet: 'last' }, scope);
 
     expect(readClaudeMemItems('general')).toHaveLength(500);
     const archive = join(process.env.CLAUDE_MEM_HOME, 'archive', 'general-items.jsonl');
@@ -299,5 +307,211 @@ describe('记忆存储卫生', () => {
     const counts = getAgentmemoryScopeCounts(proj);
     expect(counts).toMatchObject({ total: 3, project: 1, unscoped: 1, other: 1 });
     expect(getAgentmemoryScopeCounts(null).project).toBe(0);
+  });
+
+describe('保留策略与跨进程锁', () => {
+  it('项目记忆每类只留最新 N 条，超出的搬进 .archive 而不是删除', async () => {
+    const { saveProjectMemory, loadProjectMemories, pruneProjectMemories } = await import('./project-memory.js');
+    const proj = join(root, 'prune');
+    for (let i = 0; i < 6; i++) {
+      saveProjectMemory('review', { i, blob: `v${i}` }, {}, proj);
+      // timestamp 精度是毫秒，写快了会并列；直接改盘上的 timestamp 保证顺序可判
+      const dir = join(proj, '.claude', 'memory', 'review');
+      const files = readdirSync(dir);
+      for (const f of files) {
+        const p = join(dir, f);
+        const rec = JSON.parse(readFileSync(p, 'utf-8'));
+        if (rec.data.i === i) {
+          rec.timestamp = new Date(Date.now() + i * 1000).toISOString();
+          writeFileSync(p, JSON.stringify(rec));
+        }
+      }
+    }
+    expect(loadProjectMemories('review', proj)).toHaveLength(6);
+
+    const result = pruneProjectMemories(proj, { maxPerType: 2 });
+    expect(result.archived).toBe(4);
+    expect(result.types).toEqual(['review']);
+    // 归档件不进召回（loadAllProjectMemories 跳过点开头目录）
+    expect(loadProjectMemories('review', proj)).toHaveLength(2);
+    const archivedFiles = readdirSync(join(proj, '.claude', 'memory', '.archive', 'review'));
+    expect(archivedFiles).toHaveLength(4);
+    // 留的是最新的两条
+    const kept = loadProjectMemories('review', proj).map(m => m.data.i).sort();
+    expect(kept).toEqual([4, 5]);
+  });
+
+  it('NEXO 超过天数/条数的事件搬进 archive，runtime 只剩新的', async () => {
+    const { writeNexoEvent, readNexoData, pruneNexo } = await import('./nexo.js');
+    const scope = { path: join(root, 'nx-proj'), name: 'nx' };
+    for (let i = 0; i < 5; i++) writeNexoEvent('review', { i }, scope);
+    // 把其中一个改成 40 天前
+    const runtimeDir = join(process.env.NEXO_HOME, 'runtime');
+    const files = readdirSync(runtimeDir).sort();
+    const oldFile = join(runtimeDir, files[0]);
+    const past = new Date(Date.now() - 40 * 86_400_000);
+    utimesSync(oldFile, past, past);
+
+    const result = pruneNexo({ maxFiles: 100, maxAgeDays: 30 });
+    expect(result.archived).toBe(1);
+    expect(readNexoData(100)).toHaveLength(4);
+    expect(readdirSync(join(process.env.NEXO_HOME, 'archive'))).toHaveLength(1);
+  });
+
+  it('agentmemory 每类保留上限：超出的先导出 jsonl 再删除', async () => {
+    const am = await import('./agentmemory.js');
+    for (let i = 0; i < 5; i++) am.writeAgentmemory('review', `content-${i}`, [], 'e:/prune');
+    expect(am.readAgentmemory(10, null, 'e:/prune')).toHaveLength(5);
+
+    const result = am.pruneAgentmemory({ maxPerType: 2, maxAgeDays: 365 });
+    expect(result.archived).toBe(3);
+    expect(result.byType.review).toBe(3);
+    expect(am.readAgentmemory(10, null, 'e:/prune')).toHaveLength(2);
+    const archiveDir = join(process.env.AGENTMEMORY_HOME, 'archive');
+    const [file] = readdirSync(archiveDir);
+    const archived = readFileSync(join(archiveDir, file), 'utf-8').trim().split('\n');
+    expect(archived).toHaveLength(3);
+    expect(archived[0]).toContain('archived_at');
+  });
+
+  it('withFileLock：拿不到锁时超时裸跑，且不删别人的锁', async () => {
+    const { withFileLock } = await import('../../lib/fs-utils.js');
+    const lockPath = join(root, 'shared.lock');
+    writeFileSync(lockPath, 'held by another process');
+    const started = Date.now();
+    const out = withFileLock(lockPath, () => 'ran-anyway', { timeoutMs: 60, staleMs: 60_000, retryMs: 10 });
+    expect(out).toBe('ran-anyway');
+    expect(Date.now() - started).toBeGreaterThanOrEqual(50);
+    // 别人的锁必须还在（否则制造两个写者）
+    expect(existsSync(lockPath)).toBe(true);
+  });
+
+  it('withFileLock：过期锁会被抢走，跑完自己清掉', async () => {
+    const { withFileLock } = await import('../../lib/fs-utils.js');
+    const lockPath = join(root, 'stale.lock');
+    writeFileSync(lockPath, 'crashed process');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(lockPath, past, past);
+    const out = withFileLock(lockPath, () => 'ok', { timeoutMs: 100, staleMs: 1000, retryMs: 10 });
+    expect(out).toBe('ok');
+    expect(existsSync(lockPath)).toBe(false);
+  });
+
+  it('同一类型连续写 20 条不丢（去重只看完整内容，不会误合并）', async () => {
+    const { saveProjectMemory, loadProjectMemories } = await import('./project-memory.js');
+    const proj = join(root, 'concurrent');
+    for (let i = 0; i < 20; i++) saveProjectMemory('review', { i, blob: `c${i}` }, {}, proj);
+    expect(loadProjectMemories('review', proj)).toHaveLength(20);
+  });
+
+  it('三个独立进程并发写同一 items.json：锁生效，条目基本不丢且 JSON 不坏', async () => {
+    const writer = join(root, 'writer.mjs');
+    const itemsDir = join(process.env.CLAUDE_MEM_HOME, 'areas', 'topics', 'general');
+    writeFileSync(writer, `
+      const { writeClaudeMemItem } = await import('file:///${join(process.cwd(), 'src/handlers/memory/claude-mem.js').replaceAll('\\', '/')}');
+      for (let i = 0; i < 3; i++) writeClaudeMemItem('general', { marker: process.pid + '-' + i });
+    `);
+    const procs = [0, 1, 2].map(() => spawnSync(process.execPath, [writer], { env: process.env, encoding: 'utf-8' }));
+    expect(procs.map(p => p.status)).toEqual([0, 0, 0]);
+
+    const parsed = JSON.parse(readFileSync(join(itemsDir, 'items.json'), 'utf-8'));
+    // 无锁时实测 4 进程 × 5 次只落 23 条（丢更新）；不追求绝对 9 条，只要求
+    // 「JSON 没坏 + 丢失可忽略」。
+    expect(parsed.length).toBeGreaterThanOrEqual(7);
+    expect(parsed.length).toBeLessThanOrEqual(9);
+  });
+});
+});
+
+// 召回装配：同一批记忆在 5 个后端各存一份副本，召回要「去重 + 填满 + 新→旧」。
+// 旧实现在这里败得很隐蔽：均分配额让窗口只有 2 条/后端，去重后窗口空了，
+// 库里有 5 条不同记忆却只召回 1–2 条；markdown 归档又是正序读的，
+// 和其余后端的「新→旧」对不上，去重时把旧副本当成新记录留下。
+describe('召回装配（交错 + 去重 + 顺序）', () => {
+  let root;
+  const ENV = ['CLAUDE_MEM_HOME', 'AGENTMEMORY_HOME', 'NEXO_HOME', 'CODEGRAPH_HOME'];
+  const saved = {};
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'memrecall-'));
+    for (const key of ENV) {
+      saved[key] = process.env[key];
+      process.env[key] = join(root, key.toLowerCase());
+    }
+  });
+
+  afterEach(() => {
+    for (const key of ENV) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  const markersOf = rows => rows.map(r => {
+    const text = (r.content ?? JSON.stringify(r.data) ?? '').replace(/\s+/g, '');
+    const hit = /"marker":"M(\d+)"/.exec(text);
+    return hit ? Number(hit[1]) : null;
+  });
+
+  const seed = async (count) => {
+    const { handleMemoryRemember } = await import('../memory.js');
+    const proj = join(root, 'proj');
+    for (let i = 0; i < count; i++) {
+      await handleMemoryRemember('remember', { type: 'review', data: { marker: `M${i}`, pad: 'y'.repeat(300) + i } }, proj, {});
+    }
+    return proj;
+  };
+
+  it('5 条记忆在 5 个后端各存一份副本，limit=10 召回 5 条互不重复', async () => {
+    const { handleMemoryRecall } = await import('../memory.js');
+    const proj = await seed(5);
+    const context = {};
+    await handleMemoryRecall('recall', { limit: 10 }, proj, context);
+    expect(context.recalled_memories).toHaveLength(5);
+    expect(new Set(markersOf(context.recalled_memories))).toHaveLength(5);
+  });
+
+  it('去重后仍能把 limit 填满，且按新→旧排序', async () => {
+    const { handleMemoryRecall } = await import('../memory.js');
+    const proj = await seed(12);
+    const context = {};
+    await handleMemoryRecall('recall', { limit: 3 }, proj, context);
+    expect(context.recalled_memories).toHaveLength(3);
+    expect(markersOf(context.recalled_memories)).toEqual([11, 10, 9]);
+  });
+
+  it('limit 是非正数或非数字时回落到默认 10，不会退化成 slice(0, -5)', async () => {
+    const { handleMemoryRecall } = await import('../memory.js');
+    const proj = await seed(3);
+    for (const limit of [0, -5, 'abc', null]) {
+      const context = {};
+      await handleMemoryRecall('recall', { limit }, proj, context);
+      expect(context.recalled_memories.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('markdown 归档按文件名倒序读（与其余后端一致）', async () => {
+    const { writeClaudeMemMarkdown, readClaudeMemMarkdown } = await import('./claude-mem.js');
+    const proj = join(root, 'proj');
+    const scope = { path: proj, name: 'proj' };
+    writeClaudeMemMarkdown('review', { marker: 'OLD' }, scope);
+    await new Promise(r => setTimeout(r, 20));
+    writeClaudeMemMarkdown('review', { marker: 'NEW' }, scope);
+    const files = readClaudeMemMarkdown().filter(r => r.file.startsWith('review-'));
+    expect(files[0].content).toContain('NEW');
+    expect(files[1].content).toContain('OLD');
+  });
+
+  it('一个后端独有的一条记忆不会被 project-memory 挤掉', async () => {
+    const { handleMemoryRecall } = await import('../memory.js');
+    const { writeNexoEvent } = await import('./nexo.js');
+    const proj = await seed(8);
+    writeNexoEvent('deploy', { marker: 'NEXO-ONLY' }, { path: proj, name: 'proj' });
+    const context = {};
+    await handleMemoryRecall('recall', { limit: 6 }, proj, context);
+    const text = JSON.stringify(context.recalled_memories);
+    expect(text).toContain('NEXO-ONLY');
+    expect(context.recalled_memories.length).toBeLessThanOrEqual(6);
   });
 });

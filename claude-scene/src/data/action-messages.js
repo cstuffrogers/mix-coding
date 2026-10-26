@@ -269,6 +269,8 @@ const ACTION_MESSAGES = {
   recall: '项目记忆召回完成（6 后端聚合）',
   remember: '工作流结果已保存到记忆（多后端）',
   consolidate: '跨后端记忆一致性整理完成',
+  pruneMemories: '记忆保留策略执行完成（归档不删除）',
+  memoryPrune: '记忆保留策略执行完成（归档不删除）',
 
   // Testing
   runSuite: '测试套件运行完成',

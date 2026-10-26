@@ -3,7 +3,7 @@ import { join } from 'path';
 import { execSync } from 'child_process';
 import crypto from 'crypto';
 import { AGENTMEMORY_DIR } from '../../lib/paths.js';
-import { ensureDir } from '../../lib/fs-utils.js';
+import { ensureDir, writeFileAtomic } from '../../lib/fs-utils.js';
 import { normalizeProjectPath, safeTypeName } from './project-scope.js';
 
 // AGENTMEMORY_DIR is a module-level constant, so it is frozen at import time and
@@ -135,7 +135,7 @@ export function writeAgentmemory(type, content, tags = [], projectPath = '') {
 
 export function getAgentmemoryStats() {
   const dbPath = join(agentmemoryDir(), 'memory.db');
-  if (!existsSync(dbPath)) return { count: 0, running: false };
+  if (!existsSync(dbPath)) return { count: 0, ok: false };
   try {
     const count = parseInt(execSync(
       `sqlite3 "${dbPath}" "SELECT COUNT(*) FROM memories;"`,
@@ -145,8 +145,8 @@ export function getAgentmemoryStats() {
       `sqlite3 "${dbPath}" "SELECT DISTINCT type FROM memories;"`,
       { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER }
     ).toString().trim().split('\n').filter(Boolean);
-    return { count, types, running: true };
-  } catch { return { count: 0, running: false }; }
+    return { count, types, ok: true };
+  } catch { return { count: 0, ok: false }; }
 }
 
 /**
@@ -169,4 +169,54 @@ export function getAgentmemoryScopeCounts(projectPath = null) {
     const unscoped = row?.unscoped || 0;
     return { total, project, unscoped, other: Math.max(0, total - project - unscoped) };
   } catch { return { total: 0, project: 0, unscoped: 0, other: 0 }; }
+}
+
+/**
+ * 保留策略：每类只留最新 maxPerType 条，另外超过 maxAgeDays 的一律下架。
+ *
+ * 下架 = 先整行导出到 `<home>/archive/agentmemory-<ts>.jsonl`，再从表里 DELETE。
+ * 旧问题：这个库只增不减，写入还是整份内容（不截断），跑久了就是几十 MB 的
+ * 死数据躺在召回热路径上。删除前必须留底 —— 直接 DELETE 等于静默删用户记忆。
+ */
+export function pruneAgentmemory({ maxPerType = 200, maxAgeDays = 365 } = {}) {
+  const dbPath = join(agentmemoryDir(), 'memory.db');
+  if (!existsSync(dbPath)) return { archived: 0, byType: {} };
+  try {
+    const types = execSync(`sqlite3 "${dbPath}" "SELECT DISTINCT type FROM memories;"`, { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER })
+      .toString().trim().split('\n').map(s => s.trim()).filter(Boolean);
+    const stale = [];
+    for (const type of types) {
+      const safe = safeTypeName(type);
+      const rows = sqliteJson(dbPath,
+        `SELECT id, type, content, tags, created_at, project_path FROM memories ` +
+        `WHERE type = '${safe}' ORDER BY created_at DESC LIMIT -1 OFFSET ${Number(maxPerType) || 200};`);
+      if (rows) stale.push(...JSON.parse(rows));
+    }
+    const cutoff = new Date(Date.now() - (Number(maxAgeDays) || 365) * 86_400_000).toISOString();
+    const old = sqliteJson(dbPath,
+      `SELECT id, type, content, tags, created_at, project_path FROM memories ` +
+      `WHERE created_at IS NOT NULL AND created_at < '${cutoff}';`);
+    if (old) stale.push(...JSON.parse(old));
+    const uniq = [...new Map(stale.map(r => [r.id, r])).values()];
+    if (!uniq.length) return { archived: 0, byType: {} };
+    // 留底失败就不删。归档是「删除前的唯一证据」，写不进去还照删等于静默丢数据。
+    if (!archiveAgentmemoryRows(uniq)) return { archived: 0, byType: {} };
+    // id 是本进程生成的 hex，但仍然做一次白名单过滤再拼进 SQL
+    const ids = uniq.map(r => String(r.id)).filter(id => /^[\w-]+$/.test(id)).map(id => `'${id}'`).join(',');
+    if (ids) execSync(`sqlite3 "${dbPath}"`, { input: `DELETE FROM memories WHERE id IN (${ids});`, stdio: ['pipe', 'pipe', 'pipe'] });
+    const byType = {};
+    for (const row of uniq) byType[row.type || 'unknown'] = (byType[row.type || 'unknown'] || 0) + 1;
+    return { archived: uniq.length, byType };
+  } catch { return { archived: 0, byType: {} }; }
+}
+
+function archiveAgentmemoryRows(rows) {
+  try {
+    const dir = join(agentmemoryDir(), 'archive');
+    ensureDir(dir);
+    const stamp = new Date().toISOString().replaceAll(':', '-');
+    const file = join(dir, `agentmemory-${stamp}.jsonl`);
+    writeFileAtomic(file, rows.map(r => JSON.stringify({ ...r, archived_at: new Date().toISOString() })).join('\n') + '\n');
+    return existsSync(file);
+  } catch { return false; }
 }

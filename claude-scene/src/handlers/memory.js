@@ -1,10 +1,13 @@
 import chalk from 'chalk';
-import { readClaudeMemItems, writeClaudeMemItem, readClaudeMemMarkdown, writeClaudeMemMarkdown, listClaudeMemCategories } from './memory/claude-mem.js';
-import { readAgentmemory, writeAgentmemory, getAgentmemoryStats, getAgentmemoryScopeCounts } from './memory/agentmemory.js';
-import { readNexoData, writeNexoEvent } from './memory/nexo.js';
+import { readClaudeMemItems, writeClaudeMemItem, readClaudeMemMarkdown, writeClaudeMemMarkdown, listClaudeMemCategories, claudeMemDir } from './memory/claude-mem.js';
+import { readAgentmemory, writeAgentmemory, getAgentmemoryStats, getAgentmemoryScopeCounts, pruneAgentmemory } from './memory/agentmemory.js';
+import { readNexoData, writeNexoEvent, pruneNexo, countNexoFiles } from './memory/nexo.js';
 import { queryCodeGraph } from './memory/codegraph.js';
-import { loadProjectMemories, loadAllProjectMemories, saveProjectMemory, matchFilter, deduplicateProjectMemories } from './memory/project-memory.js';
+import { loadProjectMemories, loadAllProjectMemories, saveProjectMemory, matchFilter, deduplicateProjectMemories, pruneProjectMemories } from './memory/project-memory.js';
 import { projectScope, classifyScope, includeInRecall, safeTypeName } from './memory/project-scope.js';
+import { join } from 'path';
+import { statSync } from 'fs';
+import { ensureDir, writeFileAtomic } from '../lib/fs-utils.js';
 
 // 老记忆集中在这四类。写新的会按工作流类型落盘（review / audit / mobile-review…
 // 几十种），所以召回与计数必须把真实存在的目录都枚举进来，否则写进去的 items
@@ -32,13 +35,34 @@ const SOURCE_LABELS = {
   codegraph: 'CodeGraph',
 };
 
-// 每个后端的召回配额。旧实现是 max(5, ceil(limit/5))，而拼接顺序把 project-memory
-// 和 claude-mem 排在最前，于是 limit=10 时这两家各占 5 条就把配额吃光，NEXO /
-// agentmemory / codegraph 一条都进不来 —— 返回语却宣称五个来源都有。改成均分。
-export function recallQuota(limit, backendCount) {
+// 每个后端的读取窗口。旧实现是「均分配额」（limit=10 时每家只取 2 条）。
+// 问题是 4 个后端存的是同一批记忆的副本，去重后窗口就空了 —— 实测库里有
+// 5 条不同记忆，limit=10 只召回 1–2 条。现在每家多取，靠「轮转交错 + 去重」
+// 既保证多源公平，又能把 limit 填满。
+export function recallQuota(limit, _backendCount) {
   const n = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 10;
-  const b = Number.isFinite(backendCount) && backendCount > 0 ? backendCount : 1;
-  return Math.max(1, Math.ceil(n / b));
+  return Math.min(60, n * 3);
+}
+
+/**
+ * 轮转交错：每轮从每个后端各取一条，直到凑满 limit 或全部取完。
+ * 不能简单 concat —— project-memory 排最前，它一家就能把 limit 吃光，
+ * 其余后端的独有内容（例如只有 NEXO 记的跨场景事件）永远进不来。
+ */
+function interleave(pools, limit) {
+  const out = [];
+  const cursors = pools.map(() => 0);
+  let progressed = true;
+  while (out.length < limit && progressed) {
+    progressed = false;
+    for (let i = 0; i < pools.length && out.length < limit; i++) {
+      if (cursors[i] >= pools[i].length) continue;
+      out.push(pools[i][cursors[i]]);
+      cursors[i]++;
+      progressed = true;
+    }
+  }
+  return out;
 }
 
 // 全局后端（claude-mem / agentmemory / NEXO）里的每条记录都要标上归属：
@@ -107,6 +131,12 @@ function memoryBody(m) {
   // data 优先：claude-mem items 的 snippet 与 NEXO 的包装 JSON 都围着同一份 data，
   // 用结构化 data 比对才能把「同一条记忆的不同副本」认出来。
   if (m.data !== undefined) return JSON.stringify(m.data);
+  // markdown 归档是「标题头 + 缩进 JSON」，且正文有 500 字上限。整段比对会因为
+  // 多了标题头、又可能被截断而认不出同一条（实测 5 条记忆召出 10 行）——剥掉标题头。
+  if (m.file && typeof m.content === 'string') {
+    const jsonStart = m.content.indexOf('{');
+    if (jsonStart !== -1) return m.content.slice(jsonStart);
+  }
   return String(m.data_snippet || m.content || '');
 }
 
@@ -168,7 +198,9 @@ export async function handleMemoryRecall(_action, params, targetPath, context) {
   // mode（full/brief）只是展示详略，不能影响"读哪几个分类"——旧实现用 mode
   // 控制分类枚举，于是 brief 模式会跳过写过的分类。现在只接受 category。
   const category = params?.category;
-  const limit = params?.limit ?? 10;
+  const limit = Number.isFinite(Number(params?.limit)) && Number(params?.limit) > 0
+    ? Math.floor(Number(params.limit))
+    : 10;
   const filters = params?.filters;
   const crossProject = params?.cross_project === true;
   const scope = projectScope(targetPath);
@@ -182,17 +214,17 @@ export async function handleMemoryRecall(_action, params, targetPath, context) {
   const projectMemories = category ? loadProjectMemories(category, targetPath) : loadAllProjectMemories(targetPath);
   // Cap per-backend to avoid one source dominating the limit
   const perSourceLimit = recallQuota(limit, backendCount);
-  allMemories.push(...projectMemories.slice(0, perSourceLimit).map(m => ({ ...m, source: 'project-memory', scope: 'project' })));
+  const projectPool = projectMemories.slice(0, perSourceLimit).map(m => ({ ...m, source: 'project-memory', scope: 'project' }));
 
   const cmScoped = annotateScope(claudeMemItems(category), scope, crossProject, perSourceLimit);
-  allMemories.push(...cmScoped.kept.map(m => ({ ...m, source: 'claude-mem', projectPath: m.project?.path || '' })));
+  const cmPool = cmScoped.kept.map(m => ({ ...m, source: 'claude-mem', projectPath: m.project?.path || '' }));
   // markdown 归档也是全局的，同样要过归属过滤；文件名前缀就是分类，
   // category 参数不传时全读（旧实现不分 category，过滤等于没生效）
   const mdRecords = category
     ? readClaudeMemMarkdown().filter(m => m.file.startsWith(`${safeTypeName(category)}-`))
     : readClaudeMemMarkdown();
   const cmMdScoped = annotateScope(mdRecords, scope, crossProject, perSourceLimit);
-  allMemories.push(...cmMdScoped.kept);
+  const mdPool = cmMdScoped.kept;
 
   // agentmemory 在 SQL 层就过滤掉别的项目（cross_project 时才放开全库）
   // 按 category 过滤时得先多读一点再筛（后端不支持在存储层按类型查）。
@@ -203,17 +235,19 @@ export async function handleMemoryRecall(_action, params, targetPath, context) {
     ? readAgentmemory(fetchLimit)
     : readAgentmemory(fetchLimit, null, scope.path);
   const amScoped = annotateScope(byCategory(amRaw, category), scope, crossProject, perSourceLimit);
-  allMemories.push(...amScoped.kept);
 
   const nexoScoped = annotateScope(byCategory(readNexoData(fetchLimit), category), scope, crossProject, perSourceLimit);
-  allMemories.push(...nexoScoped.kept);
 
   // codegraph 也必须按 targetPath 定位：它是外部工具在图项目里生成的，
   // 用 import 时冻结的 PROJECT_ROOT 就会把引擎自己的符号图当目标项目的。
   const cg = queryCodeGraph(perSourceLimit, targetPath);
-  if (cg.nodes > 0) allMemories.push({ source: 'codegraph', summary: cg });
+  const cgPool = cg.nodes > 0 ? [{ source: 'codegraph', summary: cg }] : [];
 
   // 5 backends total (project-memory, claude-mem, agentmemory, NEXO, CodeGraph)
+  // 交错预算要放大：同一条记忆在 5 个后端都有副本，平均每 5–6 行才去重出 1 行。
+  // 用 limit 当预算时（实测 limit=3 → 9 行交给去重 → 只剩 2 条），召回永远填不满。
+  const interleaveBudget = Math.min(240, limit * 6);
+  allMemories.push(...interleave([projectPool, cmPool, mdPool, amScoped.kept, nexoScoped.kept, cgPool], interleaveBudget));
 
   const matched = filters
     ? allMemories.filter(m => matchFilter(m, filters))
@@ -327,12 +361,71 @@ export function handleConsolidate(_action, _params, targetPath) {
   const cg = queryCodeGraph(20, targetPath);
   stats.codegraph = { nodes: cg.nodes, edges: cg.edges, files: cg.files };
 
+  // 整理时顺手执行保留策略：这是场景里唯一「允许动存储」的步骤，
+  // 放在这里比在召回（只读）里偷偷裁剪安全。
+  const prune = pruneAll(targetPath);
+  stampPrune(); // 本次已清过，别让紧接着的 autoRemember 再扫一遍
+
   // 去重就是删文件，删了几条必须说出来 —— 静默删除用户的记忆不可接受。
   const removedNote = pmStats.removed > 0
     ? `，删除重复 ${pmStats.removed} 条`
     : '';
   const skipNote = pmStats.skipped > 0 ? `，${pmStats.skipped} 条无内容不可比对未动` : '';
-  return `记忆整理完成（项目 ${stats.projectMemory.kept}${removedNote}${skipNote} / Claude-Mem ${stats.claudeMem.entries} / agentmemory ${amStats.count} / CodeGraph ${cg.nodes} 节点）`;
+  const pruneNote = prune.total > 0 ? `，归档 ${prune.total} 条（保留策略: NEXO ${prune.nexo} / agentmemory ${prune.agentmemory} / 项目记忆 ${prune.project}）` : '';
+  return `记忆整理完成（项目 ${stats.projectMemory.kept}${removedNote}${skipNote} / Claude-Mem ${stats.claudeMem.entries} / agentmemory ${amStats.count} / CodeGraph ${cg.nodes} 节点${pruneNote}）`;
+}
+
+/**
+ * 保留策略总入口。四个后端各留一份，**一律归档、不删除**。
+ * 默认值不是拍脑袋：agentmemory 每类 200 条、NEXO 最近 30 天且不超 2000 个事件、
+ * 项目记忆每类 300 条。都能被参数覆盖。
+ */
+export function pruneAll(targetPath, options = {}) {
+  const nexo = pruneNexo({ maxFiles: options.nexoMaxFiles ?? 2000, maxAgeDays: options.nexoMaxAgeDays ?? 30 });
+  const agentmemory = pruneAgentmemory({ maxPerType: options.agentmemoryMaxPerType ?? 200, maxAgeDays: options.agentmemoryMaxAgeDays ?? 365 });
+  const project = pruneProjectMemories(targetPath, { maxPerType: options.projectMaxPerType ?? 300 });
+  const total = nexo.archived + agentmemory.archived + project.archived;
+  return { total, nexo: nexo.archived, agentmemory: agentmemory.archived, project: project.archived };
+}
+
+// 自动节流：每次场景结束都跑一遍清库太重（NEXO 要 statSync 全目录）。
+// 6 小时一次。**只收拾本项目自己的记忆**：NEXO / agentmemory 是全局落地目录，
+// 外部工具也可能在读，只在 consolidate（场景里明确的「整理」步骤）才动。
+const PRUNE_INTERVAL_MS = 6 * 3600 * 1000;
+
+// 记忆列表读 NEXO 时的扫描窗口。保留策略上限是 2000 个文件，窗口取 5000
+// 足够覆盖，但总数仍由 countNexoFiles() 单独统计，不受这个窗口影响。
+const NEXO_LIST_SCAN = 5000;
+
+function pruneStampPath() {
+  return join(claudeMemDir(), '.last-prune');
+}
+
+function maybePruneProject(targetPath) {
+  const stamp = pruneStampPath();
+  try {
+    if (Date.now() - statSync(stamp).mtimeMs < PRUNE_INTERVAL_MS) return null;
+  } catch { /* 没跑过 */ }
+  const result = pruneProjectMemories(targetPath, { maxPerType: 300 });
+  stampPrune();
+  return result.archived > 0 ? result : null;
+}
+
+function stampPrune() {
+  try {
+    const stamp = pruneStampPath();
+    ensureDir(join(stamp, '..'));
+    writeFileAtomic(stamp, new Date().toISOString());
+  } catch { /* 时间戳写不进去下次再跑 */ }
+}
+
+/** 手动触发保留策略（`pruneMemories` action）。 */
+export function handleMemoryPrune(_action, params, targetPath) {
+  const result = pruneAll(targetPath, params || {});
+  const detail = result.total > 0
+    ? `（NEXO ${result.nexo} / agentmemory ${result.agentmemory} / 项目记忆 ${result.project}，均已归档）`
+    : '（没有超过保留阈值的记录）';
+  return `记忆保留策略执行完成: 归档 ${result.total} 条${detail}`;
 }
 
 export function handleListMemories(_action, _params, targetPath) {
@@ -341,8 +434,11 @@ export function handleListMemories(_action, _params, targetPath) {
   const cmAll = claudeMemItems();
   const cmCounts = scopeCounts(cmAll, scope, i => i.project?.path);
   const amCounts = getAgentmemoryScopeCounts(scope.path);
-  const nexoAll = readNexoData(5000);
+  // 归属明细必须逐条读，所以有扫描上限；总数另外只数文件，不受上限影响。
+  const nexoAll = readNexoData(NEXO_LIST_SCAN);
+  const nexoTotal = countNexoFiles();
   const nexoCounts = scopeCounts(nexoAll, scope);
+  const nexoNote = nexoTotal > nexoAll.length ? `（明细仅含最近 ${nexoAll.length} 条）` : '';
   const amStats = getAgentmemoryStats();
   const cg = queryCodeGraph(20, targetPath);
 
@@ -356,7 +452,7 @@ export function handleListMemories(_action, _params, targetPath) {
   return `记忆列表: ${memories.length} 条（project-memory）` +
     ` + Claude-Mem 全局 ${cmAll.length}（${formatCounts(cmCounts)}）` +
     ` + agentmemory 全局 ${amStats.count}（${formatCounts(amCounts)}）` +
-    ` + NEXO 全局 ${nexoAll.length}（${formatCounts(nexoCounts)}）` +
+    ` + NEXO 全局 ${nexoTotal}（${formatCounts(nexoCounts)}）${nexoNote}` +
     ` + codegraph ${cg.nodes} 节点`;
 }
 
@@ -421,5 +517,11 @@ export function handleAutoRemember(_action, _params, targetPath, context) {
     console.log(chalk.yellow(`  ⚠ NEXO 写入失败: ${e.message}`));
   }
 
-  return `自动记忆已保存 (${count} 后端, 类型: ${workflowType})`;
+  const pruneNote = (() => {
+    try {
+      const pruned = maybePruneProject(targetPath);
+      return pruned ? `，归档 ${pruned.archived} 条旧项目记忆（保留策略）` : '';
+    } catch { return ''; }
+  })();
+  return `自动记忆已保存 (${count} 后端, 类型: ${workflowType})${pruneNote}`;
 }

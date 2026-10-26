@@ -88,6 +88,7 @@ CLAUDE_MEM_HOME / AGENTMEMORY_HOME / NEXO_HOME
 | `deduplicate` 也按完整 hash，且**保留最新** | 旧实现用前 100 字符，实测把 3 条内容不同的记忆删成 1 条。`data` 为空的老条目一律不动 |
 | 超容量**归档**，不删除 | claude-mem items 上限 500、markdown 上限 100；超出的条目写进 `~/.claude/memory/archive/*.jsonl` 或 `markdown-pruned.log`，可追溯 |
 | 容量裁剪按 **mtime** | 旧实现按文件名排序（`<type>-<ts>.md`），等价于先按类型字母序分组 —— 实测把最新的 general/review 归档全删了，却留下最旧的 aaa |
+| 读-改-写要拿跨进程锁 `withFileLock` | `items.json` 是整文件重写：原子 rename 只防「读到半截」，防不住「两个进程同时读到同一份、各自加一条、后写的覆盖先写的」丢更新。锁超时按降级处理（照常写，宁可丢更新也不能永久写不进去），且只在「自己拿到锁」时才删除锁文件 |
 | 写入一律 `writeFileAtomic`（tmp + rename） | 进程被杀留下半截 JSON → 读方 `JSON.parse` 失败后静默返回 `[]` → 下一次写入把整类记忆覆盖成一条。`items.json` 解析失败时还会把坏文件搬到 `archive/<category>-items-corrupt-<ts>.json` 再重建 |
 
 ## 存储卫生（读侧）
@@ -102,6 +103,35 @@ CLAUDE_MEM_HOME / AGENTMEMORY_HOME / NEXO_HOME
 | 读回 `content` 被截断（claude-mem markdown 500 / NEXO 300 / agentmemory 500）必须带 `truncated: true` | 没标记的残片被回写就会固化成「完整记忆」 |
 
 
+## 召回装配（读取顺序）
+
+同一条记忆在 5 个后端各有一份副本，召回必须先把它们合成一条，再把预算填满：
+
+| 约束 | 为什么 |
+|---|---|
+| 每家先多取（`recallQuota = limit × 3`，上限 60 条），再靠去重收敛 | 旧实现是「均分配额」：`limit=10` 时每家只读 2 条。5 个后端存的是同一批记忆的副本，去重后窗口直接空掉 —— 实测库里有 5 条不同记忆，`limit=10` 只召回 1–2 条 |
+| 各后端**轮转交错**，不是简单拼接 | project-memory 排在最前面时一家就能吃光 `limit`，其余后端的独有内容（例如只有 NEXO 记的跨场景事件）永远进不来，而返回语仍宣称「来源: 项目/Claude-Mem/agentmemory/NEXO」 |
+| 交错预算 = `limit × 6`（上限 240） | 平均每 5–6 行才去重出 1 行；用 `limit` 当预算时 `limit=3` 只召回 2 条（9 行交错 → 去重剩 2） |
+| markdown 归档按文件名**倒序**读 | `readdir` 给的是正序（旧→新），其余后端是新→旧，两边的「第一条」不是同一件事，去重配不上对，旧副本会被当成新记录留下 |
+| 去重时 markdown 行只比 JSON 载荷（剥标题头） | 归档正文有 500 字上限、还带 141 字的标题头；整段比对会因为「多了标题头 / 被截断」认不出同一条，实测 5 条记忆召出 10 行 |
+| `limit` 非正数或非数字回落到 10 | 旧实现 `slice(0, -5)` 会「删掉最后 5 条」，`limit="abc"` 会退化成空 |
+
+## 保留策略（归档，不删除）
+
+`consolidate`（22 个场景的「记忆整理」步骤）与 `pruneMemories` 动作会执行保留策略：
+
+| 后端 | 阈值 | 超出后 |
+|---|---|---|
+| project-memory | 每类型 300 条 | 移进 `<项目>/.claude/memory/.archive/<type>/`（点目录不参与加载） |
+| agentmemory | 每类型 200 条 / 365 天 | 先整行 dump 到 `archive/agentmemory-<ts>.jsonl`（含 `archived_at`），**归档失败就中止删除** |
+| NEXO | 2000 文件 / 30 天 | 移进 `~/.nexo/archive/`（重名加 pid 前缀，避免 Windows rename 覆盖） |
+| claude-mem | items 500 / markdown 100 | 写入时自带上限，超出的同样归档 |
+
+自动节流：`autoRemember` 结束时最多每 6 小时执行一次，且**只收拾 project-memory**
+（NEXO / agentmemory 是全局落地目录，外部工具也可能在读，只在场景里明确的
+「整理」步骤才动）。`consolidate` 执行后会写 `.last-prune` 时间戳，避免紧接着的
+`autoRemember` 立刻重扫一遍。
+
 ## 计数要说实话
 
 `list` 的计数分三栏：**本项目 / 无归属 / 其他**。旧实现把
@@ -114,5 +144,12 @@ CLAUDE_MEM_HOME / AGENTMEMORY_HOME / NEXO_HOME
   定位（可用 `CODEGRAPH_HOME` 覆盖），目标项目没有库时返回 0 —— 不能回退去读引擎自己的图。
 - **`consolidate` 只对 project-memory 去重**，三个全局后端仅打印计数（跨项目的
   「近似重复」无法安全自动合并）。删了几条会在返回消息里说出来。
-- **没有保留期/轮转**：agentmemory 与 NEXO 只增不减（NEXO 每次召回还要全目录
-  `statSync`）。需要显式的用户策略再动。
+- **写入侧不去重**：同一次场景重复跑，内容完全相同的记忆仍会在 claude-mem /
+  agentmemory / NEXO 各多一份（project-memory 有完整内容 hash 去重）。召回侧会
+  去重成一条，存储侧靠保留策略封顶 —— 未做的原因是这三个后端的「相同」判定要
+  比对完整内容，而 items 只存 200 字 snippet，截断比对会误判（前 200 字相同、
+  后面不同）。
+- **保留策略不处理 `.archive` 本身**：归档目录只增不减，需要用户自己清理
+  （引擎不删用户数据的底线优先）。
+- **`consolidate` 里的 prune 是写操作**：`review` 类只读场景不含 `consolidate`，
+  但 `mobile-review` 等场景历史上就有这一步骤。

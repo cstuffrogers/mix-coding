@@ -157,24 +157,26 @@ describe('handleListMemories', () => {
 });
 
 describe('recallQuota', () => {
-  it('splits the limit evenly across backends so no source is starved', () => {
-    // Regression: the old max(5, ceil(limit/5)) gave each backend 5 slots while
-    // project-memory and claude-mem were concatenated first, so limit=10
-    // returned only those two sources while the summary claimed five.
-    expect(recallQuota(10, 5)).toBe(2);
-    expect(recallQuota(50, 5)).toBe(10);
-    expect(recallQuota(3, 5)).toBe(1);
+  it('fetches a window several times the requested limit', () => {
+    // Regression: the old "even split" quota (limit=10 -> 2 per backend) made
+    // recall look up 2 rows per backend. Because the 5 backends hold copies of
+    // the same memories, dedupe emptied the window: 5 distinct memories with
+    // limit=10 returned 1-2 rows. The window now scales with the limit and the
+    // fairness problem is solved by round-robin interleaving instead.
+    expect(recallQuota(10, 5)).toBe(30);
+    expect(recallQuota(3, 5)).toBe(9);
+    expect(recallQuota(50, 5)).toBe(60);
   });
 
   it('never returns zero slots', () => {
-    expect(recallQuota(1, 5)).toBe(1);
-    expect(recallQuota(0, 5)).toBe(2);
-    expect(recallQuota(NaN, 5)).toBe(2);
+    expect(recallQuota(1, 5)).toBe(3);
+    expect(recallQuota(0, 5)).toBe(30);
+    expect(recallQuota(NaN, 5)).toBe(30);
   });
 
   it('degrades safely on a nonsense backend count', () => {
-    expect(recallQuota(10, 0)).toBe(10);
-    expect(recallQuota(10, NaN)).toBe(10);
+    expect(recallQuota(10, 0)).toBe(30);
+    expect(recallQuota(10, NaN)).toBe(30);
   });
 });
 

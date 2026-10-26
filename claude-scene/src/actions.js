@@ -35,7 +35,7 @@ import { isConversationMode } from './lib/platform.js';
  */
 
 // Handler imports (also re-exported for ui-polish.js and other consumers)
-import { handleMemoryRecall, handleMemoryRemember, handleConsolidate, handleListMemories, handleAutoRemember } from './handlers/memory.js';
+import { handleMemoryRecall, handleMemoryRemember, handleConsolidate, handleListMemories, handleAutoRemember, handleMemoryPrune } from './handlers/memory.js';
 import { handleCodeScan, handlePerformanceProfile, handleCodeMetrics, handleDetectAntiPatterns, handleGenerateReport } from './handlers/code-metrics.js';
 import { handleSecurityScan, handleGitLeaks, handleSecBugHunt, handleAnalyzeSecurityVulnerabilities, handleLogSanitization, handleCorsCheck, handleEnvVarLeak, handleSensitiveFileCheck, handleDeprecatedDeps } from './handlers/security-scanning.js';
 import { handleKnipCheck, handleBuildLeakCheck, handleDeadLinkCheck, handleSecurityHeaders, handleRecheckCli, handleSkillspectorScan, handleActionlint, handleZizmor, handleJscpd, handleSizeLimit, handleStryker, handleSpectral, handleMarkdownlint, handlePa11yCi, handleDesignMdLint, handleDesignMdExport, handleCodeGraphImpact, handleCodeGraphTrace, handleCodeGuardianOptimize } from './handlers/external-tool-checks.js';
@@ -162,6 +162,8 @@ export const ACTION_REGISTRY = {
   verifyVisual: handleVerifyVisual,
   analyze: handleAnalyze,
   consolidate: handleConsolidate,
+  pruneMemories: handleMemoryPrune,
+  memoryPrune: handleMemoryPrune,
   listMemories: handleListMemories,
   autoRemember: handleAutoRemember,
   analyzeUI: handleAnalyzeUI,

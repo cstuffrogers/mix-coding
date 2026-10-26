@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, mkdirSync, statSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, statSync, renameSync } from 'fs';
 import { join, basename } from 'path';
 import { NEXO_DIR } from '../../lib/paths.js';
 import { scanDir } from '../../lib/scan-dir.js';
@@ -9,6 +9,16 @@ import { normalizeProjectPath, safeTypeName } from './project-scope.js';
 // sandbox instead of the developer's real ~/.nexo.
 function nexoDir() {
   return process.env.NEXO_HOME || NEXO_DIR;
+}
+
+// 只数文件、不读内容：记忆列表要报「NEXO 全局 N 条」的**总数**，
+// 之前拿 readNexoData(5000).length 当总数，超过 5000 就静默少数。
+export function countNexoFiles() {
+  const runtimeDir = join(nexoDir(), 'runtime');
+  if (!existsSync(runtimeDir)) return 0;
+  try {
+    return scanDir(runtimeDir, { filter: f => /\.(json|md|yml|yaml)$/.test(f) }).length;
+  } catch { return 0; }
 }
 
 export function readNexoData(limit = 20) {
@@ -74,4 +84,42 @@ export function writeNexoEvent(type, data, project = null) {
     writeFileAtomic(file, JSON.stringify(event, null, 2));
     return file;
   } catch { return null; }
+}
+
+/**
+ * 保留策略：`runtime/` 只留最新的 `maxFiles` 个事件，超过 `maxAgeDays` 的一律
+ * 搬到 `archive/`。搬而不是删 —— 这个目录是外部工具也可能在读的落地目录。
+ *
+ * 旧问题：这个库只增不减（实测 894 个文件），而每次召回都要 `statSync` 整个
+ * 目录按 mtime 排序，文件越多召回越慢，且全是过期事件。
+ */
+export function pruneNexo({ maxFiles = 2000, maxAgeDays = 30 } = {}) {
+  const runtimeDir = join(nexoDir(), 'runtime');
+  if (!existsSync(runtimeDir)) return { archived: 0 };
+  try {
+    const files = scanDir(runtimeDir, { filter: f => /\.(json|md|yml|yaml)$/.test(f) })
+      .map(f => {
+        try { return { f, mtime: statSync(f).mtimeMs }; } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtime - a.mtime); // 新 → 旧
+    const cutoff = Date.now() - (Number(maxAgeDays) || 30) * 86_400_000;
+    const stale = [...files.slice(Number(maxFiles) || 2000), ...files.filter(x => x.mtime < cutoff)];
+    const uniq = [...new Map(stale.map(x => [x.f, x])).values()];
+    if (!uniq.length) return { archived: 0 };
+    const archiveDir = join(nexoDir(), 'archive');
+    mkdirSync(archiveDir, { recursive: true });
+    let archived = 0;
+    for (const { f } of uniq) {
+      try {
+        // 同名已存在时加 pid 后缀：rename 在 Windows 上会直接覆盖旧归档，
+        // 那等于用新文件吃掉历史归档。
+        const target = join(archiveDir, basename(f));
+        const dest = existsSync(target) ? join(archiveDir, `${process.pid}-${basename(f)}`) : target;
+        renameSync(f, dest);
+        archived++;
+      } catch { /* 文件被删或目标不可写 */ }
+    }
+    return { archived };
+  } catch { return { archived: 0 }; }
 }
