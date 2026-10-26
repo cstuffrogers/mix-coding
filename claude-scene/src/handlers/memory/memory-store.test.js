@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, utimesSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -170,5 +170,109 @@ describe('记忆存储卫生', () => {
     expect(msg).toContain('本项目 1');
     expect(msg).toContain('无归属 1');
     expect(msg).toContain('其他 1');
+  });
+
+  it('所有写过的分类都能被列出和召回（不只看 4 个固定分类）', async () => {
+    const { handleMemoryRemember, handleMemoryRecall, handleListMemories } = await import('../memory.js');
+    const proj = join(root, 'proj');
+    for (const type of ['review', 'audit', 'mobile-review', 'general']) {
+      await handleMemoryRemember('r', { type, data: { note: `${type}_MARKER` } }, proj, {});
+    }
+    const msg = await handleListMemories('l', {}, proj);
+    expect(msg).toContain('Claude-Mem 全局 4');
+
+    const ctx = {};
+    await handleMemoryRecall('r', { limit: 50 }, proj, ctx);
+    const types = ctx.recalled_memories.map(m => m.type || m.category).filter(Boolean);
+    for (const type of ['review', 'audit', 'mobile-review']) {
+      expect(types).toContain(type);
+    }
+  });
+
+  it('filters.type 是数组时按「任一命中」过滤，而不是全部丢弃', async () => {
+    const { handleMemoryRemember, handleMemoryRecall } = await import('../memory.js');
+    const { matchFilter } = await import('./project-memory.js');
+    const proj = join(root, 'proj');
+    await handleMemoryRemember('r', { type: 'review', data: { note: 'KEEP' } }, proj, {});
+    await handleMemoryRemember('r', { type: 'ui', data: { note: 'DROP' } }, proj, {});
+
+    // 场景里默认就是这么传的：filters.type 永远是数组
+    const ctx = {};
+    const msg = await handleMemoryRecall('r', { filters: { type: ['review', 'quality'] }, limit: 20 }, proj, ctx);
+    expect(msg).not.toContain('召回（0 条');
+    expect(ctx.recalled_memories.length).toBeGreaterThan(0);
+    for (const row of ctx.recalled_memories) {
+      if (row.type) expect(['review', 'quality']).toContain(row.type);
+    }
+
+    expect(matchFilter({ type: 'review' }, { type: ['review', 'quality'] })).toBe(true);
+    expect(matchFilter({ type: 'ui' }, { type: ['review', 'quality'] })).toBe(false);
+    expect(matchFilter({ data: { kind: 'x' } }, { kind: ['x', 'y'] })).toBe(true);
+    // 没有这个字段的记录不能因为「无法判断」而被静默排除
+    expect(matchFilter({ summary: { nodes: 3 } }, { type: ['review'] })).toBe(true);
+  });
+
+  it('remember 不再把召回的历史行当本轮成果写回（消除嵌套自我复制）', async () => {
+    const { handleMemoryRemember } = await import('../memory.js');
+    const { loadProjectMemories } = await import('./project-memory.js');
+    const proj = join(root, 'proj');
+    const ctx = {
+      recalled_memories: [
+        { source: 'project-memory', scope: 'project', id: 'old', type: 'review', data: { prior: 'OLD_ROUND' } },
+      ],
+      _sceneId: 'review',
+      securityScanResult: { highSeverityFound: false },
+    };
+    await handleMemoryRemember('r', { type: 'review' }, proj, ctx);
+    const [record] = loadProjectMemories('review', proj);
+    expect(Array.isArray(record.data)).toBe(false);
+    expect(JSON.stringify(record.data)).not.toContain('OLD_ROUND');
+    expect(record.data.workflow).toBe('review');
+  });
+
+  it('非字符串 type 不会让 agentmemory 写入失败', async () => {
+    const { handleMemoryRemember } = await import('../memory.js');
+    const proj = join(root, 'proj');
+    const msg = await handleMemoryRemember('r', { type: { x: 1 }, data: { note: 'OBJ_TYPE' } }, proj, {});
+    expect(msg).toContain('4 后端');
+  });
+
+  it('同一条记忆在 5 个后端各存一份，召回时只算一条', async () => {
+    const { handleMemoryRemember, handleMemoryRecall } = await import('../memory.js');
+    const proj = join(root, 'proj');
+    const data = { blob: 'x'.repeat(200), marker: 'FEDERATED' };
+    await handleMemoryRemember('r', { type: 'review', data }, proj, {});
+    const ctx = {};
+    const msg = await handleMemoryRecall('r', { limit: 20 }, proj, ctx);
+    expect(msg).toContain('召回（1 条');
+    expect(ctx.recalled_memories).toHaveLength(1);
+    // 不同分类但内容相同的不该被误去重
+    await handleMemoryRemember('r', { type: 'qa', data }, proj, {});
+    const ctx2 = {};
+    await handleMemoryRecall('r', { limit: 20 }, proj, ctx2);
+    expect(ctx2.recalled_memories).toHaveLength(2);
+  });
+
+  it('召回摘要会打到 stdout（否则 LLM 根本看不到记忆内容）', async () => {
+    const { handleMemoryRemember, handleMemoryRecall } = await import('../memory.js');
+    const proj = join(root, 'proj');
+    await handleMemoryRemember('r', { type: 'review', data: { marker: 'VISIBLE_IN_STDOUT' } }, proj, {});
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await handleMemoryRecall('r', { limit: 10 }, proj, {});
+    const printed = spy.mock.calls.map(c => c.join(' ')).join('\n');
+    spy.mockRestore();
+    expect(printed).toContain('历史记忆');
+    expect(printed).toContain('VISIBLE_IN_STDOUT');
+  });
+
+  it('agentmemory 三态计数走 SQL，不把全库拉进内存', async () => {
+    const { writeAgentmemory, getAgentmemoryScopeCounts } = await import('./agentmemory.js');
+    const proj = join(root, 'proj');
+    writeAgentmemory('general', { tag: 'mine' }, [], proj);
+    writeAgentmemory('general', { tag: 'other' }, [], join(root, 'other'));
+    writeAgentmemory('general', { tag: 'legacy' }, [], '');
+    const counts = getAgentmemoryScopeCounts(proj);
+    expect(counts).toMatchObject({ total: 3, project: 1, unscoped: 1, other: 1 });
+    expect(getAgentmemoryScopeCounts(null).project).toBe(0);
   });
 });

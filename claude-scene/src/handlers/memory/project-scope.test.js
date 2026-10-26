@@ -152,10 +152,10 @@ describe('跨项目记忆隔离（真实落盘）', () => {
     await handleMemoryRecall('recall', { mode: 'full', limit: 40 }, projA, ctxA);
     const hitsA = (ctxA.recalled_memories || []).filter(r => JSON.stringify(r).includes(marker));
     expect(hitsA.length).toBeGreaterThan(0);
-    // 四个写入后端都能召回（project-memory + 3 个全局）
-    const sourcesA = new Set(hitsA.map(r => r.source));
-    expect(sourcesA.has('project-memory')).toBe(true);
-    expect(sourcesA.has('agentmemory')).toBe(true);
+    // 四个写入后端都有这份数据，但召回做了跨后端去重：一条记忆只算一条，
+    // 优先保留本项目的项目记忆（优先级最高的副本）。
+    expect(hitsA).toHaveLength(1);
+    expect(hitsA[0].source).toBe('project-memory');
 
     const ctxB = {};
     await handleMemoryRecall('recall', { mode: 'full', limit: 40 }, projB, ctxB);
@@ -177,10 +177,11 @@ describe('跨项目记忆隔离（真实落盘）', () => {
     expect(hits.every(r => r.scope === 'cross-project')).toBe(true);
   });
 
-  it('回写堵截：别的项目的召回行不会被 remember 认领成本项目的记忆', async () => {
+  it('回写纪律：召回行一律不写回，自定义为当轮结果', async () => {
     const { handleMemoryRemember } = await import('../memory.js');
     const projB = join(root, 'projB');
     const ctx = {
+      _sceneId: 'general',
       recalled_memories: [
         { source: 'agentmemory', scope: 'cross-project', content: 'ZZSCOPE-FOREIGN', timestamp: 'x' },
         { source: 'agentmemory', scope: 'unscoped', content: 'ZZSCOPE-LEGACY', timestamp: 'x' },
@@ -190,9 +191,13 @@ describe('跨项目记忆隔离（真实落盘）', () => {
     await handleMemoryRemember('remember', { type: 'general' }, projB, ctx);
     const itemsFile = join(env.CLAUDE_MEM_HOME, 'areas', 'topics', 'general', 'items.json');
     const stored = readFileSync(itemsFile, 'utf-8');
-    expect(stored).toContain('ZZSCOPE-MINE');
+    // 旧行为是把 project 行回写（叫「记住刚才召回的内容」）。代价是场景里
+    // remember 只传 {type}，于是每轮都把上一轮记忆存成本轮成果，一层套一层。
+    // 现在一律只写当轮结果。
     expect(stored).not.toContain('ZZSCOPE-FOREIGN');
     expect(stored).not.toContain('ZZSCOPE-LEGACY');
+    expect(stored).not.toContain('ZZSCOPE-MINE');
+    expect(stored).toContain('general');
   });
 
   it('无归属的历史记录仍会召回，但被标记为 unscoped 并在消息里说明', async () => {

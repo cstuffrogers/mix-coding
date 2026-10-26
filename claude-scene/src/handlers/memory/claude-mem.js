@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync, statSync, appendFileSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync, statSync, appendFileSync, renameSync } from 'fs';
 import { join } from 'path';
 import { CLAUDE_MEM_DIR } from '../../lib/paths.js';
-import { ensureDir } from '../../lib/fs-utils.js';
+import { ensureDir, writeFileAtomic } from '../../lib/fs-utils.js';
 import { normalizeProjectPath, safeTypeName } from './project-scope.js';
 
 // CLAUDE_MEM_DIR 是 import 时冻结的常量；解析放到调用时，测试与多环境才能把
@@ -45,6 +45,23 @@ export function readClaudeMemItems(category) {
   } catch { return []; }
 }
 
+/**
+ * 实际存在 items.json 的分类目录。分类名 = 工作流类型（review / audit /
+ * mobile-review …），种类随场景增长，不能靠调用方列一份固定白名单 —— 写进去
+ * 却召不回来、list 也数不到，记忆等于丢了。
+ */
+export function listClaudeMemCategories() {
+  const topics = join(claudeMemDir(), 'areas', 'topics');
+  if (!existsSync(topics)) return [];
+  try {
+    return readdirSync(topics, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .filter(name => existsSync(join(topics, name, 'items.json')))
+      .sort();
+  } catch { return []; }
+}
+
 export function writeClaudeMemItem(category, entry, project = null) {
   const name = safeTypeName(category);
   const dir = join(claudeMemDir(), 'areas', 'topics', name);
@@ -52,7 +69,12 @@ export function writeClaudeMemItem(category, entry, project = null) {
   const itemsFile = join(dir, 'items.json');
   let items = [];
   if (existsSync(itemsFile)) {
-    try { items = JSON.parse(readFileSync(itemsFile, 'utf-8')); } catch { /* 解析失败时用空数组重建，原有文件保持不动 */ }
+    try {
+      items = JSON.parse(readFileSync(itemsFile, 'utf-8'));
+    } catch {
+      // 文件坏了不能当空数组直接盖掉：先整份搬到 archive 留底，再重建。
+      salvageCorrupt(itemsFile, name);
+    }
   }
   if (!Array.isArray(items)) { items = []; }
   // project 是这个后端唯一能区分「哪条属于哪个项目」的字段：全局库里的记录
@@ -66,8 +88,28 @@ export function writeClaudeMemItem(category, entry, project = null) {
     archiveRecords(name, dropped);
     items = items.slice(0, ITEMS_CAP);
   }
-  writeFileSync(itemsFile, JSON.stringify(items, null, 2), 'utf-8');
+  writeFileAtomic(itemsFile, JSON.stringify(items, null, 2));
   return items.length;
+}
+
+/**
+ * items.json 解析失败时的抢救：把坏文件原样搬到 archive，而不是静默重建成空数组。
+ * 没有这步，一次崩溃留下的半截 JSON 会让整类记忆在下一次写入时彻底消失。
+ */
+function salvageCorrupt(itemsFile, name) {
+  try {
+    const dir = join(claudeMemDir(), 'archive');
+    ensureDir(dir);
+    const stamp = new Date().toISOString().replaceAll(':', '-');
+    renameSync(itemsFile, join(dir, `${name}-items-corrupt-${stamp}.json`));
+  } catch { /* 抢救失败也不阻断写入 */ }
+}
+
+// markdown 文件名是 `<type>-<2026-10-26T...>.md`，type 本身可能带连字符
+// （mobile-review），所以只能剥时间戳尾巴，不能按 '-' 切。
+function typeFromMarkdownName(file) {
+  const match = /^(.+?)-\d{4}-\d{2}-\d{2}T[^.]*\.md$/.exec(file);
+  return match ? match[1] : '';
 }
 
 export function readClaudeMemMarkdown() {
@@ -84,6 +126,9 @@ export function readClaudeMemMarkdown() {
         return {
           source: 'claude-mem',
           file: f,
+          // 文件名是 `<type>-<ISO>.md`，补上 type，否则 filters.type / category
+          // 对 markdown 归档完全失效（旧实现这些行没有任何类型标识）。
+          type: typeFromMarkdownName(f),
           content: content.slice(0, MD_CONTENT_CAP),
           truncated,
           length: content.length,
@@ -113,7 +158,7 @@ export function writeClaudeMemMarkdown(type, data, project = null) {
     ? `- 项目: ${project.name || ''}\n- 路径: ${scopePath}\n`
     : '- 项目: 未标注\n- 路径: 未标注\n';
   const markdown = `# ${name} — ${new Date().toISOString()}\n\n${origin}\n${content}\n`;
-  writeFileSync(join(dir, filename), markdown, 'utf-8');
+  writeFileAtomic(join(dir, filename), markdown);
 
   // 超过上限时按 **mtime** 删最旧的。旧实现按文件名排序（`type-ts.md`），
   // 等价于先按类型字母序分组 —— 实测把最新的 general/review 归档全删了，

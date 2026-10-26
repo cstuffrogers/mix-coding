@@ -29,6 +29,9 @@ vi.mock('../lib/scan-dir.js', () => ({
 
 vi.mock('../lib/fs-utils.js', () => ({
   ensureDir: vi.fn(),
+  // 新增的原子写也要 mock：否则真实 fs 被 mock 后 writeFileAtomic 会走 renameSync
+  // 而报「No export defined」——记忆写入静默失败。
+  writeFileAtomic: vi.fn(),
 }));
 
 
@@ -92,8 +95,12 @@ describe('handleMemoryRemember', () => {
     expect(result).toContain('后端');
   });
 
-  it('uses context recalled_memories when no data provided', async () => {
-    const context = { recalled_memories: [{ id: '1', type: 'test' }] };
+  it('accepts missing data (does not crash)', async () => {
+    const context = {
+      recalled_memories: [
+        { source: 'project-memory', scope: 'project', id: '1', type: 'test', data: { prior: 'OLD_ROUND' } },
+      ],
+    };
     const result = await handleMemoryRemember(
       'memoryRemember',
       { type: 'test' },

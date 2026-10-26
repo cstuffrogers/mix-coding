@@ -1,8 +1,8 @@
-import { readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync, statSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync, statSync } from 'fs';
 import { join } from 'path';
 import crypto from 'crypto';
 import { MEMORY_DIR } from '../../lib/paths.js';
-import { ensureDir } from '../../lib/fs-utils.js';
+import { ensureDir, writeFileAtomic } from '../../lib/fs-utils.js';
 import { safeTypeName } from './project-scope.js';
 
 // MEMORY_DIR 是 import 时冻结的常量（= PROJECT_ROOT/.claude/memory）。用 --target
@@ -72,17 +72,29 @@ export function saveProjectMemory(type, data, meta = {}, rootDir = null) {
 
   const id = memoryId();
   const entry = { ...meta, id, type: kind, data, timestamp: new Date().toISOString() };
-  writeFileSync(join(dir, `${id}.json`), JSON.stringify(entry, null, 2), 'utf-8');
+  writeFileAtomic(join(dir, `${id}.json`), JSON.stringify(entry, null, 2));
   return entry;
+}
+
+// 单个字段是否命中。
+// 旧实现只认 RegExp / 字符串 / 严格相等，而场景里的 filters.type 是**数组**
+// （`["review","quality","security"]`），`memVal === val` 永远为 false —— 于是
+// 24 个场景里有 19 个的召回步骤恒返 0 条：记忆一直在写、从来没被读过。
+function valueMatches(memVal, val) {
+  if (val instanceof RegExp) return val.test(String(memVal ?? ''));
+  if (Array.isArray(val)) return val.length === 0 ? true : val.some(item => valueMatches(memVal, item));
+  // 这条记录本身没这个字段（比如 codegraph 摘要）时不能判否，否则一整类来源
+  // 会因为「没有 type」而被静默排除。
+  if (memVal === undefined || memVal === null) return true;
+  if (typeof val === 'string') return String(memVal).includes(val);
+  return memVal === val;
 }
 
 export function matchFilter(memory, filters) {
   if (!filters) return true;
   return Object.entries(filters).every(([key, val]) => {
-    const memVal = memory.data?.[key] ?? memory[key];
-    if (val instanceof RegExp) return val.test(String(memVal));
-    if (typeof val === 'string') return String(memVal).includes(val);
-    return memVal === val;
+    const memVal = memory.data?.[key] ?? memory[key] ?? (key === 'type' ? memory.category : undefined);
+    return valueMatches(memVal, val);
   });
 }
 

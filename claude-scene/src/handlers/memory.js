@@ -1,10 +1,36 @@
 import chalk from 'chalk';
-import { readClaudeMemItems, writeClaudeMemItem, readClaudeMemMarkdown, writeClaudeMemMarkdown } from './memory/claude-mem.js';
-import { readAgentmemory, writeAgentmemory, getAgentmemoryStats } from './memory/agentmemory.js';
+import { readClaudeMemItems, writeClaudeMemItem, readClaudeMemMarkdown, writeClaudeMemMarkdown, listClaudeMemCategories } from './memory/claude-mem.js';
+import { readAgentmemory, writeAgentmemory, getAgentmemoryStats, getAgentmemoryScopeCounts } from './memory/agentmemory.js';
 import { readNexoData, writeNexoEvent } from './memory/nexo.js';
 import { queryCodeGraph } from './memory/codegraph.js';
 import { loadProjectMemories, loadAllProjectMemories, saveProjectMemory, matchFilter, deduplicateProjectMemories } from './memory/project-memory.js';
-import { projectScope, classifyScope, includeInRecall } from './memory/project-scope.js';
+import { projectScope, classifyScope, includeInRecall, safeTypeName } from './memory/project-scope.js';
+
+// 老记忆集中在这四类。写新的会按工作流类型落盘（review / audit / mobile-review…
+// 几十种），所以召回与计数必须把真实存在的目录都枚举进来，否则写进去的 items
+// 永远召不回来 —— 验证脚本里 `audit` / `mobile-review` 各写了 1 条，list 却只
+// 数到 1 条（只有 general）。
+const CORE_CATEGORIES = ['general', 'architecture', 'decision', 'pattern'];
+
+function claudeMemCategories(category) {
+  if (category) return [safeTypeName(category)];
+  return [...new Set([...CORE_CATEGORIES, ...listClaudeMemCategories()])];
+}
+
+function claudeMemItems(category) {
+  return claudeMemCategories(category)
+    .flatMap(cat => readClaudeMemItems(cat).map(item => ({ ...item, category: cat })));
+}
+
+// 来源标签只列真正贡献了召回结果的后端。旧实现无条件写死五个来源，于是
+// 「召回了 0 条」也声称来自项目/Claude-Mem/agentmemory/NEXO/CodeGraph。
+const SOURCE_LABELS = {
+  'project-memory': '项目',
+  'claude-mem': 'Claude-Mem',
+  agentmemory: 'agentmemory',
+  nexo: 'NEXO',
+  codegraph: 'CodeGraph',
+};
 
 // 每个后端的召回配额。旧实现是 max(5, ceil(limit/5))，而拼接顺序把 project-memory
 // 和 claude-mem 排在最前，于是 limit=10 时这两家各占 5 条就把配额吃光，NEXO /
@@ -64,9 +90,64 @@ function formatCounts(counts) {
   return `本项目 ${counts.project} / 无归属 ${counts.unscoped} / 其他 ${counts.other}`;
 }
 
+// category 参数只对按类型分目录的后端有意义；这条记录没有 type 时不因此丢掉。
+function byCategory(records, category) {
+  if (!category) return records;
+  const want = safeTypeName(category);
+  return records.filter(r => !r.type || safeTypeName(r.type) === want);
+}
+
 // ── Public handlers ──────────────────────────────────────────────
+// 把一条召回记录压成一行给终端看。
+// 召回结果原先只放在 context.recalled_memories 里，全引擎没有任何地方读它
+// （回写也已禁掉），也就是说 LLM 永远看不到召回来的内容，召回等于没发生。
+// CLI 驱动的工作流里，只有 stdout 是注入通道。
+function memoryBody(m) {
+  if (m.source === 'codegraph') return `${m.summary?.nodes ?? 0} 节点 / ${m.summary?.files ?? 0} 文件`;
+  // data 优先：claude-mem items 的 snippet 与 NEXO 的包装 JSON 都围着同一份 data，
+  // 用结构化 data 比对才能把「同一条记忆的不同副本」认出来。
+  if (m.data !== undefined) return JSON.stringify(m.data);
+  return String(m.data_snippet || m.content || '');
+}
+
+// 同一条记忆会同时落在 5 个后端（项目记忆 / items / markdown / agentmemory /
+// NEXO）里，召回如果不去重，一条内容会被当成 5–8 条上下文重复注入。
+// markdown 归档带标题头，正文是 items 的超集，所以用「包含即重复」而不仅相等。
+function dedupeMemories(rows) {
+  const kept = [];
+  const seen = [];
+  for (const row of rows) {
+    const body = memoryBody(row).replace(/\s+/g, '');
+    const tag = String(row.category || row.type || '');
+    if (!body) { kept.push(row); continue; }
+    const dup = seen.some(s => s.tag === tag && (s.body === body ||
+      (body.length >= 80 && s.body.includes(body)) ||
+      (s.body.length >= 80 && body.includes(s.body))));
+    if (dup) continue;
+    seen.push({ tag, body });
+    kept.push(row);
+  }
+  return kept;
+}
+
+function formatMemoryLine(m, index) {
+  const when = String(m.timestamp || m.stored_at || m.file || '').slice(0, 19);
+  const tag = m.source === 'codegraph'
+    ? 'codegraph'
+    : String(m.category || m.type || m.source || '');
+  const oneLine = memoryBody(m).replace(/\s+/g, ' ').trim().slice(0, 140);
+  return `${index}. [${tag}] ${when} ${oneLine}`;
+}
+
+function printRecall(recalled) {
+  if (!recalled.length) return;
+  console.log(chalk.dim('  ↳ 历史记忆:'));
+  recalled.forEach((m, i) => console.log(chalk.dim(`    ${formatMemoryLine(m, i + 1)}`)));
+}
+
 export async function handleMemoryRecall(_action, params, targetPath, context) {
-  const mode = params?.mode;
+  // mode（full/brief）只是展示详略，不能影响"读哪几个分类"——旧实现用 mode
+  // 控制分类枚举，于是 brief 模式会跳过写过的分类。现在只接受 category。
   const category = params?.category;
   const limit = params?.limit ?? 10;
   const filters = params?.filters;
@@ -84,27 +165,28 @@ export async function handleMemoryRecall(_action, params, targetPath, context) {
   const perSourceLimit = recallQuota(limit, backendCount);
   allMemories.push(...projectMemories.slice(0, perSourceLimit).map(m => ({ ...m, source: 'project-memory', scope: 'project' })));
 
-  const cmItems = category ? readClaudeMemItems(category) : [];
-  if (mode === 'full' || !category) {
-    const allCat = ['general', 'architecture', 'decision', 'pattern'];
-    for (const cat of allCat) {
-      if (cat !== category) cmItems.push(...readClaudeMemItems(cat));
-    }
-  }
-  const cmScoped = annotateScope(cmItems, scope, crossProject, perSourceLimit);
+  const cmScoped = annotateScope(claudeMemItems(category), scope, crossProject, perSourceLimit);
   allMemories.push(...cmScoped.kept.map(m => ({ ...m, source: 'claude-mem', projectPath: m.project?.path || '' })));
-  // markdown 归档也是全局的，同样要过归属过滤
-  const cmMdScoped = annotateScope(readClaudeMemMarkdown(), scope, crossProject, perSourceLimit);
+  // markdown 归档也是全局的，同样要过归属过滤；文件名前缀就是分类，
+  // category 参数不传时全读（旧实现不分 category，过滤等于没生效）
+  const mdRecords = category
+    ? readClaudeMemMarkdown().filter(m => m.file.startsWith(`${safeTypeName(category)}-`))
+    : readClaudeMemMarkdown();
+  const cmMdScoped = annotateScope(mdRecords, scope, crossProject, perSourceLimit);
   allMemories.push(...cmMdScoped.kept);
 
   // agentmemory 在 SQL 层就过滤掉别的项目（cross_project 时才放开全库）
+  // 按 category 过滤时得先多读一点再筛（后端不支持在存储层按类型查）。
+  // 旧行为是只取 perSourceLimit 条再筛，一旦最近的几条不是目标类型就返回空，
+  // 看上去就像「这个类型的记忆不存在」。
+  const fetchLimit = category ? Math.max(perSourceLimit * 20, 200) : perSourceLimit;
   const amRaw = crossProject
-    ? readAgentmemory(perSourceLimit)
-    : readAgentmemory(perSourceLimit, null, scope.path);
-  const amScoped = annotateScope(amRaw, scope, crossProject, perSourceLimit);
+    ? readAgentmemory(fetchLimit)
+    : readAgentmemory(fetchLimit, null, scope.path);
+  const amScoped = annotateScope(byCategory(amRaw, category), scope, crossProject, perSourceLimit);
   allMemories.push(...amScoped.kept);
 
-  const nexoScoped = annotateScope(readNexoData(perSourceLimit), scope, crossProject, perSourceLimit);
+  const nexoScoped = annotateScope(byCategory(readNexoData(fetchLimit), category), scope, crossProject, perSourceLimit);
   allMemories.push(...nexoScoped.kept);
 
   // codegraph 也必须按 targetPath 定位：它是外部工具在图项目里生成的，
@@ -114,30 +196,30 @@ export async function handleMemoryRecall(_action, params, targetPath, context) {
 
   // 5 backends total (project-memory, claude-mem, agentmemory, NEXO, CodeGraph)
 
-  const recalled = filters
-    ? allMemories.filter(m => matchFilter(m, filters)).slice(0, limit)
-    : allMemories.slice(0, limit);
+  const matched = filters
+    ? allMemories.filter(m => matchFilter(m, filters))
+    : allMemories;
+  const recalled = dedupeMemories(matched).slice(0, limit);
 
   if (context) context.recalled_memories = recalled;
+  printRecall(recalled);
 
   const total = recalled.length;
-  const sources = ['项目', 'Claude-Mem', 'agentmemory', 'NEXO', 'CodeGraph'];
+  const used = [...new Set(recalled.map(m => SOURCE_LABELS[m.source] || m.source))];
+  const sourceNote = used.length ? `，来源: ${used.join('/')}` : '';
   const unscoped = cmScoped.unscoped + cmMdScoped.unscoped + amScoped.unscoped + nexoScoped.unscoped;
   const excluded = cmScoped.excluded + cmMdScoped.excluded + amScoped.excluded + nexoScoped.excluded;
-  return `项目记忆已召回（${total} 条，来源: ${sources.join('/')}${scopeSuffix(unscoped, excluded)}）`;
+  return `项目记忆已召回（${total} 条${sourceNote}${scopeSuffix(unscoped, excluded)}）`;
 }
 
 export async function handleMemoryRemember(_action, params, targetPath, context) {
   const type = params?.type || 'general';
   const scope = projectScope(targetPath);
-  // Recall truncates long rows for prompt size; re-saving those would persist a
-  // lossy copy into all four backends, then the truncation compounds on the next
-  // round. Only reuse recall rows that came back whole.
-  // 另外只回写「本项目」的行：把别的项目 / 无归属的历史行写回去，等于给它们
-  // 盖上本项目的章，下一轮就再也分不清来源了。
-  const wholeRecalled = (context?.recalled_memories || [])
-    .filter(m => m.truncated !== true && m.scope !== 'cross-project' && m.scope !== 'unscoped');
-  const baseData = params?.data || params?.content || (wholeRecalled.length ? wholeRecalled : null) || {};
+  // 没有显式 data 时用 context 里的当轮结果拼（与 autoRemember 同一形状），
+  // **不能**把刚召回的历史行当成新记忆写回去 —— 场景里 remember 步骤都只传
+  // {type}，于是每轮都把上一轮的记忆存成本轮成果，一层套一层，旧库里
+  // `data_snippet` 里套 `data_snippet` 的膨胀就是这么来的。
+  const baseData = params?.data || params?.content || {};
 
   // Enrich with context findings (same richness as autoRemember)
   const data = typeof baseData === 'object' && !Array.isArray(baseData)
@@ -217,10 +299,7 @@ export function handleConsolidate(_action, _params, targetPath) {
   const pmStats = deduplicateProjectMemories(targetPath);
   stats.projectMemory = pmStats;
 
-  const cmItems = ['general', 'architecture', 'decision', 'pattern'].flatMap(c => {
-    const items = readClaudeMemItems(c);
-    return items.map(i => ({ ...i, category: c }));
-  });
+  const cmItems = claudeMemItems();
   stats.claudeMem = { entries: cmItems.length, categories: [...new Set(cmItems.map(i => i.category))] };
 
   const amStats = getAgentmemoryStats();
@@ -240,10 +319,9 @@ export function handleConsolidate(_action, _params, targetPath) {
 export function handleListMemories(_action, _params, targetPath) {
   const scope = projectScope(targetPath);
   const memories = loadAllProjectMemories(targetPath);
-  const cmAll = ['general', 'architecture', 'decision', 'pattern'].flatMap(c => readClaudeMemItems(c));
+  const cmAll = claudeMemItems();
   const cmCounts = scopeCounts(cmAll, scope, i => i.project?.path);
-  const amAll = readAgentmemory(10000);
-  const amCounts = scopeCounts(amAll, scope);
+  const amCounts = getAgentmemoryScopeCounts(scope.path);
   const nexoAll = readNexoData(5000);
   const nexoCounts = scopeCounts(nexoAll, scope);
   const amStats = getAgentmemoryStats();

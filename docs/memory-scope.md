@@ -39,11 +39,28 @@
 
 无归属的历史记录**不静默丢弃**（等于删用户数据），但必须标出来 —— 它不一定属于当前项目。
 
-## 回写堵截
+召回管道还有四道关卡，每一道都对应过一个真缺陷：
 
-`handleMemoryRemember` 会把 `context.recalled_memories` 当内容回写。只回写
-`scope === 'project'` 的行：把 `cross-project` / `unscoped` 写回去等于给它们盖上
-本项目的章，下一轮就再也分不清来源 —— 这是污染放大器。
+1. **分类目录动态枚举**：`items.json` 的分类名 = 工作流类型（`review` / `audit` /
+   `mobile-review` …几十种）。旧实现写死 `general/architecture/decision/pattern`，
+   其余类型的 items **写进去永远召不回来**、`list` 也数不到（实测写了 4 类只数到 1）。
+2. **`filters.type` 是数组**：场景里 21 个 recall 步骤传 `filters`，其中 19 个 `type`
+   是数组。`matchFilter` 原先只认 RegExp / 字符串 / 严格相等，数组永远不匹配
+   —— 那 19 个场景的召回**恒返 0 条**：记忆一直在写，从来没被读过。数组按
+   「任一命中」处理，记录缺少该字段时不判否。
+3. **跨后端去重**：同一条记忆同时落在 5 个后端，不去重就重复注入 8 次。
+   去重键 = 分类 + 结构化内容（markdown 标题头是 items 的超集，用「包含即重复」）。
+4. **必须打到 stdout**：召回结果原先只存进 `context.recalled_memories`，全引擎没人读
+   —— LLM 从来看不到内容。CLI 工作流里 stdout 是唯一注入通道，现在打印
+   `↳ 历史记忆: 1. [review] <时间> <内容前 140 字>`。
+
+## 回写纪律
+
+`handleMemoryRemember` **不再**把 `context.recalled_memories` 当内容回写。
+旧逻辑「记住刚才召回的内容」在场景里是灾难：`remember` 步骤只传 `{type}`，
+于是每轮都把上一轮的记忆存成本轮成果，一层套一层 —— 旧库里 `data_snippet`
+里套 `data_snippet` 的膨胀就是这么来的。现在没有显式 `data` 时只用当轮
+context 的结果拼（与 `autoRemember` 同一形状）。
 
 ## `--target` 与 `PROJECT_ROOT`
 
@@ -74,6 +91,11 @@ CLAUDE_MEM_HOME / AGENTMEMORY_HOME / NEXO_HOME
 
 读回时 `content` 被截断（claude-mem markdown 500 / NEXO 300 / agentmemory 500）必须带
 `truncated: true`，回写时过滤掉 —— 否则残片会被固化成「完整记忆」。
+
+写入一律走 `writeFileAtomic`（`src/lib/fs-utils.js`）：先写同目录 tmp 再 rename。
+直接写目标文件时进程被杀会留下半截 JSON，读方 `JSON.parse` 失败后静默返回 `[]`，
+下一次写入就把整类记忆覆盖成一条。`items.json` 解析失败时还会把坏文件搬到
+`archive/<category>-items-corrupt-<ts>.json` 再重建，而不是当空数组盖掉。
 
 ## 计数要说实话
 

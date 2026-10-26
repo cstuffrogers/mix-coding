@@ -24,7 +24,9 @@
 
 ## 记忆系统
 
-5 个后端，**作用域不同**：`project-memory`（`<项目>/.claude/memory/`）与 `codegraph` 是项目级；`claude-mem`（`~/.claude/memory/`）、`agentmemory`（`~/.agentmemory/memory.db`）、`NEXO`（`~/.nexo/runtime/`）是全局库，写入时带**项目绝对路径**（归一化后），召回默认只取本项目 + 标记出的历史无归属记录，别的项目记录需 `cross_project: true`。用 `--target` 跑别的项目时，项目记忆跟着 targetPath 走，不跟 cwd。详见 `docs/memory-scope.md`。会话内规划用 `plan.md`/`findings.md`/`progress.md`（详见 `conditional/planning-with-files.md`）。
+5 个后端，**作用域不同**：`project-memory`（`<项目>/.claude/memory/`）与 `codegraph` 是项目级；`claude-mem`（`~/.claude/memory/`）、`agentmemory`（`~/.agentmemory/memory.db`）、`NEXO`（`~/.nexo/runtime/`）是全局库，写入时带**项目绝对路径**（归一化后），召回默认只取本项目 + 标记出的历史无归属记录，别的项目记录需 `cross_project: true`。用 `--target` 跑别的项目时，项目记忆跟着 targetPath 走，不跟 cwd。
+
+召回会**打印摘要到 stdout**（`↳ 历史记忆: 1. [review] …`）并做**跨后端去重**（同一条记忆只算一条）；分类目录按真实工作流类型动态枚举，不是固定四类。`remember` 只写当轮结果，不把召回行回写。写入走原子 rename，`items.json` 损坏会先归档再重建。详见 `docs/memory-scope.md`。会话内规划用 `plan.md`/`findings.md`/`progress.md`（详见 `conditional/planning-with-files.md`）。
 
 ## 引擎
 

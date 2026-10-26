@@ -4,7 +4,7 @@ import { execSync } from 'child_process';
 import crypto from 'crypto';
 import { AGENTMEMORY_DIR } from '../../lib/paths.js';
 import { ensureDir } from '../../lib/fs-utils.js';
-import { normalizeProjectPath } from './project-scope.js';
+import { normalizeProjectPath, safeTypeName } from './project-scope.js';
 
 // AGENTMEMORY_DIR is a module-level constant, so it is frozen at import time and
 // an env override set later never takes effect. Resolve per call instead, so
@@ -106,7 +106,10 @@ export function writeAgentmemory(type, content, tags = [], projectPath = '') {
     const now = new Date().toISOString();
     const safeContent = (typeof content === 'string' ? content : JSON.stringify(content)).replace(/'/g, "''");
     const safeTags = tags.join(',').replace(/'/g, "''");
-    const safeType = type.replace(/'/g, "''");
+    // type 可能来自场景参数，不一定是字符串。旧实现直接 type.replace 会抛
+    // TypeError，被 catch 成 ok:false，于是这一轮静默少了一个后端。
+    // 统一过 safeTypeName，和目录名/items.json 用同一套名字。
+    const safeType = safeTypeName(type);
     const safeProject = normalizeProjectPath(projectPath).replace(/'/g, "''");
     // SQL 走 stdin，不经过 shell。先前的写法把 SQL 包进双引号再交给 Shell，
     // 于是 JSON 内容里的 `"` 被 shell 吃掉（`{"a":1}` 变成 `{a:1}`），`$`/反引号
@@ -133,4 +136,28 @@ export function getAgentmemoryStats() {
     ).toString().trim().split('\n').filter(Boolean);
     return { count, types, running: true };
   } catch { return { count: 0, running: false }; }
+}
+
+/**
+ * 三态计数用 SQL 算，不把全库行拉进内存。旧写法 `readAgentmemory(10000)`
+ * 再在 JS 里分类：库一大就慢，而且超过 10000 行时数字直接错（还把限额当事实）。
+ * 空 projectPath 时不区分「本项目」，全部算作无归属/其他。
+ */
+export function getAgentmemoryScopeCounts(projectPath = null) {
+  const dbPath = join(agentmemoryDir(), 'memory.db');
+  if (!existsSync(dbPath)) return { total: 0, project: 0, unscoped: 0, other: 0 };
+  const safe = normalizeProjectPath(projectPath).replace(/'/g, "''");
+  try {
+    const out = execSync(
+      `sqlite3 "${dbPath}" ".mode json" "SELECT COUNT(*) AS total, ` +
+      `SUM(CASE WHEN project_path = '${safe}' THEN 1 ELSE 0 END) AS mine, ` +
+      `SUM(CASE WHEN project_path IS NULL OR project_path = '' THEN 1 ELSE 0 END) AS unscoped FROM memories;"`,
+      { stdio: 'pipe' }
+    ).toString().trim();
+    const [row] = JSON.parse(out || '[{}]');
+    const total = row?.total || 0;
+    const project = safe ? row?.mine || 0 : 0;
+    const unscoped = row?.unscoped || 0;
+    return { total, project, unscoped, other: Math.max(0, total - project - unscoped) };
+  } catch { return { total: 0, project: 0, unscoped: 0, other: 0 }; }
 }

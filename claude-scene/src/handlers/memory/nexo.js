@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, statSync } from 'fs';
 import { join, basename } from 'path';
 import { NEXO_DIR } from '../../lib/paths.js';
 import { scanDir } from '../../lib/scan-dir.js';
+import { writeFileAtomic } from '../../lib/fs-utils.js';
 import { normalizeProjectPath, safeTypeName } from './project-scope.js';
 
 // NEXO_DIR is frozen at import time; resolve per call so tests can point it at a
@@ -30,7 +31,12 @@ export function readNexoData(limit = 20) {
           const content = readFileSync(f, 'utf-8');
           // 截断必须显式：被截断的内容回写成新记忆就把残片固化了。
           const truncated = content.length > 300;
-          entries.push({ source: 'nexo', file: basename(f), content: content.slice(0, 300), truncated, length: content.length, projectPath: readProjectPath(content) });
+          const file = basename(f);
+          const meta = readMeta(content);
+          // 优先用事件自己记的 type，旧文件没有才从文件名 `<type>_<ts>.json` 里取。
+          // 没有 type 就无法按 category 过滤，category 参数会对这个后端失效。
+          const type = meta.type || typeFromFile(file);
+          entries.push({ source: 'nexo', file, type, data: meta.data, content: content.slice(0, 300), truncated, length: content.length, projectPath: meta.projectPath });
         } catch { /* skip unreadable */ }
       }
     }
@@ -40,11 +46,18 @@ export function readNexoData(limit = 20) {
 
 // 事件文件是 {type, timestamp, project?, data}。老文件没有 project 字段，
 // 解析失败也按无归属处理（召回时标记出来，而不是静默丢掉）。
-function readProjectPath(content) {
+function readMeta(content) {
   try {
     const parsed = JSON.parse(content);
-    return parsed?.project?.path || '';
-  } catch { return ''; }
+    return { projectPath: parsed?.project?.path || '', type: parsed?.type || '', data: parsed?.data };
+  } catch { return { projectPath: '', type: '' }; }
+}
+
+// 文件名是 `<type>_<ISO 时间戳>.json`，type 本身允许出现下划线，所以不能用
+// split('_')[0]（`mobile_review_...` 会被切成 `mobile`）。
+function typeFromFile(file) {
+  const match = /^(.+?)_\d{4}-\d{2}-\d{2}T[^.]*\./.exec(file);
+  return match ? match[1] : '';
 }
 
 export function writeNexoEvent(type, data, project = null) {
@@ -58,7 +71,7 @@ export function writeNexoEvent(type, data, project = null) {
     // 入库前归一化：同一项目写成 'E:p' 和 'e:/p' 会分裂成两份归属。
     const scopePath = normalizeProjectPath(project?.path);
     if (scopePath) event.project = { path: scopePath, name: project.name || '' };
-    writeFileSync(file, JSON.stringify(event, null, 2), 'utf-8');
+    writeFileAtomic(file, JSON.stringify(event, null, 2));
     return file;
   } catch { return null; }
 }
