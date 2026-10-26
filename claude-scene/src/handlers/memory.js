@@ -130,6 +130,25 @@ function dedupeMemories(rows) {
   return kept;
 }
 
+// 单条召回记录的上限。项目记忆写入时**不截断**（那是用户数据，要完整落盘），
+// 但召回把它原样塞进 context 时，一条 5MB 记录会让整个上下文爆掉（实测 5.2M 字符）。
+// 截断必须有迹可循：改写成 content + truncated + length，而不是静默变短。
+export const RECALL_ROW_CAP = 1200;
+
+function capRecord(record) {
+  const raw = memoryBody(record);
+  if (raw.length <= RECALL_ROW_CAP) return record;
+  // 去掉原始 data：它会随 context 一起被序列化，只留截断后的正文。
+  const rest = { ...record };
+  delete rest.data;
+  return {
+    ...rest,
+    content: raw.slice(0, RECALL_ROW_CAP),
+    truncated: true,
+    length: raw.length,
+  };
+}
+
 function formatMemoryLine(m, index) {
   const when = String(m.timestamp || m.stored_at || m.file || '').slice(0, 19);
   const tag = m.source === 'codegraph'
@@ -199,7 +218,7 @@ export async function handleMemoryRecall(_action, params, targetPath, context) {
   const matched = filters
     ? allMemories.filter(m => matchFilter(m, filters))
     : allMemories;
-  const recalled = dedupeMemories(matched).slice(0, limit);
+  const recalled = dedupeMemories(matched).slice(0, limit).map(r => capRecord(r));
 
   if (context) context.recalled_memories = recalled;
   printRecall(recalled);

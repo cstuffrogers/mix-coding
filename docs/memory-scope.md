@@ -80,7 +80,7 @@ CLAUDE_MEM_HOME / AGENTMEMORY_HOME / NEXO_HOME
 测试必须设它们，否则每跑一次就往开发者真实库里塞记录。`smoke.test.js` 通过
 `isolateStores()` 统一隔离；`project-scope.test.js` 自带沙箱。
 
-## 存储卫生（写入侧的四条硬约束）
+## 存储卫生（写入侧）
 
 | 约束 | 为什么 |
 |---|---|
@@ -88,14 +88,19 @@ CLAUDE_MEM_HOME / AGENTMEMORY_HOME / NEXO_HOME
 | `deduplicate` 也按完整 hash，且**保留最新** | 旧实现用前 100 字符，实测把 3 条内容不同的记忆删成 1 条。`data` 为空的老条目一律不动 |
 | 超容量**归档**，不删除 | claude-mem items 上限 500、markdown 上限 100；超出的条目写进 `~/.claude/memory/archive/*.jsonl` 或 `markdown-pruned.log`，可追溯 |
 | 容量裁剪按 **mtime** | 旧实现按文件名排序（`<type>-<ts>.md`），等价于先按类型字母序分组 —— 实测把最新的 general/review 归档全删了，却留下最旧的 aaa |
+| 写入一律 `writeFileAtomic`（tmp + rename） | 进程被杀留下半截 JSON → 读方 `JSON.parse` 失败后静默返回 `[]` → 下一次写入把整类记忆覆盖成一条。`items.json` 解析失败时还会把坏文件搬到 `archive/<category>-items-corrupt-<ts>.json` 再重建 |
 
-读回时 `content` 被截断（claude-mem markdown 500 / NEXO 300 / agentmemory 500）必须带
-`truncated: true`，回写时过滤掉 —— 否则残片会被固化成「完整记忆」。
+## 存储卫生（读侧）
 
-写入一律走 `writeFileAtomic`（`src/lib/fs-utils.js`）：先写同目录 tmp 再 rename。
-直接写目标文件时进程被杀会留下半截 JSON，读方 `JSON.parse` 失败后静默返回 `[]`，
-下一次写入就把整类记忆覆盖成一条。`items.json` 解析失败时还会把坏文件搬到
-`archive/<category>-items-corrupt-<ts>.json` 再重建，而不是当空数组盖掉。
+读侧一律「要么完整，要么带 `truncated: true`」，绝不允许静默变短：
+
+| 约束 | 为什么 |
+|---|---|
+| SQL 里就 `substr(content, 1, 500)`，取值另带 `length()` | 直接 `SELECT content` 时，库里存了一条 1.2MB 的记录就足以让 `execSync` 撞上默认 **1MB maxBuffer** → 报 ENOBUFS → 外面 catch 成 `[]`。库里有数据、召回永远是 0 条，无任何提示 |
+| `sqlite3` 调用的 `maxBuffer` 拉到 64MB | 同上，双保险（计数类查询输出很小，但写/读都可能超） |
+| 召回单条封顶 `RECALL_ROW_CAP = 1200`，封顶后改写成 `content + truncated + length` 并丢掉原始 `data` | 项目记忆写入时**不截断**（用户数据要完整落盘），但一条 5MB 的输入被原样塞进 context 会让上下文直接爆掉（实测召回 5.2M 字符）。封顶必须有迹可循 |
+| 读回 `content` 被截断（claude-mem markdown 500 / NEXO 300 / agentmemory 500）必须带 `truncated: true` | 没标记的残片被回写就会固化成「完整记忆」 |
+
 
 ## 计数要说实话
 

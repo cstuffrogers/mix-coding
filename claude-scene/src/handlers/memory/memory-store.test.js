@@ -265,6 +265,31 @@ describe('记忆存储卫生', () => {
     expect(printed).toContain('VISIBLE_IN_STDOUT');
   });
 
+  it('超大条目不再静默丢失：agentmemory 读回不被 maxBuffer 卡死', async () => {
+    const am = await import('./agentmemory.js');
+    // 1.2MB 一条就把 execSync 默认 1MB maxBuffer 干爆，旧实现 catch 后返回 []
+    // —— 库里有记录，召回永远是 0 条，完全无提示。
+    am.writeAgentmemory('review', 'y'.repeat(1_200_000), [], 'e:/big');
+    const rows = am.readAgentmemory(10, null, 'e:/big');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].truncated).toBe(true);
+    expect(rows[0].content.length).toBeLessThanOrEqual(am.CONTENT_CAP);
+    expect(am.getAgentmemoryStats().count).toBeGreaterThan(0);
+  });
+
+  it('召回给超大记录封顶：5MB 不许原样进上下文', async () => {
+    const { handleMemoryRemember, handleMemoryRecall, RECALL_ROW_CAP } = await import('../memory.js');
+    const proj = join(root, 'huge');
+    await handleMemoryRemember('r', { type: 'huge', data: { blob: 'z'.repeat(5 * 1024 * 1024) } }, proj, {});
+    const ctx = {};
+    await handleMemoryRecall('r', { limit: 10 }, proj, ctx);
+    const total = JSON.stringify(ctx.recalled_memories).length;
+    expect(total).toBeLessThan(20_000);
+    expect(ctx.recalled_memories[0].truncated).toBe(true);
+    expect(ctx.recalled_memories[0].content.length).toBeLessThanOrEqual(RECALL_ROW_CAP);
+    expect(ctx.recalled_memories[0].length).toBeGreaterThan(RECALL_ROW_CAP);
+  });
+
   it('agentmemory 三态计数走 SQL，不把全库拉进内存', async () => {
     const { writeAgentmemory, getAgentmemoryScopeCounts } = await import('./agentmemory.js');
     const proj = join(root, 'proj');

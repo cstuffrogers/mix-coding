@@ -41,16 +41,9 @@ function ensureProjectColumn(dbPath) {
   } catch { /* 迁移失败不阻断写入：宁可无归属，也不要丢数据 */ }
 }
 
-// Recall-time cap. Rows are stored whole; cutting on read keeps prompts small.
-// The cut is reported via `truncated` rather than silently applied, because a
-// truncated row fed back into `remember` would persist a lossy copy forever.
+// Recall-time cap。写入整份，读时截断，并**明确标记** truncated：静默截断的行
+// 一旦被回写成新记忆，就会把残片固化下来。
 export const CONTENT_CAP = 500;
-
-function truncateContent(content) {
-  if (typeof content !== 'string') return { content, truncated: false };
-  if (content.length <= CONTENT_CAP) return { content, truncated: false };
-  return { content: content.slice(0, CONTENT_CAP), truncated: true };
-}
 
 // Tag values may only contain word characters and dashes, so stitching them
 // into the WHERE clause cannot break out of the string literal.
@@ -77,21 +70,37 @@ function whereClause(tags, projectPath) {
   return ` WHERE (${conditions.map(c => `(${c})`).join(' AND ')})`;
 }
 
+// sqlite3 通过管道返回的 JSON 如果超过 execSync 默认的 1MB maxBuffer，
+// execSync 会抛 ENOBUFS，而读函数外面是 catch → 返回 []。
+// 于是「库里明明有记录，召回却永远是 0 条」——完全静默。两头都堵：
+// maxBuffer 放大，并且内容在 SQL 里就截断，输出体积与存储体积无关。
+const SQLITE_MAX_BUFFER = 64 * 1024 * 1024;
+
+function sqliteJson(dbPath, sql) {
+  return execSync(`sqlite3 "${dbPath}" ".mode json" "${sql}"`, {
+    stdio: 'pipe',
+    maxBuffer: SQLITE_MAX_BUFFER,
+  }).toString().trim();
+}
+
 export function readAgentmemory(limit = 20, tags = null, projectPath = null) {
   const dbPath = join(agentmemoryDir(), 'memory.db');
   if (!existsSync(dbPath)) return [];
   const safeLimit = parseInt(limit, 10) || 20;
   try {
-    const rows = execSync(
-      `sqlite3 "${dbPath}" ".mode json" "SELECT id, type, content, tags, created_at, project_path FROM memories${whereClause(tags, projectPath)} ORDER BY updated_at DESC LIMIT ${safeLimit};"`,
-      { stdio: 'pipe' }
-    ).toString().trim();
+    // content 在 SQL 里 substr 截断 + 另外取 length()：原来 SELECT 整列，
+    // 存了一条 5MB 的记录就足以把这次读取整体拖进 ENOBUFS。
+    const rows = sqliteJson(dbPath,
+      `SELECT id, type, substr(content, 1, ${CONTENT_CAP}) AS content, ` +
+      `length(content) AS full_len, tags, created_at, project_path FROM memories` +
+      `${whereClause(tags, projectPath)} ORDER BY updated_at DESC LIMIT ${safeLimit};`);
     if (!rows) return [];
     return JSON.parse(rows).map(r => ({
       source: 'agentmemory',
       id: r.id,
       type: r.type,
-      ...truncateContent(r.content),
+      content: r.content,
+      truncated: Number(r.full_len) > CONTENT_CAP,
       tags: r.tags ? r.tags.split(',') : [],
       projectPath: r.project_path || '',
       timestamp: r.created_at,
@@ -129,10 +138,12 @@ export function getAgentmemoryStats() {
   if (!existsSync(dbPath)) return { count: 0, running: false };
   try {
     const count = parseInt(execSync(
-      `sqlite3 "${dbPath}" "SELECT COUNT(*) FROM memories;"`, { stdio: 'pipe' }
+      `sqlite3 "${dbPath}" "SELECT COUNT(*) FROM memories;"`,
+      { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER }
     ).toString().trim(), 10) || 0;
     const types = execSync(
-      `sqlite3 "${dbPath}" "SELECT DISTINCT type FROM memories;"`, { stdio: 'pipe' }
+      `sqlite3 "${dbPath}" "SELECT DISTINCT type FROM memories;"`,
+      { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER }
     ).toString().trim().split('\n').filter(Boolean);
     return { count, types, running: true };
   } catch { return { count: 0, running: false }; }
@@ -148,12 +159,10 @@ export function getAgentmemoryScopeCounts(projectPath = null) {
   if (!existsSync(dbPath)) return { total: 0, project: 0, unscoped: 0, other: 0 };
   const safe = normalizeProjectPath(projectPath).replace(/'/g, "''");
   try {
-    const out = execSync(
-      `sqlite3 "${dbPath}" ".mode json" "SELECT COUNT(*) AS total, ` +
+    const out = sqliteJson(dbPath,
+      `SELECT COUNT(*) AS total, ` +
       `SUM(CASE WHEN project_path = '${safe}' THEN 1 ELSE 0 END) AS mine, ` +
-      `SUM(CASE WHEN project_path IS NULL OR project_path = '' THEN 1 ELSE 0 END) AS unscoped FROM memories;"`,
-      { stdio: 'pipe' }
-    ).toString().trim();
+      `SUM(CASE WHEN project_path IS NULL OR project_path = '' THEN 1 ELSE 0 END) AS unscoped FROM memories;`);
     const [row] = JSON.parse(out || '[{}]');
     const total = row?.total || 0;
     const project = safe ? row?.mine || 0 : 0;
