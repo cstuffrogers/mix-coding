@@ -801,3 +801,44 @@ pi 用的是 `~/.pi/agent/auth.json` 里的 key，删这两个不影响任何工
 
 **收尾状态**：`/check` **11 道全绿 / 0 问题**（起点 38）；审计 **0 错误 0 警告**（起点 0/15）；
 25 场景 dry-run 全 exit 0；**521 tests / 46 files 全绿**；eslint 两个 root 均 0 error；knip 全清。
+
+---
+
+## 2026-10-27 `/setup` 可调用性 + 提示词一致性门禁
+
+**起点**：有人问「文档里 25 个命令，pi 里到底能敲出几个」。查出来的问题和自检、审计都无关——
+是「文档 / 场景引擎 / 提示词」三份清单从没对齐过。
+
+1. **`/setup` 在 pi 里根本敲不出来**：场景 `setup.json` 存在（e2e+monitor 合并时引入），
+   AGENTS.md / CLAUDE.md / README 都写了 `/setup`，但 `.pi/prompts/setup.md` 从来不存在。
+   补上提示词，同时补 `--kind`：
+   - `setup` 的 e2e/monitor/property 三选一只有 inquirer 交互能选，pi 里的 agent 是
+     非交互的，`--auto` 永远落到 default(e2e) —— monitor / property 两条分支等于不可达。
+   - `start <scene> --kind <id>`（`resolveChoiceOverride()`，`start.js` 导出）：对照步骤
+     声明的 `params.options` 校验，非法值打印可用值清单并回落默认，**不静默改计划**。
+   - dry-run 里也会显示 `└─ CLI 覆盖: monitor`，否则试运行看不出参数生效没生效。
+   - `start.test.js` +4 用例（不传值 / 合法值含两种 options 写法 / 非法值给清单 / 无 options 不炸）。
+2. **`/spec` 是 Claude Code 方言**：`.claude/commands/spec.md` 里写的是
+   `Skill(skill:..., args:...)` / `Task(subagent_type: ...)`，pi 没有这两个工具。
+   重写成 pi 能执行的形态（读 `.claude/skills/speckit-*/SKILL.md` + `subagent` 工具），
+   落到 `.pi/prompts/spec.md`；原文件保留在 `.claude/commands/` 作历史。
+3. **提示词一致性门禁（双保险，防止再次漂移）**：
+   - `scripts/audit-scenes.mjs`：场景缺 `.pi/prompts/<id>.md` = warn；提示词里
+     `claude-scene start <x>` 指向不存在的场景 = error。反向验证过（临时改名 setup.md → 立刻报警）。
+   - `scene-acceptance.test.js`：每个场景都有提示词、提示词引用的场景都存在、
+     `setup.md` 写全 `setup.json` 里声明的每种 kind。
+4. **`npm test` = watch 模式的真相**：一直是裸 `vitest`，pre-commit 里跑就挂住 ——
+   之前判成「husky 在 Windows spawn 不了」并长期靠 `--no-verify` 绕过，其实是自己挂自己。
+   改 `vitest run` + 新增 `test:watch`。顺带 `.husky/pre-commit` 缺 shebang，
+   Git for Windows 直接 `Exec format error`，补 `#!/usr/bin/env sh` + LF。
+   **现在 pre-commit 真跑 eslint + 528 tests + deadcode，三个 commit 都过了钩子。**
+5. `scripts/clean-session.cjs` 三处假绿修掉：`execSync` 缺 `shell: true`（Windows 上
+   npm=npm.cmd → ENOENT → 谎报「No test script」）、非 git 目录被当成未初始化仓库、
+   lint 命令失败仍报通过。
+6. 删死文件 `.claude/commands/enhance-prompt.md`（全仓库零引用，且 `.claude/commands`
+   在 pi 宿主下已不是入口）；`/hunt` 的全局桩 `~/.pi/agent/prompts/hunt.md` 保留 ——
+   它是「hunt 已并入 review」的跳转提示，不是残留。
+
+**状态**：`/check` 11 道全绿 / 0 问题（Pass 3 233 个函数 / Pass 9 241 个）；`audit-scenes`
+25 场景 **0 错误 0 警告**；deadcode **0**；**528 tests / 46 files 全绿**；eslint 两 root 0 error。
+提交 `191cf16`（脚本/钩子）+ `090ac59`（setup --kind + 提示词门禁）。

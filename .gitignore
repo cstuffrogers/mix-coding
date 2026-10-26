@@ -70,8 +70,12 @@ open-design/
 # Compiled binaries (rebuild from source via `go build`)
 .claude/tools/lobstertrap.exe
 .claude/tools/lobstertrap
-# 但保留 lobstertrap 源码（独立 Go 项目）
-!.claude/tools/lobstertrap-src/
+# 这两个目录是 handler 运行时 `git clone` 出来的第三方仓库（llm-proxy-audit 的
+# lobstertrap / agent-egress-bench），自带 .git。曾经被当成 submodule 记进 index，
+# 结果提交时报 `invalid object ... for 'cmd/inspect.go'`：gitlink 指向的 commit
+# 根本不在本仓库对象库里。克隆产物一律不入库，需要时重跑 handler 即可。
+.claude/tools/lobstertrap-src/
+.claude/tools/agent-egress-bench/
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml
