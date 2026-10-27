@@ -1089,3 +1089,46 @@ exit 0 且无未知动作；`start check --auto` 11 道检查 0 问题；`loop -
 **把"我猜"换成"机器断言"**。
 
 验证：`vitest` 623 测试 / 54 文件全绿；`eslint .` 0 error。
+
+## 2026-10-27 让问题「越修越少」：三类闭合断言 + 台账
+
+复盘中发现一个可量化的规律：**修复的收益不取决于修了几个，而取决于这一修有没有把
+"这一类"挡住**。同一个根因修 5 次的成本 = 5 ×（定位 + 改 + 验），而把它们挡住的成本
+是一份断言。于是本轮不再找新 bug，改为补三类**闭合断言**，并清掉断言的假阳性。
+
+### 新增 1：假绿哨兵（`src/commands/false-green-guard.test.js`）
+按**类**锁死 4 种「看起来通过，其实什么都没发生」：
+- 处理器忘了 return / 走了空分支 → 空结果默认记 pass
+- 处理器明确说「没跑成」→ `'skip'` 落进 default 记 pass
+- 未知动作 → 兜底文案 → ✓ pass
+- 失败步骤 → `spinner.succeed` + 绿色 ✔
+
+**当场抓到一个真 bug**：`formatResultForDisplay(undefined)` 走 `String()` → 屏幕真的
+打印出字面量「undefined」，然后因为非空被判 pass。修法：`undefined/null → ''`，
+`deriveStepStatus` 把空结果判 `warn` 并提示「处理器没有返回任何结果」。
+
+### 新增 2：文档 ↔ 入口 ↔ 场景 三方对齐（`src/lib/docs-scene-alignment.test.js`）
+引擎自检永远发现不了这类：`/spec` 在 CLAUDE.md 流程里但 `.claude/scenes/` 无 spec.json
+（它是 slash command，不是场景）；`/enhance-prompt` 在 CLAUDE.md 两处出现，实际是
+`open-design/skills/enhance-prompt/` 的 skill。断言两条：
+- 文档承诺的每个 `/命令` 都有落地入口（`commands/*.md` ∪ skill ∪ 场景 ∪ 明确写了
+  「已融入」的合并项 ∪ 宿主内置）
+- 每个引擎场景都有命令入口，否则用户调不到
+
+**当场抓到真 drift**：场景 `setup.json` 存在，但 `.claude/commands/setup.md` 缺失 →
+`/setup` 根本调不到引擎场景。已按仓库既有格式补上该命令文档（含 kind 三分支说明）。
+
+### 名单必须「活」（台账不变烂）
+`MERGED_INTO` 这类白名单配一条反向断言：条目一旦不再漂移/不再被文档提及，测试就失败，
+必须删掉。否则白名单会变成新的假绿掩体 —— 这本身就是"问题越修越多"的常见机制。
+
+### 我自己在这一轮的两次误判（再次验证"扫描器最不可靠"）
+- 先假定「文档命令必须有场景」→ 把 `build`/`backup`/`docker`/`sbom`/`changelog`/
+  `loadtest`/`migration`/`llm-proxy-audit`/`clear` 全判成漂移。真相：前 8 个是文档明写
+  「已融入」的合并项，`clear` 是宿主内置。
+- 把 `enhance-prompt` 判成漂移。真相：它是 skill，不是命令文件。
+
+→ 结论：断言的**输入模型**必须覆盖所有真实入口形态，否则断言会把"正常"报成"缺陷"，
+逼着人去改本来正确的东西（比不修更糟）。
+
+验证：`vitest` 640 测试 / 56 文件全绿；`eslint .` 0 error；`start setup --dry-run --auto` 正常。

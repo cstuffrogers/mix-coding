@@ -454,7 +454,9 @@ function hasWarnResult(str) {
 
 function formatResultForDisplay(result) {
   if (typeof result === 'string') return result;
-  if (result && typeof result === 'object') {
+  // undefined/null 以前走 String() → 屏幕上真的打印出「undefined」，然后记 pass
+  if (result === undefined || result === null) return '';
+  if (typeof result === 'object') {
     if (typeof result.message === 'string') return result.message;
     return `步骤已完成（状态：${result.status ?? 'success'}）`;
   }
@@ -486,6 +488,11 @@ export function deriveStepStatus(result, context) {
   // 处理器可直接布状态（三态检查/跳过不再靠正则猜），正则启发式仅作兵底。
   const explicit = getExplicitStatus(result);
   if (explicit) return { resultStr, stepStatus: explicit };
+  // 处理器什么都没返回（忘了 return / 走了空分支）时，以前落到默认那行记成 pass ——
+  // 「步骤 ✓ 但一行输出都没有」是典型的静默失败。空结果一律先当 warn 让人看见。
+  if (!String(resultStr ?? '').trim()) {
+    return { resultStr: '（处理器没有返回任何结果，检查该动作是否真的执行了）', stepStatus: 'warn' };
+  }
   const isNoop = NOOP_RES.some(re => re.test(resultStr));
   const isWarn = !isNoop && hasWarnResult(resultStr);
   return { resultStr, stepStatus: isNoop ? 'noop' : (isWarn ? 'warn' : 'pass') };
