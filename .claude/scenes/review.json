@@ -227,6 +227,14 @@
       "condition": "selected_modes.includes('quality_tools') || selected_modes.includes('full_audit')"
     },
     {
+      "step": 2.7,
+      "layer": "capability",
+      "service": "QualityService",
+      "action": "detectorReport",
+      "description": "探测器自检产物核对（守卫测试是否真会红，不跑变异测试）",
+      "condition": "selected_modes.includes('code_review') || selected_modes.includes('full_audit')"
+    },
+    {
       "step": 2.9,
       "layer": "capability",
       "service": "AISlopService",

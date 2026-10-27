@@ -179,22 +179,64 @@ function applyCase(testCase) {
   return { undo, isStale: false };
 }
 
-const rows = [];
+/** 记录本次自检是在哪个 HEAD / 工作区状态下做的（产物新鲜度靠它判定） */
+function gitState() {
+  try {
+    // git 是本机开发工具，PATH 由用户环境决定；这里只传固定子命令，无外部输入拼入
+    // eslint-disable-next-line sonarjs/no-os-command-from-path
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim();
+    // eslint-disable-next-line sonarjs/no-os-command-from-path
+    const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: REPO, encoding: 'utf8' }).trim() !== '';
+    return { gitSha: sha, workingTreeDirty: dirty };
+  } catch {
+    return { gitSha: null, workingTreeDirty: true };
+  }
+}
+
+/**
+ * 落盘产物，供 /review 的 detectorReport 步骤消费（引擎不在这里跑变异测试：
+ * 它会改工作区，只适合人工/CI 触发）。产物契约见 docs/testing-guards.md。
+ */
+function writeReport(results, passed) {
+  const state = gitState();
+  const reportsDirectory = path.join(REPO, '.claude', 'reports');
+  fs.mkdirSync(reportsDirectory, { recursive: true });
+  const now = new Date();
+  // 时间戳里的 `:` 和 `.` 在 Windows 路径上非法，统一换成 `-`
+  const file = path.join(reportsDirectory, `detector-sweep-${now.toISOString().replaceAll(/[:.]/g, '-')}.json`);
+  const payload = {
+    stamp: now.toISOString(),
+    ...state,
+    total: CASES.length,
+    passed,
+    stale: results.filter((r) => r.stale).map((r) => r.name),
+    failed: results.filter((r) => !r.ok && !r.stale).map((r) => r.name),
+  };
+  fs.writeFileSync(file, JSON.stringify(payload, undefined, 2), 'utf8');
+  return file;
+}
+
+const results = [];
 for (const testCase of CASES) {
   const applied = applyCase(testCase);
   if (applied.isStale) {
-    rows.push(`⚠ 注入点没匹配到（用例过期）  ${testCase.name}`);
+    results.push({ name: testCase.name, ok: false, stale: true });
     continue;
   }
 
   const mutatedExit = runWithUndo(testCase.test, applied.undo);
-  const cleanExit = runTest(testCase.test);  const isDetected = mutatedExit !== 0 && cleanExit === 0;
-  rows.push(isDetected
-    ? `✅ 注入后红 / 复原后绿  ${testCase.name}`
-    : `❌ 注入 exit=${mutatedExit} 复原 exit=${cleanExit}  ${testCase.name}`);
+  const cleanExit = runTest(testCase.test);
+  results.push({ name: testCase.name, ok: mutatedExit !== 0 && cleanExit === 0, stale: false, mutatedExit, cleanExit });
 }
 
+const rows = results.map((r) => {
+  if (r.stale) return `⚠ 注入点没匹配到（用例过期）  ${r.name}`;
+  if (r.ok) return `✅ 注入后红 / 复原后绿  ${r.name}`;
+  return `❌ 注入 exit=${r.mutatedExit} 复原 exit=${r.cleanExit}  ${r.name}`;
+});
 process.stdout.write(rows.join(LF) + LF);
-const redCount = rows.filter((row) => row.startsWith('✅')).length;
-process.stdout.write(`${redCount}/${CASES.length} 个探测器有效${LF}`);
-process.exitCode = redCount === CASES.length ? 0 : 1;
+
+const passed = results.filter((r) => r.ok).length;
+process.stdout.write(`${passed}/${CASES.length} 个探测器有效${LF}`);
+process.stdout.write(`自检记录已落盘：${writeReport(results, passed)}${LF}`);
+process.exitCode = passed === CASES.length ? 0 : 1;

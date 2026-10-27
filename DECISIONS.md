@@ -618,3 +618,41 @@ characterization test 锁定现状。这在本仓库不成立：
 - 正向：不动 393 处输出，零回归风险；本轮修的问题（假绿、围栏、同步）不被无关重构冲淡
 - 负向：想加 `--quiet` 之类开关时仍需一次迁移债（已在触发条件里写明入口）
 - 负向：`console` 直接调用让「静音测试」只能靠 spy（现状可接受）
+
+---
+
+## ADR-021: 探测器自检接进 /review 走「产物契约」，不在审查里跑变异测试
+
+**Status**: ACCEPTED
+**Date**: 2026-06-02
+**Decided By**: System Architect
+
+### Context
+
+守卫测试（35 例）和探测器自检（12 例变异扫描）都建好了，但只在人记得跑的时候才跑。
+「/review 能不能顺手验一下绿色可不可信」是自然需求。难点：探测器自检**必须临时改写
+工作区文件**（注入违规 → 跑测试 → 复原），而 review 过程必须只读 —— 一边审查一边改文件，
+等于审查对象在审查中变形，任何结论都不可信。
+
+### Decision
+
+沿用 ADR-016 的产物契约模式，两段式：
+
+1. `scripts/detector-sweep.cjs` 跑完落盘 `.claude/reports/detector-sweep-<stamp>.json`，
+   内容含 `gitSha / workingTreeDirty / total / passed / stale[] / failed[]`。
+2. `/review` 新增步骤 **2.7 `detectorReport`**（`code_review` / `full_audit` 模式），
+   只读产物并核对新鲜度，三态输出：
+   - 缺产物 / 坏 JSON / 形状不对 → `skip`（「本轮未验」，绝不记 pass）
+   - `failed` / `stale` 非空 → `warn` 并点名到具体用例
+   - HEAD 不一致、或产物来自脏工作区 → `warn`（记录过期）
+   - 其余 → `pass`（`12/12 有效（<sha>）`）
+
+**不新增** `detector_verified` 条件去门控后续步骤 —— 那会把「未验」洗成「无需验」
+（与 ADR-016 同一理由）。
+
+### Consequences
+
+- 正向：review 报告里能看出「这轮绿色是不是可信的」，且审查过程保持只读
+- 正向：产物带 HEAD 与脏标记，过期记录会被点名，而不是被当作最新结论
+- 负向：想拿 `pass` 必须在干净工作区跑一次 sweep（多一步人工/CI 动作）
+- 负向：`skip` 在 review 里会长期存在（CI 目前不跑 sweep）——这是如实反映，不是噪音
