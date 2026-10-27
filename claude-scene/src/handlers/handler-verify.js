@@ -342,9 +342,11 @@ function detectDepHealth(targetPath) {
 // ═══════════════════════════════════════════════════
 // Pass 6: CE plugin availability
 // ═══════════════════════════════════════════════════
-function checkCePlugin(_targetPath) {
-  // CE plugin lives at project root .claude/, not necessarily at targetPath
-  return existsSync(join(PROJECT_ROOT, '.claude', 'plugins', 'compound-engineering.json'));
+export function checkCePlugin(targetPath) {
+  // 与 Pass 5/11 一致：问「目标项目装没装 CE 插件」。
+  // 以前写死 PROJECT_ROOT，`--target 别的项目` 时永远报「已安装」（问的是引擎自己）。
+  const root = targetPath || PROJECT_ROOT;
+  return existsSync(join(root, '.claude', 'plugins', 'compound-engineering.json'));
 }
 
 // ═══════════════════════════════════════════════════

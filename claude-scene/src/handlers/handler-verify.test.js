@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { sep } from 'path';
+import { sep, join } from 'path';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
 import {
   isTrivialLine,
   extractFunctionBody,
@@ -9,6 +11,7 @@ import {
   mcpConfigCandidates,
   formatToolHealthLine,
   detectLlmProxyAuditHealth,
+  checkCePlugin,
 } from './handler-verify.js';
 
 describe('isTrivialLine', () => {
@@ -200,6 +203,20 @@ describe('detectLlmProxyAuditHealth', () => {
       const health = detectLlmProxyAuditHealth(dir);
       expect(health.issues[0].detail).toContain('蜜罐配置文件不存在');
       expect(health.issues[0].file).toBe('.honeytools.json');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('checkCePlugin 跟随 targetPath', () => {
+  it('目标项目没有 .claude/plugins 配置时返回 false（不再永远报已安装）', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ce-'));
+    try {
+      expect(checkCePlugin(dir)).toBe(false);
+      mkdirSync(join(dir, '.claude', 'plugins'), { recursive: true });
+      writeFileSync(join(dir, '.claude', 'plugins', 'compound-engineering.json'), '{}');
+      expect(checkCePlugin(dir)).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

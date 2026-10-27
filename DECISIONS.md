@@ -312,3 +312,34 @@ ADR-009 的判据是「可修复数 ≤ 200 就跑 `aislop fix --safe`」。实�
 - 正向：报告不再报「543 可修复」这种诱导性数字，而是「422 处问题，42 处安全可修」
 - 负向：本仓库的 console/注释类问题永远不会自动修 —— 这是**刻意**的，真解法是收敛到
   `src/lib/logger.js`（aislop 对 `logger.js` 有硬豁免），需单独立项
+
+## ADR-012: 条件求值一律以「目标项目 + 探测结果」为准，禁止读冻结的 PROJECT_ROOT
+
+### Context
+
+同一类 bug 在本仓库出现了四次，每次表现都是「条件恒假 / 检查对象错」：
+
+1. `detectLlmProxyAuditHealth()` 读 `PROJECT_ROOT` → `--target` 别项目时审计引擎自己
+2. `checkCePlugin()` 读 `PROJECT_ROOT` → 永远报「CE 插件已安装」
+3. `build_artifacts_exist`/`spec_file_exists` 等 6 个文件类谓词读 `PROJECT_ROOT`
+4. `mobile_platform`/`ios_platform`/`android_platform` 只读 `ctx.platform`，而
+   `detectProject` 写的是 `project_type` + `platforms` → 移动端平台条件永远为假
+
+根因不是疏忽，而是**事实有两个来源**：import 时冻结的 `PROJECT_ROOT`（= cwd 或
+`$MIX_CODING_PROJECT_DIR`）和运行时的 `context.targetPath`；外加「用户显式输入」与
+「工具探测结果」两套字段名。
+
+### Decision
+
+- 条件谓词里凡是要碰文件系统的，一律 `rootOf(ctx) = ctx.targetPath || PROJECT_ROOT`
+- 平台类事实统一走一个 `platformFlags(ctx)`：显式 `ctx.platform`（ios/android/both）
+  ∪ 探测结果 `ctx.platforms` ∪ `project_type === 'expo'`（双端）
+- 检查类 handler（check 的 Pass）同样跟随 `targetPath`，不再各自读 PROJECT_ROOT
+- 新增一条常驻回归：**遍历 `SIMPLE_CONDITIONS` 全部谓词，用空 ctx 逐个求值不得抛**
+  （这条直接抓出了 `dependencycheck_available` 漏形参 → 整条 workflow 崩）
+
+### Consequences
+
+- 正向：`--target 别的项目` 时所有条件与检查都指向目标项目，行为可预测
+- 正向：谓词漏形参/未定义变量这类错误在 CI 就炸，不再等到某天某条件被求值才炸
+- 负向：谓词现在会读 `ctx`，纯函数性下降一格（仍无副作用，只读文件存在性）

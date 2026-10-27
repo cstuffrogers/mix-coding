@@ -977,3 +977,70 @@ handler 写入的 context 键）；记忆四后端沙箱化（`CLAUDE_MEM_HOME`/
 验证：`vitest` **593 测试 / 50 文件**全绿（+11 条新回归），`eslint .` 0 error，
 `start check --auto` 从「5 个问题待处理」降到 1（仅剩 knip 的历史导出，本次新增的已清），
 `start loop --auto -i 1` exit 0、召回块单次输出、aislop 按 `config-ignored` 拒跑且工作区 0 改动。
+
+## 2026-10-27 第二轮深检：条件/输出/自检三处假绿 + show 命令重建
+
+审计手段：25 个场景全量 `--dry-run`（找出 exit≠0 的）；条件标识符 ↔ `SIMPLE_CONDITIONS` ↔
+context 写入点三方对照；场景 action ↔ `ACTION_REGISTRY` 对照；记忆系统沙箱化行为测试
+（去重/隔离/坏文件/保留策略/consolidate 后召回）。
+
+### 又是「恒假条件」这一类（同一病根，第三、四例）
+
+1. **`ctx.platform` 全引擎没人写**：`handlers/mobile/audit.js` 的 `detectProject` 写的是
+   `project_type` + `platforms`。`mobile_platform`/`ios_platform`/`android_platform`
+   只读 `ctx.platform` → mobile-audit / mobile-release / mobile-onboard 里
+   iOS·Android 专有步骤（Android SDK 检查、AAB 上传…）**永不执行**。
+   改为 `platformFlags(ctx)`：显式 `ctx.platform`（ios/android/both） ∪ `ctx.platforms`
+   ∪ `project_type === 'expo'`（视为双端）。
+2. **文件类条件看的是引擎自己而不是目标项目**：`build_artifacts_exist`/`planning_files_exist`/
+   `spec_file_exists`/`spec_file_not_exists`/`plugin_ce_available`/`crg_graph_built`/
+   `dependencycheck_available` 都用 import 时冻结的 `PROJECT_ROOT`（= cwd），
+   `--target 别的项目` 时判定的是 E:\auto-coding。统一改为 `rootOf(ctx) = ctx.targetPath || PROJECT_ROOT`。
+
+### 逐行输出假绿
+
+3. `runStep` 无论状态都 `spinner.succeed(chalk.green(...))` → **失败的步骤也打绿色 ✔**，
+   只有最后汇总行露出 ✗ fail。新增 `spinnerMethodFor()` + `paintByStatus()`：
+   fail→`spinner.fail` + `✖` 前缀、warn/noop→`spinner.warn` + `⚡`/`○`。
+4. `recordStepResult` 里 `'skip'` 落进 `default` 记成 **pass** —— 处理器明确说「我没跑成」
+   也被算作通过。补 `case 'skip': LOG_SUMMARY.skip++`。
+
+### check 自检的两处谎报
+
+5. `handleCheckSmoke` 在**目标项目**跑 `npx vitest`，任何异常一律 catch 成
+   「冒烟测试执行失败」→ 空项目/未装 vitest = 谎报红。改为三态：
+   有 `N failed` → fail；`No test files found`/`Cannot find module vitest` → **skip**；
+   认不出结论 → warn。`handleSelfCheckReport` 同步改三态（undefined 显示「⏭ 未执行」），
+   并且报告本身返回 `{status}`，不再因为正文里写着「❌ 失败」被 `detectHandlerFailure` 判红。
+6. `checkCePlugin(_targetPath)` 写死 `PROJECT_ROOT` → `--target` 永远报「CE Plugin 已安装」
+   （问的是引擎自己）。改为跟随 targetPath，与 Pass 5/11 一致。
+
+### `show` 命令曾是空壳
+
+7. `printTriggerKeywords`/`printSemanticTrigger`/`printPriority`/`printWorkflow`/
+   `printMCPServers` 全是 `if (!x) return;` 就结束的空函数 → 触发词、优先级、MCP 依赖、
+   工作流名全被静默吞掉，`show` 只剩一串没有编号的描述。补全实现：id/name/描述/迭代轮数/
+   触发关键词/语义触发/优先级/MCP/guardrails/参数/子步骤。
+8. `plan.json` 的 `hooks` 块（pre_tool_use→inject_plan_context 等 4 个）**全引擎无人读取**，
+   `.claude/settings.json` 也没配 hooks → 纯装饰元数据。`show` 现在会明确标注
+   「声明的 harness hooks（本引擎不执行）」。（要真生效需配 Claude Code hooks，属另一件事。）
+
+### 记忆系统
+
+沙箱化行为测试（8 项）全部符合预期：去重、跨项目隔离（A 的召回不含 B）、记忆目录放坏 JSON
+不崩、保留策略 8→3 条 + 5 条归档、consolidate 后召回正常、空 data / 路径穿越 type 不崩。
+本轮新增的是「更早修的召回渲染」对应的 `lint·类型·门禁` 结论落库（ADR 见上一条 commit）。
+
+### 新增回归
+
+- `conditions.test.js`：平台三条件 5 例 + targetPath 文件条件 2 例 + **「所有 SIMPLE_CONDITIONS
+  谓词用空 ctx 求值不得抛」**（这条直接抓出了 `dependencycheck_available` 漏形参导致整条
+  workflow `ReferenceError: ctx is not defined`）
+- `mobile/audit.test.js`：detectProject → 平台条件联动 4 例（真 fs，临时目录）
+- `engine-check.test.js`：冒烟三态 5 例 + 报告三态 2 例
+- `show.test.js`：步骤编号/触发词/hooks 标注 3 例
+- `loop-iterations.test.js`：spinnerMethodFor/paintByStatus 4 例
+
+验证：`vitest` **620 测试 / 53 文件**全绿；`eslint .` 0 error；25 个场景 `--dry-run` 全部
+exit 0 且无未知动作；`start check --auto` 11 道检查 0 问题；`loop --auto -i 1` exit 0；
+空项目 `check -t <空目录>` 从「✖ 冒烟失败」变为「⏭ 未执行（无测试可跑）」。

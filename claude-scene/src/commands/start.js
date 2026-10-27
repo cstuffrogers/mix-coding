@@ -461,6 +461,22 @@ function formatResultForDisplay(result) {
   return String(result);
 }
 
+/** 步骤状态 → ora 的输出通道：失败必须是 fail，不能一律 succeed。 */
+export function spinnerMethodFor(stepStatus) {
+  if (stepStatus === 'fail') return 'fail';
+  if (stepStatus === 'warn' || stepStatus === 'noop') return 'warn';
+  return 'succeed';
+}
+
+/** 状态对应的颜色/前缀，让逐行输出和最终汇总说的是同一件事。 */
+export function paintByStatus(stepStatus, text) {
+  if (stepStatus === 'fail') return chalk.red(`✖ ${text}`);
+  if (stepStatus === 'warn') return chalk.yellow(`⚡ ${text}`);
+  if (stepStatus === 'noop') return chalk.gray(`○ ${text}`);
+  if (stepStatus === 'skip') return chalk.gray(`⏭ ${text}`);
+  return chalk.green(text);
+}
+
 export function deriveStepStatus(result, context) {
   if (!context.lastStepFailed && detectHandlerFailure(result)) {
     context.lastStepFailed = true;
@@ -489,6 +505,9 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context) {
     case 'fail': LOG_SUMMARY.fail++; break;
     case 'noop': LOG_SUMMARY.noop++; break;
     case 'warn': LOG_SUMMARY.warn++; break;
+    // 之前 'skip' 落进 default 记成 pass —— 处理器明确说「我没跑成」也被算作通过，
+    // 汇总行就成了 pass: N 的假绿。
+    case 'skip': LOG_SUMMARY.skip++; break;
     default: LOG_SUMMARY.pass++; break;
   }
   appendLog({ step: stepNum, action: step.action, status, iteration: context.iteration || 1, duration_ms: duration, result: resultStr.slice(0, 200), time: new Date().toISOString() });
@@ -520,7 +539,14 @@ async function runStep(sceneId, step, context, options) {
   const { resultStr, stepStatus } = deriveStepStatus(result, context);
   recordStepResult(step, stepNum, stepStatus, duration, resultStr, context);
 
-  spinner.succeed(chalk.green(formatResultForDisplay(result)));
+  // 以前无论状态如何都走 spinner.succeed + chalk.green —— 失败的步骤也打绿色 ✔，
+  // 只有最后的汇总行才露出 ✗ fail，逐步输出全是假绿。
+  const display = formatResultForDisplay(result);
+  const method = spinnerMethodFor(stepStatus);
+  const painted = paintByStatus(stepStatus, display);
+  if (method === 'fail') spinner.fail(painted);
+  else if (method === 'warn') spinner.warn(painted);
+  else spinner.succeed(painted);
 
   applyPostStepContext(step, context, sceneId);
 

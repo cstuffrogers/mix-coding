@@ -51,30 +51,46 @@ function camelToSnake(str) {
 // ── Check: smoke tests ──
 
 export function handleCheckSmoke(_action, _params, targetPath, context) {
+  // 三态：没装测试框架/没有测试文件 ≠ 测试失败。
+  // 以前一律 catch 成「冒烟测试执行失败」，在空项目上等于谎报红。
+  const record = (status, message) => {
+    if (context) context.smokePassed = status === 'pass' ? true : (status === 'fail' ? false : undefined);
+    return { status, message };
+  };
+
+  let raw;
   try {
-    const raw = safeExec('npx vitest run 2>&1', targetPath, {
-      stdio: 'pipe',
-      timeout: 180000,
-    }).toString();
-
-    const passed = /All \d+ tests? passed/.test(raw) || /Tests\s+\d+ passed/.test(raw);
-    const failMatch = raw.match(/(?<!\d)(\d+)\s+failed/);
-    const failedCount = failMatch ? parseInt(failMatch[1], 10) : 0;
-
+    raw = safeExec('npx vitest run 2>&1', targetPath, { stdio: 'pipe', timeout: 180000 }).toString();
+  } catch (error) {
+    const detail = [
+      error?.message || '',
+      error?.stdout?.toString?.() || '',
+      error?.stderr?.toString?.() || '',
+    ].join('\n');
+    const failed = detail.match(/(?<!\d)(\d+)\s+failed/);
     if (context) {
-      context.smokePassed = passed;
-      context.smokeFailures = failedCount;
-      context.smokeOutput = raw.slice(-2000);
+      context.smokeFailures = Number(failed?.[1] || 0);
+      context.smokeOutput = detail.slice(-2000);
     }
-
-    if (passed) {
-      return '冒烟测试全部通过';
+    if (failed) {
+      return record('fail', `冒烟测试: ${failed[1]} 个失败`);
     }
-    return `冒烟测试: ${failedCount} 个失败`;
-  } catch {
-    if (context) context.smokePassed = false;
-    return '冒烟测试执行失败';
+    if (/No test files found|Cannot find (?:module|package)|ERR_MODULE_NOT_FOUND|Missing script|npm ERR!/i.test(detail)) {
+      return record('skip', '目标项目没有可跑的测试（未装 vitest 或无测试文件）');
+    }
+    return record('fail', `冒烟测试执行失败: ${detail.split('\n')[0].slice(0, 120)}`);
   }
+
+  const passed = /All \d+ tests? passed/.test(raw) || /Tests\s+\d+ passed/.test(raw);
+  const failedMatch = raw.match(/(?<!\d)(\d+)\s+failed/);
+  const failedCount = failedMatch ? Number.parseInt(failedMatch[1], 10) : 0;
+  if (context) {
+    context.smokeFailures = failedCount;
+    context.smokeOutput = raw.slice(-2000);
+  }
+  if (passed) return record('pass', '冒烟测试全部通过');
+  if (/No test files found/i.test(raw)) return record('skip', '目标项目没有测试文件可跑');
+  return record(failedCount > 0 ? 'fail' : 'warn', failedCount > 0 ? `冒烟测试: ${failedCount} 个失败` : '冒烟测试已执行但无明确通过/失败结论');
 }
 
 // ── Check: action messages ──
@@ -262,10 +278,11 @@ export function handleSelfCheckReport(_action, _params, _targetPath, context) {
     '',
   ];
 
-  // Smoke tests
+  // Smoke tests：三态。undefined = 没跑（无测试可跑），不能一律抳成「❌ 失败」。
   const smokeOk = context?.smokePassed;
-  lines.push(`  冒烟测试:     ${smokeOk ? '✅ 通过' : '❌ 失败'}`);
-  if (!smokeOk && context?.smokeFailures) {
+  const smokeText = smokeOk === true ? '✅ 通过' : (smokeOk === false ? '❌ 失败' : '⏭ 未执行（无测试可跑）');
+  lines.push(`  冒烟测试:     ${smokeText}`);
+  if (smokeOk === false && context?.smokeFailures) {
     lines.push(`    失败数:     ${context.smokeFailures}`);
   }
 
@@ -287,5 +304,10 @@ export function handleSelfCheckReport(_action, _params, _targetPath, context) {
   const report = lines.join('\n');
 
   if (context) context.checkReport = report;
-  return report;
+  // 报告本身不是检查：把显式状态带上，否则正文里的「❌ 失败」会被当成
+  // 本步骤自己的失败（假红，而且和 check-smoke 重复计数）。
+  return {
+    status: smokeOk === false ? 'warn' : 'pass',
+    message: report,
+  };
 }

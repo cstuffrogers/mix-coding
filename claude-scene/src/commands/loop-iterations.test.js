@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveIterations, shouldStopLooping, deriveStepStatus } from './start.js';
+import { resolveIterations, shouldStopLooping, deriveStepStatus, spinnerMethodFor, paintByStatus } from './start.js';
 
 // 回归：`claude-scene start loop --auto "循环10次"` 之前只是把「循环10次」当纯文本塞进
 // prompt —— 引擎根本没有迭代概念，一次就结束。现在 --iterations 才是真驱动。
@@ -105,5 +105,28 @@ describe('deriveStepStatus 文本启发式', () => {
   it('「未重复写入」是去重的正常路径', () => {
     expect(deriveStepStatus('记忆内容与最近记录相同，4 个后端均未重复写入（正常去重，本轮无新增）', ctx()).stepStatus).toBe('pass');
     expect(deriveStepStatus('检测到 2 处重复记录', ctx()).stepStatus).toBe('warn');
+  });
+});
+
+describe('逐行输出不再假绿（失败步骤不能打绿色 ✔）', () => {
+  it('fail 状态走 spinner.fail', () => {
+    expect(spinnerMethodFor('fail')).toBe('fail');
+  });
+
+  it('warn / noop 走 spinner.warn', () => {
+    expect(spinnerMethodFor('warn')).toBe('warn');
+    expect(spinnerMethodFor('noop')).toBe('warn');
+  });
+
+  it('pass / skip / 未知状态不会假装失败', () => {
+    expect(spinnerMethodFor('pass')).toBe('succeed');
+    expect(spinnerMethodFor('skip')).toBe('succeed');
+  });
+
+  it('paintByStatus 给失败打 ✖ 前缀', () => {
+    expect(paintByStatus('fail', '出错')).toContain('✖');
+    expect(paintByStatus('warn', '告警')).toContain('⚡');
+    expect(paintByStatus('noop', '无事')).toContain('○');
+    expect(paintByStatus('pass', '正常')).toContain('正常');
   });
 });

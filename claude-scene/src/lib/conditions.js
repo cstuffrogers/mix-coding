@@ -5,6 +5,24 @@ import { join } from 'path';
 import { execSync } from 'child_process';
 import { PROJECT_ROOT, findResourceDir } from './paths.js';
 
+// 移动端平台事实的唯一出处：用户显式指定（ctx.platform，接受 ios/android/both）
+// 或 detectProject 的探测结果（ctx.platforms / ctx.project_type，expo 视为双端）。
+// 文件类谓词一律按「目标项目」看，不能用 import 时冻结的 PROJECT_ROOT（= cwd 或
+// $MIX_CODING_PROJECT_DIR）—— 那样 `--target 别的项目` 时判定的是引擎自己。
+function rootOf(ctx) {
+  return ctx?.targetPath || PROJECT_ROOT;
+}
+
+function platformFlags(ctx) {
+  const explicit = ctx?.platform;
+  const detected = ctx?.platforms || {};
+  const both = explicit === 'both' || ctx?.project_type === 'expo';
+  return {
+    ios: both || explicit === 'ios' || detected.ios === true,
+    android: both || explicit === 'android' || detected.android === true,
+  };
+}
+
 
 const SIMPLE_CONDITIONS = {
   frontend_involved: (ctx) =>
@@ -17,10 +35,10 @@ const SIMPLE_CONDITIONS = {
     /液态玻璃|liquid.?glass/i.test(ctx.prompt || ''),
 
   // File-existence guards (used by plan/cicd/setup scenes)
-  build_artifacts_exist: () => existsSync(join(PROJECT_ROOT, 'build')) || existsSync(join(PROJECT_ROOT, 'dist')) || existsSync(join(PROJECT_ROOT, '.next')),
-  planning_files_exist: () => existsSync(join(PROJECT_ROOT, 'plan.md')) || existsSync(join(PROJECT_ROOT, 'findings.md')) || existsSync(join(PROJECT_ROOT, 'progress.md')),
-  spec_file_exists: () => existsSync(join(PROJECT_ROOT, 'spec.md')) || existsSync(join(PROJECT_ROOT, 'specs')),
-  spec_file_not_exists: () => !existsSync(join(PROJECT_ROOT, 'spec.md')) && !existsSync(join(PROJECT_ROOT, 'specs')),
+  build_artifacts_exist: (ctx) => ['build', 'dist', '.next'].some((dir) => existsSync(join(rootOf(ctx), dir))),
+  planning_files_exist: (ctx) => ['plan.md', 'findings.md', 'progress.md'].some((f) => existsSync(join(rootOf(ctx), f))),
+  spec_file_exists: (ctx) => ['spec.md', 'specs'].some((f) => existsSync(join(rootOf(ctx), f))),
+  spec_file_not_exists: (ctx) => ['spec.md', 'specs'].every((f) => !existsSync(join(rootOf(ctx), f))),
   setupConfigured: (ctx) => ctx?.setupConfigured === true || ctx?.e2eConfigured === true || ctx?.monitorConfigured === true,
   has_frontend_changes: (ctx) => ctx?.has_frontend_changes === true,
   attestation_enabled: (ctx) => ctx?.attestation_enabled === true || ctx?.user_confirmed === true,
@@ -73,8 +91,8 @@ const SIMPLE_CONDITIONS = {
     ctx.securityScanResult?.highSeverityFound || false,
 
   // CE Plugin — check for actual installation file
-  plugin_ce_available: () => {
-    const ceConfig = join(PROJECT_ROOT, '.claude', 'plugins', 'compound-engineering.json');
+  plugin_ce_available: (ctx) => {
+    const ceConfig = join(rootOf(ctx), '.claude', 'plugins', 'compound-engineering.json');
     return existsSync(ceConfig);
   },
 
@@ -114,7 +132,7 @@ const SIMPLE_CONDITIONS = {
   crg_mcp_available: () => hasMcpServer('codegraph'),
   crg_skill_available: () => isConversationMode(),
   // CRG graph already built for this repo (.code-review-graph/ dir exists)
-  crg_graph_built: () => existsSync(join(PROJECT_ROOT, '.code-review-graph')),
+  crg_graph_built: (ctx) => existsSync(join(rootOf(ctx), '.code-review-graph')),
   supabase_mcp_available: () => hasMcpServer('supabase'),
   stripe_mcp_available: () => hasMcpServer('stripe'),
   resend_mcp_available: () => hasMcpServer('resend'),
@@ -124,9 +142,15 @@ const SIMPLE_CONDITIONS = {
   playwright_mcp_available: () => hasMcpServer('playwright'),
 
   // Mobile platform guards
-  mobile_platform: (ctx) => ctx.platform === 'android' || ctx.platform === 'ios' || ctx.platform === 'both',
-  ios_platform: (ctx) => ctx.platform === 'ios' || ctx.platform === 'both',
-  android_platform: (ctx) => ctx.platform === 'android' || ctx.platform === 'both',
+  // `ctx.platform` 全引擎从来没人写（handlers/mobile/audit.js 的 detectProject 写的是
+  // `project_type` + `platforms`）—— 只读 ctx.platform 就等于这三条条件恒假，
+  // mobile-audit / mobile-release / mobile-onboard 里 iOS·Android 专有步骤永不执行。
+  mobile_platform: (ctx) => {
+    const flags = platformFlags(ctx);
+    return flags.ios || flags.android;
+  },
+  ios_platform: (ctx) => platformFlags(ctx).ios,
+  android_platform: (ctx) => platformFlags(ctx).android,
 
   // Mobile tool availability
   mobsf_mcp_available: () => hasMcpServer('mobsf'),
@@ -138,13 +162,13 @@ const SIMPLE_CONDITIONS = {
     } catch { return false; }
   },
   bearer_mcp_available: () => hasMcpServer('bearer'),
-  dependencycheck_available: () => {
+  dependencycheck_available: (ctx) => {
     try {
       // eslint-disable-next-line sonarjs/no-os-command-from-path -- tool detection, not user-controlled
       execSync('dependency-check --version 2>&1', { stdio: 'pipe', timeout: 5000 });
       return true;
     } catch { /* not on PATH */ }
-    const dcBat = join(PROJECT_ROOT, 'tools', 'dependency-check', 'bin', 'dependency-check.bat');
+    const dcBat = join(rootOf(ctx), 'tools', 'dependency-check', 'bin', 'dependency-check.bat');
     return existsSync(dcBat);
   },
   detox_mcp_available: () => hasMcpServer('detox'),

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { evaluateCondition } from './conditions.js';
+// fs 在本文件被 mock，源码文本用 Vite 的 ?raw 直接取
+import conditionsSource from './conditions.js?raw';
 import { hasMcpServer } from './mcp-config.js';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 // Mock fs for file-existence-based conditions
 vi.mock('fs', () => {
@@ -10,6 +14,84 @@ vi.mock('fs', () => {
     existsSync: vi.fn(() => false),
     readFileSync: vi.fn(() => '{}'),
   };
+});
+
+describe('移动端平台条件（ctx.platform 从来没人写 → 曾经的恒假 bug）', () => {
+  it('ctx.platform 显式指定 ios 时只开 iOS 分支', () => {
+    expect(evaluateCondition('ios_platform', { platform: 'ios' })).toBe(true);
+    expect(evaluateCondition('android_platform', { platform: 'ios' })).toBe(false);
+  });
+
+  it('detectProject 的探测结果（platforms）参与判定', () => {
+    const ctx = { project_type: 'rn', platforms: { ios: true, android: true } };
+    expect(evaluateCondition('mobile_platform', ctx)).toBe(true);
+    expect(evaluateCondition('ios_platform', ctx)).toBe(true);
+    expect(evaluateCondition('android_platform', ctx)).toBe(true);
+  });
+
+  it('expo 项目视为双端', () => {
+    expect(evaluateCondition('ios_platform', { project_type: 'expo' })).toBe(true);
+    expect(evaluateCondition('android_platform', { project_type: 'expo' })).toBe(true);
+  });
+
+  it('只探测到 android 时不误开 iOS 分支', () => {
+    const ctx = { project_type: 'android-native', platforms: { ios: false, android: true } };
+    expect(evaluateCondition('mobile_platform', ctx)).toBe(true);
+    expect(evaluateCondition('ios_platform', ctx)).toBe(false);
+    expect(evaluateCondition('android_platform', ctx)).toBe(true);
+  });
+
+  it('什么信息都没有时三条都为假（不再靠猜）', () => {
+    expect(evaluateCondition('mobile_platform', {})).toBe(false);
+    expect(evaluateCondition('ios_platform', {})).toBe(false);
+  });
+});
+
+describe('文件类条件看目标项目，不看引擎自己（--target 修复）', () => {
+  it('spec_file_exists 用 ctx.targetPath 而不是 cwd', async () => {
+    const { existsSync } = await import('fs');
+    const norm = (p) => String(p).replaceAll(String.fromCodePoint(92), '/');
+    const other = join(tmpdir(), 'other-proj');
+    const empty = join(tmpdir(), 'empty-proj');
+    existsSync.mockImplementation((p) => norm(p).startsWith(norm(other)));
+    expect(evaluateCondition('spec_file_exists', { targetPath: other })).toBe(true);
+    expect(evaluateCondition('spec_file_exists', { targetPath: empty })).toBe(false);
+    existsSync.mockReset();
+    existsSync.mockImplementation(() => false);
+  });
+
+  it('build_artifacts_exist / planning_files_exist 同样跟随 targetPath', async () => {
+    const { existsSync } = await import('fs');
+    const norm = (p) => String(p).replaceAll(String.fromCodePoint(92), '/');
+    const other = join(tmpdir(), 'other-proj');
+    existsSync.mockImplementation((p) => [join(other, 'dist'), join(other, 'plan.md')].map((q) => norm(q)).includes(norm(p)));
+    const ctx = { targetPath: other };
+    expect(evaluateCondition('build_artifacts_exist', ctx)).toBe(true);
+    expect(evaluateCondition('planning_files_exist', ctx)).toBe(true);
+    existsSync.mockReset();
+    existsSync.mockImplementation(() => false);
+  });
+});
+
+describe('全部 SIMPLE_CONDITIONS 谓词都不得抛异常', () => {
+  // 曾经 `dependencycheck_available` 里引用了没在形参里的 ctx，只有在依赖检查
+  // 真被求值时才会 ReferenceError（整条 workflow 崩）。这里把所有谓词用空 ctx
+  // 跑一遍，任何「漏形参 / 未定义变量」都会当场炸出来。
+  it('每个谓词用空 ctx 求值都不抛', async () => {
+    const block = conditionsSource.slice(conditionsSource.indexOf('const SIMPLE_CONDITIONS = {'));
+    const names = [...block.matchAll(/^ {2}([a-z][a-z0-9_]*):/gm)].map((m) => m[1]);
+    expect(names.length).toBeGreaterThan(40);
+
+    const failures = [];
+    for (const name of names) {
+      try {
+        evaluateCondition(name, {});
+      } catch (error) {
+        failures.push(`${name}: ${error.message}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
 });
 
 describe('evaluateCondition', () => {
