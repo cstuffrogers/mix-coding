@@ -1044,3 +1044,48 @@ context 写入点三方对照；场景 action ↔ `ACTION_REGISTRY` 对照；记
 验证：`vitest` **620 测试 / 53 文件**全绿；`eslint .` 0 error；25 个场景 `--dry-run` 全部
 exit 0 且无未知动作；`start check --auto` 11 道检查 0 问题；`loop --auto -i 1` exit 0；
 空项目 `check -t <空目录>` 从「✖ 冒烟失败」变为「⏭ 未执行（无测试可跑）」。
+
+## 2026-10-27 根因层：把「悬空引用」变成可执行断言
+
+### 为什么同类 bug 修了 5 次还在
+
+复盘前两轮，问题不在"查得不够多"，而在**查的方式本身有偏**：
+
+1. **修症状不修类别**：`database_required` → `setupConfigured` → `ctx.platform` →
+   7 个文件类谓词 → `checkCePlugin`，同一个根因（事实有两个来源/字段没人写）
+   被当成 5 个独立 bug 各修一次，直到写下 `rootOf()` 才收口。
+2. **审计靠 grep + 肉眼，会自己出错**：我用 `grep -l memoryRecall` 判定"记忆只写不读"
+   → 实际 24 个场景全有 `recall`，加错了召回又回滚；我正则提 `SIMPLE_CONDITIONS`
+   时截断位置不对，得出的"可疑清单"本身就是错的。
+3. **工具偏向报绿**：未知 action → 兜底 `✓ pass`；认不出结论 → 默认 `pass`；
+   `spinner.succeed` 无条件；没跑成 = `false` = 和"跑了且干净"同值。
+   → 每次 check 一片绿，信号接近零，只能靠逐行读 handler 才发现谎报。
+4. **测试验的是"我刚改的那行"，不是"这个不变量"**：测试数 528→623 涨了，
+   但漏洞不随之下降。
+
+### 本轮交付：`src/lib/scene-contract.test.js`
+
+场景里写的每个条件标识符、每个 action 名，都必须有人实现 —— 三种提供者：
+
+- `SIMPLE_CONDITIONS` 谓词（求值侧）
+- `context.X = …` / `ctx.X = …` 直接赋值
+- 两处**动态写入**：`enhancements.js` 的 `` `enh_${key}` ``、`start.js` 的 `actionMap`
+
+写成断言后，`读的没人写`（条件恒假）与 `写的没人读`（动作静默 pass）这两类
+在 CI 就炸，不依赖谁记得去 grep。
+
+**非空跑验证**（关键，否则就是又一条假绿）：
+- 往 `loop.json` 步骤 0.3 注入 `testPassed && ghost_flag_xyz` → 测试失败并点名 `ghost_flag_xyz ← loop`
+- 往 `loop.json` 步骤 1 注入 `action: totallyUnknownAction` → 测试失败并点名该 action
+- 两次注入后 `git checkout` 复原，工作区 0 改动
+
+**顺带纠正我自己的三个误判**（说明"看着悬空"多半是扫描器太笨）：
+- `setupConfigured` 在 `SIMPLE_CONDITIONS` 里（第 42 行），只是我提取时截断位置不对
+- `setup_kind` 由 `start.js` 的 `actionMap` 动态写 `context[contextKey]`
+- `enh_huashu_release_deck` / `enh_huashu_release_animation` / `enh_huashu_expert_review`
+  由 `enhancements.js` 的 `context[`enh_${e.key}`]` 动态写，key 都在 REGISTRY 里
+
+结论：真正的悬空 = 0。之前"5 个可疑"全是扫描器假阳性 —— 这正好是本条断言存在的理由：
+**把"我猜"换成"机器断言"**。
+
+验证：`vitest` 623 测试 / 54 文件全绿；`eslint .` 0 error。

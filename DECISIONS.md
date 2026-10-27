@@ -343,3 +343,40 @@ ADR-009 的判据是「可修复数 ≤ 200 就跑 `aislop fix --safe`」。实�
 - 正向：`--target 别的项目` 时所有条件与检查都指向目标项目，行为可预测
 - 正向：谓词漏形参/未定义变量这类错误在 CI 就炸，不再等到某天某条件被求值才炸
 - 负向：谓词现在会读 `ctx`，纯函数性下降一格（仍无副作用，只读文件存在性）
+
+## ADR-013: 场景引用的条件/动作必须有静态闭包断言，禁止靠人工 grep 审计
+
+### Context
+
+同一类「悬空引用」缺陷在本仓库出现 5 次，每次形态不同但根因相同：**场景（数据）与
+引擎（实现）之间只有约定、没有断言**。
+
+    database_required   → 条件没人写 → 步骤永不执行
+    setupConfigured     → 条件读错来源（ctx vs 探测结果）
+    ctx.platform        → 字段名没人写（写的是 platforms/project_type）
+    7 个文件类谓词       → 读的是 import 时冻结的 PROJECT_ROOT
+    plan.json hooks     → 声明了 4 个动作，全引擎无人读（反向悬空）
+
+人工审计抓不住这一类，因为它要求「把 25 个场景 × 60 个条件标识符 × 242 个动作
+逐一对上 306 个 context 写入点」——而且我自己的 grep 就误判过两次
+（`memoryRecall` 假阳性、`enh_*` 动态写入当悬空）。
+
+### Decision
+
+`src/lib/scene-contract.test.js` 常驻断言（CI 必过）：
+
+1. 扫 `scenes/*.json` + `.claude/scenes/*.json`，收集 `condition`/`skip_if` 里的标识符、
+   所有 `action` 值（跳过 `hooks` 子树 —— 引擎不执行它）
+2. 收集提供者：`SIMPLE_CONDITIONS` 谓词 ∪ `context.X =` 赋值 ∪ 两处动态写入
+   （`enhancements.js` 的 `enh_${key}`、`start.js` 的 `actionMap`）
+3. 断言无悬空；并断言扫描规模（场景≥20、谓词≥50、条件≥20、动作≥100），
+   防止测试自己空跑变成新一层假绿
+
+### Consequences
+
+- 正向：条件恒假/动作静默 pass 这两类在写场景时就失败，不依赖"谁记得去查"
+- 正向：扫描规模下限断言让"规则被清空但仍绿"无法发生
+- 负向：新增动态写入机制（如另一种 computed key 铺 flag）必须同步更新提供者集合，
+  否则误报 —— 这是刻意代价：新增机制必须显式登记
+- 教训（写进流程）：修一次 bug 后必须问「这是个体还是类别」，类别问题当轮就要
+  落成断言，否则下一轮会在别处以另一个科目复现
