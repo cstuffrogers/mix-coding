@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import {
   handleFenceCapture, handleFenceVerify, handleFenceRestore,
 } from './fence.js';
+import { readEvents } from '../lib/enclosure-ledger.js';
 
 // 真 fs（临时目录），只 mock 进程执行 —— 围栏的核心是「逐条用例」，不需要模拟文件系统。
 const NEWLINE = String.fromCodePoint(10);
@@ -222,4 +223,46 @@ describe('fenceRestore：越界时按快照退回', () => {
     expect(result.message).toContain('回滚失败');
   });
 
+});
+
+describe('围栏台账：每次拍桩/比对/回滚都留一行事件', () => {
+  it('capture 追加 capture 事件（含用例数与通过数）', () => {
+    mockSafeExec.mockImplementation((cmd) => {
+      if (cmd.startsWith('git')) return '';
+      return vitestJson([['a', 'passed'], ['b', 'failed']]);
+    });
+    handleFenceCapture('fenceCapture', {}, dir, {});
+    const events = readEvents(dir);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: 'capture', testCount: 2, passed: 1, failed: 1 });
+  });
+
+  it('verify 无论越界与否都追加 verify 事件（violations 如实记）', () => {
+    const ctx = {};
+    mockSafeExec.mockImplementation((cmd) => {
+      if (cmd.startsWith('git')) return '';
+      return vitestJson([['a', 'passed']]);
+    });
+    handleFenceCapture('fenceCapture', {}, dir, ctx);
+    mockSafeExec.mockImplementation(() => vitestJson([['a', 'failed']]));
+    handleFenceVerify('fenceVerify', {}, dir, ctx);
+    const events = readEvents(dir).filter((e) => e.type === 'verify');
+    expect(events).toHaveLength(1);
+    expect(events[0].violations).toBe(1);
+  });
+
+  it('restore 成功追加 restore 事件（restored/skipped 分开记）', () => {
+    const ctx = {};
+    mockSafeExec.mockImplementation((cmd) => {
+      if (cmd.includes('rev-parse')) return 'sha123';
+      if (cmd.startsWith('git') && !cmd.startsWith('git status')) return '';
+      if (cmd.startsWith('git status')) return [' M a.js', '?? b.js', ''].join(NEWLINE);
+      return vitestJson([['a', 'passed']]);
+    });
+    handleFenceCapture('fenceCapture', {}, dir, ctx);
+    handleFenceRestore('fenceRestore', {}, dir, ctx);
+    const events = readEvents(dir).filter((e) => e.type === 'restore');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ restored: 1, skipped: 0 });
+  });
 });

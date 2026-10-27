@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { appendEvent } from '../lib/enclosure-ledger.js';
 
 // ── 影响域产物（impact report）──
 //
@@ -49,6 +50,7 @@ export function handleImpactReport(_action, _params, targetPath, context) {
   const { data, problem } = readImpact(targetPath ?? '.');
 
   if (!data) {
+    appendEvent(targetPath ?? '.', { type: 'impact', ok: false, problem });
     if (context) {
       context.impactReported = false;
       context.impactProblem = problem;
@@ -58,6 +60,14 @@ export function handleImpactReport(_action, _params, targetPath, context) {
       message: `${problem}（${REPORTS_DIR}/${IMPACT_PREFIX}<stamp>.json）—— 修复范围未评估，记账不阻断`,
     };
   }
+
+  appendEvent(targetPath ?? '.', {
+    type: 'impact',
+    ok: true,
+    riskLevel: data.riskLevel,
+    changedCount: data.changedFiles.length,
+    callerCount: data.callers.length,
+  });
 
   const high = data.riskLevel === 'high';
   if (context) {

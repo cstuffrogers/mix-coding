@@ -473,3 +473,33 @@ characterization test 锁定现状。这在本仓库不成立：
 - 负向：产物质量取决于 agent；本 ADR 只保证「缺失/不合格不会伪装成通过」
 - 边界：产物不新鲜（旧 stamp）时引擎无法判断是否对应当前改动——目前取最新一份，
   后续可加「mtime 晚于最近一次改动」校验
+
+## ADR-017: 越界处置分两档（默认记账 / strict 中止），指标缺失不报零
+
+### Context
+
+±50 行 / 0 新依赖原本只有一种结局：该步骤判失败。但「判失败」之后工作流照样往下走，
+等于在破了的地界上继续施工；而如果直接把默认改成整体中止，又会在正常的多文件重构里
+频繁打断人（越界不等于错，可能只是改动大）。
+
+### Decision
+
+1. 两档，默认更松：
+   - 默认「记账模式」：该步骤 `fail`，工作流继续，文案明确写出「加 --strict-enclosure 可整体中止」
+   - `--strict-enclosure`：判 `shouldAbortOnEnclosure` 为真就整体中止（退出码 1），
+     并提示 `git status` / `fenceRestore`
+2. 判定抽成**纯函数** `shouldAbortOnEnclosure(context)`：这种「要不要当场停手」的判断
+   不能藏在 `process.exit` 里，否则只能靠人肉跑一遍才知道对不对。
+3. 指标汇总三态：没有台账 → `skip`（没数据不等于零越界）；越界率或影响域缺失率
+   >50% → `warn`；否则 `pass`。比率的分母不存在时给 `null`，不给 0。
+4. 台账用 append-only JSONL（`.claude/reports/enclosure-events.jsonl`）：追加不重写历史，
+   一次读完就能统计；坏行跳过，记账失败不影响主流程。
+
+### Consequences
+
+- 正向：默认不打断人，想收紧时一条开关；越界与缺失率都进得了报表（P2 的 `enclosureMetrics`）
+- 正向：strict 的实跑是可验证的（临时项目 fixture：44 行 > 阈值 20 → 中止、退出码 1、report 未执行）
+- 负向：strict 模式下围栏回滚步骤也不会跑（中止发生在 verify 之前），需要人手工
+  `fenceRestore`；这是刻意的——中止后应由人确认方向，而不是自动回滚掩盖问题
+- 已知限制：引擎自产、落在仓库根的产物（如 `api-consistency-report.md`）会被算进边界，
+  因为它不在 `.claude/` 下；后续需要一份「产物白名单」，本轮不动

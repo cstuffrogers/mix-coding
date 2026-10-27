@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { safeExec } from '../lib/safe-exec.js';
+import { appendEvent } from '../lib/enclosure-ledger.js';
 
 // ── 围栏（fence）──
 //
@@ -163,6 +164,7 @@ export function handleFenceCapture(_action, _params, targetPath, context) {
     context.fenceTestCount = snapshot.testCount;
     context.fenceBaselineFailed = failed;
   }
+  appendEvent(targetPath, { type: 'capture', stamp, testCount: snapshot.testCount, passed, failed });
   return {
     status: 'pass',
     message: `围栏已建立：锁定 ${snapshot.testCount} 个用例（当前 ${passed} 通过 / ${failed} 失败）`,
@@ -191,6 +193,13 @@ export function handleFenceVerify(_action, _params, targetPath, context) {
     context.fenceViolations = regressions.length;
     context.fenceRegressionNames = regressions.slice(0, 10);
   }
+
+  appendEvent(targetPath, {
+    type: 'verify',
+    stamp: new Date().toISOString(),
+    violations: regressions.length,
+    testCount: baselinePassed.length,
+  });
 
   if (regressions.length > 0) {
     const shown = regressions.slice(0, 5).join('、');
@@ -229,9 +238,11 @@ export function handleFenceRestore(_action, _params, targetPath, context) {
   try {
     safeExec(`git checkout ${sha} -- ${restorable.join(' ')}`, targetPath, { stdio: 'pipe' });
   } catch (error) {
+    appendEvent(targetPath, { type: 'restore', stamp: new Date().toISOString(), restored: 0, skipped: files.length, failed: true });
     return { status: 'warn', message: `回滚失败：${error.message}` };
   }
 
+  appendEvent(targetPath, { type: 'restore', stamp: new Date().toISOString(), restored: restorable.length, skipped: skipped.length });
   if (context) context.fenceRestored = restorable.length;
   const tail = skipped.length > 0 ? `（${skipped.length} 个新增文件不在快照里，保留原样）` : '';
   return {

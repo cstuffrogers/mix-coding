@@ -5,6 +5,8 @@ import { join } from 'path';
 import { safeExec } from '../lib/safe-exec.js';
 import { handleCodeGuardianOptimize, DEFAULT_LIMITS, captureBoundaryBaseline } from './codeguardian.js';
 
+const NEWLINE = String.fromCodePoint(10);
+
 // 这条门禁以前是个纯桩（永远返回「仅对话模式可用」），可 refactor/optimize/loop
 // 三个场景都挂着 on_error: abort —— 号称最关键防线，实际什么都没量。
 describe('CodeGuardian 变更边界验证', () => {
@@ -56,6 +58,17 @@ describe('CodeGuardian 变更边界验证', () => {
     expect(ctx.boundaryOk).toBe(false);
   });
 
+  it('越界文案随 --strict-enclosure 变化（默认记账 / strict 整体中止）', () => {
+    const big = Array.from({ length: 80 }, (_, i) => `export const v${i} = ${i};`).join(NEWLINE);
+    writeFileSync(join(root, 'big.js'), big);
+    const plain = handleCodeGuardianOptimize('codeguardian_optimize', {}, root, {});
+    expect(plain).toContain('记账模式');
+    expect(plain).not.toContain('越界立即中止');
+
+    const strict = handleCodeGuardianOptimize('codeguardian_optimize', {}, root, { strictEnclosure: true });
+    expect(strict).toContain('越界立即中止');
+    expect(strict).not.toContain('记账模式');
+  });
   it('阈值可由 params 覆盖', () => {
     writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'x', dependencies: { a: '1.0.0', b: '2.0.0' } }));
     const ctx = {};

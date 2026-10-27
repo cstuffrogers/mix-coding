@@ -566,6 +566,13 @@ async function runStep(sceneId, step, context, options) {
     default: spinner.succeed(painted);
   }
 
+  if (shouldAbortOnEnclosure(context)) {
+    console.log(chalk.red('\n✖ 圈地越界（--strict-enclosure）：边界超限即中止，不在破了的地界上继续施工'));
+    console.log(chalk.yellow('   先 git status 看改动范围，必要时按围栏快照回滚（fenceRestore）'));
+    printSummary(sceneId);
+    process.exit(1);
+  }
+
   applyPostStepContext(step, context, sceneId);
 
   await handleStepError(step, context, sceneId, resolvedParams);
@@ -577,12 +584,22 @@ async function runStep(sceneId, step, context, options) {
   context.completedSteps.push(stepNum);
 }
 
+/**
+ * 圈地越界在 strict 模式下「一次都不许放过」：只要本轮量到越界就整体中止，
+ * 不再往下走（继续走等于在破了的地界上施工）。默认模式只把该步骤判失败。
+ */
+export function shouldAbortOnEnclosure(context) {
+  if (!context?.strictEnclosure) return false;
+  return Array.isArray(context.boundaryViolations) && context.boundaryViolations.length > 0;
+}
+
 function buildSceneContext(options) {
   const prompt = options.prompt || '';
   return {
     prompt,
     completedSteps: [],
     targetPath: options.target || '',
+    // 圈地越界在默认模式下只判该步骤失败；strict 模式越界即整体中止。
     selectedTheme: options.theme || '',
     securityScanResult: {},
     selectedOption: options.option || '',
@@ -590,6 +607,7 @@ function buildSceneContext(options) {
     database_required: /数据库|database|db|存储|数据|postgres|mysql|supabase|mongo/i.test(prompt),
     payment_required: /支付|付款|payment|stripe|订阅|billing/i.test(prompt),
     email_required: /邮件|email|邮箱|通知|发送|resend/i.test(prompt),
+    strictEnclosure: Boolean(options.strictEnclosure),
   };
 }
 

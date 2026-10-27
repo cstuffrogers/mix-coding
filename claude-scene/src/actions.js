@@ -49,6 +49,7 @@ import { handleI18nAudit } from './handlers/i18n.js';
 import { handleTestCoverage, handleTestUnit, handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest, handleLoadTest } from './handlers/testing.js';
 import { handleFenceCapture, handleFenceVerify, handleFenceRestore } from './handlers/fence.js';
 import { handleImpactReport } from './handlers/impact.js';
+import { handleEnclosureMetrics } from './handlers/enclosure-metrics.js';
 import { handleCreateBranch, handleCommitPush, handleCreatePR, handleAutoUpdate, handleBumpVersion, handleCreateTag, handleDeploy, handleCreateRelease, handleListReleases, handleRollback, handleCreateIssue, handleGitDiffNameOnly } from './handlers/git.js';
 import { handleMapRoutes, handleLoadPages, handleTestInteractions, handleVisualCheck, handleA11yScan, handleClassifyBugs, handleGenerateQAReport } from './handlers/qa.js';
 import { handleGenerateDesign, handleAnalyzeConsistency, handleExportAssets, handlePersist, handleDesignInput, handleHuashuBrandProtocol, handleHuashuExpertReview, handleHuashuPrototype, handleHuashuReleaseAnimation, handleHuashuReleaseDeck, handleHuashuInfographic, handleAwmBrandList, handleAwmBrandImport, handleOdBrandList, handleOdBrandPick, handleOdBrandImport, handleOdTemplateList, handleOdTemplatePreview, handleOdSkillLoad, handleOdFrameList, handleOdFrameApply, handleOdPromptTemplateList, handleOdPromptTemplateLoad, handleOdDeckList, handleOdDeckLoad } from './handlers/design.js';
@@ -163,6 +164,8 @@ export const ACTION_REGISTRY = {
   'fence-restore': handleFenceRestore,
   impactReport: handleImpactReport,
   'impact-report': handleImpactReport,
+  enclosureMetrics: handleEnclosureMetrics,
+  'enclosure-metrics': handleEnclosureMetrics,
   runAffected: handleRunAffected,
   run_affected: handleRunAffected,
   generateDesign: handleGenerateDesign,

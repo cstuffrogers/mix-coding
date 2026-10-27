@@ -175,6 +175,13 @@
       "description": "整理跨组件记忆一致性"
     },
     {
+      "step": 7.9,
+      "layer": "verify",
+      "service": "EnclosureService",
+      "action": "enclosureMetrics",
+      "description": "汇总围栏台账（拍桩/比对/越界/回滚/影响域缺失），把趋势变成数字；没台账就 skip 而不是报零"
+    },
+    {
       "step": 8,
       "layer": "capability",
       "service": "CostService",

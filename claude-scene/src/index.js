@@ -50,6 +50,7 @@ program
   .option('-k, --kind <id>', '指定单选分支（setup: e2e/monitor/property）')
   .option('-i, --iterations <n>', '迭代轮数（loop 等自动迭代场景，默认 1，上限 20）')
   .option('-F, --force-iterations', '发现数不下降也把 --iterations 轮数跑满（默认会提前收敛退出）')
+  .option('-e, --strict-enclosure', '边界越限立即中止整个工作流（默认只判该步骤失败并继续）')
   // 旧习惯 `start loop --auto "需求"` 会把需求当多余位置参数直接报错退出。
   // 允许通过，但明确提示应该写 -p，并把它当需求用（否则用户只看到一行 red 报错）。
   .allowExcessArguments(true)

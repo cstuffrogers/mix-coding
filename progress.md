@@ -1271,3 +1271,35 @@ NOT_RUN_MARKERS 命中即 skip，`|| true` 去掉以拿到真实退出码。
 断言立刻红并报 `bugfix 顺序错（impact=20 capture=17 verify=21）`；`git checkout` 复原后 4/4 绿。
 
 675 测试 / 58 文件全绿；eslint 0 error；knip 无 unused exports。
+
+## 2026-10-27 P1 严格模式 + P2 指标台账：把「越界了怎么办」和「问题在变少吗」都变成可执行的东西
+
+### P1 `--strict-enclosure`：越界即中止，不在破了的地界上施工
+- `start -e / --strict-enclosure`（`src/index.js`）
+- `buildSceneContext` 写 `strictEnclosure`；`shouldAbortOnEnclosure(context)`（导出、纯函数）判定：
+  strict 且 `boundaryViolations` 非空 → 中止
+- `runStep` 在打印状态之后、错误处理之前落地中止：红字提示 + 退出码 1
+- 越界文案随开关走（`violationHint`）：默认「记账模式：本步骤判失败、工作流继续」，
+  strict「越界立即中止整个工作流」；抽出 helper 避免两处措辞分叉（也顺手压掉 sonar 认知复杂度 17→15）
+- **默认行为不变**：仍判该步骤失败；strict 只是把「破了还继续」这条路堵掉
+
+### P2 围栏台账 + 指标汇总
+- 新增 `src/lib/enclosure-ledger.js`：`.claude/reports/enclosure-events.jsonl` append-only，
+  一行一事件（capture/verify/restore/impact），坏行跳过
+- `fenceCapture/fenceVerify/fenceRestore` 与 `impactReport` 各自追加事件（记账是旁路，写失败不影响主流程）
+- 新增 `src/handlers/enclosure-metrics.js`：`summarizeEnclosure` / `verdictOf` / `handleEnclosureMetrics`
+  - 输出：拍桩次数 / 比对次数 / 越界次数与越界率 / 回滚次数 / 影响域缺失与缺失率
+  - **没台账 → skip**（没数据不等于零越界）；越界率>50% 或缺失率>50% → warn；否则 pass
+  - 同时落盘 `.claude/reports/enclosure-metrics-<stamp>.json`
+- `loop` 加 `7.9 enclosureMetrics`（remember→metrics→report→notify）
+
+### 验证（都是实跑，不是「看着应该对」）
+| 项 | 命令 | 结果 |
+|---|---|---|
+| strict 判定 | `npx vitest run src/commands/enclosure-strict.test.js` | 4/4（含 null/非数组不中止） |
+| 指标三态 | `npx vitest run src/handlers/enclosure-metrics.test.js` | 10/10（含坏行跳过、比率 null 不报 0） |
+| 台账事件 | `npx vitest run src/handlers/fence.test.js` | 17/17（capture/verify/restore 各留痕） |
+| strict 引擎实跑 | 临时 git 项目 + fixture 场景（`exportAssets` 写 44 行 → 阈值压到 20） | 记账模式：`✖ 边界超出…（记账模式）` 后继续执行 report；`-e`：`✖ 圈地越界…中止`，**退出码 1，report 未执行** |
+| 指标实跑 | `start loop --auto -i 1` | `⚡ 拍桩 2 次 / 比对 2 次 / 越界 0 次（0%） / 回滚 0 次 / 影响域缺失 2 次（100%）` |
+
+693 测试 / 60 文件全绿；eslint 0 error；knip 无 unused exports/文件；全部场景 dry-run exit 0。

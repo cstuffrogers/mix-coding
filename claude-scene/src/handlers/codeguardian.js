@@ -124,6 +124,13 @@ function subtractLines(now, before) {
   return { added: delta('added'), removed: delta('removed'), total: delta('total'), files: delta('files') };
 }
 
+/** 越界时的处置说明：默认记账，strict 模式整体中止（文案随开关走，不写死在两处）。 */
+function violationHint(context) {
+  return context?.strictEnclosure
+    ? '（--strict-enclosure：越界立即中止整个工作流）'
+    : '（记账模式：本步骤判失败、工作流继续；加 --strict-enclosure 可整体中止）';
+}
+
 export function handleCodeGuardianOptimize(_action, params = {}, targetPath, context) {
   const limits = {
     maxLines: Number(params.max_lines ?? params.maxLines ?? DEFAULT_LIMITS.maxLines),
@@ -174,7 +181,7 @@ export function handleCodeGuardianOptimize(_action, params = {}, targetPath, con
 
   const measured = `变更${scope} ${lines.total} 行 / ${lines.files} 个文件（上限 ${limits.maxLines}），新增依赖 ${newDeps.length} 个（上限 ${limits.maxDeps}），复杂度未测量${scopeTotal}`;
   if (violations.length > 0) {
-    return `CodeGuardian 边界超出：${violations.join('；')}。${measured}。请缩小改动范围，超出部分应回滚。`;
+    return `CodeGuardian 边界超出：${violations.join('；')}。${measured}。请缩小改动范围，超出部分应回滚。${violationHint(context)}`;
   }
   return `CodeGuardian 边界检查通过：${measured}`;
 }
