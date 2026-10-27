@@ -141,6 +141,16 @@ export function handleFenceCapture(_action, _params, targetPath, context) {
 
   const passed = Object.values(tests).filter((s) => s === 'passed').length;
   const failed = Object.values(tests).filter((s) => s === 'failed').length;
+
+  // 一个通过的用例都没有（全是 skipped/pending），围栏栏不住任何行为。
+  // 这种情况必须 warn 而不是报 pass——否则下轮 verify 会拿空集合比出「0 个越界」。
+  if (passed === 0) {
+    if (context) context.fenceCaptured = false;
+    return {
+      status: 'warn',
+      message: `围栏未建立：基线里没有一个通过的用例（${Object.keys(tests).length} 个全是跳过/待定），围栏保护不了任何东西`,
+    };
+  }
   const stamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
   const snapshot = {
     stamp,
@@ -187,6 +197,13 @@ export function handleFenceVerify(_action, _params, targetPath, context) {
   const baselinePassed = Object.entries(snapshot.data.tests || {})
     .filter(([, status]) => status === 'passed')
     .map(([name]) => name);
+
+  // 基线里一个通过的用例都没有，就没有东西可保护：比对到底也只能报「0 个仍通过」，
+  // 那是标准的假绿。直接 skip，让调用方知道这一层没起作用。
+  if (baselinePassed.length === 0) {
+    if (context) context.fenceViolations = 0;
+    return { status: 'skip', message: '围栏里没有可保护的用例（基线 0 通过），越界比对无从谈起' };
+  }
 
   const regressions = baselinePassed.filter((name) => current[name] !== 'passed');
   if (context) {

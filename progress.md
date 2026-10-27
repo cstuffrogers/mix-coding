@@ -1311,3 +1311,14 @@ NOT_RUN_MARKERS 命中即 skip，`|| true` 去掉以拿到真实退出码。
 两处都自证非空跑：注入「回滚失败计入回滚 + 取消从未比对告警」→ 3 条测试立刻红；复原 12/12 绿。
 
 最终基线：**695 测试 / 60 文件全绿**，eslint 0 error，knip 无 unused，全场景 dry-run exit 0。
+
+### 再补一个假绿（第 8 种）：零通过的基线也是「围栏已建立」
+`fenceCapture` 原先只要拿到逐条明细就报 `pass`。如果这轮测试**全是 skipped/pending**
+（0 通过），围栏锁住的是空集合——下一轮 `fenceVerify` 会拿空集合比出「0 个越界」，
+标准假绿。两处守卫：
+- `capture`：`passed === 0` → `warn`「围栏未建立：基线里没有一个通过的用例」，不写快照
+- `verify`：`baselinePassed.length === 0` → `skip`「围栏里没有可保护的用例」
+
+自证非空跑：关掉两处守卫 → 2 条测试立刻红；复原 19/19 绿。
+
+最终：**697 测试 / 60 文件全绿**；eslint 0 error；knip 无 unused；全场景 dry-run 通过。

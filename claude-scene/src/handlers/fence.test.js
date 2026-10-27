@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -264,5 +264,38 @@ describe('围栏台账：每次拍桩/比对/回滚都留一行事件', () => {
     const events = readEvents(dir).filter((e) => e.type === 'restore');
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ restored: 1, skipped: 0 });
+  });
+});
+
+describe('零通过的基线（围栏保护不了任何东西）', () => {
+  it('全部 skipped → capture warn，不写快照冒充「已建立」', () => {
+    mockSafeExec.mockImplementation((cmd) => {
+      if (cmd.includes('rev-parse')) return 'sha123';
+      if (cmd.startsWith('git')) return '';
+      return vitestJson([['a', 'skipped'], ['b', 'skipped']]);
+    });
+    const ctx = {};
+    const result = handleFenceCapture('fenceCapture', {}, dir, ctx);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('围栏未建立');
+    expect(ctx.fenceCaptured).toBe(false);
+  });
+
+  it('基线本身 0 通过 → verify skip，不报「0 个越界」', () => {
+    const ctx = {};
+    mockSafeExec.mockImplementation((cmd) => {
+      if (cmd.includes('rev-parse')) return 'sha123';
+      if (cmd.startsWith('git')) return '';
+      return vitestJson([['a', 'failed']]);
+    });
+    // 手工造一份 0 通过的快照（模拟上一版 capture 写下的坏快照）
+    const reportsDir = join(dir, '.claude', 'reports');
+    mkdirSync(reportsDir, { recursive: true });
+    const snapshotPath = join(reportsDir, 'fence-legacy.json');
+    writeFileSync(snapshotPath, JSON.stringify({ snapshotSha: 'sha123', tests: { a: 'failed' } }));
+    ctx.fenceSnapshotPath = snapshotPath;
+    const result = handleFenceVerify('fenceVerify', {}, dir, ctx);
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('没有可保护的用例');
   });
 });
