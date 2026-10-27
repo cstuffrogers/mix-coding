@@ -44,6 +44,21 @@ const SIMPLE_CONDITIONS = {
   user_mentioned_competitor_or_domain: (ctx) =>
     /竞品|对比|领域|市场|同类|竞争对手|分析/i.test(ctx.prompt || ''),
 
+  // 需求意图（new-project 靠它决定要不要取 Supabase/Stripe/Resend 模板）。
+  // 以前这三个键只出现在 WorkflowContext 的 typedef 里，**没有任何地方给它赋值**，
+  // 于是 new-project 的 1.3/1.4/1.5 三步条件恒假 —— 永远不执行。
+  database_required: (ctx) =>
+    ctx.database_required === true || ctx.databaseRequired === true ||
+    /数据库|数据表|表结构|持久化|存储层|database|postgres|supabase|mysql|sqlite|prisma|drizzle/i.test(ctx.prompt || ''),
+
+  payment_required: (ctx) =>
+    ctx.payment_required === true || ctx.paymentRequired === true ||
+    /支付|付款|订阅|计费|收费|充值|payment|stripe|checkout|subscription|billing/i.test(ctx.prompt || ''),
+
+  email_required: (ctx) =>
+    ctx.email_required === true || ctx.emailRequired === true ||
+    /邮件|邮箱|通知信|验证信|邮件模板|email|resend|newsletter/i.test(ctx.prompt || ''),
+
   'migrationHighCount > 0': (ctx) => (ctx.migrationHighCount || 0) > 0,
 
   'fix_failed_count >= 3': (ctx) => ctx.fixFailedCount >= 3,
@@ -143,7 +158,10 @@ function evalComparison(trimmed, ctx) {
   if (!cmpMatch) return null;
   const [, key, op, rawVal] = cmpMatch;
   const expected = rawVal.trim().replace(/^['"]|['"]$/g, '');
-  const actual = ctx[key];
+  // 左边可能是 SIMPLE_CONDITIONS 里的谓词（如 setupConfigured），它比 ctx 里
+  // 一个宽松的布尔值更可信：`setupConfigured == false` 以前读 ctx.setupConfigured
+  // （从没人赋值）→ String(undefined) !== 'false' → 恒假，失败通知永远不触发。
+  const actual = key in SIMPLE_CONDITIONS ? SIMPLE_CONDITIONS[key](ctx) : ctx[key];
   if (op === '===' || op === '==') return String(actual) === expected;
   if (op === '!==' || op === '!=') return String(actual) !== expected;
   return null;

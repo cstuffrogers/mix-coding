@@ -147,8 +147,21 @@ describe('executeAction', () => {
 
   it('returns fallback message for unknown actions', async () => {
     const context = {};
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await executeAction('test-scene', 'nonexistentAction', {}, context, '/tmp');
     expect(result).toBe('动作 nonexistentAction 执行完成');
+    // 兑底文案不能静默：以前场景里 action 名写错也报 ✓ pass
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('nonexistentAction');
+    expect(context.unknownAction).toBe('nonexistentAction');
+    warn.mockRestore();
+  });
+
+  it('已知动作不报未知警告', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await executeAction('test-scene', 'memoryRecall', { limit: 1 }, {}, '/tmp');
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('catches errors and sets lastStepFailed on context', async () => {

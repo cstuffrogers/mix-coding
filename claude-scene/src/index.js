@@ -128,7 +128,27 @@ program
   .action(async () => {
     const { syncAllDocs } = await import('./lib/sync-docs.js');
     const projectRoot = process.env.AUTO_CODING_ROOT || join(__dirname, '..', '..');
-    syncAllDocs(projectRoot);
+    const report = syncAllDocs(projectRoot);
+    // 以前 syncAllDocs 的返回值被丢掉、自己也不打印 —— 跑完一片空白，
+    // 分不清「已同步」还是「压根没找到标记」。
+    if (report.updated.length > 0) {
+      console.log(`✅ 已同步 ${report.updated.length} 个区块:`);
+      for (const item of report.updated) console.log(`   ${item}`);
+    }
+    if (report.unchanged.length > 0) {
+      console.log(`ℹ 内容已是最新 ${report.unchanged.length} 个区块`);
+    }
+    if (report.missingMarker.length > 0) {
+      console.warn(`⚠ ${report.missingMarker.length} 个目标缺 AUTO-SYNC 标记（未同步）:`);
+      for (const item of report.missingMarker) console.warn(`   ${item}`);
+    }
+    if (report.missingFile.length > 0) {
+      console.warn(`⚠ ${report.missingFile.length} 个目标文件不存在:`);
+      for (const item of report.missingFile) console.warn(`   ${item}`);
+    }
+    if (report.updated.length === 0 && report.missingMarker.length === 0 && report.missingFile.length === 0) {
+      console.log('ℹ 文档已与实际场景一致，无需修改');
+    }
   });
 
 program.parse();

@@ -695,10 +695,12 @@ const HONEYTOOL_NAMES = [
   'verify_user_credentials', 'export_analytics_report',
 ];
 
-function detectLlmProxyAuditHealth() {
+export function detectLlmProxyAuditHealth(targetPath) {
+  // 审计对象是 --target 指定的项目，不是引擎自己（detectMcpIssues 早已这么做了）
+  const root = targetPath || PROJECT_ROOT;
   const result = { honeytoolOk: false, whitelistOk: false, denyCoverage: 0, issues: [] };
 
-  const htPath = join(PROJECT_ROOT, '.honeytools.json');
+  const htPath = join(root, '.honeytools.json');
   if (!existsSync(htPath)) {
     result.issues.push({ level: 'error', file: '.honeytools.json', detail: '蜜罐配置文件不存在' });
     return result;
@@ -717,7 +719,7 @@ function detectLlmProxyAuditHealth() {
     return result;
   }
 
-  const wlPath = join(PROJECT_ROOT, '.tool-whitelist.json');
+  const wlPath = join(root, '.tool-whitelist.json');
   if (!existsSync(wlPath)) {
     result.issues.push({ level: 'warn', file: '.tool-whitelist.json', detail: '工具白名单配置文件不存在' });
     return result;
@@ -924,8 +926,8 @@ function runSafetyChecks(targetPath) {
   return { crashCount, mcpIssueCount };
 }
 
-function runLlmProxyAuditHealth() {
-  const health = detectLlmProxyAuditHealth();
+function runLlmProxyAuditHealth(targetPath) {
+  const health = detectLlmProxyAuditHealth(targetPath);
   const issueCount = health.issues.length;
 
   if (health.honeytoolOk && health.whitelistOk) {
@@ -938,7 +940,11 @@ function runLlmProxyAuditHealth() {
 
   for (const iss of health.issues.slice(0, 4)) {
     const marker = iss.level === 'error' ? '🔴' : '🟡';
-    console.log(`  ${marker} ${iss.message || iss.type || 'issue'}`);
+    // issues 里存的是 { level, file, detail }；以前只读 message/type，于是永远
+    // 打印成「🔴 issue」—— 用户看得到「1 个问题」却不知道是什么问题。
+    const label = iss.message || iss.detail || iss.type || '未命名问题';
+    const where = iss.file ? chalk.dim(` (${iss.file})`) : '';
+    console.log(`  ${marker} ${label}${where}`);
   }
 
   return health;
@@ -992,7 +998,7 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
   const tools = runToolAndDepHealth(targetPath);
   const project = runProjectHealth(targetPath);
   const safety = runSafetyChecks(targetPath);
-  const llmAudit = runLlmProxyAuditHealth();
+  const llmAudit = runLlmProxyAuditHealth(targetPath);
 
   const totalIssues = computeAndStore(stubs, tools, project, safety, llmAudit, targetPath, context);
 

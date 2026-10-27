@@ -8,6 +8,7 @@ import {
   envVarName,
   mcpConfigCandidates,
   formatToolHealthLine,
+  detectLlmProxyAuditHealth,
 } from './handler-verify.js';
 
 describe('isTrivialLine', () => {
@@ -164,5 +165,43 @@ describe('formatToolHealthLine', () => {
 
   it('空对象不炸（三态中的 skip 路径）', () => {
     expect(formatToolHealthLine({}).level).toBe('pass');
+  });
+});
+
+// 回归：Pass 11 的 issue 对象是 { level, file, detail }，但打印只读 message/type
+// → 自检永远显示「🔴 issue」，用户看不出到底是什么问题。
+describe('detectLlmProxyAuditHealth', () => {
+  it('issue 必带可直接展示的说明（detail/message）', async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import('fs');
+    const { tmpdir } = await import('os');
+    const { join } = await import('path');
+    const dir = mkdtempSync(join(tmpdir(), 'llm-audit-'));
+    try {
+      // 只有 3 个蜜罐 → 触发 warn issue
+      writeFileSync(join(dir, '.honeytools.json'), JSON.stringify({ honeytools: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] }));
+      const health = detectLlmProxyAuditHealth(dir);
+      expect(health.issues.length).toBeGreaterThan(0);
+      for (const iss of health.issues) {
+        expect(iss.message || iss.detail || iss.type).toBeTruthy();
+      }
+      expect(health.issues[0].detail).toContain('蜜罐');
+      expect(health.honeytoolOk).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('审计的是 --target 目录，不是引擎自己的配置', async () => {
+    const { mkdtempSync, rmSync } = await import('fs');
+    const { tmpdir } = await import('os');
+    const { join } = await import('path');
+    const dir = mkdtempSync(join(tmpdir(), 'llm-audit-empty-'));
+    try {
+      const health = detectLlmProxyAuditHealth(dir);
+      expect(health.issues[0].detail).toContain('蜜罐配置文件不存在');
+      expect(health.issues[0].file).toBe('.honeytools.json');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

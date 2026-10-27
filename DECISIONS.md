@@ -280,3 +280,35 @@ Claude Code）已全部卸载，已无调用方；轮换需要登录服务商后
 - 负向：**历史 `013c00c` 仍是活凭据**。仓库一旦公开或加协作者，必须先轮换或先重写历史
 - 负向：**备份删除不可逆**。那些已卸载的工具要恢复只能重装，`MANIFEST.md` 的还原命令失去作用
 - 负向：`~/Documents/xwechat_files/**/API.txt` 早已外流，抹本机副本不影响对方手里的那份
+
+## ADR-011: aislop 自动修复按「规则会不会删行」门控，而不是按条数
+
+### Context
+
+ADR-009 的判据是「可修复数 ≤ 200 就跑 `aislop fix --safe`」。实测三条事实推翻了它：
+
+1. 543 处可修复里 481 处属 `console-leftover`(325) 与 `narrative/trivial-comment`(156)，
+   这两类规则的 fix 动作是**删行**（源码 `fixFileDeadPatterns`）
+2. `--safe` 不删 console，但**删注释**——本仓库一次全仓 `--safe` 删掉 494 行
+3. `aislop fix` **不读** `.aislop/config.yml`（scan/ci 认），所以「配置里关掉」不等于「fix 不会做」
+
+同时规则前提在本仓库不成立：它判 CLI 靠文件名（`cli.js`/`*-cli.js`）或目录
+（`tools|scripts|cli|bin`）或 `#!`/`require.main`，而本引擎的 CLI 是 `src/index.js` +
+`src/handlers/*.js`，381 处承担输出的 console 被判成「遗留调试」（aislop 自己归为
+`style-policy`，不是 defect）。
+
+### Decision
+
+- `.aislop/config.yml` 关掉三条「fix=删行」规则、排除第三方副本 → 946→422 / fixable 543→42
+- `aislop-fix` 先算 `planAutoFix`，只有 `reason === 'ok'`（全部命中安全规则清单、在条数上限内）
+  才执行；四种拒跑原因各自说明：`config-ignored`（配置关过规则而 fix 不认配置）、
+  `risky-rules`（含删代码规则的明细）、`unverifiable`（拿不到逐条明细，fail-closed）、
+  `over-limit`
+- 拒绝时不改任何文件，只写报告 + 一句话原因
+
+### Consequences
+
+- 正向：无人值守场景再也不会因为「工具默认修复=删代码」把业务输出/注释删掉
+- 正向：报告不再报「543 可修复」这种诱导性数字，而是「422 处问题，42 处安全可修」
+- 负向：本仓库的 console/注释类问题永远不会自动修 —— 这是**刻意**的，真解法是收敛到
+  `src/lib/logger.js`（aislop 对 `logger.js` 有硬豁免），需单独立项

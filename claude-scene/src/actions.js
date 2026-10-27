@@ -1,4 +1,4 @@
-import { getActionMessage } from './data/action-messages.js';
+import { getActionMessage, hasActionMessage } from './data/action-messages.js';
 import { isConversationMode } from './lib/platform.js';
 
 /**
@@ -714,6 +714,12 @@ export async function executeAction(sceneId, action, params, context, targetPath
       return result instanceof Promise ? await result : result;
     }
 
+    // 未知动作以前静默返回「执行完成」—— 场景里 action 名写错也报 ✓ pass。
+    // ui-polish 有自己的一套 action 表（UI_POLISH_ACTIONS），不走这里，不报。
+    if (!hasActionMessage(action) && sceneId !== 'ui-polish') {
+      console.warn(`\n⚠️ 未知动作 "${action}"（既不在 ACTION_REGISTRY 也没有消息模板）—— 这一步什么都没做`);
+      if (context) context.unknownAction = action;
+    }
     return getActionMessage(action);
   } catch (error) {
     if (context) context.lastStepFailed = true;

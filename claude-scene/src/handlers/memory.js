@@ -180,13 +180,87 @@ function capRecord(record) {
   };
 }
 
+// 召回行以前是把整份 data JSON 截 140 字打出来 —— 用户看到的是
+// `{"source":"check_workflow","findings":{"security":{}}...`，等于没读。
+// 这里把已知形状的记忆翻成一句人话；翻译不出来（或信息量不够）就退回原文，不自作主张。
+const FINDING_VERDICTS = [
+  ['testPassed', '测试'],
+  ['lintPassed', 'lint'],
+  ['typecheckPassed', '类型'],
+  ['fixApplied', '自动修复'],
+  ['gateBlocked', '门禁阻断'],
+];
+const FINDING_COUNTS = [
+  ['codeMetricsFindings', '复杂度问题'],
+  ['antiPatternFindings', '反模式'],
+  ['securityFindings', '安全问题'],
+];
+
+// 只留真有值的字段：undefined/false 之外的噪音不进记忆指纹。
+function compactFindings(findings) {
+  const out = {};
+  for (const [key, value] of Object.entries(findings)) {
+    if (value === undefined || value === null || value === '') continue;
+    if (typeof value === 'object' && Object.keys(value).length === 0) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function pushVerdicts(findings, bits) {
+  for (const [key, label] of FINDING_VERDICTS) {
+    if (typeof findings[key] === 'boolean') bits.push(`${label}${findings[key] ? '✓' : '✗'}`);
+  }
+}
+
+function pushCounts(findings, bits) {
+  for (const [key, label] of FINDING_COUNTS) {
+    if (typeof findings[key] === 'number' && findings[key] > 0) bits.push(`${label} ${findings[key]}`);
+  }
+}
+
+function pushSecurity(findings, bits) {
+  const sec = findings.security;
+  if (!sec || typeof sec !== 'object') return;
+  const hits = Object.keys(sec).length;
+  if (hits === 0) return;
+  bits.push(sec.highSeverityFound ? '安全: 有高危' : `安全: ${hits} 项`);
+}
+
+function summarizeMemoryBody(body) {
+  if (typeof body !== 'string' || !body.trimStart().startsWith('{')) return null;
+  let d;
+  try { d = JSON.parse(body); } catch { return null; }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+
+  const bits = [];
+  const scene = d.workflow || d.source;
+  if (typeof scene === 'string' && scene) bits.push(`场景 ${scene}`);
+  const steps = Array.isArray(d.completedSteps) ? d.completedSteps.length : 0;
+  if (steps > 0) bits.push(`${steps} 步完成`);
+
+  const findings = d.findings && typeof d.findings === 'object' ? d.findings : {};
+  pushVerdicts(findings, bits);
+  pushCounts(findings, bits);
+  pushSecurity(findings, bits);
+  const prompt = typeof d.prompt === 'string' ? d.prompt.trim() : '';
+  if (prompt) bits.push(`需求「${prompt.slice(0, 40)}」`);
+
+  // 两条以上的事实才算「讲清楚了」，否则不如让原文自己说。
+  return bits.length >= 2 ? bits.join('；') : null;
+}
+
 function formatMemoryLine(m, index) {
-  const when = String(m.timestamp || m.stored_at || m.file || '').slice(0, 19);
+  const stamp = String(m.timestamp || m.stored_at || '');
+  // 项目记忆没有 timestamp 时只能拿文件名当时间，那就完整显示（以前 slice(0,19)
+  // 会把 `loop-2026-10-27T01-46-20-316Z` 切成 `loop-2026-10-27T01-`）
+  const when = stamp ? stamp.slice(0, 19) : String(m.file || '').split(String.fromCodePoint(92)).pop()?.replace(/\.(md|json)$/, '') || '';
   const tag = m.source === 'codegraph'
     ? 'codegraph'
     : String(m.category || m.type || m.source || '');
-  const oneLine = memoryBody(m).replace(/\s+/g, ' ').trim().slice(0, 140);
-  return `${index}. [${tag}] ${when} ${oneLine}`;
+  const body = memoryBody(m);
+  const summary = summarizeMemoryBody(body) || body.replace(/\s+/g, ' ').trim().slice(0, 140);
+  return `${index}. [${tag}] ${when} ${summary}`;
 }
 
 function printRecall(recalled) {
@@ -530,14 +604,22 @@ export function handleAutoRemember(_action, _params, targetPath, context) {
     timestamp: new Date().toISOString(),
     prompt: context.prompt || '',
     completedSteps: context.completedSteps || [],
-    findings: {
-      security: context.securityScanResult || {},
+    // 验证结论必须一并存：旧字段只收了 testPassed，lint/类型/门禁的结论
+    // 全部丢失，下次召回只能看到「测试过了」，不知道 lint 到底挂没挂。
+    // undefined 一律剔除，否则指纹随未执行步骤飘动，同一轮结果存两份。
+    findings: compactFindings({
+      security: context.securityScanResult && Object.keys(context.securityScanResult).length
+        ? context.securityScanResult
+        : undefined,
       testPassed: context.testPassed,
+      lintPassed: context.lintPassed,
+      typecheckPassed: context.typecheckPassed,
+      gateBlocked: context.gateBlocked,
       fixApplied: context.fixApplied,
       codeMetricsFindings: context.codeMetricsFindings,
       antiPatternFindings: context.antiPatternFindings,
       consistencyScore: context.consistencyScore,
-    },
+    }),
   };
 
   // autoRemember 的 data 每轮都带新 timestamp，靠内容指纹（忽略易变字段）

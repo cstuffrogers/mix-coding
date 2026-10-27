@@ -920,3 +920,60 @@ pi 用的是 `~/.pi/agent/auth.json` 里的 key，删这两个不影响任何工
 `docs/llm-api-config.md` §4/§5 同步；`DECISIONS.md` 新增 **ADR-010**。
 
 **删除的探针**：`E:/tmp/find-keys.mjs`、`redact-keys.mjs`（临时工具，用完即删）。
+
+## 2026-10-27 aislop 自动修复改为规则门控 + 工作流/记忆系统深检（7 个 bug）
+
+### 一、`aislop fix` 为什么"修"成了删除
+
+`aislop` 源码（`dist/index.js` `fixFileDeadPatterns`）里两条规则的修复动作就是删行：
+`console-leftover` → 语句文本像错误信息就改 `console.error(`，否则**删掉整个语句**；
+`narrative-comment`/`trivial-comment` → **删注释行**。`--safe` 的白名单是
+「补 import / 并 import / 删注释 / 跑 formatter」，**不含** console 与死代码。
+
+规则前提是"应用代码里遗留的 debug 输出"。aislop 用文件名/路径判 CLI 豁免：`cli.js`、
+`*-cli.js`、`tools|scripts|cli|bin`、首行 `#!`、`require.main === module`。
+本项目 CLI 入口叫 `src/index.js`、输出层在 `src/handlers/*.js` → **一个都不匹配**，
+381 处承担输出的 console 全被当成遗留调试；aislop 自己也把这 325 条归为
+`style-policy` 而非 `confirmed-defect`（56 条缺陷里还多是扫第三方脚本的误报，
+如 `'define' is not defined`）。
+
+处置：`.aislop/config.yml` 关掉三条「fix=删行」规则 + 排除第三方副本 →
+扫描 946→422、fixable 543→42；`planAutoFix` 按规则分类门控（`config-ignored` /
+`risky-rules` / `unverifiable` / `over-limit` / `ok`），只有安全规则才真跑。
+真·有意义的修法是收敛到 `src/lib/logger.js`（aislop 对 `logger.js` 有硬豁免），381 处需单独立项。
+
+### 二、工作流/记忆系统深检
+
+审计手段：25 个场景 `--dry-run` 全跑一遍（无崩溃）；场景 JSON 结构 + action 名对照
+`ACTION_REGISTRY`；87 条 `condition` 逐条做可求值性分析（对照 `SIMPLE_CONDITIONS` 与
+handler 写入的 context 键）；记忆四后端沙箱化（`CLAUDE_MEM_HOME`/`AGENTMEMORY_HOME`/
+`NEXO_HOME`/`CODEGRAPH_HOME` 全指到 `.tmp-mem-sandbox`）跑 remember→list→recall→consolidate。
+
+发现并修复：
+1. `database_required`/`payment_required`/`email_required` 只写在 typedef 里、**没人赋值**
+   → new-project 的 1.3/1.4/1.5（Supabase/Stripe/Resend 模板）条件恒假。改为从需求文本
+   识别 + 显式标记。
+2. `setupConfigured == false` 读 `ctx.setupConfigured`（无人赋值）→ 恒假，setup 的
+   「配置失败通知」永不触发。`evalComparison` 改为优先按 `SIMPLE_CONDITIONS` 谓词求值。
+3. 未知 action 走 `getActionMessage` 兜底 → 场景里 action 名写错也报 ✓ pass。
+   新增 `hasActionMessage()`，未知动作打 `⚠️` 并写 `context.unknownAction`（ui-polish 自有表，豁免）。
+4. `Pass 11 LLM 代理审计` 的 issue 是 `{level,file,detail}`，打印只读 `message/type`
+   → 自检永远显示「🔴 issue」。同时它审计的是 `PROJECT_ROOT` 而不是 `--target`
+   （`detectMcpIssues` 早已修正过同类问题），一并改为 `targetPath`。
+5. `sync-docs` 跑完零输出：`syncAllDocs` 的返回值被丢掉、自己也不返回。
+   改为返回 `{updated,unchanged,missingMarker,missingFile}` 并打印。**顺带查明**：
+   `CLAUDE.md` 缺 `AUTO-SYNC` 标记、`.claude/rules/workflows.md` 不存在、
+   `scenes/README.md` 缺 `SCENE-TABLE` 标记 → 文档同步功能实际从未生效（留待决定是否补标记）。
+6. 记忆召回把整份 data JSON 截 140 字甩出来（`{"source":"check_workflow","findings":...}`）。
+   改为翻译成一句人话：`场景 loop；7 步完成；测试✓；lint✗；安全: 1 项；需求「…」`。
+7. `handleAutoRemember` 的 findings 只收 `testPassed`，**lint/类型/门禁结论全丢** → 新增强制
+   `lintPassed`/`typecheckPassed`/`gateBlocked`，并用 `compactFindings` 剔除 undefined/空对象
+   （否则指纹随未执行步骤飘动，同一结果存多份）。
+
+一条自我更正：最初以为「记忆只写不读」（grep 找 `memoryRecall` 而场景用的是 `recall`），
+于是往 `start.js` 加了场景前召回 —— 实跑发现 24 个场景**本来都有 `recall` 步骤**，
+输出重复两遍，已回滚该改动（`--no-recall` 一并删除）。真实缺口只有「召回内容不可读」。
+
+验证：`vitest` **593 测试 / 50 文件**全绿（+11 条新回归），`eslint .` 0 error，
+`start check --auto` 从「5 个问题待处理」降到 1（仅剩 knip 的历史导出，本次新增的已清），
+`start loop --auto -i 1` exit 0、召回块单次输出、aislop 按 `config-ignored` 拒跑且工作区 0 改动。

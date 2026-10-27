@@ -9,7 +9,7 @@ function syncSection(filePath, sectionName, newContent) {
   const endTag = `<!-- AUTO-SYNC:${sectionName}-END -->`;
 
   if (!existsSync(filePath)) {
-    return false;
+    return 'missing-file';
   }
 
   let content = readFileSync(filePath, 'utf-8');
@@ -20,14 +20,13 @@ function syncSection(filePath, sectionName, newContent) {
 
   const replacement = `${startTag}\n${newContent}\n${endTag}`;
 
-  if (sectionRe.test(content)) {
-    content = content.replace(sectionRe, replacement);
-  } else {
-    return false;
+  if (!sectionRe.test(content)) {
+    return 'missing-marker';
   }
-
-  writeFileSync(filePath, content, 'utf-8');
-  return true;
+  const next = content.replace(sectionRe, replacement);
+  if (next === content) return 'unchanged';
+  writeFileSync(filePath, next, 'utf-8');
+  return 'updated';
 }
 
 function syncTriggerSections(filePath, scenes) {
@@ -36,7 +35,7 @@ function syncTriggerSections(filePath, scenes) {
   const endTag = `<!-- AUTO-SYNC:${sectionName}-END -->`;
 
   if (!existsSync(filePath)) {
-    return false;
+    return 'missing-file';
   }
 
   let content = readFileSync(filePath, 'utf-8');
@@ -47,105 +46,97 @@ function syncTriggerSections(filePath, scenes) {
 
   const match = sectionRe.exec(content);
   if (!match) {
-    return false;
+    return 'missing-marker';
   }
 
   const existingContent = match[1];
   const newContent = mergeTriggerSections(existingContent, scenes);
-  content = content.replace(sectionRe, `${startTag}\n${newContent}\n${endTag}`);
-
-  writeFileSync(filePath, content, 'utf-8');
-  return true;
+  const next = content.replace(sectionRe, `${startTag}\n${newContent}\n${endTag}`);
+  if (next === content) return 'unchanged';
+  writeFileSync(filePath, next, 'utf-8');
+  return 'updated';
 }
 
 function updateSceneCounts(filePath, count) {
-  if (!existsSync(filePath)) return;
+  if (!existsSync(filePath)) return [];
 
   let content = readFileSync(filePath, 'utf-8');
   const oldCount = (content.match(/\d{1,5} 个场景/g) || [])[0];
-  if (oldCount) {
-    const num = parseInt(oldCount, 10);
-    if (num !== count) {
-      content = content.replace(/\d{1,5} 个场景/g, `${count} 个场景`);
-      content = content.replace(/（\d{1,5} 个 \.md）/g, `（${count} 个 .md）`);
-      writeFileSync(filePath, content, 'utf-8');
-    }
-  }
+  if (!oldCount) return [];
+  if (parseInt(oldCount, 10) === count) return [];
+
+  const next = content
+    .replace(/\d{1,5} 个场景/g, `${count} 个场景`)
+    .replace(/（\d{1,5} 个 \.md）/g, `（${count} 个 .md）`);
+  if (next === content) return [];
+  writeFileSync(filePath, next, 'utf-8');
+  return [`${filePath.split(String.fromCodePoint(92)).slice(-1)[0]}#场景计数`];
 }
 
 // ── Main entry ──────────────────────────────────────────────────
 
 export function syncAllDocs(projectRoot) {
-
   const scenesDir = join(projectRoot, '.claude', 'scenes');
   const archonDir = join(projectRoot, '.archon', 'workflows');
 
+  // 以前这里把每个 syncSection 的返回值直接丢掉、自己也不返回任何东西，
+  // CLI 跑完一个字都不打印 —— 「同步了什么」和「什么都没干」长得一模一样。
+  const report = { updated: [], unchanged: [], missingMarker: [], missingFile: [] };
+  const rel = (file) => file.replace(projectRoot, '').split(String.fromCodePoint(92)).join('/');
+  const run = (file, section, content, status) => {
+    const result = status || syncSection(file, section, content);
+    const bucket = result === 'updated' ? 'updated'
+      : result === 'unchanged' ? 'unchanged'
+        : result === 'missing-marker' ? 'missingMarker' : 'missingFile';
+    report[bucket].push(`${rel(file)}#${section}`);
+  };
+
   if (!existsSync(scenesDir)) {
-    return;
+    report.missingFile.push('.claude/scenes');
+    return report;
   }
 
   const scenes = loadScenes(scenesDir);
 
   // 1. CLAUDE.md — workflow table
-  syncSection(
-    join(projectRoot, 'CLAUDE.md'),
-    'WORKFLOW-TABLE',
-    generateWorkflowTable(scenes),
-  );
+  run(join(projectRoot, 'CLAUDE.md'), 'WORKFLOW-TABLE', generateWorkflowTable(scenes));
 
   // 2. CLAUDE.md — skip-enhancement list
   const skipLists = generateSkipEnhancementList(scenes);
-  syncSection(
+  run(
     join(projectRoot, 'CLAUDE.md'),
     'SKIP-ENHANCEMENT-LIST',
-    `${skipLists.line1}\n${skipLists.line2}`,
+    `${skipLists.line1}
+${skipLists.line2}`,
   );
 
   // 3. workflows.md — command table
-  syncSection(
-    join(projectRoot, '.claude', 'rules', 'workflows.md'),
-    'COMMAND-TABLE',
-    generateCommandTable(scenes, archonDir),
-  );
+  run(join(projectRoot, '.claude', 'rules', 'workflows.md'), 'COMMAND-TABLE', generateCommandTable(scenes, archonDir));
 
   // 4. workflows.md — skip-enhancement list
-  syncSection(
-    join(projectRoot, '.claude', 'rules', 'workflows.md'),
-    'SKIP-ENHANCEMENT-LIST',
-    skipLists.allLine,
-  );
+  run(join(projectRoot, '.claude', 'rules', 'workflows.md'), 'SKIP-ENHANCEMENT-LIST', skipLists.allLine);
 
   // 5. workflows.md — trigger sections (merge with existing)
-  syncTriggerSections(
-    join(projectRoot, '.claude', 'rules', 'workflows.md'),
-    scenes,
-  );
+  const wfPath = join(projectRoot, '.claude', 'rules', 'workflows.md');
+  run(wfPath, 'TRIGGER-SECTIONS', null, syncTriggerSections(wfPath, scenes));
 
   // 6. scenes/README.md — scene table
-  syncSection(
-    join(projectRoot, '.claude', 'scenes', 'README.md'),
-    'SCENE-TABLE',
-    generateSceneTable(scenes),
-  );
+  run(join(projectRoot, '.claude', 'scenes', 'README.md'), 'SCENE-TABLE', generateSceneTable(scenes));
 
   // 7. Update scene counts
-  updateSceneCounts(
-    join(projectRoot, '.claude', 'scenes', 'README.md'),
-    scenes.length,
-  );
-  updateSceneCounts(
-    join(projectRoot, 'docs', 'tools-inventory.md'),
-    scenes.length,
-  );
+  report.updated.push(...updateSceneCounts(join(projectRoot, '.claude', 'scenes', 'README.md'), scenes.length));
+  report.updated.push(...updateSceneCounts(join(projectRoot, 'docs', 'tools-inventory.md'), scenes.length));
 
-  const workflowsPath = join(projectRoot, '.claude', 'rules', 'workflows.md');
-  if (existsSync(workflowsPath)) {
-    let wfContent = readFileSync(workflowsPath, 'utf-8');
-    const oldWfCount = wfContent.match(/以下是完整的 \d+ 个工作流/);
-    if (oldWfCount) {
-      wfContent = wfContent.replace(/以下是完整的 \d+ 个工作流/, `以下是完整的 ${scenes.length} 个工作流`);
-      writeFileSync(workflowsPath, wfContent, 'utf-8');
+  if (existsSync(wfPath)) {
+    let wfContent = readFileSync(wfPath, 'utf-8');
+    if (wfContent.match(/以下是完整的 d+ 个工作流/)) {
+      const next = wfContent.replace(/以下是完整的 d+ 个工作流/, `以下是完整的 ${scenes.length} 个工作流`);
+      if (next !== wfContent) {
+        writeFileSync(wfPath, next, 'utf-8');
+        report.updated.push('.claude/rules/workflows.md#工作流计数');
+      }
     }
   }
 
+  return report;
 }

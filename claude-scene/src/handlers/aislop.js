@@ -5,13 +5,13 @@ import { safeExec } from '../lib/safe-exec.js';
 
 // `aislop fix` 没有 --include/--changes 之类收窄参数，放它跑就会一次动几百个文件，
 // 无人值守循环里没人复核。超过上限只落盘报警，交人工决定。
-export const SAFE_FIX_MAX_FINDINGS = 200;
+const SAFE_FIX_MAX_FINDINGS = 200;
 
 /**
  * 能放心交给 `aislop fix` 的规则：只做机械重写，不删代码、不删注释、不改行为。
  * 其余全部视为危险（console-leftover / narrative-comment / dead-code 那类 fix = 删行）。
  */
-export const SAFE_FIX_RULES = new Set([
+const SAFE_FIX_RULES = new Set([
   'ai-slop/unused-import',
   'lint/ruff/F401',
   'lint/ruff/I001',

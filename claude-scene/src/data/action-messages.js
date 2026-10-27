@@ -627,3 +627,8 @@ const ACTION_MESSAGES = {
 export function getActionMessage(action) {
   return ACTION_MESSAGES[action] || `动作 ${action} 执行完成`;
 }
+
+/** 是否有专门的文案。没有就说明这个 action 名可能拼错了 —— 兜底文案会把错误藏起来。 */
+export function hasActionMessage(action) {
+  return Object.hasOwn(ACTION_MESSAGES, action);
+}

@@ -200,3 +200,47 @@ describe('evaluateCondition', () => {
     });
   });
 });
+
+// 回归：这三个键以前只写在 WorkflowContext 的 typedef 里，没有任何地方赋值，
+// 导致 new-project 的 1.3/1.4/1.5（取 Supabase/Stripe/Resend 模板）永不执行。
+describe('需求意图条件（database/payment/email）', () => {
+  it('从需求文本识别', () => {
+    expect(evaluateCondition('database_required', { prompt: '做一个带数据库的库存系统' })).toBe(true);
+    expect(evaluateCondition('payment_required', { prompt: '需要 Stripe 订阅收款' })).toBe(true);
+    expect(evaluateCondition('email_required', { prompt: '注册后发验证邮件' })).toBe(true);
+  });
+
+  it('无关需求不误触发', () => {
+    const ctx = { prompt: '给按钮加个 hover 动画' };
+    expect(evaluateCondition('database_required', ctx)).toBe(false);
+    expect(evaluateCondition('payment_required', ctx)).toBe(false);
+    expect(evaluateCondition('email_required', ctx)).toBe(false);
+  });
+
+  it('显式上下文标记优先', () => {
+    expect(evaluateCondition('database_required', { prompt: '', database_required: true })).toBe(true);
+  });
+
+  it('组合条件在真 MCP 下可成立（判据不再恒假）', () => {
+    const ctx = { prompt: '需要数据库存用户数据' };
+    // 有 supabase 时组合条件才该成立；没有时保持跳过
+    expect(evaluateCondition('supabase_mcp_available && database_required', ctx)).toBe(hasMcpServer('supabase'));
+  });
+});
+
+// 回归：`setupConfigured == false` 以前读 ctx.setupConfigured（没人赋值）→ 恒假，
+// setup 场景「配置失败通知」这一步永远不会触发。
+describe('比较表达式优先解析 SIMPLE_CONDITIONS 谓词', () => {
+  it('未配置时 setupConfigured == false 为真', () => {
+    expect(evaluateCondition('setupConfigured == false', {})).toBe(true);
+  });
+
+  it('已配置（e2eConfigured）时为假', () => {
+    expect(evaluateCondition('setupConfigured == false', { e2eConfigured: true })).toBe(false);
+  });
+
+  it('ctx 上的普通键仍按原样比较', () => {
+    expect(evaluateCondition('selectedTheme == "daisyui"', { selectedTheme: 'daisyui' })).toBe(true);
+    expect(evaluateCondition('selectedTheme == "daisyui"', { selectedTheme: 'x' })).toBe(false);
+  });
+});

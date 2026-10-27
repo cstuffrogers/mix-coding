@@ -278,6 +278,29 @@ describe('记忆存储卫生', () => {
     expect(printed).toContain('VISIBLE_IN_STDOUT');
   });
 
+  it('召回行把场景记忆翻成人话，不再甩 JSON', async () => {
+    const { handleAutoRemember, handleMemoryRecall } = await import('../memory.js');
+    const proj = join(root, 'human');
+    handleAutoRemember('a', {}, proj, {
+      _sceneId: 'loop',
+      prompt: '体检引擎',
+      completedSteps: [1, 2, 3],
+      testPassed: true,
+      lintPassed: false,
+    });
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const ctx = {};
+    await handleMemoryRecall('r', { limit: 10 }, proj, ctx);
+    const printed = spy.mock.calls.map(c => c.join(' ')).join('\n');
+    spy.mockRestore();
+    expect(printed).toContain('场景 loop');
+    expect(printed).toContain('3 步完成');
+    expect(printed).toContain('测试✓');
+    expect(printed).toContain('lint✗');
+    expect(printed).toContain('需求「体检引擎」');
+    expect(printed).not.toContain('completedSteps');
+  });
+
   it('超大条目不再静默丢失：agentmemory 读回不被 maxBuffer 卡死', async () => {
     const am = await import('./agentmemory.js');
     // 1.2MB 一条就把 execSync 默认 1MB maxBuffer 干爆，旧实现 catch 后返回 []
