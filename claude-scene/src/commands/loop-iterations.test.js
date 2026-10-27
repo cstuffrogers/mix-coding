@@ -120,7 +120,8 @@ describe('逐行输出不再假绿（失败步骤不能打绿色 ✔）', () => 
 
   it('pass / skip / 未知状态不会假装失败', () => {
     expect(spinnerMethodFor('pass')).toBe('succeed');
-    expect(spinnerMethodFor('skip')).toBe('succeed');
+    // 跳过不打 ✔：没跑与跑干净必须能分辨
+    expect(spinnerMethodFor('skip')).toBe('info');
   });
 
   it('paintByStatus 给失败打 ✖ 前缀', () => {

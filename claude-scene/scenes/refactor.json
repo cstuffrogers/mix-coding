@@ -271,6 +271,13 @@
       "on_error": "abort"
     },
     {
+      "step": 12.5,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceCapture",
+      "description": "建围栏：动手前冻结当前测试通过集合（.claude/reports/fence-*.json），改完逐条比对，原先通过的用例不许坏"
+    },
+    {
       "step": 13,
       "layer": "capability",
       "service": "CodeEngine",
@@ -310,6 +317,21 @@
       },
       "description": "重构后运行测试套件，确保语义不变",
       "on_error": "abort"
+    },
+    {
+      "step": 14.5,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceVerify",
+      "description": "越界比对：原先通过的用例变失败或消失即 fail 并点名（本来失败的不算越界）"
+    },
+    {
+      "step": 14.6,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceRestore",
+      "description": "越界则按围栏快照回滚改动过的文件（git stash create 快照，不动工作区）",
+      "condition": "fenceViolations > 0"
     },
     {
       "step": 15,

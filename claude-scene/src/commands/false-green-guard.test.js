@@ -53,6 +53,8 @@ describe('假绿哨兵', () => {
       expect(spinnerMethodFor('pass')).toBe('succeed');
       expect(spinnerMethodFor('warn')).not.toBe('succeed');
       expect(spinnerMethodFor('noop')).not.toBe('succeed');
+      // 跳过也不能打 ✔（否则「没跑」和「跑过且干净」在屏幕上一样）
+      expect(spinnerMethodFor('skip')).toBe('info');
     });
 
     it('paintByStatus 给非通过状态加不同符号', () => {

@@ -47,6 +47,7 @@ import { handleLighthouseGate } from './handlers/lighthouse.js';
 import { handleOpenRedirectScan } from './handlers/open-redirect.js';
 import { handleI18nAudit } from './handlers/i18n.js';
 import { handleTestCoverage, handleTestUnit, handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest, handleLoadTest } from './handlers/testing.js';
+import { handleFenceCapture, handleFenceVerify, handleFenceRestore } from './handlers/fence.js';
 import { handleCreateBranch, handleCommitPush, handleCreatePR, handleAutoUpdate, handleBumpVersion, handleCreateTag, handleDeploy, handleCreateRelease, handleListReleases, handleRollback, handleCreateIssue, handleGitDiffNameOnly } from './handlers/git.js';
 import { handleMapRoutes, handleLoadPages, handleTestInteractions, handleVisualCheck, handleA11yScan, handleClassifyBugs, handleGenerateQAReport } from './handlers/qa.js';
 import { handleGenerateDesign, handleAnalyzeConsistency, handleExportAssets, handlePersist, handleDesignInput, handleHuashuBrandProtocol, handleHuashuExpertReview, handleHuashuPrototype, handleHuashuReleaseAnimation, handleHuashuReleaseDeck, handleHuashuInfographic, handleAwmBrandList, handleAwmBrandImport, handleOdBrandList, handleOdBrandPick, handleOdBrandImport, handleOdTemplateList, handleOdTemplatePreview, handleOdSkillLoad, handleOdFrameList, handleOdFrameApply, handleOdPromptTemplateList, handleOdPromptTemplateLoad, handleOdDeckList, handleOdDeckLoad } from './handlers/design.js';
@@ -153,6 +154,12 @@ export const ACTION_REGISTRY = {
   runReview: handleRunReview,
   runSuite: handleRunSuite,
   run_suite: handleRunSuite,
+  fenceCapture: handleFenceCapture,
+  'fence-capture': handleFenceCapture,
+  fenceVerify: handleFenceVerify,
+  'fence-verify': handleFenceVerify,
+  fenceRestore: handleFenceRestore,
+  'fence-restore': handleFenceRestore,
   runAffected: handleRunAffected,
   run_affected: handleRunAffected,
   generateDesign: handleGenerateDesign,

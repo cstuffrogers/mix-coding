@@ -467,6 +467,7 @@ function formatResultForDisplay(result) {
 export function spinnerMethodFor(stepStatus) {
   if (stepStatus === 'fail') return 'fail';
   if (stepStatus === 'warn' || stepStatus === 'noop') return 'warn';
+  if (stepStatus === 'skip') return 'info';
   return 'succeed';
 }
 
@@ -558,9 +559,12 @@ async function runStep(sceneId, step, context, options) {
   const display = formatResultForDisplay(result);
   const method = spinnerMethodFor(stepStatus);
   const painted = paintByStatus(stepStatus, display);
-  if (method === 'fail') spinner.fail(painted);
-  else if (method === 'warn') spinner.warn(painted);
-  else spinner.succeed(painted);
+  switch (method) {
+    case 'fail': spinner.fail(painted); break;
+    case 'warn': spinner.warn(painted); break;
+    case 'info': spinner.info(painted); break;
+    default: spinner.succeed(painted);
+  }
 
   applyPostStepContext(step, context, sceneId);
 

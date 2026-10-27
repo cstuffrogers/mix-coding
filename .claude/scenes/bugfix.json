@@ -3,7 +3,13 @@
   "workflow": "bugfix",
   "name": "Bug修复",
   "description": "端到端一键修复Bug流程（Jira/issue/PR --> issue注释 --> 本地分支 --> 修复 --> 测试 --> 提交 --> PR --> 回归测试 --> 关单）",
-  "trigger_keywords": ["修复bug", "bug修复", "fix bug", "修复", "debug"],
+  "trigger_keywords": [
+    "修复bug",
+    "bug修复",
+    "fix bug",
+    "修复",
+    "debug"
+  ],
   "flow": [
     {
       "step": 0,
@@ -23,7 +29,9 @@
       "action": "listIssues",
       "params": {
         "state": "open",
-        "labels": ["bug"],
+        "labels": [
+          "bug"
+        ],
         "limit": 5
       },
       "description": "使用 GitHub MCP 列出最近的 bug issues",
@@ -81,7 +89,11 @@
       "service": "MattPocockSkill",
       "action": "mp-triage",
       "params": {
-        "categories": ["severity", "scope", "urgency"]
+        "categories": [
+          "severity",
+          "scope",
+          "urgency"
+        ]
       },
       "description": "Matt Pocock /triage: 对 bug 进行分类（严重度/范围/紧急度），确定修复优先级",
       "condition": "mattpocock_skill_available"
@@ -94,7 +106,11 @@
       "params": {
         "mode": "full",
         "filters": {
-          "type": ["bug", "fix", "security"]
+          "type": [
+            "bug",
+            "fix",
+            "security"
+          ]
         }
       },
       "description": "注入历史bug修复上下文和已知问题模式"
@@ -129,7 +145,14 @@
       "service": "MattPocockSkill",
       "action": "mp-diagnose",
       "params": {
-        "phases": ["reproduce", "minimise", "hypothesise", "instrument", "fix", "regression-test"]
+        "phases": [
+          "reproduce",
+          "minimise",
+          "hypothesise",
+          "instrument",
+          "fix",
+          "regression-test"
+        ]
       },
       "description": "Matt Pocock /diagnose: 结构化调试——复现→缩小→假设→插桩→修复→回归测试",
       "condition": "mattpocock_skill_available"
@@ -140,7 +163,13 @@
       "service": "ProjectService",
       "action": "detectLanguage",
       "params": {
-        "detect": ["go.mod", "Cargo.toml", "pubspec.yaml", "build.gradle", "CMakeLists.txt"]
+        "detect": [
+          "go.mod",
+          "Cargo.toml",
+          "pubspec.yaml",
+          "build.gradle",
+          "CMakeLists.txt"
+        ]
       },
       "description": "检测项目语言生态，确定使用哪种构建/测试工具链"
     },
@@ -206,6 +235,13 @@
       "description": "API 契约一致性检查：确保修复不会破坏现有API契约"
     },
     {
+      "step": 5.9,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceCapture",
+      "description": "建围栏：动手前冻结当前测试通过集合（.claude/reports/fence-*.json），改完逐条比对，原先通过的用例不许坏"
+    },
+    {
       "step": 6,
       "layer": "capability",
       "service": "CodeEngine",
@@ -227,6 +263,21 @@
       },
       "description": "回归测试全量跑通，确保修复无副作用",
       "on_error": "abort"
+    },
+    {
+      "step": 7.05,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceVerify",
+      "description": "越界比对：原先通过的用例变失败或消失即 fail 并点名（本来失败的不算越界）"
+    },
+    {
+      "step": 7.08,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceRestore",
+      "description": "越界则按围栏快照回滚改动过的文件（git stash create 快照，不动工作区）",
+      "condition": "fenceViolations > 0"
     },
     {
       "step": 7.1,
@@ -300,7 +351,10 @@
       "action": "createPR",
       "params": {
         "auto_assign": true,
-        "auto_label": ["bugfix", "verified"]
+        "auto_label": [
+          "bugfix",
+          "verified"
+        ]
       },
       "description": "自动生成合并请求，添加fixes #issue_key标签，分配reviewer"
     },

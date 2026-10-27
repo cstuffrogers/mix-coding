@@ -61,6 +61,13 @@
       "condition": "context7_mcp_available"
     },
     {
+      "step": 3.9,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceCapture",
+      "description": "建围栏：动手前冻结当前测试通过集合（.claude/reports/fence-*.json），改完逐条比对，原先通过的用例不许坏"
+    },
+    {
       "step": 4,
       "layer": "capability",
       "service": "ReviewEngine",
@@ -100,6 +107,21 @@
       "description": "CodeGuardian 变更边界验证：无人值守迭代中最关键防线。物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止自动修复跑偏",
       "condition": "codeguardian_mcp_available",
       "on_error": "abort"
+    },
+    {
+      "step": 4.6,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceVerify",
+      "description": "越界比对：原先通过的用例变失败或消失即 fail 并点名（本来失败的不算越界）"
+    },
+    {
+      "step": 4.7,
+      "layer": "verify",
+      "service": "FenceService",
+      "action": "fenceRestore",
+      "description": "越界则按围栏快照回滚改动过的文件（git stash create 快照，不动工作区）",
+      "condition": "fenceViolations > 0"
     },
     {
       "step": 5,

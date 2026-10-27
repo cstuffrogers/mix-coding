@@ -275,6 +275,9 @@ const ACTION_MESSAGES = {
   // Testing
   runSuite: '测试套件运行完成',
   runAffected: '受影响测试运行完成',
+  fenceCapture: '围栏已建立（锁定当前通过集合）',
+  fenceVerify: '围栏比对完成',
+  fenceRestore: '已按围栏快照回滚',
   loadTest: '负载测试完成（Artillery）',
 
   // Review

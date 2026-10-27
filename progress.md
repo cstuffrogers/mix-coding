@@ -1188,3 +1188,41 @@ NOT_RUN_MARKERS 命中即 skip，`|| true` 去掉以拿到真实退出码。
 `context.affectedTestsPassed` 由 `null/false` 变为 `true/false/undefined`。
 
 测试 5 → 6 例（含两条「抛错也要按 stderr 分类」），升级前必红。649 测试/56 文件全绿。
+
+## 2026-10-27 P0-1 围栏（fence）落地：用「冻结现有通过集合」替代「生成特征测试」
+
+按「AI 编程圈地修复系统」方案里最值钱的一条（先建围栏再施工）落了工程实现。
+不生成新测试——那成本不可控；改成**动手前把现有测试的通过集合拍成地界桩，动完逐条比对**。
+
+### 新增 `claude-scene/src/handlers/fence.js`（3 个动作）
+| 动作 | 干什么 | 拿不到明细时 |
+|---|---|---|
+| `fenceCapture` | `npx vitest run --reporter=json` → 写 `.claude/reports/fence-<stamp>.json`（逐条用例名 + 状态 + git 基准） | `skip`（不冒充通过） |
+| `fenceVerify` | 再跑一次，**原先 passed 的用例变 failed/消失 → fail 并点名**（本来失败的不算越界） | `skip` |
+| `fenceRestore` | 越界时按快照 `git checkout <sha> -- <改动过的已跟踪文件>` | `skip` |
+
+关键设计（都是实测逼出来的）：
+- **只信逐条明细**：JSON 里本来就可能出现 `Cannot find module` 这种被测试断言的字符串，按文本判「跑没跑成」会误判 → 有明细就只信明细，没明细才看 marker
+- **回滚基准**：`git stash create` 干净工作区返回空串 → 兜底 `git rev-parse HEAD`，否则越界时反而回滚不了
+- **回滚不碰未跟踪文件**：`.claude/reports/*`、`node_modules/*`、`??` 一律排除，且先用 `git cat-file -e` 确认路径在快照里，避免一条 pathspec 报错拖垮整个回滚
+
+### 场景接线（`.claude/scenes/` 与 `claude-scene/scenes/` 双份一致）
+`loop`（3.9 建围栏 → 4.6 比对 → 4.7 越界回滚 `fenceViolations > 0`）、
+`bugfix`（5.9 → 7.05 → 7.08）、`refactor`（12.5 → 14.5 → 14.6）
+
+### 顺手修的第 7 种假绿：`skip` 也打绿色 ✔
+`spinnerMethodFor('skip')` 原本返回 `succeed`，于是「围栏未建立（结果未知）」在屏幕上是个
+绿色对勾。改为 `info`，`runStep` 用 `spinner.info`；`false-green-guard` 与
+`loop-iterations` 各补一条断言锁死。
+
+### 验证（真实项目，非 mock）
+临时 git 项目 + 真 vitest：
+1. `capture`（干净树）→ `锁定 2 个用例（2 通过 / 0 失败）`
+2. 把 `add` 改成 `a - b` → `verify` → **fail「越界 2 个用例：add 1+1=2、add 2+3=5」**
+3. `restore` → `已回滚 1 个文件到围栏快照`
+4. 文件内容复原 → `verify` → **pass「围栏内 2 个用例仍全部通过」**
+
+引擎级：`start loop --auto -i 1` → `围栏已建立：锁定 663 个用例` / `未越界`；
+注入破坏后 `fenceVerify` 之前是 skip（那是分类 bug，已修），现改为只信明细。
+
+663 测试 / 57 文件全绿；eslint 0 error；knip 无 unused exports；25+ 场景 dry-run 全 exit 0。
