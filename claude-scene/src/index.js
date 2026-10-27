@@ -140,6 +140,12 @@ program
     if (report.unchanged.length > 0) {
       console.log(`ℹ 内容已是最新 ${report.unchanged.length} 个区块`);
     }
+    if (report.manual.length > 0) {
+      // 人排的表格（CLAUDE.md 工作流速查）不自动改写。没有标记 = 不托管，不是缺失 ——
+      // 两件事混成一个 ⚠，人只会去加一层本来就有的标记。
+      console.log(`ℹ ${report.manual.length} 个区块人工维护（不是缺失，想接管就加 AUTO-SYNC 标记）:`);
+      for (const item of report.manual) console.log(`   ${item}`);
+    }
     if (report.missingMarker.length > 0) {
       console.warn(`⚠ ${report.missingMarker.length} 个目标缺 AUTO-SYNC 标记（未同步）:`);
       for (const item of report.missingMarker) console.warn(`   ${item}`);
@@ -150,7 +156,6 @@ program
     }
     if (report.updated.length === 0 && report.missingMarker.length === 0 && report.missingFile.length === 0) {
       console.log('ℹ 文档已与实际场景一致，无需修改');
-    }
-  });
+    }  });
 
 program.parse();

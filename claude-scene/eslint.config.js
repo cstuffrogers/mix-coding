@@ -23,6 +23,27 @@ export default [
     },
   },
   {
+    // 仓库自带的运维脚本（CommonJS，node 全局）：不是产品代码，但要同样能过 lint
+    files: ["scripts/**/*.cjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "commonjs",
+      globals: {
+        process: "readonly",
+        console: "readonly",
+        require: "readonly",
+        module: "writable",
+        __dirname: "readonly",
+      },
+    },
+    rules: {
+      "unicorn/consistent-boolean-name": "off",
+      "unicorn/no-unsafe-string-replacement": "off",
+      "unicorn/no-break-in-nested-loop": "off",
+      "unicorn/no-null": "off",
+    },
+  },
+  {
     files: ["src/**/*.js", "check-imports.js"],
     languageOptions: {
       ecmaVersion: 2022,

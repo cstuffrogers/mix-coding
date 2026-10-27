@@ -7,13 +7,10 @@
 | 场景 ID | 指令 | 描述 |
 |---------|------|------|
 <!-- AUTO-SYNC:SCENE-TABLE-START -->
-| `analyze` | `/analyze [项目名]` | 深度分析代码质量、性能瓶颈、安全漏洞、可维护性，生成改进建议 |
-| `audit` | `/audit` | 一键全量项目审计：安全扫描 + 代码质量 + 依赖审计 + 性能基线 + 覆盖率 + 质量门禁汇总 |
 | `bugfix` | `/bugfix 描述` | 端到端一键修复Bug流程（Jira/issue/PR --> issue注释 --> 本地分支 --> 修复 --> 测试 --> 提交 --> PR --> 回归测试 --> 关单） |
+| `check` | `/check` | 引擎功能完整性检查：检测 dead actions / orphan gate flags / missing action messages，自动修复数据文件 |
 | `cicd` | `/cicd` | 使用 Act + Task 配置本地 CI/CD 流水线，验证 GitHub Actions 工作流，生成 Taskfile.yml 任务运行器 |
 | `deps` | `/deps` | 安全依赖更新流程：检查过期 → 逐项更新 → 测试验证 → 检查breaking changes → 更新lockfile |
-| `design` | `/design 描述` | 一键 AI 辅助 UI 设计与交互设计生成：Open Design 品牌+模板+Skill → shape 设计简报确立品味方向 → 三方向提案 → Huashu 原型 → AWM 品牌 → 专家评审 → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复，双轮品控+残留修复，55步） |
-| `e2e` | `/e2e` | 使用 MSW + Supertest + Schemathesis 配置端到端测试基础设施（Mock + HTTP 断言 + API fuzz） |
 | `feature` | `/feature 描述` | 端到端一键推进新功能开发流程（集成CE知识沉淀） |
 | `loop` | `/loop` | 无人值守自动迭代（集成CE知识沉淀） |
 | `mobile-audit` | `/mobile-audit` | 一键移动端安全+性能+合规+质量审计：MobSF安全扫描 → OWASP MASVS对照 → 隐私合规 → 依赖CVE → 性能基线 → 商店清单 |
@@ -22,23 +19,25 @@
 | `mobile-optimize` | `/mobile-optimize` | 测量基线→定位瓶颈→AI分析→自动优化→重新验证：包体积/启动时间/FPS/内存/网络/电池 |
 | `mobile-release` | `/mobile-release` | 端到端移动端发布：证书检查→质量门禁→版本号→CHANGELOG→TestFlight/Google Play |
 | `mobile-review` | `/mobile-review` | 5层+移动端UI审查：ESLint+RN规则 → mobsfscan安全 → Detox截图 → mobile-ui-review UI审查 → AI语义+a11y → 聚合报告 |
-| `monitor` | `/monitor` | 使用 Upptime 配置 GitHub Actions 原生网站监控，自动生成配置文件和工作流，并部署状态页面 |
 | `new-project` | `/new-project 描述` | 从零开始新项目：Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Open Design → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复→Huashu 验证，双轮品控+残留修复）+ AI-Friendly 可访问性审查 → 实现 → 审查 → CE 沉淀（65步） |
 | `onboard` | `/onboard` | 一键环境搭建：检测缺失依赖 → 安装 → 配置.env → 验证构建 → 启动开发服务器 |
 | `optimize` | `/optimize` | 基于测量的性能优化，先定位瓶颈再修复（集成CE知识沉淀） |
+| `plan` | `/plan` | 基于文件的持久化任务规划，支持会话恢复、SHA256认证、多阶段追踪 |
 | `plan-ceo-review` | `/plan-ceo-review` | 从创始人视角审查功能：找到 10x 版本、砍掉 scope creep、聚焦用户价值 |
 | `qa` | `/qa` | 读取 git diff，浏览器测试受影响路由，发现 Bug 并生成结构化报告 |
-| `refactor` | `/refactor 描述` | 自动执行重构流程：分析重构点、生成重构方案、执行重构、验证效果 |
+| `refactor` | `/refactor 描述` | 代码重构与简化合并。可选模式：重构 / 简化（不改变行为）/ 架构优化 |
 | `release` | `/release` | 端到端发布部署流程：质量门禁 → 版本号 → 构建 → 验证 → Tag → 发布 |
-| `review` | `/review` | 全面代码质量审查 + 自动化安全漏洞扫描（集成CE多Agent深度审查 + sec-bug-hunt + 8项工具链） |
+| `review` | `/review` | 全面代码质量审查，可选模式：代码审查 / 全量审计 / 仅分析 |
 | `rollback` | `/rollback` | 紧急回滚流程：识别目标版本 → 验证回滚安全性 → 执行回滚 → 验证服务恢复 |
-| `simplify` | `/simplify` | 简化代码以提高可读性和可维护性，不改变行为（集成CE知识沉淀） |
-| `ui-polish` | `/ui-polish <主题> <路径>` | 全对话模式 59 步混合工作流。前置检测→Phase 0 设计基准→Phase 1 机械步骤（安装依赖/主题注入/图标升级/DaisyUI组件类/Animal Island组件替换/自定义keyframe动画/微交互/硬编码颜色清除+每步验证）→Phase 2 Impeccable 全维度打磨（Huashu→critique→13fixes→critique验证→3精准修复→Huashu验证）+ 完成标准门禁。修复版：每个步骤带强制验证，多子项目独立执行，组件JSX必须修改（不只改CSS）。animate.css 已禁止使用（自定义 keyframe 动画替代） |
+| `setup` | `/setup` | 一键搭建质量观测设施：E2E 测试（MSW + Supertest + Schemathesis）或网站监控（Upptime + GitHub Actions）。两者流程同构，仅第 2 步动作不同，用 kind 参数区分。 |
+| `spec` | `/spec` | 把需求变成可实施的规格：speckit-specify 建 feature → product-manager 补用户故事/验收标准 → ux-designer 补交互与状态 → （可选）clarify 澄清歧义 → 规格落地门禁。产出 specs/NNN-*/spec.md。 |
+| `ui-polish` | `/ui-polish <主题> <路径>` | 前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统 |
+| `update` | `/update` | 全量扫描 MCP/Skill/CLI/npm 四类资源 → 检测冲突 → 自动更新无冲突 patch/minor → major 待确认 → 写日期日志 |
 <!-- AUTO-SYNC:SCENE-TABLE-END -->
 
 ## 相关文件
 
-- `.claude/commands/` - 各场景的 CLI 指令定义（27 个 .md）
+- `.claude/commands/` - 各场景的 CLI 指令定义（26 个 .md）
 - `.claude/skills/` - 可集成到审查/设计流程的 AI 技能
 - `.claude/mcp-enable.json` - 按工作流的 MCP 服务器启用映射
 - `claude-scene/src/` - CLI 工具源码

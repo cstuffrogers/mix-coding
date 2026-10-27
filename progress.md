@@ -1354,3 +1354,43 @@ CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只
 | 全量回归 | `npx vitest run` | **714 测试 / 63 文件全绿** |
 | lint/deadcode | `npx eslint .` / `npx knip` | 0 error / 无 unused |
 | 场景冒烟 | 26 个场景 `--dry-run` + `start loop --auto -i 1` | 全部 exit 0 / 围栏锁定 714 用例、未越界 |
+
+## 2026-10-28 sync-docs 的三处假阴性 + 探测能力自检工具
+
+### 起因
+`sync-docs` 每次跑都在报「3 个目标缺标记 + 3 个目标文件不存在」。逐条核实后发现：
+三条里只有两条是真的，且其中一条根本不是缺陷。
+
+### 修的四件事
+1. **CRLF 假阴性（真 bug）**：`.claude/scenes/README.md` 是 CRLF，实现拿 `\n` 匹配，
+   标记在第 9/37 行却永远命中不了 → 报「缺标记」。改为读入后 CRLF→LF 归一化匹配，
+   写回时恢复原行尾（不制造整文件 diff）。
+2. **僵尸目标（真 bug）**：3 个目标全指向已删除的 `.claude/rules/workflows.md`，
+   外加一段正则里 `\d` 丢成 `d` 的永远为假的块 → 一并删除，`syncTriggerSections` 随之退场。
+3. **人工托管桶（伪缺陷）**：`CLAUDE.md` 的工作流速查是人写的两列表格，自动改写等于推翻人的排版。
+   没有标记 → 归 `manual`（ℹ「人工维护，想接管就加标记」），不再报 ⚠；加标记即自动接管。
+4. **计数刷新早退（真 bug）**：正文 `26 个场景` 已经对了就 return，导致目录锚点
+   `#25-个场景…` 永远修不了 —— 数字看着对、链接是断的。改成一律全量重算。
+
+### 顺带挖出的内容缺陷
+- `new-project.json` 的 `description` 在「Huashu 验证，」处被截断（左括号未闭合），
+  两份副本（`.claude/scenes/` 与 `claude-scene/scenes/`）都错，sync-docs 把那半句话抄进了 README。
+  → 补全描述 + 新增断言：括号必须配对、不得以 `，、→（+：` 结尾。
+- `docs/tools-inventory.md` 正文 26 / 锚点 25 → 已修复，锚点正则一起补。
+
+### 新增工具：`claude-scene/scripts/detector-sweep.cjs`
+回答「这些守卫测试是真的会红，还是写着好看」。每个用例：注入真实违规 → 跑该守卫测试 →
+期望红 → 内存备份复原 → 再跑 → 期望绿；注入点匹配不到就显式报「用例过期」，不静默跳过。
+
+### 验证
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 同步单测 | `npx vitest run src/lib/sync-docs.test.js` | 10/10（CRLF、写回行尾、真缺标记、manual、僵尸目标、计数、锚点、缺目录） |
+| 描述断言 | `npx vitest run src/lib/scene-contract.test.js` | 5/5 |
+| 探测器自检 | `node scripts/detector-sweep.cjs` | **12/12「注入后红 / 复原后绿」** |
+| 全量回归 | `npx vitest run` | **725 测试 / 64 文件全绿** |
+| lint/deadcode | `npx eslint .` / `npx knip` | 0 error / 无 unused |
+| 同步实跑 | `node src/index.js sync-docs` | `✅ 1 个区块` + `ℹ 2 个区块人工维护`，二次运行幂等 |
+| 场景冒烟 | `start {loop,check,spec} --dry-run` | 全部 exit 0 |
+
+附带决策：`AI编程圈地修复系统完整设计方案.docx` 从仓库根 `git mv` 到 `docs/`（文档归 docs/）。

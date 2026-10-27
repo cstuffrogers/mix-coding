@@ -154,6 +154,23 @@ describe('场景 ↔ 引擎契约', () => {
     expect(collected.actions.size).toBeGreaterThan(100);
   });
 
+  it('每个场景的 description 都是完整的一句（半截话会被同步进文档表格）', () => {
+    // new-project 的 description 曾在「Huashu 验证，」处被截断，sync-docs 就把那半句话
+    // 抄进了 .claude/scenes/README.md —— 后面还跟着个没闭的左括号。文字错不会让任何
+    // 测试变红，只能靠这条断言点名。
+    const bad = [];
+    for (const { scene, json } of scenes) {
+      const desc = json.description ?? '';
+      const open = (desc.match(/（/g) || []).length;
+      const close = (desc.match(/）/g) || []).length;
+      const endsMidway = /[，、→（+：]$/.test(desc);
+      if (desc.length < 8 || open !== close || endsMidway) {
+        bad.push(`${scene}: 括号 ${open}/${close}，尾部 ${JSON.stringify(desc.slice(-16))}`);
+      }
+    }
+    expect(bad, `场景描述不完整：${bad.join('; ')}`).toEqual([]);
+  });
+
   it('每个条件标识符都有人求值（或在 context 上被写入）', () => {
     const providers = new Set([...simplePredicates(), ...contextWriters(blob)]);
     const dangling = [...collected.conditions]

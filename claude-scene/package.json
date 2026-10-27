@@ -56,7 +56,8 @@
       "src/actions.test.js",
       "src/handlers/memory.test.js",
       "src/lib/safe-exec.test.js",
-      "check-imports.js"
+      "check-imports.js",
+      "scripts/detector-sweep.cjs"
     ]
   },
   "files": [
