@@ -227,6 +227,22 @@
       "condition": "selected_modes.includes('quality_tools') || selected_modes.includes('full_audit')"
     },
     {
+      "step": 2.68,
+      "layer": "interactive",
+      "service": "QualityService",
+      "action": "askUser",
+      "params": {
+        "type": "confirm",
+        "prompt": "是否现在现场跑一次探测器自检（detector-sweep，约 1~2 分钟，需工作区干净）？选否则只读上一份记录",
+        "default": false,
+        "context_flag": "withSweep",
+        "auto_default": false
+      },
+      "description": "询问是否在审查前现场跑一次探测器自检",
+      "auto_execute": false,
+      "condition": "selected_modes.includes('code_review') || selected_modes.includes('full_audit')"
+    },
+    {
       "step": 2.7,
       "layer": "capability",
       "service": "QualityService",

@@ -103,8 +103,10 @@ function workingTreeDirty(targetPath) {
  * 工作区脏就不跑 —— 脏着跑出来的记录一样不可信，还会把工作区搅一下。
  */
 function maybeRunSweep(root, context) {
-  if (!context?.withSweep) return null;
+  // 交互步骤 2.68 写 withSweep；--with-sweep 写 sweepForced（强制，不看交互结果）
+  if (!context?.withSweep && !context?.sweepForced) return null;
   if (workingTreeDirty(root)) return 'skip-dirty';
+  console.log('\n  ⏳ 正在现场自检（detector-sweep，约 1~2 分钟）…');
   try {
     // 非零退出 = 有守卫是空的，产物照写，交给 verdictOf 点名
     execFileSync(process.execPath, [SWEEP_SCRIPT], {

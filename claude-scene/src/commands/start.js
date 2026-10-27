@@ -160,7 +160,10 @@ function setContextFlag(step, context, options) {
   // Prefer structured context_flag param; fall back to description sniffing
   const flag = step.params?.context_flag;
   if (flag) {
-    context[flag] = !options.auto ? context._confirmAnswer : true;
+    // auto 模式没人能回答，取 auto_default（默认 true，其它场景语义不变）。
+    // 所以「默认不跑」的交互步骤必须显式写 auto_default: false。
+    const autoDefault = step.params?.auto_default ?? true;
+    context[flag] = options.auto ? autoDefault : context._confirmAnswer;
     console.log(chalk[context[flag] ? 'green' : 'gray'](`\n${context[flag] ? '✅ 已启用' : '⏭ 跳过'} ${flag}`));
     return true;
   }
@@ -642,7 +645,9 @@ function buildSceneContext(options) {
     payment_required: /支付|付款|payment|stripe|订阅|billing/i.test(prompt),
     email_required: /邮件|email|邮箱|通知|发送|resend/i.test(prompt),
     strictEnclosure: Boolean(options.strictEnclosure),
-    // --with-sweep：让 detectorReport 步骤在审查开始前现场跑一次自检
+    // --with-sweep：跳过询问，强制在审查前跑一次探测器自检
+    sweepForced: Boolean(options.withSweep),
+    // 交互步骤 2.68 会把它改成用户的当场选择（默认 false，未选就不跑）
     withSweep: Boolean(options.withSweep),
   };
 }
