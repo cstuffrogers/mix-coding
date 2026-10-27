@@ -104,7 +104,7 @@ describe('CodeGuardian 以运行前快照为基准', () => {
     const msg = handleCodeGuardianOptimize('codeguardian_optimize', {}, root, ctx);
 
     expect(msg).toContain('边界检查通过');
-    expect(msg).toContain('本次运行');
+    expect(msg).toContain('（第 1 轮）');
     expect(ctx.boundaryOk).toBe(true);
   });
 

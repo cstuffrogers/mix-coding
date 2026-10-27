@@ -146,11 +146,13 @@ export function handleCodeGuardianOptimize(_action, params = {}, targetPath, con
     return `CodeGuardian 边界检查跳过：无法读取 ${base} 的 diff`;
   }
   const baseline = context?.codeguardianBaseline || null;
-  // 有快照：只量本次运行新增的变更；没快照（单跑）：维持相对 HEAD 的旧行为。
+  // 有快照：只量本轮新增的变更；没快照（单跑）：维持相对 HEAD 的旧行为。
   const lines = baseline ? subtractLines(current, baseline.lines) : current;
   const baselineDeps = baseline ? new Set(baseline.deps) : depSet(git(targetPath, `show ${base}:package.json`));
   const newDeps = [...currentDeps(targetPath)].filter((d) => !baselineDeps.has(d));
-  const scope = baseline ? '（本次运行）' : '';
+  const scope = baseline ? `（第 ${context?.iteration || 1} 轮）` : '';
+  const runTotal = context ? (context.boundaryRunLines || 0) + lines.total : 0;
+  const scopeTotal = baseline && context?.iteration > 1 ? `，前几轮累计 ${runTotal - lines.total} 行` : '';
 
   const violations = [];
   if (lines.total > limits.maxLines) {
@@ -166,10 +168,11 @@ export function handleCodeGuardianOptimize(_action, params = {}, targetPath, con
     context.boundaryNewDeps = newDeps;
     context.boundaryViolations = violations;
     context.boundaryOk = violations.length === 0;
+    context.boundaryRunLines = runTotal;
     if (violations.length > 0) context.lastStepFailed = true;
   }
 
-  const measured = `变更${scope} ${lines.total} 行 / ${lines.files} 个文件（上限 ${limits.maxLines}），新增依赖 ${newDeps.length} 个（上限 ${limits.maxDeps}），复杂度未测量`;
+  const measured = `变更${scope} ${lines.total} 行 / ${lines.files} 个文件（上限 ${limits.maxLines}），新增依赖 ${newDeps.length} 个（上限 ${limits.maxDeps}），复杂度未测量${scopeTotal}`;
   if (violations.length > 0) {
     return `CodeGuardian 边界超出：${violations.join('；')}。${measured}。请缩小改动范围，超出部分应回滚。`;
   }

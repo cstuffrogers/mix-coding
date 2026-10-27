@@ -172,5 +172,6 @@
       "description": "通知用户迭代循环完成"
     }
   ],
-  "status": "active"
+  "status": "active",
+  "iterations": 10
 }
