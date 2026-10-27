@@ -61,6 +61,19 @@ describe('假绿哨兵', () => {
       expect(paintByStatus('fail', 'x')).toContain('✖');
       expect(paintByStatus('warn', 'x')).toContain('⚡');
       expect(paintByStatus('noop', 'x')).toContain('○');
+      expect(paintByStatus('skip', 'x')).toContain('⏭');
+    });
+
+    it('五种显式状态逐层透传：没有任何一种被洗成 pass/succeed', () => {
+      const statuses = ['pass', 'warn', 'fail', 'skip', 'noop'];
+      const seenSymbols = new Set();
+      for (const status of statuses) {
+        expect(deriveStepStatus({ status, message: 'x' }, {}).stepStatus).toBe(status);
+        if (status !== 'pass') expect(spinnerMethodFor(status)).not.toBe('succeed');
+        seenSymbols.add(paintByStatus(status, 'x').replace('x', ''));
+      }
+      // 防空跑：五种状态必须拿到五种不同的符号，不能有哪种混进别的颜色
+      expect(seenSymbols.size).toBe(5);
     });
   });
 });

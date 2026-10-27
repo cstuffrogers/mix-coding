@@ -1254,3 +1254,20 @@ NOT_RUN_MARKERS 命中即 skip，`|| true` 去掉以拿到真实退出码。
 - 引擎实跑两条路径：有产物 → `✔ 影响域：改 1 个文件 / 1 处调用方，风险 medium`；
   删掉产物 → `⚡ 没有影响域产物…修复范围未评估，记账不阻断`
 - 673 测试 / 58 文件全绿；eslint 0 error；knip 无 unused exports
+
+## 2026-10-27 P0-3 假绿收尾：状态透传与场景接线都变成断言
+
+两条都是「人肉能看出来但迟早退化」的契约，落成断言：
+
+1. `false-green-guard.test.js` 新增矩阵：「五种显式状态逐层透传」——
+   `pass/warn/fail/skip/noop` 在 `deriveStepStatus` 里必须原样透传，非 pass 的
+   `spinnerMethodFor` 不许是 `succeed`，且五个状态必须拿到五个不同符号
+   （`seenSymbols.size === 5`，防空跑）。
+2. `scene-contract.test.js` 新增「围栏/影响域步骤顺序」：`loop/bugfix/refactor`
+   三个改动类场景必须满足 `impactReport < fenceCapture < fenceVerify`，
+   并写清「先看影响域，再围栏，再动手」的理由。
+
+自证非空跑：把 `bugfix` 的 `impactReport` 挪到 `fenceCapture` 之后 →
+断言立刻红并报 `bugfix 顺序错（impact=20 capture=17 verify=21）`；`git checkout` 复原后 4/4 绿。
+
+675 测试 / 58 文件全绿；eslint 0 error；knip 无 unused exports。

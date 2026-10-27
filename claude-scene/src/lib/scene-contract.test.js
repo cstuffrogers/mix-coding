@@ -162,6 +162,30 @@ describe('场景 ↔ 引擎契约', () => {
     expect(dangling, `悬空条件（读了没人写，条件恒假/恒真）：\n${dangling.join('\n')}`).toEqual([]);
   });
 
+  it('围栏/影响域步骤在改动类场景里顺序正确（先看影响域，再围栏，再动手）', () => {
+    const guarded = ['loop', 'bugfix', 'refactor'];
+    // 引擎目录与仓库 .claude/scenes 各有一份同名场景，按名字去重（后者覆盖前者）
+    const byName = new Map(scenes.map((s) => [s.scene, s]));
+    const report = [];
+    for (const name of guarded) {
+      const steps = (byName.get(name)?.json.flow ?? []).filter((s) => typeof s.action === 'string');
+      const idx = (action) => steps.findIndex((s) => s.action === action);
+      const capture = idx('fenceCapture');
+      const verify = idx('fenceVerify');
+      const impact = idx('impactReport');
+      if (capture < 0 || verify < 0 || impact < 0) {
+        report.push(`${name} 缺步骤（impact=${impact} capture=${capture} verify=${verify}）`);
+        continue;
+      }
+      if (!(impact < capture && capture < verify)) {
+        report.push(`${name} 顺序错（impact=${impact} capture=${capture} verify=${verify}）`);
+      }
+    }
+    // 防空跑：三个场景都必须扫到
+    expect(guarded.filter((name) => byName.has(name))).toHaveLength(guarded.length);
+    expect(report, `围栏/影响域接线有问题：${report.join('；')}`).toEqual([]);
+  });
+
   it('每个 action 都在 ACTION_REGISTRY / 消息表 / 已知特例里', () => {
     const dangling = [...collected.actions]
       .filter(([action, where]) => !isKnownAction(action, where))
