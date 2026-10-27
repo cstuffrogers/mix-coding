@@ -1176,3 +1176,15 @@ CLI 下确实没执行，如实标出而不是报通过）。
 测试：`actions.test.js` 的未知动作用例补两条断言 —— 返回值带 `status: 'warn'`，
 且 `deriveStepStatus` 判定为 warn；升级前这两条必红。
 645 测试/56 文件全绿，eslint 0 error，knip 无 unused exports。
+
+## 2026-10-27 `runAffected` 三态（假绿第 6 形态：`|| true` + 无 fail 字样）
+
+`handleRunAffected` 原本 `npx vitest run --changed 2>&1 || true` + `/[Ff]ail/` 判通过：
+runner 没装、`--changed` 不支持、npx 报 `npm ERR!` 时输出里没有 fail 字样 → 报
+「受影响测试全部通过」。没有 package.json 时又报「部分失败」——没跑成与跑挂了混在一起。
+
+改为三态 `'fail' | 'pass' | 'skip'`：带数字的 failed 才算失败（`Command failed:` 不算），
+NOT_RUN_MARKERS 命中即 skip，`|| true` 去掉以拿到真实退出码。
+`context.affectedTestsPassed` 由 `null/false` 变为 `true/false/undefined`。
+
+测试 5 → 6 例（含两条「抛错也要按 stderr 分类」），升级前必红。649 测试/56 文件全绿。

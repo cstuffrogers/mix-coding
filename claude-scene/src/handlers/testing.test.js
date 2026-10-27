@@ -106,19 +106,66 @@ describe('handleRunAffected', () => {
     vi.clearAllMocks();
   });
 
-  it('returns true when no package.json', () => {
+  it('没有 package.json → skip，且不冒充「部分失败」', () => {
     mockExistsSync.mockReturnValue(false);
     const ctx = {};
     const result = handleRunAffected('run-affected', {}, '/tmp', ctx);
-    expect(result).toContain('部分失败');
-    expect(ctx.affectedTestsPassed).toBeNull();
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('未测量');
+    expect(ctx.affectedTestsPassed).toBeUndefined();
   });
 
-  it('sets false when tests fail', () => {
+  it('测试真失败 → fail', () => {
     mockExistsSync.mockReturnValue(true);
-    mockSafeExec.mockReturnValue('2 tests failed');
+    mockSafeExec.mockReturnValue('  2 failed | 5 passed');
     const ctx = {};
-    handleRunAffected('run-affected', {}, '/tmp', ctx);
+    const result = handleRunAffected('run-affected', {}, '/tmp', ctx);
+    expect(result.status).toBe('fail');
+    expect(ctx.affectedTestsPassed).toBe(false);
+    expect(ctx.lastStepFailed).toBe(true);
+  });
+
+  it('全部通过 → pass（返回字符串）', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockSafeExec.mockReturnValue('  12 passed (12)');
+    const ctx = {};
+    const result = handleRunAffected('run-affected', {}, '/tmp', ctx);
+    expect(result).toContain('全部通过');
+    expect(ctx.affectedTestsPassed).toBe(true);
+  });
+
+  it('没有可跑的测试 → skip（不能因为输出里没有 fail 字样就报通过）', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockSafeExec.mockReturnValue('No test files found, exiting with code 0');
+    const ctx = {};
+    const result = handleRunAffected('run-affected', {}, '/tmp', ctx);
+    expect(result.status).toBe('skip');
+    expect(ctx.affectedTestsPassed).toBeUndefined();
+  });
+
+  it('runner 崩溃（抛错 + Cannot find module）→ skip，不默认通过', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockSafeExec.mockImplementation(() => {
+      const err = new Error('Command failed: npx vitest run --changed');
+      err.stderr = 'Error [ERR_MODULE_NOT_FOUND]: Cannot find package vitest';
+      throw err;
+    });
+    const ctx = {};
+    const result = handleRunAffected('run-affected', {}, '/tmp', ctx);
+    expect(result.status).toBe('skip');
+    expect(ctx.affectedTestsPassed).toBeUndefined();
+  });
+
+  it('runner 崩溃但 stderr 明说有失败 → fail（不因抛错就降级成 skip）', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockSafeExec.mockImplementation(() => {
+      const err = new Error('Command failed');
+      err.stdout = '  3 failed | 1 passed';
+      throw err;
+    });
+    const ctx = {};
+    const result = handleRunAffected('run-affected', {}, '/tmp', ctx);
+    expect(result.status).toBe('fail');
     expect(ctx.affectedTestsPassed).toBe(false);
   });
 });

@@ -74,15 +74,49 @@ export function handleRunSuite(_action, params, targetPath, context) {
 
 export function handleRunAffected(_action, _params, targetPath, context) {
   const packagePath = join(targetPath, 'package.json');
-  let affectedPassed = null;
-  if (existsSync(packagePath)) {
-    try {
-      const result = safeExec('npx vitest run --changed 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-      affectedPassed = !/[Ff]ail|FAIL/.test(result);
-    } catch { affectedPassed = false; }
+  if (!existsSync(packagePath)) {
+    // 以前这里报「部分失败」+ null：没跑成和跑挂了必须分开。
+    if (context) context.affectedTestsPassed = undefined;
+    return { status: 'skip', message: '没有 package.json，未运行受影响测试（未测量）' };
   }
+
+  // 三态：'fail' | 'pass' | 'skip'（skip = 没跑成，不能算通过）
+  const NOT_RUN_MARKERS = [
+    'No test files found', 'not supported', 'ERR_MODULE_NOT_FOUND',
+    'npm ERR!', 'Missing script', 'Cannot find module', 'Cannot find package',
+  ];
+  // 只有「带数字的 failed」才算失败；`Command failed:` 这种不许冒充测试失败。
+  const hasFailedCount = (text) => text.split('\n').some((line) => {
+    const idx = line.indexOf('failed');
+    if (idx === -1) return false;
+    const head = line.slice(0, idx);
+    const seg = head.slice(head.lastIndexOf('|') + 1);
+    return seg.split('').some((ch) => ch >= '0' && ch <= '9');
+  });
+  const classify = (text) => {
+    if (hasFailedCount(text)) return 'fail';
+    if (NOT_RUN_MARKERS.some((m) => text.includes(m))) return 'skip';
+    return 'pass';
+  };
+
+  let verdict;
+  try {
+    // 去掉 `|| true`：让真实的退出码暴露出来，分类只用于判断「是否真跑了」。
+    const out = safeExec('npx vitest run --changed', targetPath, { stdio: 'pipe' }).toString();
+    verdict = classify(out);
+  } catch (error) {
+    const text = [error?.stdout?.toString?.(), error?.stderr?.toString?.(), error?.message]
+      .filter(Boolean)
+      .join(' | ');
+    verdict = classify(text);
+  }
+
+  const affectedPassed = verdict === 'skip' ? undefined : verdict === 'pass';
   if (context) context.affectedTestsPassed = affectedPassed;
-  return affectedPassed ? '受影响测试全部通过' : '受影响测试部分失败';
+  if (verdict === 'skip') return { status: 'skip', message: '受影响测试未跑成（--changed 无测试或无 runner），结果未知' };
+  if (affectedPassed) return '受影响测试全部通过';
+  if (context) context.lastStepFailed = true;
+  return { status: 'fail', message: '受影响测试部分失败' };
 }
 
 const CI_CHECKS = [
