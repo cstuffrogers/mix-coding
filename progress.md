@@ -1322,3 +1322,35 @@ NOT_RUN_MARKERS 命中即 skip，`|| true` 去掉以拿到真实退出码。
 自证非空跑：关掉两处守卫 → 2 条测试立刻红；复原 19/19 绿。
 
 最终：**697 测试 / 60 文件全绿**；eslint 0 error；knip 无 unused；全场景 dry-run 通过。
+
+## 2026-10-27 第 9 种假绿 + 中间输出折叠：把「没跑成」和「跑了」彻底分开
+
+### 9️⃣ 「对话里才跑的步骤」被记成 pass
+`runAgent`、MobSF/Bearer 上传与分析、detox UI 测试、移动端安装/构建/扫描这些动作，
+CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只能靠措辞猜状态，
+猜不到就记 `pass` —— 屏幕上绿色 ✔、汇总行算进 `pass`，实际上一个字节都没跑。
+全部改成 `{ status: 'skip', message }`（8 处：`mobile/agent.js` 5 处、`mobile/audit.js` 3 处）。
+
+**类别问题落成哨兵**：`src/lib/not-run-status.test.js` 扫描所有处理器源码，
+禁止「return 裸字符串 + 未执行/需在对话/本轮未/CLI 下未/未执行安装」这种组合；
+并带防空跑下限（扫到的处理器文件数 > 40）。
+- 第一版写 `^\s*return` 只匹配行首 → **注入样本没红**（`if (!installed) return '...'` 漏掉），
+  改成 `\breturn\s+[`'"]` 并跳过注释行后，注入立刻点名 `mobile\audit.js:140 命中「本轮未执行」`。
+
+### 中间输出折叠（E）
+- `foldOutput(text, {fold, stepStatus, fullLogPath})`：pass/warn 超过 6 行折叠成
+  「前 6 行 + … 省略 N 行（完整输出：…）」，**fail 永不折叠**（藏失败细节才是真刷屏问题）
+- 完整输回落盘 `.claude/logs/steps-<scene>-<runid>.log`（`appendStepOutput`）
+- `start --no-fold` 全展开（`options.fold === false`）
+- 实跑验证：fixture 场景第 1 步 `selfCheckReport`（9 行）→ 屏幕出现「… 省略 3 行（完整输出：…steps-fold-demo-*.log）」，
+  落盘文件里 9 行全在；加 `--no-fold` 后「省略」出现 0 次
+
+### 验证
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 折叠单测 | `npx vitest run src/commands/fold-output.test.js` | 6/6；注入「永不折叠」→ 2 条红 |
+| 未跑成状态 | `npx vitest run src/handlers/mobile` | 13/13；注入回退成字符串 → 3 条红 |
+| 裸字符串哨兵 | `npx vitest run src/lib/not-run-status.test.js` | 2/2；注入样本 → 点名文件:行号 |
+| 全量回归 | `npx vitest run` | **714 测试 / 63 文件全绿** |
+| lint/deadcode | `npx eslint .` / `npx knip` | 0 error / 无 unused |
+| 场景冒烟 | 26 个场景 `--dry-run` + `start loop --auto -i 1` | 全部 exit 0 / 围栏锁定 714 用例、未越界 |

@@ -31,6 +31,9 @@ const THEME_NAMES = {
 // ── Execution logging ──
 
 let LOG_PATH = null;
+// 折叠后的完整输出落在这里，屏幕上只留摘要 —— 既不刷屏，也不丢信息
+let STEP_OUTPUT_PATH = null;
+const FOLD_LINE_LIMIT = 6;
 let LOG_RUN_ID = null;
 let LOG_SUMMARY = { total: 0, pass: 0, fail: 0, skip: 0, noop: 0, warn: 0 };
 
@@ -41,6 +44,7 @@ function initLog(sceneId) {
   mkdirSync(logDir, { recursive: true });
   LOG_PATH = join(logDir, `workflow-${sceneId}-${ts}-${LOG_RUN_ID.slice(-6)}.log`);
   LOG_SUMMARY = { total: 0, pass: 0, fail: 0, skip: 0, noop: 0, warn: 0 };
+  STEP_OUTPUT_PATH = join(logDir, `steps-${sceneId}-${LOG_RUN_ID.slice(-6)}.log`);
   const header = JSON.stringify({ event: 'start', scene: sceneId, run_id: LOG_RUN_ID, time: new Date().toISOString() });
   appendFileSync(LOG_PATH, header + '\n');
 }
@@ -48,6 +52,30 @@ function initLog(sceneId) {
 function appendLog(entry) {
   if (!LOG_PATH) return;
   appendFileSync(LOG_PATH, JSON.stringify({ run_id: LOG_RUN_ID, ...entry }) + '\n');
+}
+
+const LF = String.fromCodePoint(10);
+const CR = String.fromCodePoint(13);
+
+/**
+ * 中间输出折叠：pass/warn 的长输出默认只留前 6 行，其余落盘。
+ * 失败一律不折叠 —— 藏起失败细节才是真的刷屏问题。
+ */
+export function foldOutput(text, { fold = true, stepStatus = 'pass', fullLogPath = '' } = {}) {
+  const raw = String(text ?? '');
+  const lines = raw.split(LF).map((line) => (line.endsWith(CR) ? line.slice(0, -1) : line));
+  const keepAll = !fold || stepStatus === 'fail' || lines.length <= FOLD_LINE_LIMIT;
+  if (keepAll) return { text: raw, folded: false, hidden: 0 };
+  const hidden = lines.length - FOLD_LINE_LIMIT;
+  const where = fullLogPath ? '完整输出：' + fullLogPath : '加 --no-fold 查看完整输出';
+  const kept = [...lines.slice(0, FOLD_LINE_LIMIT), '  … 省略 ' + hidden + ' 行（' + where + '）'];
+  return { text: kept.join(LF), folded: true, hidden };
+}
+
+function appendStepOutput(stepNum, action, text) {
+  if (!STEP_OUTPUT_PATH) return;
+  const header = '===== Step ' + stepNum + ' ' + action + ' @ ' + new Date().toISOString() + ' =====';
+  appendFileSync(STEP_OUTPUT_PATH, header + LF + text + LF);
 }
 
 // ── Helpers extracted from runStep ──
@@ -557,8 +585,14 @@ async function runStep(sceneId, step, context, options) {
   // 以前无论状态如何都走 spinner.succeed + chalk.green —— 失败的步骤也打绿色 ✔，
   // 只有最后的汇总行才露出 ✗ fail，逐步输出全是假绿。
   const display = formatResultForDisplay(result);
+  const { text: shown, folded } = foldOutput(display, {
+    fold: options.fold !== false,
+    stepStatus,
+    fullLogPath: STEP_OUTPUT_PATH,
+  });
+  if (folded) appendStepOutput(stepNum, step.action, display);
   const method = spinnerMethodFor(stepStatus);
-  const painted = paintByStatus(stepStatus, display);
+  const painted = paintByStatus(stepStatus, shown);
   switch (method) {
     case 'fail': spinner.fail(painted); break;
     case 'warn': spinner.warn(painted); break;

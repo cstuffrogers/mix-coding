@@ -13,10 +13,12 @@ function skipMessage(tool, what) {
 export function handleRunUITest(_action, params, _targetPath, context) {
   const tool = params?.tool || 'auto';
   if (!hasMcpServer('detox')) {
-    return skipMessage(tool === 'auto' ? 'detox MCP' : `${tool} / detox MCP`, 'UI 自动化测试');
+    return { status: 'skip', message: skipMessage(tool === 'auto' ? 'detox MCP' : `${tool} / detox MCP`, 'UI 自动化测试') };
   }
   if (context) context.ui_test_run = true;
-  return `UI 测试需在连接设备后由 MCP 执行（工具: ${tool}），本轮未运行`;
+  // 即便装了 detox，真正跑起来的是对话里的 MCP —— CLI 这一层什么都没测，
+  // 记 pass 等于替一个没跑过的 UI 测试宣布通过。
+  return { status: 'skip', message: `UI 测试需在连接设备后由 MCP 执行（工具: ${tool}），本轮未运行` };
 }
 
 export function handleAggregateReport(_action, params, _targetPath, context) {
@@ -33,23 +35,26 @@ export function handleAggregateReport(_action, params, _targetPath, context) {
 export function handleRunAgent(_action, params, _targetPath, context) {
   const agent = params?.agent || 'mobile-security';
   if (context) context[`agent_${agent.replace(/-/g, '_')}_run`] = true;
-  return `Agent ${agent} 需在对话中执行分析（CLI 下未运行）`;
+  // 子代理真的在对话里跑；CLI 只负责登记。以前这里返回字符串 → 引擎按「没命中
+  // 跳过/告警词」判 pass，屏幕上出现绿色的「已分析」而实际一行分析都没有。
+  return { status: 'skip', message: `Agent ${agent} 需在对话中执行分析（CLI 下未运行）` };
 }
 
 export function handleMobsfUpload(_action, _params, _targetPath) {
   if (!hasMcpServer('mobsf')) return skipMessage('MobSF MCP', 'APK/IPA 上传');
-  return 'MobSF MCP: 上传动作需在对话中调用（CLI 下未执行）';
+  // 同为「对话里才跑」的动作：状态必须是 skip，否则绿色 ✔ 会替没跑的扫描背书
+  return { status: 'skip', message: 'MobSF MCP: 上传动作需在对话中调用（CLI 下未执行）' };
 }
 
 export function handleMobsfScan(_action, _params, _targetPath, context) {
   if (!hasMcpServer('mobsf')) return skipMessage('MobSF MCP', '静态安全分析');
   // 不预设「高危为 0」——扫描没跑就不能替它下结论
   if (context) context.mobsfScanRequested = true;
-  return 'MobSF MCP: 静态安全分析需在对话中调用（CLI 下未执行，结果未知）';
+  return { status: 'skip', message: 'MobSF MCP: 静态安全分析需在对话中调用（CLI 下未执行，结果未知）' };
 }
 
 export function handleBearerScan(_action, _params, _targetPath, context) {
   if (!hasMcpServer('bearer')) return skipMessage('Bearer MCP', '隐私合规扫描');
   if (context) context.bearerScanRequested = true;
-  return 'Bearer MCP: 隐私合规扫描需在对话中调用（CLI 下未执行，结果未知）';
+  return { status: 'skip', message: 'Bearer MCP: 隐私合规扫描需在对话中调用（CLI 下未执行，结果未知）' };
 }

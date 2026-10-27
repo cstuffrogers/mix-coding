@@ -123,26 +123,27 @@ export function handleMobileAutoInstall(_action, params, targetPath, context) {
 
   // 之前这里把 missing 写进 context.tools_installed —— 什么都没装却记成已安装。
   if (context) context.tools_install_plan = missing;
-  return `未执行安装（引擎不代装工具），需手动准备: ${missing.join(', ')}`;
+  // 「需要你手动装」= 没做，不是做完。返回字符串会被引擎判成 pass。
+  return { status: 'skip', message: `未执行安装（引擎不代装工具），需手动准备: ${missing.join(', ')}` };
 }
 
 export function handleBuildApp(_action, params, _targetPath, context) {
   const platform = params?.platform || context?.platform || 'both';
 
   // 不置 app_built：构建没跑过，产物就不存在，后面依赖产物的步骤应该看得见这一点
-  return `App 构建需在本地/CI 执行（平台: ${platform}），CLI 下未构建`;
+  return { status: 'skip', message: `App 构建需在本地/CI 执行（平台: ${platform}），CLI 下未构建` };
 }
 
 export function handleScanSource(_action, params, _targetPath, _context) {
   const rules = params?.rules || 'default';
   const installed = hasTool('mobsfscan');
   if (!installed) return 'mobsfscan 未安装，源代码 SAST 未执行（不计为通过）';
-  return `mobsfscan 已安装，源码扫描需手动/对话执行（规则集: ${rules}），本轮未测量`;
+  return { status: 'skip', message: `mobsfscan 已安装，源码扫描需手动/对话执行（规则集: ${rules}），本轮未测量` };
 }
 
 export function handleScanDependencies(_action, params, _targetPath, _context) {
   const source = params?.source || 'npm';
-  return `依赖扫描需外部工具（来源: ${source}），本轮未执行（不计为通过）`;
+  return { status: 'skip', message: `依赖扫描需外部工具（来源: ${source}），本轮未执行（不计为通过）` };
 }
 
 export function handleMasvsCheck(_action, params, _targetPath, context) {
