@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora from 'ora';
-import { evaluateCondition } from '../lib/conditions.js';
+import { evaluateCondition, explainCondition } from '../lib/conditions.js';
 import { resolveParams } from '../lib/template.js';
 import { executeAction } from '../actions.js';
 import { executeUIPolish } from '../handlers/ui-polish.js';
@@ -527,9 +527,16 @@ async function runStep(sceneId, step, context, options) {
   const stepNum = step.step;
 
   if (step.condition && !evaluateCondition(step.condition, context)) {
-    console.log(chalk.gray(`  ⏭ 跳过 Step ${stepNum}: ${step.description || step.action}（条件不满足）`));
+    const { unknown } = explainCondition(step.condition, context);
+    if (unknown.length > 0) {
+      // 试运行不执行步骤，这些键要等前面的步骤跑完才有 —— 不能报「条件不满足」。
+      console.log(chalk.gray(`  ❓ 未判定 Step ${stepNum}: ${step.description || step.action}（依赖运行时状态：${unknown.join(', ')}）`));
+      context._unjudgedConditions = (context._unjudgedConditions || 0) + 1;
+    } else {
+      console.log(chalk.gray(`  ⏭ 跳过 Step ${stepNum}: ${step.description || step.action}（条件不满足）`));
+    }
     LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
-    appendLog({ step: stepNum, action: step.action, status: 'skip', reason: 'condition', time: new Date().toISOString() });
+    appendLog({ step: stepNum, action: step.action, status: 'skip', reason: unknown.length > 0 ? 'unjudged' : 'condition', time: new Date().toISOString() });
     return;
   }
 
@@ -590,8 +597,14 @@ function previewDryRunStep(step, context, options = {}) {
   console.log(chalk.dim(`  ${stepIcon} Step ${step.step} [${autoLabel}] ${icon}`));
   console.log(chalk.gray(`     └─ ${desc}`));
   if (step.condition) {
-    const condMet = evaluateCondition(step.condition, context);
-    console.log(chalk.gray(`     └─ 条件 [${step.condition}]: ${condMet ? chalk.green('满足') : chalk.red('跳过')}`));
+    const { met, unknown } = explainCondition(step.condition, context);
+    const verdict = met
+      ? chalk.green('满足')
+      : (unknown.length > 0
+        ? chalk.yellow(`未判定（运行时状态：${unknown.join(', ')}）`)
+        : chalk.red('不满足'));
+    console.log(chalk.gray(`     └─ 条件 [${step.condition}]: ${verdict}`));
+    if (!met && unknown.length > 0) context._unjudgedConditions = (context._unjudgedConditions || 0) + 1;
   }
   if (step.action === 'selectSetupKind') {
     const override = resolveChoiceOverride(step, options.kind);
@@ -714,6 +727,9 @@ export async function startScene(sceneId, options) {
 
   await runIterations(sceneId, scene, context, options);
 
+  if (options.dryRun && context._unjudgedConditions > 0) {
+    console.log(chalk.yellow(`\n⚠ ${context._unjudgedConditions} 个条件在试运行下无法判定（依赖运行时状态），真实执行结果可能不同。`));
+  }
   // Post-execution: auto-save workflow context to memory (unless explicitly saved)
   if (!options.dryRun) {
     context._sceneId = sceneId;

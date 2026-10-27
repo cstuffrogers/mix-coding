@@ -1,0 +1,94 @@
+{
+  "scene_id": "spec",
+  "workflow": "spec",
+  "name": "Spec-Driven 开发",
+  "description": "把需求变成可实施的规格：speckit-specify 建 feature → product-manager 补用户故事/验收标准 → ux-designer 补交互与状态 → （可选）clarify 澄清歧义 → 规格落地门禁。产出 specs/NNN-*/spec.md。",
+  "trigger_keywords": ["spec", "规格", "需求文档", "Spec-Driven", "规格驱动"],
+  "flow": [
+    {
+      "step": 0,
+      "layer": "preflight",
+      "action": "recall",
+      "description": "Pre-flight: 召回本场景历史（上次卡在哪、哪些澄清反复出现）",
+      "auto_execute": true
+    },
+    {
+      "step": 0.3,
+      "layer": "skill",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": { "skill": "speckit-specify" },
+      "description": "Step 1: 用 spec-kit 建 feature 分支 + specs/NNN-*/spec.md 骨架",
+      "condition": "conversation_mode",
+      "auto_execute": true
+    },
+    {
+      "step": 1,
+      "layer": "agent",
+      "service": "Task",
+      "action": "runAgent",
+      "params": { "agent": "product-manager" },
+      "description": "Step 2: product-manager 补齐用户故事/验收标准/非功能需求/范围边界/风险",
+      "condition": "conversation_mode",
+      "auto_execute": true
+    },
+    {
+      "step": 2,
+      "layer": "agent",
+      "service": "Task",
+      "action": "runAgent",
+      "params": { "agent": "ux-designer" },
+      "description": "Step 3: ux-designer 追加 UX Brief（流程/loading·empty·error·success 状态/无障碍）",
+      "condition": "conversation_mode",
+      "auto_execute": true
+    },
+    {
+      "step": 3,
+      "layer": "review",
+      "service": "Skill",
+      "action": "invokeSkill",
+      "params": { "skill": "speckit-clarify" },
+      "description": "Step 1.5（可选）: 规格有歧义时提最多 5 个澄清问题并写回 spec",
+      "condition": "conversation_mode && spec_file_exists",
+      "auto_execute": true
+    },
+    {
+      "step": 4,
+      "layer": "verify",
+      "action": "readSpec",
+      "params": { "file": "spec.md" },
+      "description": "校验规格已落地（读回 spec.md，缺文件就如实报 not_found）",
+      "auto_execute": true
+    },
+    {
+      "step": 5,
+      "layer": "gate",
+      "action": "checkGate",
+      "description": "规格门禁：内容为空/只剩模板占位则拦住，不许带着空规格进入实现",
+      "auto_execute": true
+    },
+    {
+      "step": 6,
+      "layer": "notify",
+      "action": "notify",
+      "params": { "message": "规格已就绪：specs/NNN-*/spec.md，下一步 /plan 出技术方案" },
+      "description": "Step 4: 汇总 spec 路径 + 关键用户故事 + [NEEDS CLARIFICATION] 标记，建议下一步",
+      "auto_execute": true
+    },
+    {
+      "step": 7,
+      "layer": "memory",
+      "action": "remember",
+      "description": "沉淀本轮规格结论（避免下次重复问同样的问题）",
+      "auto_execute": true
+    },
+    {
+      "step": 8,
+      "layer": "memory",
+      "action": "consolidate",
+      "description": "归并记忆（保留策略：每类上限 + 归档）",
+      "auto_execute": true
+    }
+  ],
+  "status": "active"
+}

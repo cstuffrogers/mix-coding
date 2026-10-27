@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { evaluateCondition } from './conditions.js';
+import { evaluateCondition, explainCondition, conditionIdentifiers } from './conditions.js';
 // fs 在本文件被 mock，源码文本用 Vite 的 ?raw 直接取
 import conditionsSource from './conditions.js?raw';
 import { hasMcpServer } from './mcp-config.js';
@@ -324,5 +324,36 @@ describe('比较表达式优先解析 SIMPLE_CONDITIONS 谓词', () => {
   it('ctx 上的普通键仍按原样比较', () => {
     expect(evaluateCondition('selectedTheme == "daisyui"', { selectedTheme: 'daisyui' })).toBe(true);
     expect(evaluateCondition('selectedTheme == "daisyui"', { selectedTheme: 'x' })).toBe(false);
+  });
+});
+
+describe('dry-run 可判定性（三态）', () => {
+  it('引用尚未产生的运行时 flag → 未判定，而不是「不满足」', () => {
+    const r = explainCondition('testPassed && lintPassed', {});
+    expect(r.met).toBe(false);
+    expect(r.determinable).toBe(false);
+    expect(r.unknown).toEqual(expect.arrayContaining(['testPassed', 'lintPassed']));
+  });
+
+  it('真值靠前置步骤 flag 的谓词也算未判定（mobile_platform）', () => {
+    const r = explainCondition('mobile_platform', {});
+    expect(r.determinable).toBe(false);
+    expect(r.unknown).toContain('mobile_platform');
+  });
+
+  it('读文件/配置的谓词现场可判定（不会被标成未判定）', () => {
+    const r = explainCondition('build_artifacts_exist', { targetPath: join(tmpdir(), 'no-such-proj') });
+    expect(r.met).toBe(false);
+    expect(r.determinable).toBe(true);
+    expect(r.unknown).toEqual([]);
+  });
+
+  it('满足的条件永远是「可判定」', () => {
+    const r = explainCondition('conversation_mode', {});
+    expect(r.determinable).toBe(true);
+  });
+
+  it('conditionIdentifiers 不吃字符串字面量里的词', () => {
+    expect(conditionIdentifiers("setup_kind === 'e2e' && testPassed")).toEqual(['setup_kind', 'testPassed']);
   });
 });

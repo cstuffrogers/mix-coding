@@ -1132,3 +1132,34 @@ exit 0 且无未知动作；`start check --auto` 11 道检查 0 问题；`loop -
 逼着人去改本来正确的东西（比不修更糟）。
 
 验证：`vitest` 640 测试 / 56 文件全绿；`eslint .` 0 error；`start setup --dry-run --auto` 正常。
+
+## 2026-10-27 试运行不再背书假绿 + 补 `/spec` 场景
+
+### 1. dry-run 条件三态（`conditions.js` + `start.js`）
+试运行不执行步骤，所以「条件不满足」有两个来源：真的不满足（MCP 没配、文件不存在、
+没给 `--kind`）与「运行时状态还没产生」（`testPassed` 要等 test 步骤跑完）。
+以前两者都打印「⏭ 跳过」——25 个场景 dry-run 全绿就是这样掩盖了 9 个恒假条件。
+
+- 新增 `conditionIdentifiers` / `runtimeDependentIdentifiers` / `explainCondition`
+- `RUNTIME_STATE_PREDICATES`：真值靠前置步骤写 flag 的谓词（`setupConfigured`、
+  `mobile_platform`/`ios`/`android`、`has_frontend_changes`、`fixes_applied` 等 12 个）
+  在 dry-run 下一律算「未判定」；读文件/配置的谓词（`build_artifacts_exist`、
+  `*_mcp_available`）仍现场求值，保持可判定
+- `show`/dry-run 打印 `未判定（运行时状态：xxx）`，并在结尾提示
+  「N 个条件在试运行下无法判定，真实执行结果可能不同」
+
+效果（25 场景 dry-run 扫描，只有非 0 的列出来）：
+`new-project 35 / qa 5 / cicd 3 / feature 3 / mobile-audit 3 / refactor 3 / mobile-onboard 2 /
+mobile-release 2 / onboard 2 / bugfix 1 / deps 1 / plan 1` —— 这些此前全部伪装成「跳过」。
+
+### 2. 补 `spec` 场景（`.claude/scenes/spec.json` + 引擎包内同名副本）
+CLAUDE.md 写着 `/spec "需求"` → `/plan` → `/build`，`.claude/commands/spec.md` 也存在，
+但 `start spec` 报「场景未找到」：文档承诺了引擎没有。按命令文档的真实流程建场景：
+`recall → invokeSkill(speckit-specify) → runAgent(product-manager) → runAgent(ux-designer)
+→ invokeSkill(speckit-clarify)（有 spec 才跑）→ readSpec → checkGate → notify → remember
+→ consolidate`。
+
+实跑 `start spec --auto`：pass 7 / fail 0 / skip 1 / noop 2（noop = 对话态 skill/agent 在
+CLI 下确实没执行，如实标出而不是报通过）。
+
+验证：`vitest` 645 测试 / 56 文件全绿；`eslint .` 0 error；`spec` 场景 dry-run + 实跑均正常。
