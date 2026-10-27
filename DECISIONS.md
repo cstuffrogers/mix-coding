@@ -448,3 +448,28 @@ characterization test 锁定现状。这在本仓库不成立：
   但那会重新引入「跑没跑成」的判定问题，暂不做
 - 边界：围栏只保护「已有测试覆盖到的行为」，未覆盖区域仍旧裸奔——这点必须写在文档里，
   不许让围栏给人一种全覆盖的安全感
+
+## ADR-016: 图能力走「产物契约」，不造第二个图查询；缺失不阻断但必须露头
+
+### Context
+
+`codegraph_impact` / `codegraph_trace` 在引擎里是桩（`.claude/settings.json` 允许了
+`mcp__codegraph__*`，但 `.mcp.json` 没有 codegraph，也没有 `codegraph` CLI）。
+「修复前先看影响域」是真需求，但引擎自己查不了图。
+
+### Decision
+
+1. 引擎侧只做两件事：**消费产物**（`.claude/reports/impact-<stamp>.json`）+ **记账**。
+   图查询由 agent 用 MCP 做完落盘，契约写在 `docs/architecture.md`。
+2. 产物不合格（缺文件 / 坏 JSON / `changedFiles` 空 / 缺 `callers` / `riskLevel` 非法）
+   一律 `warn`，**不加 `impact_reported` 条件**：加条件 = 没产物就静默跳过，
+   警告看不见，等于把「未评估」洗成「无需评估」。
+3. `riskLevel: high` 不阻断收 `warn`：阻断会让人绕过它，露头更有效。
+
+### Consequences
+
+- 正向：引擎不需要图数据库也能有「影响域」这一层，且缺失是可见的
+- 正向：产物是磁盘文件，可复查、可做指标（缺产物率、高风险占比）
+- 负向：产物质量取决于 agent；本 ADR 只保证「缺失/不合格不会伪装成通过」
+- 边界：产物不新鲜（旧 stamp）时引擎无法判断是否对应当前改动——目前取最新一份，
+  后续可加「mtime 晚于最近一次改动」校验

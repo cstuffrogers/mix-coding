@@ -1226,3 +1226,31 @@ NOT_RUN_MARKERS 命中即 skip，`|| true` 去掉以拿到真实退出码。
 注入破坏后 `fenceVerify` 之前是 skip（那是分类 bug，已修），现改为只信明细。
 
 663 测试 / 57 文件全绿；eslint 0 error；knip 无 unused exports；25+ 场景 dry-run 全 exit 0。
+
+## 2026-10-27 P0-2 影响域产物消费：引擎不再对 codegraph 装傻
+
+`codegraph_impact` 在本仓库是桩（永远「未配置 codegraph MCP」），真能力在 Claude Code 侧
+的 `mcp__codegraph__*`。不造第二套图查询，改成「agent 落盘产物 → 引擎消费并记账」。
+
+### 新增 `claude-scene/src/handlers/impact.js`
+- `impactReport` 读 `.claude/reports/impact-<stamp>.json`（取最新一份）
+- 合法 → `pass`，把 `impactReported/impactRiskLevel/impactChangedCount/impactCallerCount`
+  写进 context；`riskLevel: high` → `warn`（不阻断但点名复核调用方）
+- 缺文件 / JSON 坏 / 缺 `changedFiles`（空数组也算）/ 缺 `callers` / `riskLevel` 不合法
+  → 一律 `warn`「修复范围未评估，记账不阻断」，并写 `context.impactProblem`
+- **不加 `impact_reported` 条件**：加条件会让「没产物」直接跳过、警告看不见；
+  无条件跑 + handler 自己 warn，才能让缺失在汇总里露头
+
+### 接线（双份 scenes 一致）
+`loop 3.85` / `bugfix 5.85` / `refactor 12.45` → 都在 fence 之前（先看影响域，再围栏，再动手）
+
+### 文档
+`docs/architecture.md` 新增「报告产物契约」表：impact / fence / aislop 三类产物
+的写入方、形状、读取方、缺失时的三态——顺带写清「围栏只保护已有测试覆盖的行为」。
+
+### 验证
+- 单测 10 例（真 fs 临时目录，7 种不合格产物各自 `warn`）；**自证非空跑**：
+  把高风险分支改成 `pass` → 立刻红，复原后 10/10 绿
+- 引擎实跑两条路径：有产物 → `✔ 影响域：改 1 个文件 / 1 处调用方，风险 medium`；
+  删掉产物 → `⚡ 没有影响域产物…修复范围未评估，记账不阻断`
+- 673 测试 / 58 文件全绿；eslint 0 error；knip 无 unused exports

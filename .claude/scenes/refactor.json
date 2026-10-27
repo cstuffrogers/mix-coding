@@ -271,6 +271,13 @@
       "on_error": "abort"
     },
     {
+      "step": 12.45,
+      "layer": "capability",
+      "service": "ImpactService",
+      "action": "impactReport",
+      "description": "对照影响域产物（.claude/reports/impact-*.json）：没产物就警告「修复范围未评估」，高风险点名复核调用方"
+    },
+    {
       "step": 12.5,
       "layer": "verify",
       "service": "FenceService",

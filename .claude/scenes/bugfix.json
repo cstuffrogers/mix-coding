@@ -235,6 +235,13 @@
       "description": "API 契约一致性检查：确保修复不会破坏现有API契约"
     },
     {
+      "step": 5.85,
+      "layer": "capability",
+      "service": "ImpactService",
+      "action": "impactReport",
+      "description": "对照影响域产物（.claude/reports/impact-*.json）：没产物就警告「修复范围未评估」，高风险点名复核调用方"
+    },
+    {
       "step": 5.9,
       "layer": "verify",
       "service": "FenceService",
