@@ -296,7 +296,7 @@ const CONDITION_KEYWORDS = new Set([
  * 反向例子：`build_artifacts_exist` / `*_mcp_available` 读的是文件与配置，
  * 现场就能求值，不能算未判定。
  */
-export const RUNTIME_STATE_PREDICATES = new Set([
+const RUNTIME_STATE_PREDICATES = new Set([
   'setupConfigured',
   'has_frontend_changes',
   'attestation_enabled',
@@ -328,7 +328,7 @@ export function conditionIdentifiers(condition) {
  * 条件里依赖「运行时状态」的键：既不是内置谓词（可现场求值），
  * 也没在 context 上出现过。dry-run 下这些键的真假无从得知。
  */
-export function runtimeDependentIdentifiers(condition, context) {
+function runtimeDependentIdentifiers(condition, context) {
   const ctx = context || {};
   return conditionIdentifiers(condition).filter((id) => {
     if (RUNTIME_STATE_PREDICATES.has(id)) return true;

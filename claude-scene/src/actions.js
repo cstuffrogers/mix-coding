@@ -719,6 +719,8 @@ export async function executeAction(sceneId, action, params, context, targetPath
     if (!hasActionMessage(action) && sceneId !== 'ui-polish') {
       console.warn(`\n⚠️ 未知动作 "${action}"（既不在 ACTION_REGISTRY 也没有消息模板）—— 这一步什么都没做`);
       if (context) context.unknownAction = action;
+      // 返回显式 warn：否则消息字符串会被当成「有输出」记 ✓ pass。
+      return { status: 'warn', message: getActionMessage(action) };
     }
     return getActionMessage(action);
   } catch (error) {

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ACTION_REGISTRY, executeAction } from './actions.js';
+import { deriveStepStatus } from './commands/start.js';
 
 // Suppress chalk output during tests
 vi.mock('chalk', () => {
@@ -149,11 +150,14 @@ describe('executeAction', () => {
     const context = {};
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await executeAction('test-scene', 'nonexistentAction', {}, context, '/tmp');
-    expect(result).toBe('动作 nonexistentAction 执行完成');
     // 兑底文案不能静默：以前场景里 action 名写错也报 ✓ pass
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain('nonexistentAction');
     expect(context.unknownAction).toBe('nonexistentAction');
+    // 并且必须显式标 warn —— 否则字符串结果仍会被记成 pass
+    expect(result).toMatchObject({ status: 'warn' });
+    expect(result.message).toContain('nonexistentAction');
+    expect(deriveStepStatus(result, {}).stepStatus).toBe('warn');
     warn.mockRestore();
   });
 

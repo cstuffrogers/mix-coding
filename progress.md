@@ -1163,3 +1163,16 @@ CLAUDE.md 写着 `/spec "需求"` → `/plan` → `/build`，`.claude/commands/s
 CLI 下确实没执行，如实标出而不是报通过）。
 
 验证：`vitest` 645 测试 / 56 文件全绿；`eslint .` 0 error；`spec` 场景 dry-run + 实跑均正常。
+
+## 2026-10-27 未知动作不再记 pass（假绿第 5 形态）
+
+`executeAction` 对未知动作虽然已经 `console.warn` 并写 `context.unknownAction`，
+但返回的是字符串文案 → `deriveStepStatus` 判「有输出 → pass」。也就是说 **警告归警告，
+汇总里依旧是 ✓**。改为返回 `{ status: 'warn', message }`，汇总才算 warn。
+
+同时清掉 knip 报的 2 个未用导出（`RUNTIME_STATE_PREDICATES`、
+`runtimeDependentIdentifiers` 只在 conditions.js 内部用，去掉 export）。
+
+测试：`actions.test.js` 的未知动作用例补两条断言 —— 返回值带 `status: 'warn'`，
+且 `deriveStepStatus` 判定为 warn；升级前这两条必红。
+645 测试/56 文件全绿，eslint 0 error，knip 无 unused exports。
