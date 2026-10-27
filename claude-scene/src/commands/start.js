@@ -642,6 +642,8 @@ function buildSceneContext(options) {
     payment_required: /支付|付款|payment|stripe|订阅|billing/i.test(prompt),
     email_required: /邮件|email|邮箱|通知|发送|resend/i.test(prompt),
     strictEnclosure: Boolean(options.strictEnclosure),
+    // --with-sweep：让 detectorReport 步骤在审查开始前现场跑一次自检
+    withSweep: Boolean(options.withSweep),
   };
 }
 

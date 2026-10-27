@@ -1,5 +1,7 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { safeExec } from '../lib/safe-exec.js';
 
 // ── 探测器自检产物（detector sweep report）──
@@ -12,6 +14,9 @@ import { safeExec } from '../lib/safe-exec.js';
 const REPORTS_DIR = '.claude/reports';
 const PREFIX = 'detector-sweep-';
 const HINT = '跑 npm run detector:sweep 生成';
+const ENGINE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const SWEEP_SCRIPT = join(ENGINE_DIR, 'scripts', 'detector-sweep.cjs');
+const SWEEP_TIMEOUT_MS = 900_000;
 
 function latestReportFile(targetPath) {
   const dir = join(targetPath, REPORTS_DIR);
@@ -84,8 +89,42 @@ function verdictOf(data, { head, dirty }) {
   return null;
 }
 
+function workingTreeDirty(targetPath) {
+  try {
+    return safeExec('git status --porcelain', targetPath, { stdio: 'pipe' }).toString().trim() !== '';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * `--with-sweep` 时在审查**开始前**现场跑一次自检（跑完产物就是新的）。
+ * 审查本体依然只读：注入式自检跑在它前面，不在它中间。
+ * 工作区脏就不跑 —— 脏着跑出来的记录一样不可信，还会把工作区搅一下。
+ */
+function maybeRunSweep(root, context) {
+  if (!context?.withSweep) return null;
+  if (workingTreeDirty(root)) return 'skip-dirty';
+  try {
+    // 非零退出 = 有守卫是空的，产物照写，交给 verdictOf 点名
+    execFileSync(process.execPath, [SWEEP_SCRIPT], {
+      cwd: ENGINE_DIR, stdio: 'pipe', encoding: 'utf8', timeout: SWEEP_TIMEOUT_MS,
+    });
+  } catch { /* 同上 */ }
+  return 'ran';
+}
+
 export function handleDetectorReport(_action, _params, targetPath, context) {
   const root = targetPath ?? '.';
+  const sweep = maybeRunSweep(root, context);
+
+  if (sweep === 'skip-dirty') {
+    return {
+      status: 'warn',
+      message: '工作区有未提交改动，跳过现场自检（脏着跑出来的记录一样不可信）—— 提交或 git stash 后重跑',
+    };
+  }
+
   const { data, problem } = readReport(root);
 
   if (!data) {
@@ -108,5 +147,8 @@ export function handleDetectorReport(_action, _params, targetPath, context) {
   });
   if (issue) return issue;
 
-  return { status: 'pass', message: `探测器自检 ${data.passed}/${data.total} 有效（${shortSha(data.gitSha)}）` };
+  return {
+    status: 'pass',
+    message: `探测器自检 ${data.passed}/${data.total} 有效（${shortSha(data.gitSha)}）${sweep === 'ran' ? '（本轮现场自检）' : ''}`,
+  };
 }

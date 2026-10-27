@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { execFileSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -7,6 +8,7 @@ import { handleDetectorReport } from './detector-report.js';
 import { safeExec } from '../lib/safe-exec.js';
 
 vi.mock('../lib/safe-exec.js', () => ({ safeExec: vi.fn() }));
+vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }));
 
 const HEAD = 'aaaabbbbccccdddd';
 let root;
@@ -23,10 +25,12 @@ function writeReport(payload, { raw } = {}) {
 
 const clean = { total: 12, passed: 12, stale: [], failed: [] };
 
-/** git 两个查询各自返回什么（show-toplevel 默认就是 root） */
-function mockGit({ top, head } = {}) {
+/** git 三个查询各自返回什么（show-toplevel 默认就是 root，status 默认干净） */
+function mockGit({ top, head, status = '' } = {}) {
   vi.mocked(safeExec).mockImplementation((cmd) => {
-    if (String(cmd).includes('--show-toplevel')) return Buffer.from(`${top ?? root}\n`);
+    const command = String(cmd);
+    if (command.includes('--show-toplevel')) return Buffer.from(`${top ?? root}\n`);
+    if (command.includes('status --porcelain')) return Buffer.from(`${status}\n`);
     return Buffer.from(`${head ?? HEAD}\n`);
   });
 }
@@ -39,6 +43,7 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
   vi.mocked(safeExec).mockReset();
+  vi.mocked(execFileSync).mockReset();
 });
 
 describe('detectorReport —— 只消费产物，不在 review 里跑变异测试', () => {
@@ -117,5 +122,34 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
 
     expect(result.status).toBe('warn');
     expect(result.message).toContain('未提交改动');
+  });
+});
+
+describe('detectorReport —— --with-sweep 现场自检（跑在审查之前，审查本体仍只读）', () => {
+  it('工作区干净时现场跑一次，产物新了才出 pass', () => {
+    writeReport(clean);
+    const result = handleDetectorReport('detectorReport', {}, root, { withSweep: true });
+
+    expect(execFileSync).toHaveBeenCalledOnce();
+    expect(String(vi.mocked(execFileSync).mock.calls[0][1])).toContain('detector-sweep.cjs');
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('本轮现场自检');
+  });
+
+  it('工作区脏时不跑（脏着跑出来的记录一样不可信），直接 warn', () => {
+    mockGit({ status: ' M src/x.js' });
+    writeReport(clean);
+    const result = handleDetectorReport('detectorReport', {}, root, { withSweep: true });
+
+    expect(execFileSync).not.toHaveBeenCalled();
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('跳过现场自检');
+  });
+
+  it('没传 --with-sweep 就不跑（默认行为不变，只读产物）', () => {
+    writeReport(clean);
+    handleDetectorReport('detectorReport', {}, root, {});
+
+    expect(execFileSync).not.toHaveBeenCalled();
   });
 });
