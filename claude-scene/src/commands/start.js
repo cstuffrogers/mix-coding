@@ -13,6 +13,7 @@ import { applyEnhancements } from '../lib/enhancements.js';
 import { PROJECT_ROOT, resolveScenePath, describePaths } from '../lib/paths.js';
 import { detectHandlerFailure } from '../lib/failure-detection.js';
 import { checkAcceptance } from '../lib/acceptance-check.js';
+import { captureBoundaryBaseline } from '../handlers/codeguardian.js';
 
 const LAYER_ICONS = {
   interactive: '💬',
@@ -644,6 +645,10 @@ export async function startScene(sceneId, options) {
   await resolveTargetPath(options, context);
 
   context._sceneId = sceneId;
+  // 工作区可能有未提交改动；拍快照后 CodeGuardian 只量本次运行新增的部分。
+  if (!options.dryRun) {
+    context.codeguardianBaseline = captureBoundaryBaseline(context.targetPath);
+  }
   initLog(sceneId);
   await applyEnhancements(sceneId, context, options);
 

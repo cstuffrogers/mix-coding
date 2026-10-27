@@ -86,13 +86,31 @@ function depSet(pkgJson) {
   }
 }
 
-function addedDeps(targetPath, base) {
+function currentDeps(targetPath) {
   const pkgPath = join(targetPath, 'package.json');
-  if (!existsSync(pkgPath)) return [];
-  const before = git(targetPath, `show ${base}:package.json`);
-  if (before === null) return [];
-  const oldDeps = depSet(before);
-  return [...depSet(readFileSync(pkgPath, 'utf-8'))].filter((d) => !oldDeps.has(d));
+  if (!existsSync(pkgPath)) return new Set();
+  try {
+    return depSet(readFileSync(pkgPath, 'utf-8'));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * 工作区脏的时候，`git diff HEAD` 会把上一轮/别人未提交的改动也算进来，
+ * 无人值守循环第二步就被自己上一轮的成果顶到 ±50 边界上 abort。
+ * 运行开始前拍一张快照，之后只量本次运行新增的部分。
+ */
+export function captureBoundaryBaseline(targetPath, base = 'HEAD') {
+  if (!targetPath || !existsSync(targetPath)) return null;
+  const lines = changedLines(targetPath, base);
+  if (lines === null) return null;
+  return { lines, deps: [...currentDeps(targetPath)] };
+}
+
+function subtractLines(now, before) {
+  const delta = (key) => Math.max((now?.[key] || 0) - (before?.[key] || 0), 0);
+  return { added: delta('added'), removed: delta('removed'), total: delta('total'), files: delta('files') };
 }
 
 export function handleCodeGuardianOptimize(_action, params = {}, targetPath, context) {
@@ -112,11 +130,16 @@ export function handleCodeGuardianOptimize(_action, params = {}, targetPath, con
     return 'CodeGuardian 边界检查跳过：目标目录不是 git 仓库根，无法量化变更';
   }
 
-  const lines = changedLines(targetPath, base);
-  if (lines === null) {
+  const current = changedLines(targetPath, base);
+  if (current === null) {
     return `CodeGuardian 边界检查跳过：无法读取 ${base} 的 diff`;
   }
-  const newDeps = addedDeps(targetPath, base);
+  const baseline = context?.codeguardianBaseline || null;
+  // 有快照：只量本次运行新增的变更；没快照（单跑）：维持相对 HEAD 的旧行为。
+  const lines = baseline ? subtractLines(current, baseline.lines) : current;
+  const baselineDeps = baseline ? new Set(baseline.deps) : depSet(git(targetPath, `show ${base}:package.json`));
+  const newDeps = [...currentDeps(targetPath)].filter((d) => !baselineDeps.has(d));
+  const scope = baseline ? '（本次运行）' : '';
 
   const violations = [];
   if (lines.total > limits.maxLines) {
@@ -135,7 +158,7 @@ export function handleCodeGuardianOptimize(_action, params = {}, targetPath, con
     if (violations.length > 0) context.lastStepFailed = true;
   }
 
-  const measured = `变更 ${lines.total} 行 / ${lines.files} 个文件（上限 ${limits.maxLines}），新增依赖 ${newDeps.length} 个（上限 ${limits.maxDeps}），复杂度未测量`;
+  const measured = `变更${scope} ${lines.total} 行 / ${lines.files} 个文件（上限 ${limits.maxLines}），新增依赖 ${newDeps.length} 个（上限 ${limits.maxDeps}），复杂度未测量`;
   if (violations.length > 0) {
     return `CodeGuardian 边界超出：${violations.join('；')}。${measured}。请缩小改动范围，超出部分应回滚。`;
   }

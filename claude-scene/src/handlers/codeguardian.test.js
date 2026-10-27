@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { safeExec } from '../lib/safe-exec.js';
-import { handleCodeGuardianOptimize, DEFAULT_LIMITS } from './codeguardian.js';
+import { handleCodeGuardianOptimize, DEFAULT_LIMITS, captureBoundaryBaseline } from './codeguardian.js';
 
 // 这条门禁以前是个纯桩（永远返回「仅对话模式可用」），可 refactor/optimize/loop
 // 三个场景都挂着 on_error: abort —— 号称最关键防线，实际什么都没量。
@@ -72,5 +72,62 @@ describe('CodeGuardian 变更边界验证', () => {
     expect(msg).toContain('跳过');
     expect(msg).toContain('无法量化');
     expect(ctx.boundaryOk).toBeUndefined();
+  });
+});
+
+// 回归：loop/refactor 这类场景里，上一轮的成果会让工作区一直是脏的，
+// `git diff HEAD` 把旧改动也量进来，第二轮就被自己顶到 ±50 边界直接 abort。
+describe('CodeGuardian 以运行前快照为基准', () => {
+  let root;
+
+  const git = (args) => safeExec(`git ${args}`, root, { stdio: 'pipe', timeout: 30000 });
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'guardian-base-'));
+    git('init -q');
+    git('config user.email t@t.t');
+    git('config user.name t');
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'x', dependencies: { a: '1.0.0' } }));
+    writeFileSync(join(root, 'a.js'), 'export const a = 1;\n');
+    git('add -A');
+    git('commit -q -m init');
+  });
+
+  afterEach(() => { rmSync(root, { recursive: true, force: true }); });
+
+  it('运行前已有的 60 行未提交改动不再算作本轮变更', () => {
+    const dirty = Array.from({ length: 60 }, (_, i) => `// legacy ${i}`).join('\n');
+    writeFileSync(join(root, 'a.js'), `export const a = 1;\n${dirty}\n`);
+    const ctx = { codeguardianBaseline: captureBoundaryBaseline(root) };
+
+    writeFileSync(join(root, 'a.js'), 'export const a = 2;\n');
+    const msg = handleCodeGuardianOptimize('codeguardian_optimize', {}, root, ctx);
+
+    expect(msg).toContain('边界检查通过');
+    expect(msg).toContain('本次运行');
+    expect(ctx.boundaryOk).toBe(true);
+  });
+
+  it('快照之后真改 80 行仍然越界', () => {
+    const ctx = { codeguardianBaseline: captureBoundaryBaseline(root) };
+    const big = Array.from({ length: 80 }, (_, i) => `export const v${i} = ${i};`).join('\n');
+    writeFileSync(join(root, 'a.js'), `${big}\n`);
+    const msg = handleCodeGuardianOptimize('codeguardian_optimize', {}, root, ctx);
+    expect(msg).toContain('边界超出');
+    expect(ctx.boundaryOk).toBe(false);
+  });
+
+  it('快照之后新增的依赖才算新增', () => {
+    const ctx = { codeguardianBaseline: captureBoundaryBaseline(root) };
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'x', dependencies: { a: '1.0.0', b: '2.0.0' } }));
+    const msg = handleCodeGuardianOptimize('codeguardian_optimize', {}, root, ctx);
+    expect(ctx.boundaryNewDeps).toEqual(['b']);
+    expect(msg).toContain('边界超出');
+  });
+
+  it('非 git 目录拿不到快照，回落为 null 不抛错', () => {
+    const plain = mkdtempSync(join(tmpdir(), 'guardian-plain-'));
+    expect(captureBoundaryBaseline(plain)).toBeNull();
+    rmSync(plain, { recursive: true, force: true });
   });
 });
