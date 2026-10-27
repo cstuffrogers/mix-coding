@@ -30,7 +30,7 @@ function checkShape(data) {
 }
 
 function readReport(targetPath) {
-  const file = latestReportFile(targetPath);
+  const file = latestReportFile(reportBase(targetPath));
   if (!file) return { data: null, file: null, problem: `没有探测器自检记录（${REPORTS_DIR}/${PREFIX}<stamp>.json）` };
   try {
     const data = JSON.parse(readFileSync(file, 'utf-8'));
@@ -46,6 +46,19 @@ function gitHead(targetPath) {
     return safeExec('git rev-parse HEAD', targetPath, { stdio: 'pipe' }).toString().trim();
   } catch {
     return null;
+  }
+}
+
+/**
+ * 产物一定落在仓库根的 .claude/reports/：swep 从引擎仓库根开跑，但 review 可能在
+ * claude-scene/ 子目录下被调起（cwd 即 targetPath）。只按 targetPath 找会误报「没有记录」。
+ */
+function reportBase(targetPath) {
+  try {
+    const top = safeExec('git rev-parse --show-toplevel', targetPath, { stdio: 'pipe' }).toString().trim();
+    return top === '' ? targetPath : top;
+  } catch {
+    return targetPath;
   }
 }
 

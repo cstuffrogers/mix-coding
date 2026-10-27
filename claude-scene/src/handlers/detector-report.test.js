@@ -23,9 +23,17 @@ function writeReport(payload, { raw } = {}) {
 
 const clean = { total: 12, passed: 12, stale: [], failed: [] };
 
+/** git 两个查询各自返回什么（show-toplevel 默认就是 root） */
+function mockGit({ top, head } = {}) {
+  vi.mocked(safeExec).mockImplementation((cmd) => {
+    if (String(cmd).includes('--show-toplevel')) return Buffer.from(`${top ?? root}\n`);
+    return Buffer.from(`${head ?? HEAD}\n`);
+  });
+}
+
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'detector-report-'));
-  vi.mocked(safeExec).mockReturnValue(Buffer.from(`${HEAD}\n`));
+  mockGit();
 });
 
 afterEach(() => {
@@ -92,6 +100,15 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
     expect(result.status).toBe('warn');
     expect(result.message).toContain('已过期');
     expect(result.message).toContain('fffffff');
+  });
+
+  it('在子目录里被调起时，按 git 仓库根找产物（否则会误报「没有记录」）', () => {
+    mkdirSync(join(root, 'claude-scene'));
+    writeReport(clean);
+    const result = handleDetectorReport('detectorReport', {}, join(root, 'claude-scene'), {});
+
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('12/12');
   });
 
   it('产物是在有未提交改动时跑的 → warn', () => {
