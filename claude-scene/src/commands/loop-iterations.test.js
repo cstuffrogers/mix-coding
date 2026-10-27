@@ -44,10 +44,19 @@ describe('shouldStopLooping', () => {
     expect(shouldStopLooping({ iteration: 2, max: 10, prevFindings: 900, findings: 400 }).stop).toBe(false);
   });
 
-  it('发现数没下降就停止空转（避免 10 轮同一批问题）', () => {
+  it('发现数没下降就停止空转（避免 N 轮同一批问题）', () => {
     expect(shouldStopLooping({ iteration: 2, max: 10, prevFindings: 940, findings: 940 }))
       .toMatchObject({ stop: true, reason: 'no-progress' });
     expect(shouldStopLooping({ iteration: 2, max: 10, prevFindings: 940, findings: 950 }).stop).toBe(true);
+  });
+
+  it('--force-iterations 显式要求跑满时不因 no-progress 停，但仍停在 max/clean', () => {
+    const forced = shouldStopLooping({ iteration: 2, max: 10, prevFindings: 940, findings: 940, force: true });
+    expect(forced.stop).toBe(false);
+    expect(forced.reason).toBe('no-progress-forced');
+    expect(forced.message).toContain('继续');
+    expect(shouldStopLooping({ iteration: 10, max: 10, prevFindings: 940, findings: 940, force: true }).reason).toBe('max');
+    expect(shouldStopLooping({ iteration: 2, max: 10, prevFindings: 940, findings: 0, force: true }).reason).toBe('clean');
   });
 });
 
@@ -71,5 +80,30 @@ describe('deriveStepStatus 显式状态', () => {
   it('纯文本结果行为不变', () => {
     expect(deriveStepStatus('代码审查完成（无问题）', { lastStepFailed: false }).stepStatus).toBe('pass');
     expect(deriveStepStatus('任务失败', { lastStepFailed: false }).stepStatus).toBe('fail');
+  });
+});
+
+// 这两个文案曾经都被判成 warn，于是 /check 明明 0 问题却显示「⚡ warn: 2」。
+// 状态启发式看的是文字，文字里带数字和「重复」就必须分清「0 个」和「未重复」。
+describe('deriveStepStatus 文本启发式', () => {
+  const ctx = () => ({ lastStepFailed: false });
+
+  it('0 个问题不是告警', () => {
+    expect(deriveStepStatus('11 道检查完成: 0 个问题', ctx()).stepStatus).toBe('pass');
+    expect(deriveStepStatus('扫描 0 处发现', ctx()).stepStatus).toBe('pass');
+  });
+
+  it('真有问题才算告警', () => {
+    expect(deriveStepStatus('发现 3 个问题', ctx()).stepStatus).toBe('warn');
+    expect(deriveStepStatus('3 处警告', ctx()).stepStatus).toBe('warn');
+  });
+
+  it('"failed" 被 detectHandlerFailure 先一步判成 fail（不走 warn）', () => {
+    expect(deriveStepStatus('3 failed', ctx()).stepStatus).toBe('fail');
+  });
+
+  it('「未重复写入」是去重的正常路径', () => {
+    expect(deriveStepStatus('记忆内容与最近记录相同，4 个后端均未重复写入（正常去重，本轮无新增）', ctx()).stepStatus).toBe('pass');
+    expect(deriveStepStatus('检测到 2 处重复记录', ctx()).stepStatus).toBe('warn');
   });
 });

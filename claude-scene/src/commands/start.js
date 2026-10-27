@@ -438,8 +438,19 @@ async function handleInteractiveStep(sceneId, step, context, options) {
 // eslint-disable-next-line sonarjs/super-linear-regex
 const NOOP_RES = [/不可用/i, /无[^]*?[目录配置]/, /未安装/, /未找到/, /not found/i, /not available/i, /已?跳过/, /no\s+.*?found/i];
 // Auto-detect warn: passes but result indicates non-zero issues (aislop findings, vulnerabilities, etc.)
-// eslint-disable-next-line sonarjs/super-linear-regex
-const WARN_RES = [/\d+\s*[个处类].{0,30}?(?:问题|漏洞|警告|气味|发现|重复)/i, /\d+\s*(?:failed|failure)/i];
+// 两个坑都踩过：
+//   1. `\d+` 让「11 道检查完成: 0 个问题」被判成告警 —— 0 就是干净，得从 1 起算。
+//   2. 「4 个后端均未重复写入」是去重的正常路径，只要命中「重复」就误报。
+//   3. `\d+\s*(?:failed|failure)` 那条永远不会走到 —— `detectHandlerFailure` 的
+//      `/失败|阻断|abort|FAIL/i` 先一步命中 "fail"，所以已删除。
+const WARN_RES = [/\b[1-9]\d*\s*[个处类].{0,30}?(?:问题|漏洞|警告|气味|发现)/i];
+const WARN_REPEAT_RE = /\b[1-9]\d*\s*[个处类].{0,30}?重复/;
+const NEGATED_REPEAT_RE = /(?:未|无|不|没有)重复/;
+
+function hasWarnResult(str) {
+  if (WARN_RES.some((re) => re.test(str))) return true;
+  return WARN_REPEAT_RE.test(str) && !NEGATED_REPEAT_RE.test(str);
+}
 
 function formatResultForDisplay(result) {
   if (typeof result === 'string') return result;
@@ -460,7 +471,7 @@ export function deriveStepStatus(result, context) {
   const explicit = getExplicitStatus(result);
   if (explicit) return { resultStr, stepStatus: explicit };
   const isNoop = NOOP_RES.some(re => re.test(resultStr));
-  const isWarn = !isNoop && WARN_RES.some(re => re.test(resultStr));
+  const isWarn = !isNoop && hasWarnResult(resultStr);
   return { resultStr, stepStatus: isNoop ? 'noop' : (isWarn ? 'warn' : 'pass') };
 }
 
@@ -587,13 +598,16 @@ export function resolveIterations(options, scene) {
 
 /**
  * 收敛判据：之前“循环 N 次”只是一句没人消费的 prompt 文本（引擎没有迭代概念）。
- * 本轮干净就停；发现数没下降也停，否则 10 轮都在同一批问题上空转。
+ * 本轮干净就停；发现数没下降也停，否则 N 轮都在同一批问题上空转。
+ * `--force-iterations` 显式要求跑满轮数时，no-progress 只警告不停。
  */
-export function shouldStopLooping({ iteration, max, prevFindings, findings }) {
+export function shouldStopLooping({ iteration, max, prevFindings, findings, force = false }) {
   if (iteration >= max) return { stop: true, reason: 'max', message: `已跑满 ${max} 轮` };
   if (findings === 0) return { stop: true, reason: 'clean', message: '本轮无新发现，提前结束' };
   if (prevFindings !== null && findings >= prevFindings) {
-    return { stop: true, reason: 'no-progress', message: `发现数未下降（${prevFindings} → ${findings}），停止空转` };
+    const message = `发现数未下降（${prevFindings} → ${findings}）`;
+    if (force) return { stop: false, reason: 'no-progress-forced', message: `${message}，按 --force-iterations 继续` };
+    return { stop: true, reason: 'no-progress', message: `${message}，停止空转` };
   }
   return { stop: false, reason: 'continue', message: '' };
 }
@@ -614,19 +628,24 @@ async function runFlow(sceneId, scene, context, options) {
 
 async function runIterations(sceneId, scene, context, options) {
   const iterations = options.dryRun ? 1 : resolveIterations(options, scene);
+  const force = Boolean(options.forceIterations);
   let prevFindings = null;
   for (let iteration = 1; iteration <= iterations; iteration++) {
     if (iterations > 1) console.log(chalk.cyan(`\n🔁 第 ${iteration}/${iterations} 轮`));
     context.iteration = iteration;
+    // 每轮都重拍基线：边界量的是「本轮的改动」，上一轮的成果不占这一轮的额度。
+    if (!options.dryRun) {
+      context.codeguardianBaseline = captureBoundaryBaseline(context.targetPath);
+    }
     await runFlow(sceneId, scene, context, options);
     if (options.dryRun) break;
     const findings = countFindings(context);
     if (iterations > 1) console.log(chalk.dim(`   本轮发现 ${findings} 处`));
-    const decision = shouldStopLooping({ iteration, max: iterations, prevFindings, findings });
-    if (decision.stop) {
-      if (iterations > 1) console.log(chalk.dim(`   ↳ ${decision.message}`));
-      break;
+    const decision = shouldStopLooping({ iteration, max: iterations, prevFindings, findings, force });
+    if (decision.message && iterations > 1) {
+      console.log(chalk.dim(`   ↳ ${decision.message}`));
     }
+    if (decision.stop) break;
     prevFindings = findings;
   }
 }

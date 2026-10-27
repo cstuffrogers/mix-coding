@@ -7,6 +7,7 @@ import {
   analyzeExportedFunction,
   envVarName,
   mcpConfigCandidates,
+  formatToolHealthLine,
 } from './handler-verify.js';
 
 describe('isTrivialLine', () => {
@@ -128,5 +129,40 @@ describe('analyzeExportedFunction（空转 vs 诚实跳过）', () => {
   it('真实现（带循环/文件 IO）→ 不算空转', () => {
     const src = 'export function f(t) {\n  const files = readdirSync(t);\n  for (const x of files) {\n    writeFileSync(x, "y");\n  }\n}\n';
     expect(analyzeExportedFunction(src, 'f', 0, 'x.js')).toBeNull();
+  });
+});
+
+// Pass 4 以前没有标题行：报告只打印 10 行却宣称「11 道检查通过」，
+// 而「可选缺失: dependencycheck」那行还挂在 Pass 3 下面。这组用例锁住格式。
+describe('formatToolHealthLine', () => {
+  it('全部装好时是绿色通过，并报出数量', () => {
+    const r = formatToolHealthLine({ available: [{ name: 'knip' }, { name: 'lychee' }] });
+    expect(r.level).toBe('pass');
+    expect(r.text).toContain('2 个全部可用');
+  });
+
+  it('只有可选工具缺失时仍是通过，但要点名', () => {
+    const r = formatToolHealthLine({
+      available: [{ name: 'knip' }],
+      optional_missing: [{ name: 'dependencycheck' }],
+    });
+    expect(r.level).toBe('pass');
+    expect(r.text).toContain('1 个可选未装');
+    expect(r.text).toContain('dependencycheck');
+  });
+
+  it('必需工具缺失要降级为 warn，且两种缺失都点名', () => {
+    const r = formatToolHealthLine({
+      available: [],
+      missing: ['semgrep'],
+      optional_missing: ['mobsfscan'],
+    });
+    expect(r.level).toBe('warn');
+    expect(r.text).toContain('semgrep');
+    expect(r.text).not.toContain('mobsfscan');
+  });
+
+  it('空对象不炸（三态中的 skip 路径）', () => {
+    expect(formatToolHealthLine({}).level).toBe('pass');
   });
 });

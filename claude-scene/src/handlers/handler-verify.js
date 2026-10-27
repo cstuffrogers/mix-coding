@@ -784,18 +784,31 @@ function runStubDetection() {
   };
 }
 
+// Pass 4 的输出格式单独成型，方便单测：以前这一段根本没有标题行，于是报告里
+// 只打印 10 行却说「11 道检查通过」，而「可选缺失: dependencycheck」还挂在
+// Pass 3 下面，看着像逻辑密度检查的附注。
+export function formatToolHealthLine(toolHealth) {
+  const { available = [], missing = [], optional_missing: optional = [] } = toolHealth;
+  const names = (list) => list.map((t) => (typeof t === 'string' ? t : t.name)).join(', ');
+  if (missing.length) {
+    return { level: 'warn', text: `外部工具: ${available.length} 可用, 必需缺失 ${missing.length} 个(${names(missing)})` };
+  }
+  if (optional.length) {
+    return { level: 'pass', text: `外部工具: ${available.length} 可用, ${optional.length} 个可选未装(${names(optional)})` };
+  }
+  return { level: 'pass', text: `外部工具: ${available.length} 个全部可用` };
+}
+
 function runToolAndDepHealth(targetPath) {
   const toolHealth = detectToolHealth();
   const missCount = toolHealth.missing.length;
   const optMissCount = toolHealth.optional_missing.length;
   const availCount = toolHealth.available.length;
 
-  if (missCount) {
-    console.error(chalk.dim(`     缺失: ${toolHealth.missing.map(t => t.name).join(', ')}`));
-  }
-  if (optMissCount) {
-    console.log(chalk.dim(`     可选缺失: ${toolHealth.optional_missing.map(t => t.name).join(', ')}`));
-  }
+  const toolLine = formatToolHealthLine(toolHealth);
+  const paint = toolLine.level === 'warn' ? chalk.yellow : chalk.green;
+  const icon = toolLine.level === 'warn' ? '🟡' : '✅';
+  console.log(paint(`  ${icon} Pass 4 — ${toolLine.text}`));
 
   const depHealth = detectDepHealth(targetPath);
   let criticalDeps = 0;
@@ -809,7 +822,14 @@ function runToolAndDepHealth(targetPath) {
     console.log(chalk.green(`  ✅ Pass 5 — 依赖健康: ${depHealth.scanned} 包全部健康`));
   }
 
-  return { missCount, availCount, criticalDeps, warnDeps };
+  return {
+    missCount,
+    availCount,
+    optMissCount,
+    requiredCount: Object.keys(TOOL_CHECKS).length,
+    criticalDeps,
+    warnDeps,
+  };
 }
 
 function displayKnipResults(importIssues) {
@@ -941,7 +961,12 @@ function computeAndStore(stubs, tools, project, safety, llmAudit, targetPath, co
     context.handlerVerificationComplete = true;
     context.handlerVerificationStubCount = handlerStubs;
     context.handlerVerificationTotalIssues = totalIssues;
-    context.toolHealthResult = { available: tools.availCount, missing: tools.missCount, optionalMissing: 0, required: 0 };
+    context.toolHealthResult = {
+      available: tools.availCount,
+      missing: tools.missCount,
+      optionalMissing: tools.optMissCount,
+      required: tools.requiredCount,
+    };
     context.depHealthResult = { critical: tools.criticalDeps, warning: tools.warnDeps };
     context.importIssues = project.importBroken;
     context.orphanActions = project.orphanCount;
