@@ -31,7 +31,10 @@ export function summarizeEnclosure(events) {
   const captures = countBy(events, 'capture');
   const verifies = countBy(events, 'verify');
   const violations = sumBy(events, 'verify', 'violations');
-  const restores = countBy(events, 'restore');
+  const restoreEvents = events.filter((e) => e.type === 'restore');
+  // 回滚失败必须单独记：把失败算进「回滚次数」等于谎报「已退回」
+  const restores = restoreEvents.filter((e) => e.failed !== true).length;
+  const restoreFailures = restoreEvents.filter((e) => e.failed === true).length;
   const impactOk = events.filter((e) => e.type === 'impact' && e.ok === true).length;
   const impactMissing = events.filter((e) => e.type === 'impact' && e.ok === false).length;
 
@@ -40,6 +43,7 @@ export function summarizeEnclosure(events) {
     verifies,
     violations,
     restores,
+    restoreFailures,
     // 越界率以「比对次数」为分母：没比对过就没有分母，给 null 而不是 0
     violationRate: verifies > 0 ? Number((violations / verifies).toFixed(3)) : null,
     impactOk,
@@ -56,7 +60,12 @@ export function verdictOf(summary, { maxViolationRate = 0.5, maxMissingRate = 0.
   if (summary.verifies === 0 && summary.captures === 0) {
     return { status: 'skip', reason: '台账里没有围栏事件' };
   }
+  // 建了围栏却从没比对 = 围栏形同虚设（假绿的经典形态），必须点名
+  if (summary.captures > 0 && summary.verifies === 0) {
+    return { status: 'warn', reason: `围栏建了 ${summary.captures} 次但从未比对` };
+  }
   const bad = [];
+  if (summary.restoreFailures > 0) bad.push(`回滚失败 ${summary.restoreFailures} 次`);
   if (summary.violationRate !== null && summary.violationRate > maxViolationRate) {
     bad.push(`越界率 ${summary.violationRate}`);
   }
@@ -75,7 +84,7 @@ function formatSummary(summary) {
     `拍桩 ${summary.captures} 次`,
     `比对 ${summary.verifies} 次`,
     `越界 ${summary.violations} 次（${rate}）`,
-    `回滚 ${summary.restores} 次`,
+    `回滚 ${summary.restores} 次${summary.restoreFailures > 0 ? `（失败 ${summary.restoreFailures} 次）` : ''}`,
     `影响域缺失 ${summary.impactMissing} 次（${missing}）`,
   ].join(' / ');
 }
@@ -106,7 +115,7 @@ export function handleEnclosureMetrics(_action, _params, targetPath, context) {
 
   const text = formatSummary(summary);
   if (verdict.status === 'warn') {
-    return { status: 'warn', message: `${text} —— ${verdict.reason} 偏高，值得复盘` };
+    return { status: 'warn', message: `${text} —— ${verdict.reason}（值得复盘）` };
   }
   return { status: 'pass', message: text };
 }

@@ -1303,3 +1303,11 @@ NOT_RUN_MARKERS 命中即 skip，`|| true` 去掉以拿到真实退出码。
 | 指标实跑 | `start loop --auto -i 1` | `⚡ 拍桩 2 次 / 比对 2 次 / 越界 0 次（0%） / 回滚 0 次 / 影响域缺失 2 次（100%）` |
 
 693 测试 / 60 文件全绿；eslint 0 error；knip 无 unused exports/文件；全部场景 dry-run exit 0。
+
+### 补正（同一轮，自查发现的口径问题）
+1. **回滚失败不能算「已回滚」**：`restores` 只数成功项，另立 `restoreFailures`；失败>0 → warn。
+2. **「建了围栏却从没比对」必须点名**：`captures > 0 && verifies === 0` → warn
+   「围栏建了 N 次但从未比对」——这正是假绿的经典形态（有桩无比对，等于没围栏）。
+两处都自证非空跑：注入「回滚失败计入回滚 + 取消从未比对告警」→ 3 条测试立刻红；复原 12/12 绿。
+
+最终基线：**695 测试 / 60 文件全绿**，eslint 0 error，knip 无 unused，全场景 dry-run exit 0。

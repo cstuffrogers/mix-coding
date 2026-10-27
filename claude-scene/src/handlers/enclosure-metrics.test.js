@@ -133,8 +133,27 @@ describe('handleEnclosureMetrics：三态 + 落盘', () => {
       'utf-8',
     );
     const result = handleEnclosureMetrics('enclosureMetrics', {}, dir, {});
-    // 只有 1 条合法 capture → 不至于退回 skip
-    expect(result.status).toBe('pass');
+    // 只剩 1 条合法 capture：能统计出来，但由于从没比对过 → warn（围栏形同虚设）
+    expect(result.status).toBe('warn');
     expect(result.message).toContain('拍桩 1 次');
+    expect(result.message).toContain('从未比对');
   });
-});
+
+  it('建了围栏却从没比对 → warn（假绿的经典形态）', () => {
+    writeLedger([{ type: 'capture' }, { type: 'capture' }]);
+    const summary = summarizeEnclosure([{ type: 'capture' }, { type: 'capture' }]);
+    expect(verdictOf(summary)).toEqual({ status: 'warn', reason: '围栏建了 2 次但从未比对' });
+  });
+
+  it('回滚失败单独计数，不算进「已回滚」', () => {
+    const events = [
+      { type: 'capture' },
+      { type: 'verify', violations: 1 },
+      { type: 'restore', restored: 1 },
+      { type: 'restore', restored: 0, failed: true },
+    ];
+    const summary = summarizeEnclosure(events);
+    expect(summary.restores).toBe(1);
+    expect(summary.restoreFailures).toBe(1);
+    expect(verdictOf(summary).status).toBe('warn');
+  });});
