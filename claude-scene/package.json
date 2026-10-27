@@ -71,6 +71,9 @@
   },
   "scripts": {
     "test": "vitest run",
+    "test:watch": "vitest",
+    "test:guards": "vitest run src/lib/scene-contract.test.js src/lib/not-run-status.test.js src/lib/docs-scene-alignment.test.js src/commands/false-green-guard.test.js src/lib/sync-docs.test.js",
+    "detector:sweep": "node scripts/detector-sweep.cjs",
     "lint": "eslint src"
   }
 }
