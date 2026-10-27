@@ -1,11 +1,89 @@
 import chalk from 'chalk';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { safeExec } from '../lib/safe-exec.js';
 
 // `aislop fix` 没有 --include/--changes 之类收窄参数，放它跑就会一次动几百个文件，
 // 无人值守循环里没人复核。超过上限只落盘报警，交人工决定。
 export const SAFE_FIX_MAX_FINDINGS = 200;
+
+/**
+ * 能放心交给 `aislop fix` 的规则：只做机械重写，不删代码、不删注释、不改行为。
+ * 其余全部视为危险（console-leftover / narrative-comment / dead-code 那类 fix = 删行）。
+ */
+export const SAFE_FIX_RULES = new Set([
+  'ai-slop/unused-import',
+  'lint/ruff/F401',
+  'lint/ruff/I001',
+  'lint/ruff/F541',
+  'lint/ruff/UP006',
+  'lint/ruff/UP015',
+  'lint/ruff/UP035',
+  'lint/ruff/UP045',
+  'format/python-formatting',
+]);
+
+function ruleIdOf(diagnostic) {
+  const engine = String(diagnostic?.engine || '');
+  const rule = String(diagnostic?.rule || '');
+  if (!rule) return '';
+  // ai-slop 的 rule 已自带前缀（ai-slop/console-leftover），lint/format 的没有（ruff/F401）
+  if (engine && rule.startsWith(`${engine}/`)) return rule;
+  return engine ? `${engine}/${rule}` : rule;
+}
+
+/**
+ * `.aislop/config.yml` 里我们主动关掉的规则，`aislop fix` 是不认的（实测：
+ * fix 仍按默认规则集跑）。所以这些规则必须显式当成危险项拦住，否则
+ * 「关掉的规则」会被 fix 反手执行 —— 关 console 结果反而被删 console。
+ */
+export function readDisabledRules(targetPath) {
+  const file = join(targetPath || '.', '.aislop', 'config.yml');
+  if (!existsSync(file)) return new Set();
+  const disabled = new Set();
+  for (const line of readFileSync(file, 'utf-8').split('\n')) {
+    const m = line.match(/^\s+([\w-]+\/[\w/.-]+):\s*"?off"?\s*$/i);
+    if (m) disabled.add(m[1]);
+  }
+  return disabled;
+}
+
+/**
+ * 修复可行性的唯一判据。之前只看「可修复条数」，于是 543 处修复在 safe 模式下
+ * 实际修 0 处；不带 safe 又会把 344 行注释整段删掉。现在按规则分类：
+ * 只要涉及「删代码/删注释」类规则，就不自动修。
+ */
+export function planAutoFix(diagnostics = [], options = {}) {
+  const {
+    maxFindings = SAFE_FIX_MAX_FINDINGS,
+    configDisabledRules = new Set(),
+    allowRules = SAFE_FIX_RULES,
+    declaredFixable = null,
+  } = options;
+
+  const counts = new Map();
+  for (const d of diagnostics) {
+    if (!d?.fixable) continue;
+    const id = ruleIdOf(d);
+    if (!id) continue;
+    counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  const fixable = counts.values().reduce((a, b) => a + b, 0);
+  const rules = [...counts].map(([rule, count]) => ({ rule, count })).sort((a, b) => b.count - a.count);
+  const risky = rules.filter((r) => !allowRules.has(r.rule));
+  const disabled = [...configDisabledRules].map((rule) => ({ rule, count: counts.get(rule) || 0 }));
+  const declared = Number(declaredFixable ?? fixable) || 0;
+
+  if (fixable === 0 && declared === 0) return { ok: false, reason: 'nothing', fixable: 0, rules, disabled, risky };
+  // fail-closed：拿不到逐条明细就无法判断哪些规则会「删行」，宁可不动
+  if (rules.length === 0) return { ok: false, reason: 'unverifiable', fixable: declared, rules, disabled, risky };
+  // `aislop fix` 不读 .aislop/config.yml（实测：关了 console 规则它照删 console）。
+  // 所以只要项目里关过规则，跑 fix 就等于违反配置。
+  if (disabled.length > 0) return { ok: false, reason: 'config-ignored', fixable, rules, disabled, risky };
+  if (risky.length > 0) return { ok: false, reason: 'risky-rules', fixable, rules, disabled, risky };
+  if (fixable > maxFindings) return { ok: false, reason: 'over-limit', fixable, rules, disabled, risky };
+  return { ok: true, reason: 'ok', fixable, rules, disabled, risky };
+}
 
 /**
  * `aislop ci` 现在默认输出 JSON，旧实现只认 `N issues` 文本，于是退化成「逐行数
@@ -67,6 +145,7 @@ function scanAndRecord(targetPath, context) {
   const { total, fixable, json } = parseAislopOutput(raw);
   let reportPath = null;
   if (json) {
+    const rules = planAutoFix(json.diagnostics || []).rules;
     reportPath = writeAislopReport(targetPath, {
       generatedAt: new Date().toISOString(),
       scene: context?._sceneId || null,
@@ -75,6 +154,7 @@ function scanAndRecord(targetPath, context) {
       summary: json.summary ?? null,
       engines: json.engines ?? null,
       findingAssessment: json.findingAssessment ?? null,
+      fixableRules: rules,
     });
   }
   if (context) {
@@ -83,7 +163,7 @@ function scanAndRecord(targetPath, context) {
     context.aislop_fixable = fixable;
     if (reportPath) context.aislop_report_path = reportPath;
   }
-  return { total, fixable, reportPath, raw };
+  return { total, fixable, reportPath, raw, diagnostics: json?.diagnostics || [] };
 }
 
 function scanMessage({ total, fixable, reportPath }) {
@@ -106,16 +186,30 @@ function handleScan(targetPath, context) {
 function handleFix(targetPath, context, params) {
   const before = scanAndRecord(targetPath, context);
   const limit = Number(params?.maxFindings ?? SAFE_FIX_MAX_FINDINGS);
+  const plan = planAutoFix(before.diagnostics, {
+    maxFindings: limit,
+    configDisabledRules: readDisabledRules(targetPath),
+    declaredFixable: before.fixable,
+  });
 
-  if (before.fixable === 0) {
+  if (context) context.aislop_fix_plan = { reason: plan.reason, fixable: plan.fixable, risky: plan.risky, disabled: plan.disabled };
+
+  if (plan.reason === 'nothing') {
     console.log(chalk.dim(`  ℹ aislop: ${before.total} 处问题中无可自动修复项`));
     return scanMessage(before);
   }
-  if (before.fixable > limit) {
-    console.log(chalk.yellow(`  ⚠ 可自动修复 ${before.fixable} 处 > 上限 ${limit}，跳过自动修复（需人工复核）`));
+  if (!plan.ok) {
+    const detail = plan.reason === 'unverifiable'
+      ? `扫描结果没有逐条规则明细（fixable=${plan.fixable}），无法判断是否会删代码`
+      : plan.reason === 'config-ignored'
+        ? `.aislop/config.yml 关了 ${plan.disabled.length} 条规则（${plan.disabled.map((r) => r.rule).join(', ')}），而 aislop fix 不认配置，跑它会违反配置`
+        : plan.reason === 'risky-rules'
+          ? `属于删代码/删注释类（${plan.risky.map((r) => `${r.rule}×${r.count}`).join(', ')}），不可无人值守执行`
+          : `可修复 ${plan.fixable} 处，超过上限 ${limit}`;
+    console.log(chalk.yellow(`  ⚠ ${detail} → 跳过自动修复`));
     return {
       status: 'warn',
-      message: `aislop: ${before.total} 处问题，可修复 ${before.fixable} 超过上限 ${limit}，已跳过自动修复 → 报告 ${before.reportPath || 'n/a'}`,
+      message: `aislop: ${before.total} 处问题，跳过自动修复（${detail}）→ 报告 ${before.reportPath || 'n/a'}`,
     };
   }
 

@@ -7,21 +7,21 @@ vi.mock('chalk', () => {
 
 const mockSafeExec = vi.fn();
 vi.mock('../lib/safe-exec.js', () => ({
-  safeExec: (...args) => mockSafeExec(...args),
-}));
+  safeExec: (...args) => mockSafeExec(...args) }));
 
 const mockWriteFileSync = vi.fn();
 const mockMkdirSync = vi.fn();
 const mockExistsSync = vi.fn(() => true);
+const mockReadFileSync = vi.fn(() => '');
 vi.mock('fs', () => ({
   existsSync: (...args) => mockExistsSync(...args),
   mkdirSync: (...args) => mockMkdirSync(...args),
   writeFileSync: (...args) => mockWriteFileSync(...args),
+  // .aislop/config.yml 的内容，默认「没有关任何规则」
+  readFileSync: (...args) => mockReadFileSync(...args),
 }));
 
-import {
-  parseAislopOutput, writeAislopReport, handleAislopScan, SAFE_FIX_MAX_FINDINGS,
-} from './aislop.js';
+import { handleAislopScan, parseAislopOutput, writeAislopReport } from './aislop.js';
 
 // 真实 `aislop ci` 输出是 JSON：{"summary":{"errors":93,"warnings":846,"fixable":537,...}}
 const AISLOP_JSON = JSON.stringify({
@@ -94,8 +94,9 @@ describe('handleAislopScan', () => {
   });
 
   it('fix 模式：可修复数超上限时只报警、不动文件', () => {
-    mockSafeExec.mockReturnValue(output(AISLOP_JSON));
-    const result = handleAislopScan('aislop-fix', { mode: 'fix', maxFindings: SAFE_FIX_MAX_FINDINGS }, '/proj', {});
+    const diagnostics = Array.from({ length: 5 }, () => ({ engine: 'lint', rule: 'ruff/F401', fixable: true }));
+    mockSafeExec.mockReturnValue(output(JSON.stringify({ summary: { errors: 1, warnings: 4, fixable: 5 }, diagnostics })));
+    const result = handleAislopScan('aislop-fix', { mode: 'fix', maxFindings: 3 }, '/proj', {});
 
     expect(result.status).toBe('warn');
     expect(result.message).toContain('超过上限');
@@ -103,11 +104,12 @@ describe('handleAislopScan', () => {
     expect(cmds.some(c => c.includes('aislop fix'))).toBe(false);
   });
 
-  it('fix 模式：可修复数在上限内时执行 fix 并复扫', () => {
+  it('fix 模式：规则全在允许清单内且在上限内时才执行 fix', () => {
+    const diagnostics = Array.from({ length: 10 }, () => ({ engine: 'lint', rule: 'ruff/F401', fixable: true }));
     mockSafeExec
-      .mockReturnValueOnce(output(JSON.stringify({ summary: { errors: 40, warnings: 50, fixable: 10 } })))
+      .mockReturnValueOnce(output(JSON.stringify({ summary: { errors: 40, warnings: 50, fixable: 10 }, diagnostics })))
       .mockReturnValueOnce(output('fixed 10'))
-      .mockReturnValueOnce(output(JSON.stringify({ summary: { errors: 30, warnings: 50, fixable: 0 } })));
+      .mockReturnValueOnce(output(JSON.stringify({ summary: { errors: 30, warnings: 50, fixable: 0 }, diagnostics: [] })));
 
     const context = {};
     const result = handleAislopScan('aislop-fix', { mode: 'fix', maxFindings: 200 }, '/proj', context);
@@ -117,13 +119,52 @@ describe('handleAislopScan', () => {
     expect(mockSafeExec.mock.calls.map(c => c[0]).some(c => c.includes('aislop fix --safe'))).toBe(true);
   });
 
+  it('fix 模式：有删代码类规则时不执行 fix，并点名是哪条', () => {
+    const diagnostics = [{ engine: 'ai-slop', rule: 'ai-slop/console-leftover', fixable: true }];
+    mockSafeExec.mockReturnValue(output(JSON.stringify({ summary: { errors: 0, warnings: 1, fixable: 1 }, diagnostics })));
+    const result = handleAislopScan('aislop-fix', { mode: 'fix' }, '/proj', {});
+
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('console-leftover');
+    expect(mockSafeExec.mock.calls.map(c => c[0]).some(c => c.includes('aislop fix'))).toBe(false);
+  });
+
+  it('fix 模式：结果没有逐条明细时不动手（fail-closed）', () => {
+    mockSafeExec.mockReturnValue(output(JSON.stringify({ summary: { errors: 1, warnings: 4, fixable: 5 } })));
+    const result = handleAislopScan('aislop-fix', { mode: 'fix' }, '/proj', {});
+    expect(result.message).toContain('没有逐条规则明细');
+  });
+
   it('fix 失败时不谎报成功', () => {
+    const diagnostics = Array.from({ length: 5 }, () => ({ engine: 'lint', rule: 'ruff/F401', fixable: true }));
     mockSafeExec
-      .mockReturnValueOnce(output(JSON.stringify({ summary: { errors: 5, warnings: 5, fixable: 5 } })))
+      .mockReturnValueOnce(output(JSON.stringify({ summary: { errors: 5, warnings: 5, fixable: 5 }, diagnostics })))
       .mockImplementationOnce(() => { throw new Error('boom'); });
 
     const result = handleAislopScan('aislop-fix', { mode: 'fix' }, '/proj', {});
     expect(result.status).toBe('warn');
     expect(result.message).toContain('执行失败');
+  });
+});
+
+// 端到端回归：仓库配了 .aislop/config.yml 关掉 console 规则，而 `aislop fix`
+// 不认配置 —— 实测放它跑会删掉 494 行注释/输出。现在必须拒跑。
+describe('handleAislopScan fix 模式：配置关过规则就不跑 fix', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue('');
+  });
+
+  it('即使诊断里只剩安全规则也拒绝，并说明原因', () => {
+    const diagnostics = [{ engine: 'lint', rule: 'ruff/F401', fixable: true }];
+    mockSafeExec.mockReturnValue(output(JSON.stringify({ summary: { errors: 0, warnings: 1, fixable: 1 }, diagnostics })));
+    mockReadFileSync.mockReturnValue('rules:\n  ai-slop/console-leftover: "off"\n');
+
+    const result = handleAislopScan('aislop-fix', { mode: 'fix' }, '/proj', {});
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('aislop fix 不认配置');
+    expect(mockSafeExec.mock.calls.map(c => c[0]).some(c => c.includes('aislop fix'))).toBe(false);
+    mockReadFileSync.mockReturnValue('');
   });
 });

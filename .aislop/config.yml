@@ -1,0 +1,17 @@
+# aislop 项目配置：把「修复 = 删代码」的规则关掉，让 --safe 修复真正可用。
+#
+# 背景（2026-10-27 实测）：本仓库 543 处 "fixable" 中 481 处是
+#   console-leftover 325（fix 会删掉 console.log —— 本仓库是 CLI 引擎，console 就是输出层）
+#   narrative-comment 119 + trivial-comment 37（fix 会删注释 —— 中文解释注释是本项目文档约定）
+# 结果 `aislop fix --safe` = 0 fixed，不带 --safe 又会把用户可见的诊断输出删掉。
+# 关掉这三条后，剩余的 fixable 才是真正机械可修（unused-import / 导入合并 / python 格式）。
+rules:
+  ai-slop/console-leftover: "off"
+  ai-slop/narrative-comment: "off"
+  ai-slop/trivial-comment: "off"
+
+# 第三方副本/生成物不参与评分（保留自身 lint 体系）
+exclude:
+  - .claude/skills
+  - .claude/tools
+  - codeguardian
