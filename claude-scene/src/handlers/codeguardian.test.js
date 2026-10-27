@@ -125,6 +125,17 @@ describe('CodeGuardian 以运行前快照为基准', () => {
     expect(msg).toContain('边界超出');
   });
 
+  it('引擎自己落盘的报告/日志不计入边界', () => {
+    const ctx = { codeguardianBaseline: captureBoundaryBaseline(root) };
+    mkdirSync(join(root, '.claude', 'reports'), { recursive: true });
+    writeFileSync(join(root, '.claude', 'reports', 'aislop-x.json'), JSON.stringify({ pad: 'x'.repeat(5000) }));
+    mkdirSync(join(root, '.claude', 'logs'), { recursive: true });
+    writeFileSync(join(root, '.claude', 'logs', 'workflow.log'), 'line\n'.repeat(200));
+    const msg = handleCodeGuardianOptimize('codeguardian_optimize', {}, root, ctx);
+    expect(msg).toContain('边界检查通过');
+    expect(ctx.boundaryOk).toBe(true);
+  });
+
   it('非 git 目录拿不到快照，回落为 null 不抛错', () => {
     const plain = mkdtempSync(join(tmpdir(), 'guardian-plain-'));
     expect(captureBoundaryBaseline(plain)).toBeNull();

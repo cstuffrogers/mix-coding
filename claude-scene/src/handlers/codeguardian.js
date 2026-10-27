@@ -42,6 +42,15 @@ function normPath(p) {
   return out.toLowerCase();
 }
 
+// 引擎自己产出的文件（报告/日志/记忆/备份）不是业务变更，把它们算进 ±50 边界
+// 就等于自己把自己 abort 掉（实测：aislop 报告落盘后立刻多出 64 行“变更”）。
+const GENERATED_PREFIXES = ['.claude/reports/', '.claude/logs/', '.claude/memory/', '.claude/backups/'];
+
+function isGeneratedArtifact(relPath) {
+  const normalized = String(relPath || '').replaceAll('\\', '/');
+  return GENERATED_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
 function changedLines(targetPath, base) {
   const numstat = git(targetPath, `diff --numstat ${base}`);
   if (numstat === null) return null;
@@ -50,10 +59,12 @@ function changedLines(targetPath, base) {
   let removed = 0;
   let files = 0;
   for (const line of numstat.split('\n')) {
-    const m = line.trim().match(/^(\d+)\s+(\d+)\s+\S/);
-    if (!m) continue; // 二进制文件是 "-  -  path"，不计量
-    added += Number(m[1]);
-    removed += Number(m[2]);
+    // 二进制文件是 "-  -  path"，数字位不是整数，自然被跳过
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 3 || !/^\d+$/.test(parts[0]) || !/^\d+$/.test(parts[1])) continue;
+    if (isGeneratedArtifact(parts.slice(2).join(' '))) continue;
+    added += Number(parts[0]);
+    removed += Number(parts[1]);
     files++;
   }
 
@@ -63,7 +74,7 @@ function changedLines(targetPath, base) {
   let untrackedLines = 0;
   for (const rel of listed.split('\n').slice(0, UNTRACKED_FILE_CAP)) {
     const name = rel.trim();
-    if (!name) continue;
+    if (!name || isGeneratedArtifact(name)) continue;
     try {
       untrackedLines += readFileSync(join(targetPath, name), 'utf-8').split('\n').length;
       files++;

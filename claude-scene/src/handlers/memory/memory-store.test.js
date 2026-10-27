@@ -484,7 +484,8 @@ describe('召回装配（交错 + 去重 + 顺序）', () => {
     await handleMemoryRecall('recall', { limit: 3 }, proj, context);
     expect(context.recalled_memories).toHaveLength(3);
     expect(markersOf(context.recalled_memories)).toEqual([11, 10, 9]);
-  });
+    // 12 条 × 5 后端写入 + 汇合召回要走真实后端（含 CodeGraph），默认 5s 会超时
+  }, 30000);
 
   it('limit 是非正数或非数字时回落到默认 10，不会退化成 slice(0, -5)', async () => {
     const { handleMemoryRecall } = await import('../memory.js');
