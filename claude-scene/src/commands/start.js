@@ -216,6 +216,17 @@ function sweepFlagDecision(options) {
   return options?.skipSweep === true ? 'skip' : undefined;
 }
 
+/** 命令行的 --choice 也能答 confirm 类问题：序号（1/2）或原文（跑/不跑/是/否）都认 */
+const CONFIRM_YES = new Set(['1', 'yes', 'y', 'true', '是', '要', '跑', 'run', 'with-sweep']);
+const CONFIRM_NO = new Set(['2', 'no', 'n', 'false', '否', '不要', '不跑', 'skip', 'skip-sweep']);
+
+/** 返回 undefined = 没表态或看不懂 —— 看不懂就交回闸门，不猜 */
+export function choiceToConfirm(value) {
+  const v = value === undefined || value === '' || value === true ? '' : String(value).trim().toLowerCase();
+  if (CONFIRM_YES.has(v)) return true;
+  if (CONFIRM_NO.has(v)) return false;
+}
+
 /** 把步骤文案里的 ${ctxKey} 渲染出来，让用户看到「到底在确认什么」 */
 export function renderPromptText(text, context = {}) {
   return String(text ?? '').replace(/\$\{(\w+)\}/g, (whole, key) => {
@@ -229,11 +240,15 @@ export function reportAwaitingAnswer(awaiting, stepNum) {
   console.log(chalk.red(`\n✖ Step ${stepNum} 需要人工回答，但当前是非交互环境（无 TTY），引擎不会替你猜：`));
   console.log(chalk.bold(`   ${awaiting.prompt}`));
   const hints = awaiting.hints?.length ? awaiting.hints : [
-    { flag: '-S, --with-sweep', text: '用户答「跑」：审查前现场执行 sweep（约 1~2 分钟，需工作区干净）' },
-    { flag: '--skip-sweep', text: '用户答「不跑」：明确跳过' },
+    { flag: '-S, --with-sweep', text: '答「跑」：审查前现场执行 sweep（约 1~2 分钟，需工作区干净）' },
+    { flag: '--skip-sweep', text: '答「不跑」：只读上一份记录' },
   ];
-  console.log(chalk.yellow('\n   调用方（agent / 脚本）必须先把这个问题问用户，再按答案重跑：'));
-  for (const h of hints) console.log(`     ${String(h.flag).padEnd(22)}${h.text}`);
+  // 输出成「带序号的选项」而不是一串 flag：用户直接回「1」/「不跑」，
+  // agent 再用对应 flag（或 --choice 1）重跑。只列 flag 时用户看不到「跑」这个选项。
+  console.log(chalk.yellow('\n   选项（把序号或原文回给 agent，agent 用对应 flag 重跑）：'));
+  hints.forEach((h, i) => {
+    console.log(`     ${i + 1}) ${chalk.cyan(String(h.flag).padEnd(20))}${h.text}`);
+  });
   console.log(chalk.gray('   都不传 => 再次停在同一个问题，不会静默取默认值。'));
   console.log(chalk.gray(`   决策标签：${awaiting.label}`));
 }
@@ -241,10 +256,17 @@ export function reportAwaitingAnswer(awaiting, stepNum) {
 export async function handleConfirmDialog(step, options, context) {
   if (step.params?.type !== 'confirm' || !step.params?.prompt) return false;
 
-  // 1) 用户已经表过态：-S / --skip-sweep（sweep 专用）、--yes / --decline（通用）
+  // 1) 用户已经表过态：-S / --skip-sweep（sweep 专用）、--yes / --decline（通用）、
+  //    --choice（序号或原文：1/跑、2/不跑）
+  const rawChoice = choiceToConfirm(context?.choiceDecision ?? options?.choice);
+  const typedChoice = context?.choiceDecision ?? options?.choice;
+  if (rawChoice === undefined && typedChoice !== undefined && typedChoice !== '' && typedChoice !== true) {
+    console.log(chalk.yellow(`  ⚠ --choice "${typedChoice}" 不是这个确认问题的选项（1/跑 或 2/不跑），忽略`));
+  }
   const raw = context?.sweepDecision
     ?? sweepFlagDecision(options)
-    ?? explicitConfirmDecision(options);
+    ?? explicitConfirmDecision(options)
+    ?? rawChoice;
   if (raw !== undefined) {
     setContextFlag(step, context, options, typeof raw === 'string' ? raw === 'run' : raw);
     return true;
@@ -270,13 +292,16 @@ export async function handleConfirmDialog(step, options, context) {
   markAwaiting(context, step, {
     prompt: step.params.prompt,
     label: step.params.flag_label || step.params.context_flag || step.description || step.action,
-    hints: [
-      { flag: '--yes', text: '回答「是 / 要」' },
-      { flag: '--decline', text: '回答「否 / 不要」' },
-      ...(step.params.context_flag === 'withSweep'
-        ? [{ flag: '-S / --skip-sweep', text: 'sweep 专用表态（等价于 --yes / --decline）' }]
-        : []),
-    ],
+    // 序号 1/2 必须和下面的顺序一致：--choice 1 = 跑，--choice 2 = 不跑
+    hints: step.params.context_flag === 'withSweep'
+      ? [
+          { flag: '-S, --with-sweep', text: '答「跑」：现场执行 sweep（约 1~2 分钟，需工作区干净）' },
+          { flag: '--skip-sweep', text: '答「不跑」：只读上一份自检记录' },
+        ]
+      : [
+          { flag: '--yes', text: '答「是」' },
+          { flag: '--decline', text: '答「否」' },
+        ],
   });
   return true;
 }

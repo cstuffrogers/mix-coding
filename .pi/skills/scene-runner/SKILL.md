@@ -82,7 +82,7 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | 确认类（提交/推送/发布/回滚/自动重构…） | `--yes` 或 `--decline` |
 | 单选类（版本类型/更新策略/性能问题/回滚目标…） | `--choice <值>` |
 | 填空类（缺失环境变量） | 让用户先补 `.env` / 环境变量，再重跑 |
-| review 的 sweep（2.68） | `-S`（跑） / `--skip-sweep`（不跑） |
+| review 的 sweep（2.68） | `-S`（跑） / `--skip-sweep`（不跑），也可 `--choice 1` / `--choice 2` |
 | setup 的设施类型（0） | `--kind e2e\|monitor\|property` |
 
 涉及场景：`feature`(9)、`release`(6)、`rollback`(3/5)、`deps`(5)、`optimize`(4/7/10)、
@@ -108,6 +108,7 @@ review 场景 Step 2.68 要问「是否现在现场跑一次探测器自检（de
   - 用户答「跑」 → `claude-scene start review --auto -S`（现场自检，约 1~2 分钟，需工作区干净）
   - 用户答「不跑」 → `claude-scene start review --auto --skip-sweep`（Step 2.7 只读旧记录，过期会 warn）
 - 已传 `-S` / `--skip-sweep` → 引擎不再问，直接执行。
+- 引擎打印的是**带序号的选项**（1) 跑  2) 不跑）；用户回「1」/「2」/「跑」/「不跑」都行，agent 翻成 `-S` / `--skip-sweep`（或 `--choice 1` / `--choice 2`）重跑。
 
 **禁止**：不要拿「不加参数重跑」当跳过（会又停在同一个问题上），也不要把 exit 2 当失败去重试或忽略。
 

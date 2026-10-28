@@ -8,6 +8,7 @@ vi.mock('inquirer', () => ({ default: { prompt: vi.fn() } }));
 const { default: inquirer } = await import('inquirer');
 const {
   handleConfirmation, handleOptionSelection, renderPromptText, deriveStepStatus,
+  handleConfirmDialog, choiceToConfirm,
 } = await import('./start.js');
 const { handleChoose, handleAskUser } = await import('../handlers/flow-control.js');
 const { handleDesignInput } = await import('../handlers/design.js');
@@ -214,6 +215,80 @@ describe('renderPromptText', () => {
   it('渲染已知变量，保留未知变量原样', () => {
     expect(renderPromptText('回滚到 ${v} / ${unknown}', { v: 'v1.0.0' }))
       .toBe('回滚到 v1.0.0 / ${unknown}');
+  });
+});
+
+/**
+ * 闸门输出必须长得像「选项」，不是一串 flag。
+ * 用户原话：「怎么还是没有 sweep 的选项」—— 旧文案把 -S 和 --skip-sweep 并成
+ * 一行「sweep 专用表态」，看的人根本分不出哪个是「跑」哪个是「不跑」。
+ */
+describe('confirm 闸门：sweep 必须作为两个可选项出现', () => {
+  const sweepStep = {
+    step: 2.68,
+    action: 'askUser',
+    description: '询问是否在审查前现场跑一次探测器自检',
+    params: {
+      type: 'confirm',
+      prompt: '是否现在现场跑一次探测器自检？',
+      context_flag: 'withSweep',
+      flag_label: '探测器自检 sweep',
+      ask_even_in_auto: true,
+    },
+  };
+
+  it('hints[0] 是「跑」(-S/--with-sweep)，hints[1] 是「不跑」(--skip-sweep)', async () => {
+    const context = {};
+    await handleConfirmDialog(sweepStep, { auto: true }, context);
+    const hints = context._awaitingAnswer.hints;
+    expect(hints).toHaveLength(2);
+    expect(hints[0].flag).toContain('--with-sweep');
+    expect(hints[0].text).toContain('跑');
+    expect(hints[1].flag).toContain('--skip-sweep');
+    expect(hints[1].text).toContain('不跑');
+  });
+
+  it('非 sweep 的普通确认步骤不搮 sweep 专用 flag', async () => {
+    const step = {
+      step: 9,
+      action: 'confirm',
+      description: '是否提交代码',
+      params: { type: 'confirm', prompt: '是否提交代码并推远程？', context_flag: 'commitCode' },
+    };
+    const context = {};
+    await handleConfirmDialog(step, { auto: true }, context);
+    const flags = context._awaitingAnswer.hints.map((h) => h.flag).join(' ');
+    expect(flags).not.toContain('sweep');
+    expect(flags).toContain('--yes');
+    expect(flags).toContain('--decline');
+  });
+
+  it('--choice 1 = 跑，--choice 2 = 不跑（用户按序号回答就能重跑）', async () => {
+    const runCtx = {};
+    await handleConfirmDialog(sweepStep, { auto: true, choice: '1' }, runCtx);
+    expect(runCtx.withSweep).toBe(true);
+    expect(runCtx._awaitingAnswer).toBeUndefined();
+
+    const skipCtx = {};
+    await handleConfirmDialog(sweepStep, { auto: true, choice: '2' }, skipCtx);
+    expect(skipCtx.withSweep).toBe(false);
+    expect(skipCtx._awaitingAnswer).toBeUndefined();
+  });
+
+  it('--choice 给了不懂的值：不静默取默认，仍然停在闸门', async () => {
+    const context = {};
+    await handleConfirmDialog(sweepStep, { auto: true, choice: 'maybe' }, context);
+    expect(context.withSweep).toBeUndefined();
+    expect(context._awaitingAnswer.step).toBe(sweepStep.step);
+  });
+
+  it('choiceToConfirm 认序号与原文，不认一律 undefined', () => {
+    expect(choiceToConfirm('1')).toBe(true);
+    expect(choiceToConfirm('跑')).toBe(true);
+    expect(choiceToConfirm('2')).toBe(false);
+    expect(choiceToConfirm('不跑')).toBe(false);
+    expect(choiceToConfirm('')).toBeUndefined();
+    expect(choiceToConfirm('maybe')).toBeUndefined();
   });
 });
 
