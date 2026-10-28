@@ -1737,3 +1737,78 @@ C) 谓词读了 `ctx.obj.field` 而 `obj` 从没被填过。手工复核 A 段�
 - **测量值也要有读者**：删 `migrationHighCount` 不是因为它是错的，而是因为没人读它 ——
   留着只会让人以为它在驱动门禁。
 - **审计脚本用完就删**（临时脚本会被根 `eslint .` 扫到，也是仓库噪声）。
+
+---
+
+## 会话 8：`on_error` / `retry` 语义审计（第八轮）— 2026-10-28
+
+**目标**：把「场景作者写下的失败承诺」与「引擎实际行为」对齐。上一轮审计的是
+`condition` 维度（读了没人写 / 写了没人读），这一轮审计它的孪生维度：
+`on_error` / `retry` —— 失败时的分支到底发生了什么。结论：**`retry` 三个承诺一条都没兑现**。
+
+### 场景侧事实（先摸底再动手）
+
+| 项 | 数量 |
+|---|---|
+| 用 `on_error` 的步骤 | `abort` 居多，`retry` 8 处（new-project 3.73/4.5、optimize 6/9、release 12、review 2、rollback 8、setup 4） |
+| 声明 `retry` 次数的场景 | 0（重试次数一直是硬编码 3） |
+| 写成 `continue` 的步骤 | 0（但 `docs/mobile-*.md` 把它写进了取值清单） |
+
+### 修 1：`retry` 回路重写为 `retryFailedStep()`
+
+旧代码就三行：`context.lastStepFailed = false` → `await dispatchAction(...)` →
+`console.log(chalk.green(...))`。三件事同时错：
+
+1. **假绿**：不看返回值，重试仍然失败也打绿色 ✔；
+2. **假红**：不更新 `stepResults` / `LOG_SUMMARY`，第一次的 fail 永远留着 ——
+   重试成功了，汇总还是 `✗ fail`，收尾「未通过步骤」点名一个已经不存在的失败；
+3. **flag 不转发**：不重跑 `applyPostStepContext`，重试成功写回的 `open_design_executed`
+   / `refactor_points` 等不再进 context，下游 `condition` 继续按失败走。
+
+现在每次重试都过 `deriveStepStatus` 真判状态；成功则 `shiftSummary`（fail 桶 → 真实桶）
++ `rewriteStepRecord`（改写那条记录并标 `retried`）+ 重跑 `applyPostStepContext`；
+重试中若处理器把问题写进 `context._awaitingAnswer`，跟首次执行一样中止去问人
+（以前把问题吞掉继续跑）。`refactor_points` 去重，重跑不会记两次。
+
+### 修 2：显式 `{ status: 'fail' }` 现在真的会触发 `on_error`
+
+`handleStepError` 的入口是 `if (!context.lastStepFailed) return`，而 `lastStepFailed`
+以前只由**文案正则**（对非字符串返回 `false`）或处理器手写置位。于是
+「显式报 fail 但没顺手置 flag」的步骤被 `on_error: abort` 默默放过 ——
+场景写下的「失败即中止」根本没生效。`deriveStepStatus` 归一到 `fail` 时置位。
+反向也锁死：`pass/warn/skip/noop` 不许误置（否则 warn 会变成中止）。
+
+### 修 3：认不出的 `on_error` 值不再静默
+
+`on_error: fail-fast` / `stop` 之类以前等于「继续」，一点提示都没有。现在黄字点名
+「引擎只支持 abort / fail_workflow / retry / continue」。`continue` 是文档写明的取值，不告警。
+`scene-integrity.test.js` 增加常驻守卫：所有场景 `on_error` ∈ 认识集合，
+且 `retry` 步骤必须仍有处理器。
+
+### 修 4：`abortForAwaitingAnswer` 加 `counted` 选项
+
+重试时才要问人的步骤，fail 已被 `recordStepResult` 记过一次，不再重复计入
+`total/fail` —— 一个步骤不该在汇总里出现两行。
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1046 passed / 80 files**（+13） |
+| lint | `npx eslint .` | 0 |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 |
+| 死码 | `npm run scan:deadcode` | Total dead 0 |
+| 26 场景 | 逐个 `--dry-run --auto` | 全部 exit 0 |
+| review 真跑 | `start review --auto --skip-sweep` | pass 17 / fail 0 / warn 3 / skip 19 / noop 4（不变） |
+| retry 恢复 | 临时场景 `zz-retry-probe`（`npm test` 前两次 exit 1） | 第 2 次重试成功 → 汇总 **pass:1 fail:0**（修前是 fail:1 + 绿勾） |
+| retry 耗尽 | 同上改成必失败 | 3 次重试后中止，`✗ Step 1 重试 3 次后仍失败` |
+| 未知取值 | 同场景改 `on_error: fail-fast` | 黄字告警后继续，本步仍记 fail |
+| abort 生效 | `zz-abort-probe`（`on_error: abort` + 必失败测试） | 立即中止 **exit 1**，Step 2 未执行 |
+| 无新增中止 | deps / cicd / mobile-audit / setup wet（临时空仓） | 均正常收尾，无 on_error 中止 |
+
+### 决策
+- **失败状态只有一种解释**：显式 `fail`、`lastStepFailed`、文案正则任一条成立 = 失败，
+  三条都不许被 `on_error` 绕过。
+- **重试是「重做这件事」，不是「再打印一遍」**：状态、记录、context 转发三者必须一起重跑。
+- **未识别的契约取值必须出声**：「引擎按默认处理」+「一声不响」= 场景作者以为写下了承诺。
+- 文档里的取值也算契约：`continue` 要么实现、要么删文档；本次按「已实现」放行并写进断言。
