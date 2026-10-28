@@ -1664,3 +1664,76 @@ CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只
 - **报告是给人看的**：引擎内部键、`undefined`、没有步号的 `{action,status}` 一律不许进报告。
 - **正则启发式只做兵底**：能用显式 `{status}` 表达的状态别交给文案匹配（`/无[^]*?[目录配置]/` 就是教训）。
 - **状态词与文案必须互证**：报 `noop` 就别写「执行完成」，写「已修复」就得有写入。
+
+---
+
+## 2026-10-28 第七轮：条件表达式的反向契约 —— 恒假条件、死谓词、孤儿写入
+
+第六轮把「报告里写的」和「实际做的」对齐了。这轮换轴：第五轮守的是
+「场景 `params` 写了没人读」，这轮守它的镜像 ——**`conditions` 读了没人写**。
+恒假条件是最难发现的假信号之一：它在 dry-run 和真跑里都只表现为
+`⏭ 跳过 Step X（条件不满足）`，和「这一轮确实不需要跑」长得一模一样。
+
+### 怎么审的
+静态脚本（用完即删）把 `conditions.js` 的 61 个谓词体解析出来，再去 `src/` 里找
+`context.X = …` 的写入方，然后遍历所有 `scene.flow` 的 `condition`，输出三类：
+A) 条件引用了既不是谓词、也没人写的标识符（恒假）；B) 谓词没人引用；
+C) 谓词读了 `ctx.obj.field` 而 `obj` 从没被填过。手工复核 A 段的 12 个命中，
+3 个是 computed write（`enh_*`、`setup_kind`）的误判，剩下 9 个是真问题。
+
+### 真 bug：破坏性步骤被「通用点头」把关
+`refactor:13 applyTransformations`（提取方法/提取类/重命名标识符）的条件是
+`user_confirmed === true`，而 `user_confirmed` 是**每一次**确认都会覆写的通用 flag
+（`--yes`、是否提交代码、是否发布……）。专用 flag `user_confirmed_refactor` 存在，
+但只有 `handleConfirmDialog → setContextFlag` 那条路会写；`refactor:12` 是
+`action: 'confirm'` 走 `handleConfirmation`，那条路只写通用的。于是：
+- 想用专用 flag 把关 → 永远没人写它 → 步骤永远跳过；
+- 只能退回通用 flag → 任何一次不相关的确认都能打开一个破坏性步骤。
+
+修法：`start.js` 抽出 `recordConfirmAnswer()`，`--yes` / `--decline` / 真终端交互 /
+`auto_confirm` 四条路径共用，同时落「通用 flag + 按步骤描述推导的专用 flag」；
+场景条件改成 `user_confirmed_refactor === true`（两份同步）。
+真跑验证：`--yes` → Step 13 执行（noop，无可改内容）；`--decline` → 条件不满足跳过。
+
+### 死谓词：定义了没人读 = 以后的恒假陷阱
+| 谓词 | 问题 |
+|---|---|
+| `fixes_applied` / `high_severity_found` | 读 `ctx.securityScanResult?.…`，而那个对象全仓库只被初始化成 `{}`（唯一读者就是这两个谓词）。真实事实在 `context.fixApplied` / `context.high_severity_found`。 |
+| `migrationHighCount > 0` / `fix_failed_count >= 3` | 零场景引用（表达式形态的谓词，从来没人往条件里写过）。 |
+| `generate_doc_site` / `crg_mcp_available` / `crg_graph_built` | 全仓库零引用。 |
+
+一并清掉 orphan 写入（写了没人读）：
+- `buildSceneContext` 的 `securityScanResult: {}`（唯一读者是上面那个死谓词）；
+- `context.fixFailedCount`（唯一写入紧跟 `process.exit(1)` —— 进程都结束了，没人读得到）；
+- `context.migrationHighCount`（门禁看 `migrationReviewPassed`，明细看 `migrationFindings`）。
+- `deriveMetricsFromContext` 改读真实键 `high_severity_found`：以前安全指标永远是「未知」
+  所以一次都没进过设计图，测试还在断言那段死行为。
+
+### 新增常驻守卫 `conditions-contract.test.js`
+1. **条件里的每个标识符必须能求值**：是内置谓词，或 context 上真被写过的键
+   （写入方包括 `buildSceneContext` 的返回对象字面量；`enh_*` / `setup_kind` 这类
+   computed write 显式列出并写明「谁写的」）。自探针：把 `refactor:13` 条件拼错一个
+   字母，测试立刻点名 `→ 恒假`。
+2. **每个谓词必须被 ≥1 个场景条件引用**。`selected_modes.includes('ai_design')` 这种
+   直写形式按「别名」放行，但要求该谓词行为与 `selected_modes.includes(x)` 完全一致
+   （真跑求值比对），不许白拿免死金牌。自探针：塞一个 `zz_dummy_probe` → 立刻报出。
+
+### 验证
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1033 passed / 79 files**（+3，含新守卫文件） |
+| lint | `npm run lint` | 0 problem |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 problem（踩了 `unicorn/consistent-existence-index-check`） |
+| 死码 | `npm run scan:deadcode` | Total dead 0（Handlers 0/70、Scenes 0/26） |
+| 26 场景 | 逐个 `--dry-run --auto` | 全部 exit 0 |
+| review 真跑 | `start review --auto --skip-sweep` | exit 0；pass 17 / fail 0 / warn 3 / skip 19 / noop 4 |
+| refactor 真跑 | `MIX_CODING_PROJECT_DIR=/tmp/mix-r7 start refactor --auto --yes` / `--decline` | Step 13 分别「执行（noop）」与「条件不满足跳过」 |
+
+### 决策
+- **谓词只有两种合法归宿**：被场景条件真的用到，或者删掉；「先放着以后可能用」就是恒假陷阱。
+- **专用 flag 必须两条确认路径都写**：`handleConfirmDialog`（`params.type=confirm`）与
+  `handleConfirmation`（`action=confirm`）语义相同，flag 的落法不许不一样。
+- **通用点头不能给破坏性步骤把关**：`user_confirmed` 是「刚才有人说过是」，不是「用户同意这件事」。
+- **测量值也要有读者**：删 `migrationHighCount` 不是因为它是错的，而是因为没人读它 ——
+  留着只会让人以为它在驱动门禁。
+- **审计脚本用完就删**（临时脚本会被根 `eslint .` 扫到，也是仓库噪声）。
