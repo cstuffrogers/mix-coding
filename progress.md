@@ -1394,3 +1394,32 @@ CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只
 | 场景冒烟 | `start {loop,check,spec} --dry-run` | 全部 exit 0 |
 
 附带决策：`AI编程圈地修复系统完整设计方案.docx` 从仓库根 `git mv` 到 `docs/`（文档归 docs/）。
+
+---
+
+## 2026-10-28 · ui-polish / review 假信号三连修（`f094b59`）
+
+### 修了什么
+| # | 症状 | 根因 | 现在 |
+|---|---|---|---|
+| 1 | `review --auto` 不问 sweep 就记 `pass(interactive-answered)` | `buildSceneContext` 写 `withSweep: Boolean(options.withSweep)`（没传 = false），2.68 又声明 `context_flag: withSweep`，「值存在即权威」把引擎自己填的 false 当成用户答复 | 没传就留 `undefined` → 停在闸门 `exit 2` 并列出 `-S/--with-sweep`、`--skip-sweep` |
+| 2 | 顺带发现 `declaredFlagAnswer` 回 `null` 会被 `??` 链当成「已答否」→ sweep 全被跳过 | `null` ≠ `undefined` | 只有 `boolean` 才算表态，其它 `return;` |
+| 3 | ui-polish 4 `installDeps` 在非 React 工程记 `fail` | 无条件 `npm install lucide-react animate.css`，npm 因项目自身 peer 冲突报错 | 按「主题 + 是否 React 工程」选包；非 React 跳过 React 专属库并点名；npm 真失败记 `warn` 并附实质错误（不是 `Command failed` 壳行） |
+| 4 | 自己的测试夹具被自己的 XSS 扫描判红 | `deep-review-tools.test.js` 里写了整句 `.innerHTML = x;` | 夹具改成拼串；扫描器不加豁免（不靠放宽掩盖信号） |
+| 5 | `handleSemgrepScan` 认知复杂度 18 > sonarjs 上限 15 | 循环 + 汇总判断挤在一个函数 | 拆 `_collectSemgrepResults` / `_summarizeSemgrepScan` |
+| 6 | 仓库根配置的密钥无守卫 | — | 新增 `no-committed-secrets.test.js`（sk-*/ghp_*/AKIA*/PEM/JWT + 占位符 + 反向自检） |
+
+### 验证
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 全量回归 | `npx vitest run` | **922 测试 / 72 文件全绿** |
+| 根 lint | `npm run lint` | 0 warning |
+| 引擎 lint | `cd claude-scene && npx eslint . --max-warnings 0` | 通过 |
+| 死码 | `npm run scan:deadcode` | Total dead: 0 |
+| 闸门拦截 | `start review --auto` | **EXIT=2**，打印 2 条 sweep 选项 |
+| 闸门答复 | `start review --auto --skip-sweep` | EXIT=0 |
+| 全量真跑 | `start review --auto -S` @ `f094b59` | **23 pass / 0 fail / 0 warn**，报告 100/100，sweep 12/12 现场自检 |
+| 探测器自检 | `handleSecBugHunt(cwd)` | 0 问题（修掉夹具假红后） |
+| installDeps 探针 | 假 non-React 工程 / 本仓库 | 只装 `animate.css`（点名跳过 lucide-react）/ `warn(ERESOLVE)` |
+
+附带决策：「引擎自己填的默认值不算用户表态」——凡 `context_flag` 指向的值，必须是用户/flag 显式给的才算答复。
