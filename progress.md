@@ -1592,3 +1592,75 @@ CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只
 - **场景 JSON 是手工排版**：删键用行级编辑（含 CRLF 处理）+ `JSON.parse` 复核，禁止整体 `JSON.stringify` 重写。
 - **参数只有两种合法归宿**：接到真实行为上，或从场景删除。「保留以备将来」= 下次审计的噪声。
 - **参数生效不许改变语义**（`block_merge_on_critical` 不中止 review）。
+
+---
+
+## 2026-10-28 第六轮：报告与文案的一致性 —— 「已生成 / 修复完成 / 分类完成」原来都不做事
+
+前五轮修的是「步骤有没有真跑」。这一轮问最后一步：**跑完之后写给人看的那份东西，是不是在撒谎？**
+入口是自家 `review` 真跑的输出：`sec-bug-hunt` 明明扫了 215 个源码文件，摘要里却是 `noop`；
+而报告文件里一堆 `**withSweep**: undefined`，还把 `_awaitingAnswer` 这种引擎内部键抄了进去。
+
+### 怎么审的
+1. 手写一个临时脚本扫 `handlers/`：**函数体里没有任何实际动作（fs/exec/fetch）却能返回「完成/已生成/已修复」** 的 handler → 56 个候选；
+2. 逐个读，按「数据是真读出来的吗 / 返回值真被用到了吗 / 写没写文件」三问筛出 12 处真撒谎；
+3. 报告、摘要、notify 单独人工读一遍真跑产出（`/tmp/mix-run*` 当 targetPath，避免污染仓库）。
+
+### 修了什么
+
+**报告 / 摘要 / 通知**
+| 位置 | 以前的假 | 现在 |
+|---|---|---|
+| `handleReport` | 没有 targetPath 也报「报告已生成」；写失败被 catch 吞掉仍算 pass | 无路径 → skip；写失败/写后文件不存在 → warn；成功回报路径 + 步数 |
+| 报告内容 | context 原文 dump（含 `_awaitingAnswer`、`completedSteps`、`**x**: undefined`） | 新增「## 步骤结果」段（计数 + 非 pass 步骤表：步号/action/状态/说明）；内部键与 undefined 过滤 |
+| `printSummary` | 5 处调用没传 context → 收尾永远列不出未通过步骤 | 全传 context，收尾固定列「未通过 / 未执行的步骤」 |
+| `stepResults` | 只有 `{action,status}`，说不出是哪一步 | 加 `step`/`detail`（>120 字截断补 `…`） |
+| `handleNotify` | 前面有失败步骤也报「任务完成通知已发送」 | 有失败时点名 `Step X action`，并明说「不报已完成」 |
+| `handleSend` | 没路径/写日志失败都说「已发送」 | 两者 → warn |
+
+**没人读的旗子**
+- `handleCeAction` 以前无条件写 `ce_<action>_executed`、`ce_brainstormed/planned/reviewed/debugged/compounded/worked/plugin_available`——全仓库无人读，且 CE 插件没装时也是 `true`。改为 `context.ce_executed` / `ce_requested`（数组、去重），可用性统一问 `checkCePlugin()`（原来三处各问各的）。
+- `design.js handlePersist`：`design_variant` 全仓库无人写入 → 永远落盘 `variant:'unknown' / selected:'unknown'` 还报「已持久化」。改读 `context.design_selected`，没有选择就 warn 且不写文件。
+
+**「完成」二字覆盖不到的动作**
+| handler | 以前 | 现在 |
+|---|---|---|
+| `mobileGenerateReport` | 置个旗子就报「报告已生成」，零字节 | 真写 `.claude/reports/mobile-audit-*.md` + 回读校验 |
+| `mobileAutoFix` | 「自动修复完成」+ `mobile_autofix_applied = true` | noop：「移动端修复需真机验证，CLI 不改代码」 |
+| `perfBaseline` | 「采集完成 N 项」（N-1 项是 `device_required`）；空目录算出 `0B` | 只数真采到的；「要真机」与「没扫到源码」分开说；空目录记 N/A |
+| `storeCompliance` | 三个 check 的返回值被 `for(...) check();` 整段丢弃，其中一条是 `() => true` | 逐项结论：过 / 没过 / 无法静态判定（后者不算过）；`0/3 通过` 这种结论才敢写 |
+| `executeOptimize` | 凭空 push 两条字符串就报「2 项应用」并写 `optimize_applied` | 只登记 `optimize_suggestions` / `optimize_needs_manual`，状态 noop |
+| `remeasure` | 只塞一个时间戳就报「重新测量完成」 | noop + 点名哪些指标仍无实测值 |
+| `testInteractions` / `classifyBugs` | 「N 个流程已识别」/「Bug 分类完成: N 条」（数据来自硬编码名字） | 都改 noop：「只登记待测项，不是已确认」 |
+| `mapRoutes` | 读 `context.targetPath`，把形参丢掉 → 目标不是 cwd 时永远 0 页面 | 用形参，扫到的页面数如实报 |
+| `executeUIPolish` 异常分支 | 「执行完成（部分操作可能失败）」 | fail + 错误信息 |
+| `analyzeUI` / `impeccableCritique` | 0 个前端文件也报「分析完成 / 打磨完成」 | warn + 说明没找到可分析文件 |
+
+### 状态启发式：一个正则误杀了一个真干活的步骤
+`NOOP_RES` 里的 `/无[^]*?[目录配置]/` 能跨 200 多字：`sec-bug-hunt` 扫完 215 个文件、结论「无问题」，
+只因消息里带了句「npm audit 接口不可用」就被判 `noop`（= 什么都没做）。两处修正：
+- 正则限成短距离的「无X目录 / 无X配置」，并用**有界 indexOf 扫描**替代（顺带消掉 sonar 的回溯告警）；
+- `handleSecBugHunt` 改**显式 `{status,message}`**：有 high/critical = fail，有问题 = warn，干净但覆盖有缺口（依赖漏洞未知）= warn。
+
+### 新增测试
+`qa.test.js`、`mobile/optimize.test.js`、`commands/summary-content.test.js` 三个新文件 +
+`flow-control` / `design` / `mobile-audit` / `threat-scan` 补用例。其中一条专门钉住这次的坑：
+「消息里提『不可用』不影响显式状态」—— 同一个字符串，纯文本走启发式是 `noop`，带显式 status 必须是 `warn`。
+
+### 验证
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1028 passed / 78 files**（+37） |
+| lint | `npm run lint` | 0 problem |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 problem（本轮踩了 `unicorn/no-array-reduce`、`unicorn/no-useless-undefined`、`sonarjs/cognitive-complexity` 三次，均已拆分） |
+| 死码 | `npm run scan:deadcode` | Total dead 0（Handlers 0/70、Scenes 0/26） |
+| 26 场景 | 逐个 `--dry-run --auto` | 全部 exit 0 |
+| review 真跑 | `start review --auto --skip-sweep` | exit 0；pass 17 / fail 0 / warn 3 / skip 19 / noop 4；`sec-bug-hunt` 从 noop 改判 warn |
+| 移动端真跑 | `MIX_CODING_PROJECT_DIR=/tmp/mix-run3 start mobile-audit --auto` | 报告真落盘；`perfBaseline` noop、`storeCompliance` warn（`0/3 通过`）、`mobileGenerateReport` pass，全部与实际相符 |
+
+### 决策
+- **「完成」是结论，不是格式化字符串**：handler 只有在真读了/真写了/真跑了之后才准用「完成/已生成」。
+- **检查不产生结论 = 没检查**（`check: () => true`、返回值被丢弃、`0B` 当测量值，同罪）。
+- **报告是给人看的**：引擎内部键、`undefined`、没有步号的 `{action,status}` 一律不许进报告。
+- **正则启发式只做兵底**：能用显式 `{status}` 表达的状态别交给文案匹配（`/无[^]*?[目录配置]/` 就是教训）。
+- **状态词与文案必须互证**：报 `noop` 就别写「执行完成」，写「已修复」就得有写入。
