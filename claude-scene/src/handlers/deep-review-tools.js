@@ -98,7 +98,7 @@ export function parseSemgrepJson(raw) {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { findings: [], ruleErrors: [], parseFailed: true };
+    return { findings: [], ruleErrors: [], parseErrors: [], parseFailed: true };
   }
   const findings = (parsed.results || []).map((r) => ({
     rule: String(r.check_id || '').split('.').pop(),
@@ -107,8 +107,21 @@ export function parseSemgrepJson(raw) {
     severity: r.extra?.severity || 'WARNING',
     message: (r.extra?.message || '').split('\n')[0].slice(0, 160),
   }));
-  const ruleErrors = (parsed.errors || []).map(e => e.rule_id || e.message || 'unknown');
-  return { findings, ruleErrors, parseFailed: false };
+  // semgrep 的 errors 里混着两类完全不同的东西：
+  //   1) 规则/配置没加载 → 扫出来的「0 处」不可信，必须当告警指出；
+  //   2) 目标文件语法解析失败（.mjs/JSX 常见）→ 只是这部分内容没参与匹配。
+  // 旧实现一律叫「N 条规则加载失败」并把 message 打出来，于是
+  // 「Syntax error at line .agents/skills/.../detect-text.mjs:21」被读成规则坏了。
+  const errors = (parsed.errors || []).map(e => ({
+    ruleId: e.rule_id || '',
+    type: typeof e.type === 'string' ? e.type : (Array.isArray(e.type) ? String(e.type[0] || '') : ''),
+    path: e.path || '',
+    message: e.message || '',
+  }));
+  const isParseError = e => /^Syntax error/i.test(e.message) || /PartialParsing/i.test(e.type);
+  const ruleErrors = errors.filter(e => !isParseError(e)).map(e => e.ruleId || e.message || 'unknown');
+  const parseErrors = errors.filter(e => isParseError(e)).map(e => e.path || e.message);
+  return { findings, ruleErrors, parseErrors, parseFailed: false };
 }
 
 /** Pick the config to run: a project-local rule file wins over the shipped pack. */
@@ -181,6 +194,17 @@ function _printSemgrepFindings(findings, blocking) {
   if (findings.length > 15) console.log(chalk.dim(`    …还有 ${findings.length - 15} 处`));
 }
 
+function _reportSemgrepErrors(ruleErrors, parseErrors, context) {
+  if (ruleErrors.length) {
+    // 规则没加载 = 本次匹配范围不完整，不能只看 findings 数量说「没问题」
+    console.log(chalk.yellow(`  ⚠ ${ruleErrors.length} 条规则/配置加载失败（本次语义扫描不完整）: ${ruleErrors.slice(0, 3).join(', ')}`));
+    if (context) context.semgrepRuleErrors = ruleErrors;
+  }
+  if (parseErrors.length) {
+    console.log(chalk.dim(`  ℹ ${parseErrors.length} 个文件未能解析（已跳过）: ${parseErrors.slice(0, 2).join(', ')}`));
+  }
+}
+
 export function handleSemgrepScan(_action, _params, targetPath, context) {
   const files = listProjectCodeFiles(targetPath);
   if (!files.length) {
@@ -207,14 +231,12 @@ export function handleSemgrepScan(_action, _params, targetPath, context) {
     return 'Semgrep 跳过: 执行失败';
   }
 
-  const { findings, ruleErrors, parseFailed } = parseSemgrepJson(raw);
+  const { findings, ruleErrors, parseErrors, parseFailed } = parseSemgrepJson(raw);
   if (parseFailed) {
     if (context) context.semgrepSkipped = true;
     return 'Semgrep 跳过: 输出无法解析';
   }
-  if (ruleErrors.length) {
-    console.log(chalk.yellow(`  ⚠ ${ruleErrors.length} 条规则加载失败: ${ruleErrors.slice(0, 3).join(', ')}`));
-  }
+  _reportSemgrepErrors(ruleErrors, parseErrors, context);
 
   const blocking = findings.filter(f => f.severity === 'ERROR');
   _printSemgrepFindings(findings, blocking);

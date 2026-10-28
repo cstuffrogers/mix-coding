@@ -10,7 +10,7 @@
 
 import { join } from 'path';
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
-import { execSync } from 'child_process';
+import { safeExecFile } from '../lib/safe-exec.js';
 import chalk from 'chalk';
 import { generateHoneytools, generateHoneytoolConfig } from '../lib/honeytools.js';
 import { loadWhitelist, generateWhitelistConfig } from '../lib/tool-call-validator.js';
@@ -55,14 +55,14 @@ export function handleLobsterTrapInstall(_action, _params, targetPath, context) 
   // Try Go install as fallback
   try {
     // Intentional PATH lookup: detecting whether go is installed.
-    // eslint-disable-next-line sonarjs/no-os-command-from-path
-    execSync('go version', { stdio: 'pipe' });
+    safeExecFile('go', ['version'], null, { stdio: 'pipe' });
     const tmpDir = join(toolsDir, 'lobstertrap-src');
-    execSync(`git clone --depth 1 https://github.com/veeainc/lobstertrap.git "${tmpDir}"`, {
+    // 参数数组直传，不拼 shell 字符串（tmpDir/binPath 带空格或引号就会错甚至被注入）
+    safeExecFile('git', ['clone', '--depth', '1', 'https://github.com/veeainc/lobstertrap.git', tmpDir], null, {
       stdio: 'pipe',
       timeout: 30000,
     });
-    execSync(`go build -o "${binPath}" .`, { cwd: tmpDir, stdio: 'pipe', timeout: 60000 });
+    safeExecFile('go', ['build', '-o', binPath, '.'], tmpDir, { stdio: 'pipe', timeout: 60000 });
   } catch {
     console.log(chalk.yellow('  ⚠ 自动安装失败。请手动安装 Lobster Trap。'));
     console.log(chalk.gray('     详见: https://github.com/veeainc/lobstertrap'));
@@ -351,7 +351,7 @@ export function handleEgressBenchmark(_action, _params, targetPath, context) {
     console.log(chalk.green(`  ✅ 已克隆: ${benchDir}`));
   } else {
     try {
-      execSync(`git clone --depth 1 https://github.com/luckyPipewrench/agent-egress-bench.git "${benchDir}"`, {
+      safeExecFile('git', ['clone', '--depth', '1', 'https://github.com/luckyPipewrench/agent-egress-bench.git', benchDir], null, {
         stdio: 'pipe',
         timeout: 30000,
       });

@@ -63,6 +63,18 @@ describe('deep-review-tools', () => {
       expect(findings).toEqual([]);
     });
 
+    // 旧实现把 errors 全叫「规则加载失败」，于是目标文件语法解析错误
+    // （impeccable 里的 .mjs）被读成「规则坏了」——两类问题要分开报。
+    it('目标文件解析失败不算规则加载失败', () => {
+      const raw = JSON.stringify({
+        results: [],
+        errors: [{ code: 3, message: 'Syntax error at line x.mjs:21:', path: '.agents/x.mjs' }],
+      });
+      const { ruleErrors, parseErrors } = parseSemgrepJson(raw);
+      expect(ruleErrors).toEqual([]);
+      expect(parseErrors).toEqual(['.agents/x.mjs']);
+    });
+
     it('tolerates missing start/extra blocks', () => {
       const raw = JSON.stringify({ results: [{ check_id: 'r.one' }] });
       const { findings } = parseSemgrepJson(raw);

@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 
 /**
  * Sanitize a path for safe shell usage by stripping shell metacharacters.
@@ -44,4 +44,23 @@ export function safeExec(command, cwd, options = {}) {
   }
 
   return execSync(command, { ...options, cwd: cleanCwd });
+}
+
+/**
+ * 用**参数数组**执行外部命令：不经过 shell。
+ *
+ * 把变量拼进命令字符串（例如「sqlite3 + 双引号包住的 SQL 变量」）就是命令注入：
+ * 内容里的 `"` / `` ` `` / `$()` 会逃出双引号执行任意命令。凡是「命令 + 变量」
+ * 都必须走这里，参数一个字面量数组交过去。
+ *
+ * cwd 不做 sanitizePath：没有 shell 层，`$`/引号只是目录名的普通字符，
+ * 改掉反而会让合法路径扫不到文件。
+ *
+ * @param {string} file - 可执行文件名或绝对路径
+ * @param {string[]} args - 参数数组（不会被 shell 解释）
+ * @param {string|null} cwd - 工作目录，null 表示用当前目录
+ * @param {object} [options] - 其余选项（env / stdio / timeout / input / maxBuffer…）
+ */
+export function safeExecFile(file, args, cwd, options = {}) {
+  return execFileSync(file, args, { ...options, ...(cwd && { cwd }) });
 }

@@ -1,9 +1,9 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { execSync } from 'child_process';
 import crypto from 'crypto';
 import { AGENTMEMORY_DIR } from '../../lib/paths.js';
 import { ensureDir, writeFileAtomic } from '../../lib/fs-utils.js';
+import { safeExecFile } from '../../lib/safe-exec.js';
 import { normalizeProjectPath, safeTypeName, DEDUPE_WINDOW_MS } from './project-scope.js';
 
 // AGENTMEMORY_DIR is a module-level constant, so it is frozen at import time and
@@ -18,12 +18,19 @@ function memoryId() {
   return crypto.randomBytes(6).toString('hex');
 }
 
+// sqlite 一律走 safeExecFile + 参数数组：不再拼 shell 字符串。
+// 旧写法 `sqlite3 "${dbPath}" "${sql}"` 把 SQL 包进双引号交给 shell，
+// 记忆内容里的 `"` / `` ` `` / `$()` 都能逃出双引号执行任意命令。
+function sqlite(dbPath, args, opts = {}) {
+  return safeExecFile('sqlite3', [dbPath, ...args], null, { stdio: 'pipe', ...opts });
+}
+
 function initAgentmemory() {
   const dir = agentmemoryDir();
   const dbPath = join(dir, 'memory.db');
   ensureDir(dir);
   if (!existsSync(dbPath)) {
-    execSync(`sqlite3 "${dbPath}" "CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, type TEXT, content TEXT, tags TEXT, created_at TEXT, updated_at TEXT, project_path TEXT);"`, { stdio: 'pipe' });
+    sqlite(dbPath, ['CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, type TEXT, content TEXT, tags TEXT, created_at TEXT, updated_at TEXT, project_path TEXT);']);
   }
   ensureProjectColumn(dbPath);
   return dbPath;
@@ -33,14 +40,14 @@ function initAgentmemory() {
 // 所以先查 pragma；老行该列为 NULL，召回时按「无归属」处理（不静默丢）。
 function ensureProjectColumn(dbPath) {
   try {
-    const cols = new Set(execSync(`sqlite3 "${dbPath}" "SELECT name FROM pragma_table_info('memories');"`, { stdio: 'pipe' })
+    const cols = new Set(sqlite(dbPath, ["SELECT name FROM pragma_table_info('memories');"])
       .toString().split('\n').map(s => s.trim()).filter(Boolean));
     if (!cols.has('project_path')) {
-      execSync(`sqlite3 "${dbPath}" "ALTER TABLE memories ADD COLUMN project_path TEXT;"`, { stdio: 'pipe' });
+      sqlite(dbPath, ['ALTER TABLE memories ADD COLUMN project_path TEXT;']);
     }
     // 内容指纹列：写入去重用。历史行是 NULL，比较时自然不命中。
     if (!cols.has('content_hash')) {
-      execSync(`sqlite3 "${dbPath}" "ALTER TABLE memories ADD COLUMN content_hash TEXT;"`, { stdio: 'pipe' });
+      sqlite(dbPath, ['ALTER TABLE memories ADD COLUMN content_hash TEXT;']);
     }
   } catch { /* 迁移失败不阻断写入：宁可无归属，也不要丢数据 */ }
 }
@@ -74,17 +81,14 @@ function whereClause(tags, projectPath) {
   return ` WHERE (${conditions.map(c => `(${c})`).join(' AND ')})`;
 }
 
-// sqlite3 通过管道返回的 JSON 如果超过 execSync 默认的 1MB maxBuffer，
-// execSync 会抛 ENOBUFS，而读函数外面是 catch → 返回 []。
+// sqlite3 通过管道返回的 JSON 如果超过默认的 1MB maxBuffer，会抛 ENOBUFS，
+// 而读函数外面是 catch → 返回 []。
 // 于是「库里明明有记录，召回却永远是 0 条」——完全静默。两头都堵：
 // maxBuffer 放大，并且内容在 SQL 里就截断，输出体积与存储体积无关。
 const SQLITE_MAX_BUFFER = 64 * 1024 * 1024;
 
 function sqliteJson(dbPath, sql) {
-  return execSync(`sqlite3 "${dbPath}" ".mode json" "${sql}"`, {
-    stdio: 'pipe',
-    maxBuffer: SQLITE_MAX_BUFFER,
-  }).toString().trim();
+  return sqlite(dbPath, ['.mode json', sql], { maxBuffer: SQLITE_MAX_BUFFER }).toString().trim();
 }
 
 export function readAgentmemory(limit = 20, tags = null, projectPath = null) {
@@ -135,14 +139,13 @@ export function writeAgentmemory(type, content, tags = [], projectPath = '', opt
     if (fingerprint) {
       // created_at 存的是 ISO 串，字典序比较即时间序，窗口也能下推到 SQL。
       const cutoff = new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString();
-      const dup = execSync(
-        `sqlite3 "${dbPath}" "SELECT COUNT(*) FROM memories WHERE content_hash = '${fingerprint}' AND type = '${safeType}' AND project_path = '${safeProject}' AND created_at >= '${cutoff}';"`,
-        { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER }
-      ).toString().trim();
+      const dup = sqlite(dbPath, [
+        `SELECT COUNT(*) FROM memories WHERE content_hash = '${fingerprint}' AND type = '${safeType}' AND project_path = '${safeProject}' AND created_at >= '${cutoff}';`,
+      ], { maxBuffer: SQLITE_MAX_BUFFER }).toString().trim();
       if (Number(dup) > 0) return { skipped: true, ok: true };
     }
     const sql = `INSERT OR REPLACE INTO memories (id, type, content, tags, created_at, updated_at, project_path, content_hash) VALUES ('${id}', '${safeType}', '${safeContent}', '${safeTags}', '${now}', '${now}', '${safeProject}', '${fingerprint}');`;
-    execSync(`sqlite3 "${dbPath}"`, { input: sql, stdio: ['pipe', 'pipe', 'pipe'] });
+    safeExecFile('sqlite3', [dbPath], null, { input: sql, stdio: ['pipe', 'pipe', 'pipe'] });
     return { id, type, ok: true, skipped: false };
   } catch (e) {
     console.error(`  ⚠ agentmemory 写入失败: ${e.message}`);
@@ -154,14 +157,10 @@ export function getAgentmemoryStats() {
   const dbPath = join(agentmemoryDir(), 'memory.db');
   if (!existsSync(dbPath)) return { count: 0, ok: false };
   try {
-    const count = parseInt(execSync(
-      `sqlite3 "${dbPath}" "SELECT COUNT(*) FROM memories;"`,
-      { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER }
-    ).toString().trim(), 10) || 0;
-    const types = execSync(
-      `sqlite3 "${dbPath}" "SELECT DISTINCT type FROM memories;"`,
-      { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER }
-    ).toString().trim().split('\n').filter(Boolean);
+    const count = parseInt(sqlite(dbPath, ['SELECT COUNT(*) FROM memories;'], { maxBuffer: SQLITE_MAX_BUFFER })
+      .toString().trim(), 10) || 0;
+    const types = sqlite(dbPath, ['SELECT DISTINCT type FROM memories;'], { maxBuffer: SQLITE_MAX_BUFFER })
+      .toString().trim().split('\n').filter(Boolean);
     return { count, types, ok: true };
   } catch { return { count: 0, ok: false }; }
 }
@@ -199,7 +198,7 @@ export function pruneAgentmemory({ maxPerType = 200, maxAgeDays = 365 } = {}) {
   const dbPath = join(agentmemoryDir(), 'memory.db');
   if (!existsSync(dbPath)) return { archived: 0, byType: {} };
   try {
-    const types = execSync(`sqlite3 "${dbPath}" "SELECT DISTINCT type FROM memories;"`, { stdio: 'pipe', maxBuffer: SQLITE_MAX_BUFFER })
+    const types = sqlite(dbPath, ['SELECT DISTINCT type FROM memories;'], { maxBuffer: SQLITE_MAX_BUFFER })
       .toString().trim().split('\n').map(s => s.trim()).filter(Boolean);
     const stale = [];
     for (const type of types) {
@@ -223,7 +222,7 @@ export function pruneAgentmemory({ maxPerType = 200, maxAgeDays = 365 } = {}) {
     if (!archiveAgentmemoryRows(uniq)) return { archived: 0, byType: {} };
     // id 是本进程生成的 hex，但仍然做一次白名单过滤再拼进 SQL
     const ids = uniq.map(r => String(r.id)).filter(id => /^[\w-]+$/.test(id)).map(id => `'${id}'`).join(',');
-    if (ids) execSync(`sqlite3 "${dbPath}"`, { input: `DELETE FROM memories WHERE id IN (${ids});`, stdio: ['pipe', 'pipe', 'pipe'] });
+    if (ids) safeExecFile('sqlite3', [dbPath], null, { input: `DELETE FROM memories WHERE id IN (${ids});`, stdio: ['pipe', 'pipe', 'pipe'] });
     const byType = {};
     for (const row of uniq) byType[row.type || 'unknown'] = (byType[row.type || 'unknown'] || 0) + 1;
     return { archived: uniq.length, byType };

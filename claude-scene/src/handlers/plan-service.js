@@ -3,7 +3,7 @@
  * Manus-style persistent file-based planning with session recovery
  */
 
-import { execSync } from 'child_process';
+import { safeExecFile } from '../lib/safe-exec.js';
 import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -22,7 +22,8 @@ export function handleSessionCatchup(action, params, targetPath) {
 	}
 
 	try {
-		const result = execSync(`python "${fullPath}" "${targetPath}"`, {
+		// 参数数组直传，不拼 shell 字符串：targetPath 来自 --target，含 " 或 $() 时可注入
+		const result = safeExecFile('python', [fullPath, targetPath], null, {
 			encoding: 'utf-8',
 			timeout: 30000,
 			cwd: targetPath
@@ -320,10 +321,9 @@ export function handleAttestPlan(action, params, targetPath) {
 	}
 
 	try {
-		const result = execSync(`bash "${fullPath}"`, {
+		const result = safeExecFile('bash', [fullPath], targetPath, {
 			encoding: 'utf-8',
-			timeout: 10000,
-			cwd: targetPath
+			timeout: 10000
 		});
 
 		return {
@@ -515,10 +515,9 @@ export function handleCheckComplete(action, params, targetPath) {
 	}
 
 	try {
-		const result = execSync(`bash "${fullPath}"`, {
+		const result = safeExecFile('bash', [fullPath], targetPath, {
 			encoding: 'utf-8',
-			timeout: 10000,
-			cwd: targetPath
+			timeout: 10000
 		});
 
 		return {

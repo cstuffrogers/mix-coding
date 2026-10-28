@@ -276,8 +276,10 @@ export function handleRecheckCli(_action, _params, targetPath, context) {
     return 'ReDoS 扫描失败: 未找到任何 JS/TS 源码（扫描范围为空，结果不可信）';
   }
   // 只认「括号内以量词结尾 + 括号本身也被量词修饰」： (a+)+ / (\w*)* / (.*)+
-  // 普通算术 `(a + 3) * 2` 不会命中（`)` 前必须紧贴「原子+量词」）
-  const NESTED = /\((?:\?:)?\w+[+*]\)[+*]/;
+  // 普通算术 `(a + 3) * 2` 不会命中（`)` 前必须紧贴「原子+量词」）。
+  // 左括号必须是真分组：`\(` 是字面量转义，不是分组 —— 不加这个排除，
+  // 检测器自己那行 `/\(\w+[+*]\)[+*]/` 就把自己报成了 ReDoS（唯一的命中项）。
+  const NESTED = /(?<!\\)\((?:\?:)?\w+[+*]\)[+*]/;
   const hits = [];
   for (const file of files) {
     let content;
@@ -289,6 +291,9 @@ export function handleRecheckCli(_action, _params, targetPath, context) {
     if (!content.includes('/') && !content.includes('RegExp')) continue;
     content.split('\n').forEach((line, idx) => {
       if (!/\/|RegExp/.test(line)) return;
+      // 注释行不执行，不可能是 ReDoS 风险；不排掉的话，文档里写 `(a+)+` 这种
+      // 反例就会把注释本身报成漏洞（本节最先命中的就是自己那行注释）。
+      if (/^\s*(?:\*|\/\/|\/\*)/.test(line)) return;
       if (NESTED.test(line)) hits.push(`${file}:${idx + 1}`);
     });
   }

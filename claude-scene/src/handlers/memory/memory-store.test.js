@@ -564,13 +564,14 @@ describe('agentmemory 保留策略的边界', () => {
 
   it('未归一化的历史 type（含空格大写）也能按类型裁剪', async () => {
     const { writeAgentmemory, pruneAgentmemory } = await import('./agentmemory.js');
-    const { execSync } = await import('child_process');
+    const { execFileSync } = await import('child_process');
     for (const c of ['a', 'b', 'c']) writeAgentmemory('review', `legacy-${c}`, [], 'p');
     const db = join(root, 'am', 'memory.db');
-    execSync(`sqlite3 "${db}" "UPDATE memories SET type='Security Audit' WHERE content IN ('legacy-a','legacy-b');"`);
+    // 参数数组直传（本仓库写法规范：不把变量拼进 shell 字符串）
+    execFileSync('sqlite3', [db, "UPDATE memories SET type='Security Audit' WHERE content IN ('legacy-a','legacy-b');"]);
     const result = pruneAgentmemory({ maxPerType: 1, maxAgeDays: 3650 });
     expect(result.byType['Security Audit']).toBe(1);
-    const left = execSync(`sqlite3 "${db}" "SELECT content FROM memories ORDER BY content;"`)
+    const left = execFileSync('sqlite3', [db, 'SELECT content FROM memories ORDER BY content;'])
       .toString().split('\n').map(line => line.trim()).filter(Boolean);
     expect(left).toEqual(['legacy-b', 'legacy-c']);
   });
