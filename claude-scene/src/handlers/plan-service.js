@@ -297,15 +297,49 @@ export function handleCreateProgress(action, params, targetPath) {
 
 /**
  * Confirm attestation (interactive prompt)
+ *
+ * 以前这里永远返回 { status: 'interactive' }：不进 context、不设条件，
+ * 于是 plan 8（attestPlan，condition: attestation_enabled）永远不跑，
+ * 这个答案在代码库里零消费点 —— 问了等于没问。
+ * 现在 --attest true|false 直接落到 context.attestation_enabled；
+ * 没表态就把问题抛回去（runStep 见到 _awaitingAnswer 会 exit 2）。
  * @param {object} params - { prompt, default }
+ * @param {string} _targetPath - Project directory
+ * @param {object} context - Scene context
  */
-export function handleConfirmAttestation(action, params, _targetPath) {
+export function handleConfirmAttestation(action, params, _targetPath, context) {
+	const { enabled, how } = resolveAttestationDecision(params, context);
+	if (enabled === undefined) {
+		return {
+			status: 'interactive',
+			prompt: params?.prompt || '是否启用 SHA256 认证？（多 Agent 协作时推荐）',
+			default: params?.default ?? false,
+			instructions: 'In conversation mode, user will be prompted. In CLI, use --attest true|false.'
+		};
+	}
+	if (context) context.attestation_enabled = enabled;
+	// 显式布状态：消息里带「跳过」二字，靠正则猜会被当成 noop（走着 ora 的 ⚠ 通道），
+	// 而这一步真的做了决定。
 	return {
-		status: 'interactive',
-		prompt: params?.prompt || '是否启用 SHA256 认证？（多 Agent 协作时推荐）',
-		default: params?.default ?? false,
-		instructions: 'In conversation mode, user will be prompted. In CLI, use --attest flag.'
+		status: 'pass',
+		message: `SHA256 认证${enabled ? '已启用' : '不启用'}${how}：plan 8 ${enabled ? '将执行' : '将跳过'} attest-plan.sh`,
 	};
+}
+
+/**
+ * 谁决定要不要认证：
+ *   1) --attest true|false（用户当场表态）
+ *   2) 场景里写明的 default（声明过的默认值，可以自动用，但必须在输出里说清）
+ *   3) 都没有 → undefined，不猜（调用方把问题抛给人）
+ */
+function resolveAttestationDecision(params, context) {
+	const answered = context?.attestation_enabled;
+	if (answered === true || answered === false) return { enabled: answered, how: '（--attest）' };
+	const declared = params?.default;
+	if (declared === true || declared === false) {
+		return { enabled: declared, how: '（场景声明的默认值，--attest true 可开启）' };
+	}
+	return { enabled: undefined, how: '' };
 }
 
 /**
@@ -313,35 +347,31 @@ export function handleConfirmAttestation(action, params, _targetPath) {
  * @param {object} params - { script: path to attest-plan.sh }
  * @param {string} targetPath - Project directory
  */
-export function handleAttestPlan(action, params, targetPath) {
+export function handleAttestPlan(action, params, targetPath, context) {
 	const scriptPath = params?.script || '.claude/scripts/attest-plan.sh';
 	const fullPath = resolve(targetPath, scriptPath);
-	const planFile = resolve(targetPath, 'plan.md');
-
-	if (!existsSync(planFile)) {
-		return { status: 'error', message: 'plan.md not found' };
-	}
 
 	if (!existsSync(fullPath)) {
-		return { status: 'skipped', reason: 'attest-plan.sh not found' };
+		// 'skipped' 不在 status 白名单里，以前会落到默认分支记 ✓ pass —— 脚本不存在也算认证完成。
+		return { status: 'skip', message: `attest-plan.sh 不存在（${scriptPath}），本次未认证` };
 	}
 
 	try {
 		const result = safeExecFile('bash', [fullPath], targetPath, {
 			encoding: 'utf-8',
-			timeout: 10000
+			timeout: 10000,
+			stdio: ['ignore', 'pipe', 'pipe'],
 		});
-
+		const output = String(result ?? '').trim();
+		if (context) context.plan_attestation = output;
 		return {
-			status: 'success',
-			output: result,
-			message: 'Plan attested with SHA256'
+			status: 'pass',
+			message: `plan 文件已打 SHA256 认证：${output || '(脚本无输出)'}`,
 		};
 	} catch (error) {
-		return {
-			status: 'error',
-			message: error.message
-		};
+		// 没有 task_plan.md / .planning 时脚本会非零退出 —— 这是「没得认证」，不是通过。
+		const detail = String(error.stderr || error.message || '').trim().split('\n').slice(-3).join(' ');
+		return { status: 'warn', message: `SHA256 认证未完成：${detail || 'attest-plan.sh 执行失败'}` };
 	}
 }
 

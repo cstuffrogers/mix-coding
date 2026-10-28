@@ -989,7 +989,18 @@ function buildSceneContext(options) {
     sweepDecision: options.withSweep === true ? 'run' : (options.skipSweep === true ? 'skip' : undefined),
     // --brand：用户已指定品牌设计系统；undefined = 没表态，od-brand-pick 会去问人
     user_selected_brand: options.brand || undefined,
+    // --attest true|false：plan 7 的 SHA256 认证表态；undefined = 没表态，会去问人
+    attestation_enabled: parseAttestFlag(options.attest),
   };
+}
+
+/** --attest 只接受 true/false（以及 1/0、yes/no）；别的一律当「没表态」，不猜 */
+export function parseAttestFlag(raw) {
+  if (raw === undefined || raw === null) return;
+  if (raw === true) return true; // `--attest` 不带值
+  const text = String(raw).trim().toLowerCase();
+  if (['true', '1', 'yes', 'y', '是', '开'].includes(text)) return true;
+  if (['false', '0', 'no', 'n', '否', '关'].includes(text)) return false;
 }
 
 function previewDryRunStep(step, context, options = {}) {

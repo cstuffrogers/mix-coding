@@ -41,7 +41,9 @@ const SIMPLE_CONDITIONS = {
   spec_file_not_exists: (ctx) => ['spec.md', 'specs'].every((f) => !existsSync(join(rootOf(ctx), f))),
   setupConfigured: (ctx) => ctx?.setupConfigured === true || ctx?.e2eConfigured === true || ctx?.monitorConfigured === true,
   has_frontend_changes: (ctx) => ctx?.has_frontend_changes === true,
-  attestation_enabled: (ctx) => ctx?.attestation_enabled === true || ctx?.user_confirmed === true,
+  // 以前这里还有 `|| ctx?.user_confirmed === true`：任何一步确认（哪怕问的是「是否提交代码」）
+  // 都会把 SHA256 认证默默打开。认证只看它自己的开关，别沾别人的表态。
+  attestation_enabled: (ctx) => ctx?.attestation_enabled === true,
   awesome_design_md_used: (ctx) => ctx?.awesome_design_md_used === true || ctx?.user_selected_brand !== undefined,
   ai_design: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('ai_design'),
   full_audit: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('full_audit'),
@@ -291,10 +293,12 @@ const CONDITION_KEYWORDS = new Set([
 ]);
 
 /**
- * 真值完全取决于「前置步骤写入的 flag」的谓词。
- * 这类谓词在 dry-run 下必然是 false（没人写 flag），false 不具权威性。
- * 反向例子：`build_artifacts_exist` / `*_mcp_available` 读的是文件与配置，
- * 现场就能求值，不能算未判定。
+ * 真值完全取决于「前置步骤写入的 flag」的谓词（如 testPassed / fixes_applied）。
+ * 这类谓词只读 ctx，dry-run 下必然是 false（没人写 flag），因此 false 不具权威性。
+ * 反向例子：`build_artifacts_exist` / `*_mcp_available` 读的是文件与配置，现场就能求值。
+ *
+ * 注意：ctx 里已经有这个键（哪怕是 false）时优先信 ctx —— 白名单不能压过真实值，
+ * 否则 plan 7 刚写下的 attestation_enabled=false 会被烘成「未判定」。
  */
 const RUNTIME_STATE_PREDICATES = new Set([
   'setupConfigured',
@@ -327,13 +331,20 @@ export function conditionIdentifiers(condition) {
 /**
  * 条件里依赖「运行时状态」的键：既不是内置谓词（可现场求值），
  * 也没在 context 上出现过。dry-run 下这些键的真假无从得知。
+ *
+ * 注意：context 里已经有这个键（哪怕是 false）就是真答案，不再算未判定。
+ * plan 8 的 attestation_enabled 吃过这个亏：plan 7 刚写了 false，
+ * 却仍被报成「未判定」—— 明明该「跳过」，输出却说不知道。
  */
 function runtimeDependentIdentifiers(condition, context) {
   const ctx = context || {};
   return conditionIdentifiers(condition).filter((id) => {
+    // ctx 里已经有这个键（哪怕是 false）就是真答案，不再算「未判定」。
+    // plan 8 的 attestation_enabled 吃过这个亏：plan 7 刚写了 false，
+    // 却仍被报成「未判定」—— 明明该「跳过」，输出却说不知道。
+    if (ctx[id] !== undefined) return false;
     if (RUNTIME_STATE_PREDICATES.has(id)) return true;
-    if (id in SIMPLE_CONDITIONS) return false;
-    return ctx[id] === undefined;
+    return !(id in SIMPLE_CONDITIONS);
   });
 }
 
