@@ -34,6 +34,25 @@ describe('假绿哨兵', () => {
     it.each(['skip', 'noop', 'warn', 'fail', 'pass'])('显式 %s 原样透传', (status) => {
       expect(deriveStepStatus({ status, message: 'x' }, {}).stepStatus).toBe(status);
     });
+
+    it('显式 fail 必须置 lastStepFailed（否则 on_error=abort 白写）', () => {
+      // handleStepError 的入口是 `if (!context.lastStepFailed) return` ——
+      // 以前 lastStepFailed 只由文案正则置位，{ status: 'fail' } 又不会被正则看上
+      // （非字符串），于是「显式报失败」的步骤被「on_error: abort」默默放过。
+      const context = {};
+      expect(deriveStepStatus({ status: 'fail', message: '单元测试存在失败用例' }, context).stepStatus).toBe('fail');
+      expect(context.lastStepFailed).toBe(true);
+      // 反向：别名 'error' / 'failed' 归一到 fail 时同样要置位
+      const context2 = {};
+      expect(deriveStepStatus({ status: 'error', message: 'EACCES: permission denied' }, context2).stepStatus).toBe('fail');
+      expect(context2.lastStepFailed).toBe(true);
+      // 非 fail 状态不许误置（warn/skip/noop/pass 都不是「失败即中止」的由头）
+      for (const status of ['pass', 'warn', 'skip', 'noop']) {
+        const ctx = {};
+        deriveStepStatus({ status, message: 'x' }, ctx);
+        expect(ctx.lastStepFailed).toBeUndefined();
+      }
+    });
   });
 
   describe('3. 未知动作必须留下痕迹', () => {

@@ -53,3 +53,40 @@ describe('全场景 step：action 必须有落点', () => {
     expect(notFunctions).toEqual([]);
   });
 });
+
+/**
+ * `on_error` 的取值也是契约：写错一个词（`fail-fast` / `stop`）以前完全无声 ——
+ * 引擎按「继续」处理，场景作者却以为写下了「失败即中止」的承诺。
+ * 这里把允许的取值钉死；新增取值必须同时改引擎和这条断言。
+ */
+const KNOWN_ON_ERROR = new Set(['abort', 'fail_workflow', 'retry', 'continue']);
+
+describe('全场景 step：on_error 取值必须是引擎认识的', () => {
+  it('没有任何场景写了未实现的 on_error', () => {
+    const unknown = [];
+    for (const file of files) {
+      const scene = JSON.parse(readFileSync(join(SCENE_DIR, file), 'utf8'));
+      for (const step of scene.flow || []) {
+        if (step.on_error === undefined) continue;
+        if (!KNOWN_ON_ERROR.has(step.on_error)) {
+          unknown.push(`${file} Step ${step.step} ${step.action}: on_error=${step.on_error}`);
+        }
+      }
+    }
+    expect(unknown, `引擎只支持 ${[...KNOWN_ON_ERROR].join(' / ')}：\n${unknown.join('\n')}`).toEqual([]);
+  });
+
+  it('on_error: retry 的步骤必须声明在「可以重跑」的 action 上（不许退化成静默继续）', () => {
+    // retry 现在会真的重跑、真的改写记录；能重跑的 action 必须仍然是注册过的处理器
+    const bad = [];
+    for (const file of files) {
+      const scene = JSON.parse(readFileSync(join(SCENE_DIR, file), 'utf8'));
+      const sceneId = scene.scene_id || file.replace('.json', '');
+      for (const step of scene.flow || []) {
+        if (step.on_error !== 'retry') continue;
+        if (!hasHandler(sceneId, step.action)) bad.push(`${file} Step ${step.step} ${step.action}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});

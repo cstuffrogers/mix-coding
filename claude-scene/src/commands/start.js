@@ -653,7 +653,8 @@ function applyPostStepContext(step, context, sceneId) {
     const found = (context.codeMetricsFindings || 0) + (context.antiPatternFindings || 0);
     if (found > 0) {
       context.refactor_points = context.refactor_points || [];
-      context.refactor_points.push(step.action);
+      // on_error=retry 会在成功后重跑本函数：同一个动作不该被记两次。
+      if (!context.refactor_points.includes(step.action)) context.refactor_points.push(step.action);
     }
   }
 }
@@ -708,6 +709,80 @@ function printSummary(sceneId, context = null) {
   console.log(chalk.dim(`${'─'.repeat(40)}\n`));
 }
 
+/** 状态 → 汇总桶（与 recordStepResult 的 switch 一致；认不出的状态算 pass）。 */
+export function bucketOf(status) {
+  return ['fail', 'noop', 'warn', 'skip'].includes(status) ? status : 'pass';
+}
+
+/**
+ * 把一个步骤的计数从 `from` 桶挪到 `to` 桶（重试成功后要把先前那次 fail 抹掉，
+ * 否则汇总行还在报 ✗ fail —— 一个已经不成立的失败）。
+ */
+export function shiftSummary(summary, from, to) {
+  const a = bucketOf(from);
+  const b = bucketOf(to);
+  if (a === b) return summary;
+  summary[a] = Math.max(0, (summary[a] || 0) - 1);
+  summary[b] = (summary[b] || 0) + 1;
+  return summary;
+}
+
+function clipDetail(text) {
+  const detail = String(text || '');
+  return detail.length > 120 ? `${detail.slice(0, 120)}…` : detail;
+}
+
+/** 把某步骤最新的一条记录改写成重试后的真实状态；找不到返回 null。 */
+export function rewriteStepRecord(stepResults, stepNum, status, resultStr) {
+  if (!Array.isArray(stepResults)) return null;
+  for (let i = stepResults.length - 1; i >= 0; i--) {
+    if (stepResults[i]?.step === stepNum) {
+      stepResults[i] = { ...stepResults[i], status, detail: clipDetail(resultStr), retried: true };
+      return stepResults[i];
+    }
+  }
+  return null;
+}
+
+/**
+ * on_error=retry：重跑到成功为止（最多 3 次）。
+ *
+ * 以前这里就是 `await dispatchAction(...)` 再打一行绿色 ✔，三件事同时错：
+ *   1. 不看结果：重试返回「失败」也打绿勾（假绿）；
+ *   2. 不更新记录：stepResults / LOG_SUMMARY 里那次 fail 永远留着，
+ *      重试成功了汇总还是 ✗ fail、收尾摘要点名一个已经不存在的失败（假红）；
+ *   3. 不重跑 applyPostStepContext：重试成功写回的 flag 不再转发到
+ *      open_design_executed / refactor_points，下游条件继续按失败走。
+ * 另外重试的处理器可能反过来要人回答问题（context._awaitingAnswer）——
+ * 以前直接丢掉，现在跟首次执行一样中止去问。
+ *
+ * 返回 'recovered' | 'exhausted' | 'awaiting'。
+ */
+export async function retryFailedStep(step, sceneId, resolvedParams, context, dispatch = dispatchAction) {
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    context.lastStepFailed = false;
+    console.log(chalk.yellow(`\n🔄 Step ${step.step} 失败，第 ${attempt}/${MAX_RETRIES} 次重试...`));
+    const started = Date.now();
+    const result = await dispatch(sceneId, step.action, resolvedParams, context);
+    if (context._awaitingAnswer) return 'awaiting';
+    const { resultStr, stepStatus } = deriveStepStatus(result, context);
+    console.log(paintByStatus(stepStatus, resultStr));
+    appendLog({
+      step: step.step, action: step.action, status: stepStatus, attempt, reason: 'retry',
+      duration_ms: Date.now() - started, result: resultStr.slice(0, 200), time: new Date().toISOString(),
+    });
+    if (stepStatus === 'fail' || context.lastStepFailed) continue;
+    const previous = context.stepResults?.[context.stepResults.length - 1];
+    shiftSummary(LOG_SUMMARY, previous?.status || 'fail', stepStatus);
+    rewriteStepRecord(context.stepResults, step.step, stepStatus, resultStr);
+    applyPostStepContext(step, context, sceneId);
+    console.log(chalk.green(`   ✔ Step ${step.step} 第 ${attempt} 次重试成功（判为 ${stepStatus}）`));
+    return 'recovered';
+  }
+  return 'exhausted';
+}
+
 async function handleStepError(step, context, sceneId, resolvedParams) {
   // 质量门禁里声明了 block_*（block_release / block_merge / block_critical）：
   // 这就是「失败即阻断」的承诺，不该再依赖场景有没有记得写 on_error。
@@ -729,17 +804,21 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
     process.exit(1);
   }
   if (step.on_error === 'retry') {
-    for (let retry = 0; retry < 3 && context.lastStepFailed; retry++) {
-      console.log(chalk.yellow(`\n🔄 Step ${step.step} 失败，第 ${retry + 1}/3 次重试...`));
-      context.lastStepFailed = false;
-      const retryResult = await dispatchAction(sceneId, step.action, resolvedParams, context);
-      console.log(chalk.green(`   ${retryResult}`));
-    }
-    if (context.lastStepFailed) {
+    const outcome = await retryFailedStep(step, sceneId, resolvedParams, context);
+    if (outcome === 'awaiting') abortForAwaitingAnswer(sceneId, step, context, { counted: true });
+    if (outcome === 'exhausted') {
       console.log(chalk.red(`\n✖ Step ${step.step} 重试 3 次后仍失败（on_error=retry），工作流中止`));
       printSummary(sceneId, context);
       process.exit(1);
     }
+    return;
+  }
+
+  // 认不出的 on_error 值：以前静默按「继续往下跑」处理 —— 场景里写错一个词
+  // （如 'fail-fast'）就等于根本没写这个承诺，而且一点提示都没有。
+  // 'continue' 是文档里写明的取值（docs/mobile-*.md），语义就是默认的继续，不算错。
+  if (step.on_error !== 'continue') {
+    console.log(chalk.yellow(`  ⚠ Step ${step.step} 的 on_error=${step.on_error} 引擎不认识（只支持 abort / fail_workflow / retry / continue），按「继续」处理（本步仍是失败）`));
   }
 }
 
@@ -993,6 +1072,13 @@ export function deriveStepStatus(result, context) {
   if (context.lastStepFailed) return { resultStr, stepStatus: 'fail' };
   // 处理器可直接布状态（三态检查/跳过不再靠正则猜），正则启发式仅作兵底。
   const explicit = getExplicitStatus(result);
+  if (explicit === 'fail') {
+    // 显式报 fail 就是失败。以前只认 context.lastStepFailed（或文案正则），
+    // 于是「显式 {status:'fail'} 但没顺手置 flag」的步骤会被 handleStepError
+    // 的 `if (!context.lastStepFailed) return` 放过 —— on_error=abort 白写了。
+    context.lastStepFailed = true;
+    return { resultStr, stepStatus: 'fail' };
+  }
   if (explicit) return { resultStr, stepStatus: explicit };
   // 处理器什么都没返回（忘了 return / 走了空分支）时，以前落到默认那行记成 pass ——
   // 「步骤 ✓ 但一行输出都没有」是典型的静默失败。空结果一律先当 warn 让人看见。
@@ -1070,18 +1156,21 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context) {
   // step/detail 是给收尾摘要和报告看的：只有 action+status 时，事后看到
   // 「report → warn」也无法知道 warn 的是什么。
   if (!Array.isArray(context.stepResults)) context.stepResults = [];
-  const detail = String(resultStr || '');
-  context.stepResults.push({ step: stepNum, action: step.action, status, detail: detail.length > 120 ? `${detail.slice(0, 120)}…` : detail });
+  context.stepResults.push({ step: stepNum, action: step.action, status, detail: clipDetail(resultStr) });
 }
 
 /**
  * 「该问而无人可问」的收尾：落 fail 记录、打印告示、然后中止（exit 2）。
  * 不写默认值、不装通过 —— 剩下的只能由调用方把问题转给人。
  */
-function abortForAwaitingAnswer(sceneId, step, context) {
+/**
+ * 中止去问人。`counted=true` 用于「重试时才要问」的情形：那一步的 fail 已经被
+ * recordStepResult 记过一次，不能再记一次 —— 一个步骤不该在汇总里出现两行。
+ */
+function abortForAwaitingAnswer(sceneId, step, context, { counted = false } = {}) {
   const awaiting = context._awaitingAnswer;
   delete context._awaitingAnswer;
-  LOG_SUMMARY.total++; LOG_SUMMARY.fail++;
+  if (!counted) { LOG_SUMMARY.total++; LOG_SUMMARY.fail++; }
   appendLog({ step: step.step, action: step.action, status: 'fail', reason: 'needs-answer', detail: awaiting.label, time: new Date().toISOString() });
   reportAwaitingAnswer(awaiting, step.step);
   printSummary(sceneId, context);
