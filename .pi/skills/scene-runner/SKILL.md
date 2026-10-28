@@ -84,6 +84,7 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | 填空类（缺失环境变量） | 让用户先补 `.env` / 环境变量，再重跑 |
 | review 的 sweep（2.68） | `-S`（跑） / `--skip-sweep`（不跑），也可 `--choice 1` / `--choice 2` |
 | setup 的设施类型（0） | `--kind e2e\|monitor\|property` |
+| 品牌选择（`od-brand-pick`：new-project 3.551 / ui-polish 5.9） | `--brand <name>`（vercel/linear/stripe/notion/apple…） |
 
 涉及场景：`feature`(9)、`release`(6)、`rollback`(3/5)、`deps`(5)、`optimize`(4/7/10)、
 `refactor`(12)、`ui-polish`(6)、`mobile-release`(4)、`bugfix`(8)、`onboard`(6)、

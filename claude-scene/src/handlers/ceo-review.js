@@ -11,19 +11,21 @@ import { join } from 'path';
 export function handleAnalyze10x(_action, params, _targetPath, context) {
   const prompt = params?.prompt || '';
   if (context) context.ceo10xPrompt = prompt;
-  return `10x 杠杆分析框架已加载（对话模式下由 agent 完成）:\n${prompt}`;
+  // 「框架已加载」等于什么都没分析 —— 以前这行被记 ✓ pass。改成显式 noop，
+  // 汇总里不再假装 CEO 三步做完了；提示词仍在 context 里给对话模式的 agent 用。
+  return { status: 'noop', message: `10x 杠杆分析框架已载入（需对话模式下由 agent 完成）:\n${prompt}` };
 }
 
 export function handleDetectScopeCreep(_action, params, _targetPath, context) {
   const prompt = params?.prompt || '';
   if (context) context.ceoScopeCreepPrompt = prompt;
-  return `范围蔓延检测框架已加载（对话模式下由 agent 完成）:\n${prompt}`;
+  return { status: 'noop', message: `范围蔓延检测框架已载入（需对话模式下由 agent 完成）:\n${prompt}` };
 }
 
 export function handleUserImpactMatrix(_action, params, _targetPath, context) {
   const prompt = params?.prompt || '';
   if (context) context.ceoUserImpactPrompt = prompt;
-  return `用户价值矩阵框架已加载（对话模式下由 agent 完成）:\n${prompt}`;
+  return { status: 'noop', message: `用户价值矩阵框架已载入（需对话模式下由 agent 完成）:\n${prompt}` };
 }
 
 export function handleCategorize(_action, params, _targetPath, context) {

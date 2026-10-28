@@ -94,6 +94,7 @@ async function handleThemeSelection(step, options, context) {
       ],
     }]);
     context.selectedTheme = answers.theme;
+    noteDecision(context, `theme=${answers.theme}`);
 
     if (answers.theme === 'awm-brand') {
       const brandAnswer = await inquirer.prompt([{
@@ -131,6 +132,7 @@ async function handleAwmBrandSelection(step, options, context) {
     },
   }]);
   const brand = answers.brand.trim();
+  noteDecision(context, `brand=${brand}`);
   if (brand.toLowerCase() !== 'skip') {
     context.user_selected_brand = brand;
     console.log(chalk.green(`\n✅ 已选择品牌：${brand}\n`));
@@ -156,24 +158,33 @@ function applyDescriptionFlag(stepDesc, enabled, context) {
   return true;
 }
 
+/** 落了 context_flag 的步骤：写值 + 打到屏幕上 + 打「已答」标记（没答就不打） */
+function applyContextFlag(step, context, options, answer) {
+  // 没人回答时（--auto 且没问）取 auto_default（默认 true，其它场景语义不变）。
+  // 所以「默认不跑」的交互步骤必须显式写 auto_default: false。
+  const flag = step.params.context_flag;
+  const autoDefault = step.params?.auto_default ?? true;
+  const answered = answer !== undefined;
+  context[flag] = answered ? answer : (options.auto ? autoDefault : false);
+  // 打印裸 flag 名（withSweep）等于没说人话，优先用 flag_label。
+  const label = step.params?.flag_label || flag;
+  const suffix = answered ? '' : '（未询问，取默认值）';
+  console.log(chalk[context[flag] ? 'green' : 'gray'](`\n${context[flag] ? '✅ 已启用' : '⏭ 跳过'} ${label}${suffix}`));
+  answered && noteDecision(context, `${flag}=${context[flag]}`);
+}
+
 function setContextFlag(step, context, options, answer) {
   // Prefer structured context_flag param; fall back to description sniffing
   const flag = step.params?.context_flag;
   if (flag) {
-    // 没人回答时（--auto 且没问）取 auto_default（默认 true，其它场景语义不变）。
-    // 所以「默认不跑」的交互步骤必须显式写 auto_default: false。
-    const autoDefault = step.params?.auto_default ?? true;
-    const answered = answer !== undefined;
-    context[flag] = answered ? answer : (options.auto ? autoDefault : false);
-    // 打印裸 flag 名（withSweep）等于没说人话，优先用 flag_label。
-    const label = step.params?.flag_label || flag;
-    const suffix = answered ? '' : '（未询问，取默认值）';
-    console.log(chalk[context[flag] ? 'green' : 'gray'](`\n${context[flag] ? '✅ 已启用' : '⏭ 跳过'} ${label}${suffix}`));
+    applyContextFlag(step, context, options, answer);
     return true;
   }
 
   const stepDesc = step.description?.toLowerCase() || '';
+  const answered = !options.auto && (answer ?? context._confirmAnswer) !== undefined;
   const enabled = !options.auto ? (answer ?? context._confirmAnswer) : true;
+  answered && noteDecision(context, 'confirm-answer');
   return applyDescriptionFlag(stepDesc, enabled, context);
 }
 
@@ -337,6 +348,7 @@ export async function handleOptionSelection(step, options, context, sceneId) {
     context.selectedOption = selected;
     context.choiceDecision = selected;
     if (sceneId === 'design') context.design_selected = selected;
+    noteDecision(context, `selectedOption=${selected}`);
     console.log(chalk.green(`\n✅ 已选择：${selected}\n`));
   };
 
@@ -424,6 +436,7 @@ async function handleModeSelection(step, options, context) {
     // 否则“本次审查到底跑了哪几套”只能靠翻 JSON 才知道。
     context.selected_modes = withDefaults.filter(o => o.default).map(o => o.id);
     console.log(chalk.gray(`\n⚙ ${step.description || '模式'}：按场景声明的默认值 → ${context.selected_modes.join(', ') || '（无）'}（--mode 可覆盖）`));
+    noteDecision(context, `modes=${context.selected_modes.join(',')}`);
     return true;
   }
 
@@ -436,6 +449,7 @@ async function handleModeSelection(step, options, context) {
   context.selected_modes = answers.modes.length > 0
     ? answers.modes
     : withDefaults.filter(o => o.default).map(o => o.id);
+  noteDecision(context, `modes=${context.selected_modes.join(',')}`);
   return true;
 }
 
@@ -480,6 +494,7 @@ async function handleSingleChoice(step, options, context) {
   }
   if (override.id) {
     context[contextKey] = override.id;
+    noteDecision(context, `${contextKey}=${override.id}`);
     console.log(chalk.green(`
 ✅ 已选择：${override.id}
 `));
@@ -489,6 +504,7 @@ async function handleSingleChoice(step, options, context) {
   if (options.auto) {
     if (fallback) {
       context[contextKey] = fallback.id;
+      noteDecision(context, `${contextKey}=${fallback.id}`);
       console.log(chalk.gray(`\n⏭ ${step.description || step.action}：按场景声明的默认值 ${fallback.id}`));
       return true;
     }
@@ -508,6 +524,7 @@ async function handleSingleChoice(step, options, context) {
     default: fallback?.id,
   }]);
   context[contextKey] = answers.choice;
+  noteDecision(context, `${contextKey}=${answers.choice}`);
   console.log(chalk.green(`\n✅ 已选择：${answers.choice}\n`));
   return true;
 }
@@ -650,6 +667,7 @@ export async function handleConfirmation(step, options, context) {
   const decided = context.confirmDecision ?? explicitConfirmDecision(options);
   if (decided !== undefined) {
     context.user_confirmed = decided;
+    noteDecision(context, `user_confirmed=${decided}`);
     console.log(chalk[decided ? 'green' : 'gray'](`\n${decided ? '✅ 已确认' : '⏭ 已拒绝'}（命令行显式表态）：${shown.split('\n')[0]}`));
     return step.action === 'confirm';
   }
@@ -665,6 +683,7 @@ export async function handleConfirmation(step, options, context) {
       LOG_SUMMARY.total++;
       LOG_SUMMARY.skip++;
       appendLog({ step: step.step, action: step.action, status: 'skip', reason: 'user', time: new Date().toISOString() });
+      context._stepAlreadyLogged = true;
       return true;
     }
     return step.action === 'confirm';
@@ -673,6 +692,7 @@ export async function handleConfirmation(step, options, context) {
   // 3) 场景显式声明 auto 下可自动放行（auto_confirm: true）才走这条
   if (step.params?.auto_confirm === true) {
     context.user_confirmed = true;
+    noteDecision(context, 'user_confirmed=true（场景声明的 auto_confirm）');
     return step.action === 'confirm';
   }
 
@@ -691,7 +711,7 @@ export async function handleConfirmation(step, options, context) {
 
 // Runs the interactive (auto_execute === false) phase of a step.
 // Returns true when the step was fully handled and runStep should return early.
-async function handleInteractiveStep(sceneId, step, context, options) {
+export async function handleInteractiveStep(sceneId, step, context, options) {
   // selectModes 必须先把 selected_modes 写入 context，否则后续条件的
   // `selected_modes.includes(...)` 全为 false —— 该场景 25 步会全部被跳过。
   // 与 auto_execute 无关：它在 auto 模式走 default 选项，在交互模式走 checkbox。
@@ -820,12 +840,48 @@ function abortForAwaitingAnswer(sceneId, step, context) {
   process.exit(2);
 }
 
-/** 交互步骤在日志和汇总里留痕（以前直接 return，事后无从追问「到底问没问」） */
-function recordInteractiveStep(step, context) {
+/** 交互步骤「真拿到了决定」的标记；runStep 消费后清掉。没打标记 = 这步什么都没定 */
+function noteDecision(context, detail) {
+  context._stepDecision = detail || true;
+}
+
+/**
+ * detail 里优先写 context_flag 的值，其次写决定摘要；不能只写「答过」，事后要能追问答了什么
+ */
+function decisionDetail(step, context, decided) {
   const flag = step.params?.context_flag;
-  const detail = flag ? `${flag}=${context[flag]}` : undefined;
-  LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
-  appendLog({ step: step.step, action: step.action, status: 'skip', reason: 'interactive', detail, time: new Date().toISOString() });
+  if (flag && context[flag] !== undefined) return `${flag}=${context[flag]}`;
+  return typeof decided === 'string' ? decided : undefined;
+}
+
+/** 导出只为了可测：日志条目是这步到底做了什么的唯一证据 */
+export function recordInteractiveStep(step, context) {
+  const decided = context._stepDecision;
+  delete context._stepDecision;
+  const detail = decisionDetail(step, context, decided);
+  const answered = Boolean(decided);
+  LOG_SUMMARY.total++;
+  LOG_SUMMARY[answered ? 'pass' : 'skip']++;
+  const entry = {
+    step: step.step,
+    action: step.action,
+    status: answered ? 'pass' : 'skip',
+    reason: answered ? 'interactive-answered' : 'interactive',
+    detail,
+    time: new Date().toISOString(),
+  };
+  appendLog(entry);
+  return entry;
+}
+
+/** 交互步骤的收尾：要么中止去问人，要么记下这步到底做了什么（处理器自己记过就不再记） */
+function finishInteractiveStep(sceneId, step, context) {
+  if (context._awaitingAnswer) abortForAwaitingAnswer(sceneId, step, context);
+  if (context._stepAlreadyLogged) {
+    delete context._stepAlreadyLogged;
+    return;
+  }
+  recordInteractiveStep(step, context);
 }
 
 async function runStep(sceneId, step, context, options) {
@@ -846,8 +902,7 @@ async function runStep(sceneId, step, context, options) {
   }
 
   if (await handleInteractiveStep(sceneId, step, context, options)) {
-    if (context._awaitingAnswer) abortForAwaitingAnswer(sceneId, step, context);
-    recordInteractiveStep(step, context);
+    finishInteractiveStep(sceneId, step, context);
     return;
   }
 
@@ -858,6 +913,10 @@ async function runStep(sceneId, step, context, options) {
   const stepStart = Date.now();
   const result = await dispatchAction(sceneId, step.action, resolvedParams, context);
   const duration = Date.now() - stepStart;
+
+  // 处理器里也可能遇到「只有一个选项得问用户」（如 od-brand-pick 选品牌）：
+  // 谁都能把问题写进 context._awaitingAnswer，这里统一中止去问，不替用户挑一个。
+  if (context._awaitingAnswer) abortForAwaitingAnswer(sceneId, step, context);
 
   const { resultStr, stepStatus } = deriveStepStatus(result, context);
   recordStepResult(step, stepNum, stepStatus, duration, resultStr, context);
@@ -928,6 +987,8 @@ function buildSceneContext(options) {
     withSweep: Boolean(options.withSweep),
     // 用户是否已就 sweep 明确表态（-S 跑 / --skip-sweep 不跑）；undefined = 没表态
     sweepDecision: options.withSweep === true ? 'run' : (options.skipSweep === true ? 'skip' : undefined),
+    // --brand：用户已指定品牌设计系统；undefined = 没表态，od-brand-pick 会去问人
+    user_selected_brand: options.brand || undefined,
   };
 }
 

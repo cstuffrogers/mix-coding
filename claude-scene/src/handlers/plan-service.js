@@ -125,7 +125,13 @@ export function handleReadSpec(action, params, targetPath) {
  * @param {object} params - { prompt: question to ask }
  * @returns {object} Prompt for user input
  */
-export function handleGatherRequirements(action, params, _targetPath) {
+export function handleGatherRequirements(action, params, _targetPath, context) {
+	// 用户在命令行已经用 -p/--prompt 把目标说了，就不是「没人回答」，
+	// 之前一律返回 interactive → 汇总里记 skip，答过也像没答。
+	const goal = context?.prompt;
+	if (goal && String(goal).trim()) {
+		return `需求已收到（-p/--prompt）：${String(goal).trim().slice(0, 80)}`;
+	}
 	return {
 		status: 'interactive',
 		prompt: params?.prompt || '请描述任务目标（一句话）和预期阶段（3-7个）：',

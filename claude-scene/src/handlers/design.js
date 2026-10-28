@@ -449,20 +449,23 @@ export function handleOdBrandPick(_action, _params, _targetPath, context) {
 
   if (context) {
     context.od_brand_shortlist = availablePick;
-    context._awaiting_brand_selection = true;
-    // Pre-set user_selected_brand to the first pick so downstream steps
-    // (od-brand-import, awm-brand-import) work even without interactive input
-    context.user_selected_brand = availablePick[0].key;
+    const picked = context.user_selected_brand?.toLowerCase().trim();
+    if (picked && availableSet.has(picked)) {
+      return `品牌已按 --brand 选为 ${picked}（精选 ${availablePick.length} 个）`;
+    }
+    // 以前这里把 user_selected_brand 预置成第一个品牌（注释写着 so downstream steps
+    // work even without interactive input）—— 就是替用户挑。现在把问题抛回去：
+    // runStep 看到 _awaitingAnswer 会 exit 2，让调用方去问人。
+    delete context.user_selected_brand;
+    context._awaitingAnswer = {
+      step: -1,
+      prompt: `选一个设计品牌（${availablePick.map(b => b.key).join(' / ')}）`,
+      label: '设计品牌',
+      hints: [{ flag: '--brand <name>', text: `候选：${availablePick.map(b => b.key).join(' / ')}` }],
+    };
+    return `品牌精选列表已展示（${availablePick.length} 个，需用户选定）`;
   }
-  return `品牌精选列表已展示（${availablePick.length} 个，默认 ${availablePick[0].key}）`;
-}
-
-function autoSelectBrand(available, context) {
-  const prompt = (context?.prompt || '').toLowerCase();
-  const mentioned = available.find(b => prompt.includes(b));
-  if (mentioned) return mentioned;
-  const priority = ['stripe', 'apple', 'airbnb', 'vercel', 'notion', 'github', 'supabase', 'figma', 'spotify', 'shopify', 'discord', 'slack', 'uber'];
-  return priority.find(p => available.includes(p)) || available[0];
+  return `品牌精选列表已展示（${availablePick.length} 个）`;
 }
 
 function importBrandFileToContext(context, brandDir, fileName, contextKey) {
@@ -490,13 +493,11 @@ function importBrandFiles(context, brandDir) {
 }
 
 export function handleOdBrandImport(_action, params, _targetPath, context) {
-  let brand = params?.brand || context?.user_selected_brand || context?.od_selected_brand;
+  const brand = params?.brand || context?.user_selected_brand || context?.od_selected_brand;
   if (!brand || brand.toLowerCase() === 'skip') {
-    const available = context?.od_available_brands || [];
-    if (available.length === 0) {
-      return 'open-design 品牌导入已跳过（无可用品牌）';
-    }
-    brand = autoSelectBrand(available, context);
+    // 以前这里 autoSelectBrand() 从优先级表里挑一个（stripe > apple > …）—— 替用户做主，
+    // 而且屏幕上根本看不出来。没选定就不导入，把原因说清楚。
+    return { status: 'skip', message: '品牌未选定，跳过导入（先跑 od-brand-pick 或传 --brand <name>）' };
   }
 
   const brandKey = brand.toLowerCase().trim();

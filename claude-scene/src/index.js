@@ -56,6 +56,7 @@ program
   .option('-y, --yes', '对需要确认的步骤（提交/推送/发布/回滚/自动重构…）统一回答「是」；非交互环境下代替用户表态')
   .option('--decline', '对需要确认的步骤统一回答「否」；非交互环境下代替用户表态（--no 在 commander 里是取反语法，故用此名）')
   .option('--choice <value>', '对需要单选的步骤（版本类型/更新策略/性能问题/回滚目标…）直接给值，不再默认取第一项')
+  .option('--brand <name>', 'design/new-project/ui-polish: 指定品牌设计系统（vercel/linear/stripe/notion/apple…），不再默认取列表第一个')
   .option('--no-fold', '不折叠步骤输出（默认超过 6 行的 pass/warn 输出折成摘要，完整内容落盘 .claude/logs/）')
   // 旧习惯 `start loop --auto "需求"` 会把需求当多余位置参数直接报错退出。
   // 允许通过，但明确提示应该写 -p，并把它当需求用（否则用户只看到一行 red 报错）。

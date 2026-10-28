@@ -8,7 +8,7 @@ vi.mock('inquirer', () => ({ default: { prompt: vi.fn() } }));
 const { default: inquirer } = await import('inquirer');
 const {
   handleConfirmation, handleOptionSelection, renderPromptText, deriveStepStatus,
-  handleConfirmDialog, choiceToConfirm,
+  handleConfirmDialog, choiceToConfirm, handleInteractiveStep, recordInteractiveStep,
 } = await import('./start.js');
 const { handleChoose, handleAskUser } = await import('../handlers/flow-control.js');
 const { handleDesignInput } = await import('../handlers/design.js');
@@ -329,4 +329,78 @@ describe('overlay 与 packaged 场景不许漂移', () => {
       expect(overlay).toEqual(packaged);
     });
   }
+});
+
+/**
+ * 全场景巡检：每个「要人回答」的步骤，在 --auto 且命令行没有任何表态时，
+ * 只允许三种结局，绝不允许第四种（什么都不发生却被记 pass/skip）：
+ *   A 抛出问题（_awaitingAnswer → runStep exit 2）
+ *   B 用场景里**显式声明**的默认值（并存进 context，屏幕上也打印出来）
+ *   C 交给自动处理器（返回 false，如 prompt 框架载入、跑测试这类不需要拍板的步骤）
+ * 以前 review 2.68 的静默默认就是「哪种都不是」，只在日志里写一行 skip。
+ */
+describe('全场景交互步骤：不替用户拍板', () => {
+  const SCENE_DIR = join(SRC, '..', 'scenes');
+  const files = readdirSync(SCENE_DIR).filter((f) => f.endsWith('.json'));
+
+  const declaredDefaultOf = (step) => {
+    const opts = step.params?.options;
+    const hasOptDefault = Array.isArray(opts)
+      && opts.some((o) => typeof o === 'object' && o.default !== undefined && o.default !== false);
+    return step.params?.auto_default !== undefined || hasOptDefault;
+  };
+
+  for (const file of files) {
+    const scene = JSON.parse(readFileSync(join(SCENE_DIR, file), 'utf8'));
+    const sceneId = scene.scene_id || file.replace('.json', '');
+    const interactive = (scene.flow || []).filter((s) => s.auto_execute === false || s.layer === 'interactive');
+    if (interactive.length === 0) continue;
+
+    it(`${file}：${interactive.length} 个交互步骤都有明确结局`, async () => {
+      const problems = [];
+      for (const step of interactive) {
+        const context = { selected_modes: [], targetPath: SRC };
+        const handled = await handleInteractiveStep(sceneId, step, context, { auto: true });
+        if (handled === false) continue; // C 交给处理器
+        if (context._awaitingAnswer) continue; // A 问了
+        if (context._stepDecision) {
+          // B 用了默认值 —— 但必须是场景里写明的默认，不能是引擎猜的
+          if (!declaredDefaultOf(step)) {
+            problems.push(`Step ${step.step} ${step.action}: 用了未声明的默认值 ${context._stepDecision}`);
+          }
+          continue;
+        }
+        problems.push(`Step ${step.step} ${step.action}: 没问人、也没落地决定（会被记成 skip 混过去）`);
+      }
+      expect(problems).toEqual([]);
+    });
+  }
+});
+
+/**
+ * 日志不许反向失真：答过的步骤记 pass，没答的记 skip。
+ * （review 2.68 用户答了「跑」、sweep 也跑了，日志却写 skip。）
+ */
+describe('recordInteractiveStep：答过 ≠ 跳过', () => {
+  it('答过 → pass / interactive-answered，detail 写 context_flag 的值', () => {
+    const context = { withSweep: true, _stepDecision: 'run' };
+    const entry = recordInteractiveStep({ step: 2.68, action: 'askUser', params: { context_flag: 'withSweep' } }, context);
+    expect(entry.status).toBe('pass');
+    expect(entry.reason).toBe('interactive-answered');
+    expect(entry.detail).toBe('withSweep=true');
+    expect(context._stepDecision).toBeUndefined();
+  });
+
+  it('没答 → skip / interactive', () => {
+    const context = {};
+    const entry = recordInteractiveStep({ step: 3, action: 'select', params: {} }, context);
+    expect(entry.status).toBe('skip');
+    expect(entry.reason).toBe('interactive');
+  });
+
+  it('detail 没有 flag 时退回决定摘要（事后能追问答了什么）', () => {
+    const context = { _stepDecision: 'selectedOption=安全更新' };
+    const entry = recordInteractiveStep({ step: 5, action: 'choose', params: {} }, context);
+    expect(entry.detail).toBe('selectedOption=安全更新');
+  });
 });
