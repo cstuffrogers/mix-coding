@@ -63,8 +63,49 @@ describe('handleNotify', () => {
 
 describe('handleCheckPrerequisites', () => {
   it('checks node, npm, git availability', () => {
-    const result = handleCheckPrerequisites('check-prerequisites', {}, '/tmp');
-    expect(result).toMatch(/可用$/);
+    // 契约变更：改回显式 { status }（以前返回字符串，靠正则猜）。
+    // 原因：平台不明导致部分检查被跳过时必须 warn，字符串没法表达这个区别。
+    const ctx = {};
+    const result = handleCheckPrerequisites('check-prerequisites', {}, '/tmp', ctx);
+    expect(result.status).toBe('pass');
+    expect(result.message).toMatch(/必需/);
+    expect(ctx.envPrerequisitesPassed).toBe(true);
+  });
+
+  it('场景写的是 required/optional 时也真的去查（onboard 3 的 docker/pnpm 以前被忽略）', () => {
+    const ctx = {};
+    const result = handleCheckPrerequisites(
+      'checkPrerequisites',
+      { required: ['node'], optional: ['__definitely_not_installed__'] },
+      '/tmp', ctx,
+    );
+    expect(result.status).toBe('pass');                       // 可选缺失不阻塞
+    expect(result.message).toContain('__definitely_not_installed__');
+    expect(ctx.envPrerequisitesPassed).toBe(true);
+  });
+
+  it('平台不明时要查的平台专属项不能算通过（以前打印「所有前置条件满足」）', () => {
+    const ctx = {};                                            // 没设 context.platform
+    const result = handleCheckPrerequisites(
+      'checkPrerequisites',
+      { checks: ['node', 'xcode', 'cocoapods'] },
+      '/tmp', ctx,
+    );
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('无法判断');
+    expect(result.message).toContain('xcode');
+    expect(ctx.envPrerequisitesPassed).toBe(false);
+  });
+
+  it('平台明确时跳过项要说清楚为什么跳过', () => {
+    const ctx = { platform: 'android' };
+    const result = handleCheckPrerequisites(
+      'checkPrerequisites',
+      { checks: ['node', 'xcode'] },
+      '/tmp', ctx,
+    );
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('跳过 xcode');
   });
 });
 
@@ -218,5 +259,30 @@ describe('handleCeAction', () => {
   it('falls back for unknown CE action', () => {
     const result = handleCeAction('ce-unknown');
     expect(result).toContain('CE unknown');
+  });
+});
+
+/**
+ * 安全门禁不许默认放行：以前 `context.securityScanResult || {}` 走到
+ * 「没有高危」分支，于是没跑过扫描也报 pass。
+ */
+describe('安全门禁：没扫过 ≠ 没有高危', () => {
+  it('有结果且干净 → 通过', () => {
+    const ctx = { securityScanResult: { highSeverityFound: false } };
+    const r = handleCheckGate('checkGate', { checks: ['security_scan'] }, '/tmp', ctx);
+    expect(r).toContain('通过');
+  });
+
+  it('结果为空对象 → skip（以前算通过）', () => {
+    const ctx = { securityScanResult: {} };
+    const r = handleCheckGate('checkGate', { checks: ['security_scan'] }, '/tmp', ctx);
+    expect(r.status).toBe('skip');
+    expect(r.message).toContain('未执行');
+  });
+
+  it('根本没有扫描记录 → skip', () => {
+    const r = handleCheckGate('checkGate', { checks: ['security_scan', 'tests_pass'] }, '/tmp', {});
+    expect(r.status).toBe('skip');
+    expect(r.message).toContain('未执行');
   });
 });

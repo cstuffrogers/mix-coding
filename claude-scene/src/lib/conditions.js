@@ -153,6 +153,9 @@ const SIMPLE_CONDITIONS = {
   },
   ios_platform: (ctx) => platformFlags(ctx).ios,
   android_platform: (ctx) => platformFlags(ctx).android,
+  // 测试环境真的被验证过（verifySetup 两项都 ok）。用它在「配置完成」通知上把关：
+  // 没验证过就发「示例用例已就绪」是假信号。
+  e2e_verified: (ctx) => ctx?.e2e_verified === true,
 
   // Mobile tool availability
   mobsf_mcp_available: () => hasMcpServer('mobsf'),
@@ -313,6 +316,7 @@ const RUNTIME_STATE_PREDICATES = new Set([
   'mobile_platform',
   'ios_platform',
   'android_platform',
+  'e2e_verified',
 ]);
 
 /** 条件表达式里引用到的 context 键（先抹掉字符串字面量）。 */

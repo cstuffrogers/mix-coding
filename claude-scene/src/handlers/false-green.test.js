@@ -216,3 +216,206 @@ describe('假绿回归：SkillSpector 扫描没跑完', () => {
     expect(r.message).toContain('没有安装 skillspector');
   });
 });
+
+describe('假绿回归：移动端发布版本号', () => {
+  it('没选升级类型 → warn（以前 || "patch" 静默升补丁号）', async () => {
+    const { handleMobileBumpVersion } = await import('./mobile-release.js');
+    const dir = project({ 'package.json': JSON.stringify({ version: '1.2.3' }) });
+    const ctx = {};
+    const r = handleMobileBumpVersion('mobileBumpVersion', {}, dir, ctx);
+    expect(r.status).toBe('warn');
+    expect(r.message).toContain('升级类型未确定');
+    expect(ctx.new_version).toBeUndefined();
+  });
+
+  it('升级类型写错 → warn 并列出可用值（不按 patch 猜）', async () => {
+    const { handleMobileBumpVersion } = await import('./mobile-release.js');
+    const dir = project({ 'package.json': JSON.stringify({ version: '1.2.3' }) });
+    const r = handleMobileBumpVersion('mobileBumpVersion', {}, dir, { selectedOption: 'majr' });
+    expect(r.status).toBe('warn');
+    expect(r.message).toContain('major');
+  });
+
+  it('没有可改的 version 文件 → warn（以前报「版本号已更新: N/A → undefined」）', async () => {
+    const { handleMobileBumpVersion } = await import('./mobile-release.js');
+    const dir = project({ 'README.md': '# x' });
+    const r = handleMobileBumpVersion('mobileBumpVersion', {}, dir, { selectedOption: 'minor' });
+    expect(r.status).toBe('warn');
+    expect(r.message).toContain('没找到');
+  });
+
+  it('minor 真的只升中版本号', async () => {
+    const { handleMobileBumpVersion } = await import('./mobile-release.js');
+    const dir = project({ 'package.json': JSON.stringify({ version: '1.2.3' }) });
+    const ctx = { selectedOption: 'minor' };
+    const r = handleMobileBumpVersion('mobileBumpVersion', {}, dir, ctx);
+    expect(String(r)).toContain('1.2.3 → 1.3.0');
+    expect(ctx.new_version).toBe('1.3.0');
+  });
+
+  it('版本号未定时不生成「## vunknown」的 CHANGELOG', async () => {
+    const { handleMobileGenerateChangelog } = await import('./mobile-release.js');
+    const ctx = {};
+    const r = handleMobileGenerateChangelog('mobileGenerateChangelog', {}, '/tmp', ctx);
+    expect(r.status).toBe('warn');
+    expect(ctx.changelog_content).toBeUndefined();
+  });
+});
+
+describe('假绿回归：移动端平台识别', () => {
+  it('detectProject 要写 context.platform，否则下游全走「非 Android 项目」', async () => {
+    const { handleDetectProject } = await import('./mobile/audit.js');
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'react-native': '0.74.0' } }),
+      'android/build.gradle': '',
+    });
+    const ctx = {};
+    handleDetectProject('detectProject', {}, dir, ctx);
+    expect(ctx.platform).toBe('android');
+    expect(ctx.platforms).toEqual({ ios: false, android: true });
+  });
+
+  it('没有 ios/ 和 android/ → platform unknown 时要 warn', async () => {
+    const { handleDetectProject } = await import('./mobile/audit.js');
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x' }) });
+    const ctx = {};
+    const r = handleDetectProject('detectProject', {}, dir, ctx);
+    expect(ctx.platform).toBe('unknown');
+    expect(r.status).toBe('warn');
+  });
+});
+
+describe('假绿回归：发布前检查不许自己给自己盖章', () => {
+  it('releaseChecks 不再把安全/性能/测试/合规四个门禁写成「通过」', async () => {
+    const { handleReleaseChecks } = await import('./mobile-release.js');
+    const dir = project({ 'android/gradle.properties': 'a=b', 'ios/ExportOptions.plist': '<plist/>' });
+    const ctx = { platform: 'both' };
+    const r = handleReleaseChecks('releaseChecks', {}, dir, ctx);
+    expect(String(r)).toContain('发布前检查完成');
+    expect(ctx.release_checks).toHaveLength(2);          // 这两项是真去看了文件
+    expect(ctx.securityScanResult).toBeUndefined();
+    expect(ctx.performancePassed).toBeUndefined();
+    expect(ctx.testPassed).toBeUndefined();
+    expect(ctx.storeCompliancePassed).toBeUndefined();
+  });
+});
+
+describe('假绿回归：移动端 E2E 配置', () => {
+  const load = () => import('./mobile-testing.js');
+
+  it('Detox 项目要真的写出 .detoxrc.js 和示例用例', async () => {
+    const { handleSetupE2EConfig } = await load();
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x' }) });
+    const ctx = { project_type: 'rn' };
+    const r = handleSetupE2EConfig('setupE2EConfig', { generate_examples: true }, dir, ctx);
+    expect(r.status).toBe('pass');
+    expect(ctx.e2eConfigPassed).toBe(true);
+    expect(ctx.testExamplesPassed).toBe(true);
+    expect(ctx.e2eConfigured).toBe(true);
+  });
+
+  it('verifySetup 不再把「0/2 通过」记成完成', async () => {
+    const { handleVerifySetup } = await load();
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x' }) });
+    safeExec.mockImplementation(() => { throw new Error('Command failed: detox --version'); });
+    const r = handleVerifySetup('verifySetup', {}, dir, { e2e_tool: 'Detox' });
+    expect(r.status).toBe('fail');
+    expect(r.message).toContain('未通过');
+  });
+
+  it('generate_examples: false 时不把 testExamplesPassed 记成 false（那是假红）', async () => {
+    const { handleSetupE2EConfig } = await load();
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x' }) });
+    const ctx = { project_type: 'rn' };
+    handleSetupE2EConfig('setupE2EConfig', { generate_examples: false }, dir, ctx);
+    expect(ctx.e2eConfigPassed).toBe(true);
+    expect(ctx.testExamplesPassed).toBeUndefined();
+  });
+
+  it('CLI 与配置都就绪 → 验证通过，setupConfigured 才置位', async () => {
+    const { handleSetupE2EConfig, handleVerifySetup } = await load();
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x' }) });
+    const ctx = { project_type: 'rn' };
+    handleSetupE2EConfig('setupE2EConfig', { generate_examples: true }, dir, ctx);
+    safeExec.mockReturnValue(Buffer.from('detox 20.0.0'));
+    const r = handleVerifySetup('verifySetup', {}, dir, ctx);
+    expect(String(r)).toContain('2/2 通过');
+    expect(ctx.e2e_verified).toBe(true);
+    expect(ctx.setupConfigured).toBe(true);
+  });
+
+  it('CI workflow 写不进去 → warn（以前照样 ciConfigured = true）', async () => {
+    const { handleGenerateCIConfig } = await load();
+    const dir = project({ 'blocker': 'x' });
+    const blockerAsDir = join(dir, 'blocker', '.github'); // 父路径是文件 → 必然写失败
+    const r = handleGenerateCIConfig('generateCIConfig', {}, blockerAsDir, {});
+    expect(r.status).toBe('warn');
+    expect(r.message).toContain('未生成');
+  });
+
+  it('CI workflow 写成功 → ciConfigured 才置位', async () => {
+    const { handleGenerateCIConfig } = await load();
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x' }) });
+    const ctx = {};
+    const r = handleGenerateCIConfig('generateCIConfig', {}, dir, ctx);
+    expect(String(r)).toContain('已生成');
+    expect(ctx.ciConfigured).toBe(true);
+  });
+});
+
+describe('假绿回归：移动端环境检查', () => {
+  /** 临时清掉 Android SDK 环境变量（本机可能真的配了）。 */
+  function withoutAndroidEnv(fn) {
+    const saved = { home: process.env.ANDROID_HOME, root: process.env.ANDROID_SDK_ROOT };
+    delete process.env.ANDROID_HOME;
+    delete process.env.ANDROID_SDK_ROOT;
+    try { return fn(); } finally {
+      if (saved.home !== undefined) process.env.ANDROID_HOME = saved.home;
+      if (saved.root !== undefined) process.env.ANDROID_SDK_ROOT = saved.root;
+    }
+  }
+
+  it('Android SDK 一个都没配 → warn（以前只存值就报「检查完成」）', async () => {
+    const { handleCheckAndroidSDK } = await import('./mobile-onboard.js');
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x' }) });
+    withoutAndroidEnv(() => {
+      const r = handleCheckAndroidSDK('checkAndroidSDK', {}, dir, { platform: 'android' });
+      expect(r.status).toBe('warn');
+      expect(r.message).toContain('未找到');
+    });
+  });
+
+  it('android/local.properties 里的 sdk.dir 也算找到 SDK', async () => {
+    const { handleCheckAndroidSDK } = await import('./mobile-onboard.js');
+    const dir = project({ 'android/local.properties': 'sdk.dir=/opt/android-sdk\n' });
+    withoutAndroidEnv(() => {
+      const r = handleCheckAndroidSDK('checkAndroidSDK', {}, dir, { platform: 'android' });
+      expect(String(r)).toContain('/opt/android-sdk');
+    });
+  });
+
+  it('非 Android 项目 → skip（不是「检查完成」）', async () => {
+    const { handleCheckAndroidSDK } = await import('./mobile-onboard.js');
+    const r = handleCheckAndroidSDK('checkAndroidSDK', {}, '/tmp', { platform: 'ios' });
+    expect(r.status).toBe('skip');
+  });
+
+  it('.env.example 已存在时不谎称「生成完成」', async () => {
+    const { handleSetupEnv } = await import('./mobile-onboard.js');
+    const dir = project({ '.env.example': 'A=1\n' });
+    const ctx = {};
+    const r = handleSetupEnv('setupEnv', {}, dir, ctx);
+    expect(String(r)).toContain('已存在');
+    expect(ctx.env_template_generated).toBe(false);
+    expect(ctx.envTemplatePassed).toBe(true);
+  });
+
+  it('新项目写不出 .env.example → warn（以前照样 envTemplatePassed = true）', async () => {
+    const { handleSetupEnv } = await import('./mobile-onboard.js');
+    const dir = project({ 'blocker': 'x' });
+    const ctx = {};
+    const r = handleSetupEnv('setupEnv', {}, join(dir, 'blocker'), ctx);
+    expect(r.status).toBe('warn');
+    expect(ctx.envTemplatePassed).toBe(false);
+  });
+});

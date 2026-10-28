@@ -441,6 +441,17 @@ function gateInputStep(step, options, context) {
 /** 没有静态选项：要么不是选择类步骤（交给下层），要么是动态选项（要人给） */
 function gateDynamicOptions(step, options, context, dynamicOpts) {
   if (!dynamicOpts) return handleModeSelection(step, options, context);
+  // 闸门文案写着「--choice <目标> 手动指定该项」，那就得真的能指定 ——
+  // 以前这里无条件中止，用户按提示传了 --choice 依旧停在原地，是句假话。
+  const requested = context.choiceDecision ?? options.choice;
+  const value = typeof requested === 'string' ? requested.trim() : '';
+  if (value) {
+    context.selectedOption = value;
+    context.choiceDecision = value;
+    noteDecision(context, `selectedOption=${value}（--choice 手动指定）`);
+    console.log(chalk.green(`\n✅ 已选择：${value}（--choice 手动指定）\n`));
+    return true;
+  }
   markAwaiting(context, step, {
     prompt: `${renderPromptText(step.params?.message || step.description, context)}\n   （引擎不会自己取「${dynamicOpts}」列表，需要你直接给出目标）`,
     label: step.description || step.action,
@@ -774,6 +785,11 @@ function resolveThemeStep(step, options, context, shown) {
   return true;
 }
 
+/** 带 options 的 confirm 实际是「选哪个」，不是「要不要」 */
+function isChoiceConfirm(step) {
+  return Array.isArray(step.params?.options) && step.params.options.length > 0;
+}
+
 /** 处理确认型步骤；返回 true 表示已完全处理，调用方应提前返回 */
 export async function handleConfirmation(step, options, context) {
   const isConfirmationStep = step.action === 'confirm' || !!step.confirm_message;
@@ -781,6 +797,12 @@ export async function handleConfirmation(step, options, context) {
   if (!confirmMsg) return false;
 
   const shown = renderPromptText(confirmMsg, context);
+
+  // mobile-release 4：「请选择版本升级类型」——文案问的是选择，却挂着 confirm 动作。
+  // 以前一律渲染成「要不要继续」（只有 --yes/--decline），用户选的 major/minor
+  // 从未被记录，下游 bumpVersion 于是静默按 patch 升版本。带 options 的 confirm
+  // 交回选项选择器，--choice major 才能生效。
+  if (isChoiceConfirm(step)) return false;
 
   // 0) 主题选择型确认（ui-polish 6）：这步问的是「选哪个主题」，不是「要不要继续」。
   //    以前非交互下给了 --yes/--decline 两个选项，问题本身没人能回答。

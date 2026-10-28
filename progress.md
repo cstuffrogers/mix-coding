@@ -1489,3 +1489,50 @@ CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只
 顺带说明：这 105 条基本来自我们自己 skills 文档里的**示例代码**（`sharp-edges/references/lang-php.md` 的 webshell 例子、
 `insecure-defaults` 的默认口令例子）。这正是 `sharp-edges` / `insecure-defaults` 两个 skill 存在的意义 —— 报出来比藏起来好。
 代价：这步要 ~2.5 分钟（工具自身启动慢，可用 `SKILLSPECTOR_TIMEOUT_MS` 调整上限）。
+
+## 2026-10-28 第四轮：交互闸门与移动端链路的假信号
+
+### 怎么查的
+- **审计 F**：把 30 个 interactive 步骤在 `--auto` 且零参数下逐个跑一遍，只允许三种结局 ——
+  停在闸门（`_awaitingAnswer`）、用场景**显式声明**的默认值并打印来源、交给处理器。
+  结果 **0 个静默拍板**。
+- **审计 G**：检查每个闸门打印的选项有没有 CLI 参数能答复（用户在聊天里跑引擎，没有 TTY）。
+  初版审计因为把测试值写错（`release#6` 的 id 是 `major/minor/patch`、`optimize#4` 是完整中文串）
+  自己造了两条假红，改成从 `step.params.options` 推导后只剩 `onboard#6`（自由填环境变量，
+  hint 写「补齐后重跑」，属诚实的既有路径）。
+
+### 修了什么（13 处）
+
+| # | 位置 | 症状 |
+|---|---|---|
+| 1 | `start.js` `gateDynamicOptions` | 文案写「`--choice <目标>` 手动指定」，但无条件中止 —— 传了也没用 |
+| 2 | `start.js` `handleConfirmation` | `confirm` + `options` 的步骤（mobile-release 4「选升级类型」）被渲染成「要不要继续」，用户选的 major/minor 从未落地 |
+| 3 | `mobile-release.js` `handleMobileBumpVersion` | `\|\| 'patch'` 静默升级类型；未知类型当 patch；没有 version 文件还报「已更新: N/A → undefined」 |
+| 4 | `mobile-release.js` `handleMobileGenerateChangelog` | 无版本号时生成 `## vunknown` 并当 Release body |
+| 5 | `mobile-release.js` `handleReleaseChecks` | **自己给四个门禁盖章**：`securityScanResult/performancePassed/testPassed/storeCompliancePassed` 一律写通过 → 下一步 `checkGate (block_release)` 永远放行 |
+| 6 | `flow-control.js` `evalSecurityGate` | `securityScanResult \|\| {}` → 没扫过也报「无高危」；现在未定义就 `skip` |
+| 7 | `prerequisites.js` | 只读 `params.checks`，onboard 声明的 `required/optional`（docker/pnpm）从未检查；平台不明时静默跳过却报「✅ 所有前置条件满足」 |
+| 8 | `mobile/audit.js` `handleDetectProject` | 只写 `platforms{}` 不写 `context.platform`，下游 Android SDK / 发布渠道 / gradle 全走「非 Android 项目」，整条平台分支是死功能 |
+| 9 | `mobile-testing.js` `handleSetupE2EConfig` | 只建 `e2e/` 目录 + 示例就报「E2E 配置完成」，`.detoxrc.js` 根本没写 → 下一步 verify 必然失败（先盖章再打脸） |
+| 10 | `mobile-testing.js` `handleVerifySetup` | `0/2 通过` 不含「失败」字样 → 记 pass；现在显式 `fail` + 列出哪项不行 |
+| 11 | `mobile-testing.js` `handleGenerateCIConfig` | 写失败也 `ciConfigured = true` |
+| 12 | `mobile-onboard.js` `handleCheckRnDoctor` / `handleCheckAndroidSDK` / `handleSetupEnv` | 命令串 `\|\| echo` 永远退出 0；三个 SDK 位置只存值不下结论；`.env.example` 写失败也 `envTemplatePassed = true` |
+| 13 | `handler-verify.js` 降级路径 | knip 没跑成时只查了 `actions.js` 的 import，却返回 `deadCodePassed: true` 报「0 个问题」 |
+
+外加：`mobile-e2e` 步骤 10 的通知加了 `condition: e2e_verified`（新谓词）——测试环境没验证过就不发
+「示例用例已就绪」；（两份场景 JSON 同步）。
+
+### 验证
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **963 passed**（新增 30 条：闸门 `--choice` 生效 / confirm+options 路由 / bump 三种 warn / changelog 无版本 / prerequisites required+optional+平台 / detectProject 写 platform / E2E 配置三件套 / Android SDK / `.env.example` / knip 降级） |
+| lint | `npm run lint` + `cd claude-scene && npx eslint . --max-warnings 0` | 0 |
+| 死码 | `npm run scan:deadcode` | Total dead: 0 |
+| 26 场景 | 逐个 `--dry-run --auto` | 全部 exit 0 |
+| 真跑（临时项目） | `MIX_CODING_PROJECT_DIR=<tmp> start mobile-e2e --auto` | 写出 `.detoxrc.js` + `e2e/login.test.js`；`verifySetup` 因本机没装 Detox CLI → **fail 1/2**（诚实红），通知步骤按条件跳过 |
+
+### 决策
+- **检查步骤必须有结论**：只把值复制进 context（`handleCheckAndroidSDK`）或命令永远退出 0（`|| echo`），
+  都不算检查过。
+- **降级检查不许发通过结论**（knip fallback），要发就发 `warn` 并点名降级。
+- **门禁 flag 只能由真的做了检查的步骤写**，不许有「先自己盖章、下一步再验证」的循环。

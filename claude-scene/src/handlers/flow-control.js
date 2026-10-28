@@ -309,7 +309,12 @@ export function handleAskUser(_action, params, _targetPath, context) {
 }
 
 function evalSecurityGate(check, context) {
-  const secResult = context?.securityScanResult || {};
+  const secResult = context?.securityScanResult;
+  // 没跑过安全扫描（highSeverityFound 未定义）不能算通过 —— 以前只要 context 里有个
+  // 空对象 `{}` 就放行，于是「没有高危漏洞」变成「没人查过」。
+  if (!secResult || secResult.highSeverityFound === undefined) {
+    return { kind: 'skipped', label: check };
+  }
   if (secResult.highSeverityFound) {
     return { kind: 'blocked', label: `${check}: 发现高危漏洞` };
   }

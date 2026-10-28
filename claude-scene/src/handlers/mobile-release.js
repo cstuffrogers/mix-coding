@@ -31,10 +31,10 @@ export function handleReleaseChecks(_action, _params, targetPath, context) {
 
   if (context) {
     context.release_checks = checks;
-    context.securityScanResult = { highSeverityFound: false };
-    context.performancePassed = true;
-    context.testPassed = true;
-    context.storeCompliancePassed = true;
+    // 以前这里把 securityScanResult / performancePassed / testPassed /
+    // storeCompliancePassed 一律写成「通过」—— 于是下一步 checkGate
+    // (block_release: true) 永远放行，质量门禁自己给自己盖章。
+    // 这步只真的验证了证书/密钥文件在不在，就只记这些。
   }
   return `发布前检查完成: ${checks.filter(c => c.status === 'ok').length}/${checks.length} 通过`;
 }
@@ -84,7 +84,16 @@ function bumpPubspec(targetPath, bumpType) {
 }
 
 export function handleMobileBumpVersion(_action, params, targetPath, context) {
-  const bumpType = context?.selectedOption || params?.bump_type || 'patch';
+  // 第三顺位以前是 `|| 'patch'` —— 没选升级类型就默认升补丁号，相当于引擎替
+  // 用户决定了发布性质。bump 类型只能来自用户（--choice）或场景声明。
+  const bumpType = context?.selectedOption || params?.bump_type;
+  if (!bumpType) {
+    return { status: 'warn', message: '版本号未更新：升级类型未确定（用 --choice major|minor|patch 指定）' };
+  }
+  if (!['major', 'minor', 'patch'].includes(bumpType)) {
+    console.log(chalk.yellow(`  ⚠ 未知的升级类型 "${bumpType}"，可用: major / minor / patch`));
+    return { status: 'warn', message: `版本号未更新：升级类型 "${bumpType}" 不可识别（可用 major / minor / patch）` };
+  }
   const newVersion = { previous: null, current: null, bump_type: bumpType };
   const projectType = context?.project_type || 'rn';
 
@@ -99,6 +108,10 @@ export function handleMobileBumpVersion(_action, params, targetPath, context) {
     if (newVer) newVersion.current = newVer;
   }
 
+  if (!newVersion.current) {
+    return { status: 'warn', message: `版本号未更新：没找到 package.json / pubspec.yaml 里可改的 version（bump=${bumpType}）` };
+  }
+
   if (context) {
     context.new_version = newVersion.current;
     context.previous_version = newVersion.previous;
@@ -110,7 +123,12 @@ export function handleMobileBumpVersion(_action, params, targetPath, context) {
 // ── Changelog Generation ──
 
 export function handleMobileGenerateChangelog(_action, params, _targetPath, context) {
-  const version = context?.new_version || 'unknown';
+  // 版本号没定（上一步 bump 失败/未选）时会生成「## vunknown」的 changelog，
+  // 而这份内容会直接作为 GitHub Release body。没版本就没 changelog。
+  const version = context?.new_version;
+  if (!version) {
+    return { status: 'warn', message: 'CHANGELOG 未生成：版本号未确定（先确定升级类型完成 bump）' };
+  }
 
   let changelog = `## v${version}\n\n`;
   try {

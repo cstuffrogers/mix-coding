@@ -9,47 +9,65 @@ export function handleCheckRnDoctor(_action, _params, targetPath, context) {
 
   const projectType = context?.project_type;
   if (projectType !== 'rn' && projectType !== 'expo') {
-    return 'react-native doctor 已跳过（非 RN 项目）';
+    return { status: 'skip', message: 'react-native doctor 已跳过（非 RN 项目）' };
   }
 
+  // 以前命令串尾带 `|| echo "RN CLI 不可用"`，永远退出 0，然后无条件写
+  // rn_doctor_checked = true 报「检查完成」—— 一次没跑成也照样盖章。
   try {
-    safeExec('npx @react-native-community/cli doctor 2>&1 || npx react-native doctor 2>&1 || echo "RN CLI 不可用"', targetPath, { stdio: 'pipe', timeout: 30000 });
+    const out = safeExec('npx react-native doctor', targetPath, { stdio: 'pipe', timeout: 60000 }).toString();
+    if (context) context.rn_doctor_checked = true;
+    const problem = out.split(/[\r\n]+/).find((line) => /[✖✗]/.test(line));
+    if (problem) {
+      return { status: 'warn', message: `react-native doctor 发现问题: ${problem.replace(/[✖✗●○\s]+/g, ' ').trim().slice(0, 140)}` };
+    }
+    return 'react-native doctor 检查完成: 无阻塞项';
   } catch (e) {
-    console.log(chalk.yellow(`  ⚠ react-native doctor 执行失败: ${e.message}`));
+    const reason = String(e.message || '').split(/[\r\n]+/)[0].slice(0, 120);
+    return { status: 'warn', message: `react-native doctor 未能运行（${reason}）—— 环境检查结论未知` };
   }
-
-  if (context) context.rn_doctor_checked = true;
-  return 'react-native doctor 检查完成';
 }
 
 // ── Android SDK Check ──
 
-export function handleCheckAndroidSDK(_action, _params, _targetPath, context) {
+export function handleCheckAndroidSDK(_action, _params, targetPath, context) {
 
   const platform = context?.platform;
   if (platform !== 'android' && platform !== 'both') {
-    return 'Android SDK 检查已跳过（非 Android 项目）';
+    return { status: 'skip', message: 'Android SDK 检查已跳过（非 Android 项目）' };
   }
 
   const checks = {};
-  const envVars = ['ANDROID_HOME', 'ANDROID_SDK_ROOT'];
-
-  for (const v of envVars) {
+  for (const v of ['ANDROID_HOME', 'ANDROID_SDK_ROOT']) {
     checks[v] = process.env[v] || 'not set';
   }
 
-  const localProps = join(_targetPath, 'android', 'local.properties');
+  // android/local.properties 里的 sdk.dir 也算数（Gradle 实际就用它）。
+  const localProps = join(targetPath, 'android', 'local.properties');
+  let sdkDir = '';
   if (existsSync(localProps)) {
     try {
-      readFileSync(localProps, 'utf-8');
-  } catch { /* skip */ }
+      // 不用正则：`\s*…\s*=(.+)` 这类式子会被 sonarjs 判为回溯超线性，
+      // 而且 local.properties 就是一行 key=value，按行取更稳。
+      const line = readFileSync(localProps, 'utf-8')
+        .split(/[\r\n]+/)
+        .find((l) => l.split('=')[0]?.trim() === 'sdk.dir');
+      sdkDir = line ? line.split('=').slice(1).join('=').trim() : '';
+    } catch { /* 读不到就当没配 */ }
   }
 
+  const found = [checks.ANDROID_HOME, checks.ANDROID_SDK_ROOT, sdkDir].filter((v) => v && v !== 'not set');
   if (context) {
-    context.android_sdk_checked = true;
-    context.android_sdk_env = checks;
+    context.android_sdk_checked = found.length > 0;
+    context.android_sdk_env = { ...checks, 'local.properties#sdk.dir': sdkDir || 'not set' };
   }
-  return 'Android SDK 检查完成';
+
+  // 以前这里只把三个位置的值存进 context 就报「检查完成」，
+  // 一个都没配也算通过 —— 检查没有结论。
+  if (!found.length) {
+    return { status: 'warn', message: 'Android SDK 未找到：ANDROID_HOME / ANDROID_SDK_ROOT 未设置，android/local.properties 里也没有 sdk.dir' };
+  }
+  return `Android SDK 检查完成: ${found[0]}`;
 }
 
 // ── Env Template Generator ──
@@ -83,17 +101,32 @@ export function handleSetupEnv(_action, _params, targetPath, context) {
   ].join('\n');
 
   const envPath = join(targetPath, '.env.example');
-  if (!existsSync(envPath)) {
+  const existed = existsSync(envPath);
+  let writeError = '';
+  if (!existed) {
     try {
       writeFileSync(envPath, template);
     } catch (e) {
+      writeError = e.message;
       console.log(chalk.yellow(`  ⚠ 写入失败: ${e.message}`));
     }
   } else {
     console.log(chalk.dim('  ℹ .env.example 已存在，跳过'));
   }
 
-  if (context) { context.env_template_generated = true; context.envTemplatePassed = true; }
+  const landed = existsSync(envPath);
+  if (context) {
+    context.env_template_generated = !existed && landed;
+    context.envTemplatePassed = landed;
+  }
+
+  // 写失败以前照样写 env_template_generated / envTemplatePassed = true。
+  if (!landed) {
+    return { status: 'warn', message: `.env 模板未生成：写入 .env.example 失败（${writeError || '文件未落盘'}）` };
+  }
+  if (existed) {
+    return '.env 模板已存在（未覆盖，env_template_generated 不置位）';
+  }
   return '.env 模板生成完成';
 }
 

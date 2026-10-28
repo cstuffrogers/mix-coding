@@ -717,3 +717,51 @@ describe('--mode 覆盖模式勾选', () => {
     expect(resolveModeOverride(step)).toMatchObject({ valid: [], invalid: [] });
   });
 });
+
+/**
+ * 闸门文案不许说谎：写在 hints 里的参数必须真的能用。
+ *   - rollback 3 的 hint 写着「--choice <目标> 手动指定该项」，但以前无条件中止。
+ *   - mobile-release 4 的文案问「请选择版本升级类型」，却按「要不要继续」渲染成
+ *     --yes/--decline，选中的 major/minor 从未落地，下游静默按 patch 升版本。
+ */
+describe('闸门承诺的参数必须真的生效', () => {
+  const SCENE_DIR = join(SRC, '..', 'scenes');
+  const stepOf = (scene, stepNo) => {
+    const flow = JSON.parse(readFileSync(join(SCENE_DIR, `${scene}.json`), 'utf8')).flow;
+    return flow.find((s) => s.step === stepNo);
+  };
+
+  it('rollback 3：--choice 给了回滚目标就不再停在闸门', async () => {
+    const step = stepOf('rollback', 3);
+    const context = buildSceneContext({ auto: true, choice: 'v1.4.2' });
+    await handleInteractiveStep('rollback', step, context, { auto: true, choice: 'v1.4.2' });
+    expect(context._awaitingAnswer).toBeUndefined();
+    expect(context.selectedOption).toBe('v1.4.2');
+  });
+
+  it('rollback 3：没给目标时仍然要人回答（不猜版本）', async () => {
+    const step = stepOf('rollback', 3);
+    const context = buildSceneContext({ auto: true });
+    await handleInteractiveStep('rollback', step, context, { auto: true });
+    expect(context._awaitingAnswer).toBeTruthy();
+    expect(context.selectedOption).toBeFalsy();          // buildSceneContext 里是空串
+  });
+
+  it('mobile-release 4：问的是升级类型，--choice major 要能落地', async () => {
+    const step = stepOf('mobile-release', 4);
+    const context = buildSceneContext({ auto: true, choice: 'major' });
+    await handleInteractiveStep('mobile-release', step, context, { auto: true, choice: 'major' });
+    expect(context.selectedOption).toBe('major');
+    expect(context._awaitingAnswer).toBeUndefined();
+  });
+
+  it('mobile-release 4：没人回答时闸门提示的是 --choice，不是 --yes/--decline', async () => {
+    const step = stepOf('mobile-release', 4);
+    const context = buildSceneContext({ auto: true });
+    await handleInteractiveStep('mobile-release', step, context, { auto: true });
+    const hints = context._awaitingAnswer.hints.map((h) => h.flag).join(' ');
+    expect(hints).toContain('--choice');
+    expect(hints).not.toContain('--yes');
+    expect(context.selectedOption).toBeFalsy();          // 空串 = 没人选过
+  });
+});

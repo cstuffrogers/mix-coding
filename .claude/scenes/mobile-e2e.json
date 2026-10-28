@@ -143,7 +143,8 @@
         "type": "success",
         "message": "移动端 E2E 测试配置完成 🧪 示例用例已就绪，运行 npx detox test 开始"
       },
-      "description": "通知用户 E2E 配置完成"
+      "condition": "e2e_verified",
+      "description": "通知用户 E2E 配置完成（仅当测试环境真的验证通过时）"
     }
   ],
   "status": "active"

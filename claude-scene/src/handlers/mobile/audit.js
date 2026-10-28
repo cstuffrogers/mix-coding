@@ -65,12 +65,21 @@ function formatBytes(bytes) {
 // ── Exported handlers ──
 
 export function handleDetectProject(_action, _params, targetPath, context) {
-  const platform = detectMobilePlatform(targetPath);
+  const detected = detectMobilePlatform(targetPath);
+  const { ios, android } = detected.platforms;
+  // 下游（前置条件 / Android SDK / 发布渠道 / gradle）全读 context.platform，
+  // 而这里以前只写 project_type 和 platforms{ios,android} —— 于是每个平台相关
+  // 分支都走「非 Android 项目，已跳过」，真实的 Android 项目也永远跳过。
+  const platform = ios && android ? 'both' : ios ? 'ios' : android ? 'android' : 'unknown';
   if (context) {
-    context.project_type = platform.projectType;
-    context.platforms = platform.platforms;
+    context.project_type = detected.projectType;
+    context.platforms = detected.platforms;
+    context.platform = platform;
   }
-  return `项目检测完成: ${platform.projectType}`;
+  if (platform === 'unknown') {
+    return { status: 'warn', message: `项目检测完成: ${detected.projectType}（没找到 ios/ 或 android/ 目录，平台相关的检查将无法判断）` };
+  }
+  return `项目检测完成: ${detected.projectType}（平台 ${platform}）`;
 }
 
 export function handleCheckTools(_action, params, _targetPath, context) {

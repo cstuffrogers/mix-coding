@@ -53,34 +53,86 @@ function isCheckApplicable(name, isIos, isAndroid) {
   return true;
 }
 
-export function handleCheckPrerequisites(_action, params, targetPath, context) {
-  const requestedChecks = params?.checks || ['node', 'npm', 'git'];
+function runOneCheck(name, checkers) {
+  if (!checkers[name]) return { ok: false, detail: '未知检查项' };
+  try {
+    const r = checkers[name]();
+    return { ok: r.ok, detail: r.detail };
+  } catch {
+    return { ok: false, detail: '未安装' };
+  }
+}
 
-  const platform = context?.platform || 'unknown';
+function runChecks(names, platform, checkers) {
   const isIos = platform === 'ios' || platform === 'both';
   const isAndroid = platform === 'android' || platform === 'both';
-  const checkers = createCheckers(targetPath);
-
   const results = {};
-  for (const name of requestedChecks) {
-    if (!isCheckApplicable(name, isIos, isAndroid)) continue;
-    if (checkers[name]) {
-      try {
-        const r = checkers[name]();
-        results[name] = { ok: r.ok, detail: r.detail };
-      } catch {
-        results[name] = { ok: false, detail: '未安装' };
-      }
-    } else {
-      results[name] = { ok: false, detail: '未知检查项' };
-    }
+  const skipped = [];
+  for (const name of names) {
+    // 平台不明时不能悄悄跳过：mobile-onboard 要查 6 项，平台为空就只剩 2 项，
+    // 却打印「✅ 所有前置条件满足」并把闸门标记为通过。
+    if (!isCheckApplicable(name, isIos, isAndroid)) { skipped.push(name); continue; }
+    results[name] = runOneCheck(name, checkers);
+  }
+  return { results, skipped };
+}
+
+/** 把检查结果翻译成结论文案；平台不明导致跳过时只能是 warn。 */
+function summarizeChecks({ results, skipped }, requiredSet, platform) {
+  const passed = Object.entries(results).filter(([, v]) => v.ok);
+  const missingRequired = Object.keys(results).filter((k) => !results[k].ok && requiredSet.has(k));
+  const missingOptional = Object.keys(results).filter((k) => !results[k].ok && !requiredSet.has(k));
+  const head = missingRequired.length === 0
+    ? `✅ 必需前置条件满足（${passed.length} 项可用）`
+    : `⚠ ${missingRequired.length} 项必需缺失: ${missingRequired.join(', ')}`;
+
+  console.log(chalk[missingRequired.length === 0 ? 'green' : 'yellow'](`  ${head}`));
+  if (missingOptional.length) {
+    console.log(chalk.yellow(`  ⚠ 可选未装: ${missingOptional.join(', ')}（不阻塞，但相关功能不可用）`));
   }
 
-  const passed = Object.entries(results).filter(([, v]) => v.ok);
-  const missing = Object.entries(results).filter(([, v]) => !v.ok);
-  console.error(chalk[missing.length === 0 ? 'green' : 'yellow'](
-    `  ${missing.length === 0 ? '✅ 所有前置条件满足' : `⚠ ${missing.length} 项缺失: ${missing.map(([k]) => k).join(', ')}`}`,
-  ));
-  if (context) context.envPrerequisitesPassed = missing.length === 0;
-  return `前置条件检查: ${passed.map(([k]) => k).join(', ') || '无'} 可用`;
+  const optTail = missingOptional.length ? `（可选缺失: ${missingOptional.join(', ')}）` : '';
+  if (skipped.length === 0) {
+    return {
+      status: missingRequired.length === 0 ? 'pass' : 'fail',
+      message: `${head}${optTail}`,
+      missingRequired,
+      passedCount: passed.length,
+    };
+  }
+
+  const why = platform === 'unknown' ? '平台未识别（context.platform 为空）' : `当前平台 ${platform} 用不到`;
+  if (platform === 'unknown') {
+    return {
+      status: 'warn',
+      message: `前置条件检查不完整：${why}，${skipped.join(', ')} 无法判断`,
+      missingRequired,
+      passedCount: passed.length,
+    };
+  }
+  const tail = missingOptional.length ? `；可选缺失: ${missingOptional.join(', ')}` : '';
+  return {
+    status: missingRequired.length === 0 ? 'pass' : 'fail',
+    message: `${head}；跳过 ${skipped.join(', ')}（${why}）${tail}`,
+    missingRequired,
+    passedCount: passed.length,
+  };
+}
+
+export function handleCheckPrerequisites(_action, params, targetPath, context) {
+  // 场景里有的写 checks，有的写 required/optional（onboard 3 声明 docker/pnpm
+  // 为可选）—— 只认 checks 的话，声明的 docker/pnpm 从来没被检查过。
+  const required = params?.required ?? params?.checks ?? ['node', 'npm', 'git'];
+  const optional = params?.optional ?? [];
+  const requiredSet = new Set(required);
+  const platform = context?.platform || 'unknown';
+
+  const outcome = runChecks([...required, ...optional], platform, createCheckers(targetPath));
+  const summary = summarizeChecks(outcome, requiredSet, platform);
+
+  if (context) {
+    // 有检查项因平台不明而跳过时，闸门不能算通过（没查 ≠ 通过）。
+    context.envPrerequisitesPassed = summary.missingRequired.length === 0 && outcome.skipped.length === 0;
+  }
+  return { status: summary.status, message: summary.message };
 }

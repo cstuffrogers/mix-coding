@@ -870,13 +870,16 @@ function displayBrokenIssues(importIssues) {
 }
 
 function displayFallbackResults(importIssues) {
+  // 这里意味着 knip 没跑成（未安装/超时），只做了 actions.js 的 import 正则检查。
+  // 以前这条路径照样返回 deadCodePassed: true —— 一项没检的死代码被报成「通过」。
+  console.log(chalk.yellow('  ⚠ Pass 7 — knip 未运行，仅做了 actions.js 的 import 正则检查（降级，不发通过结论）'));
   if (importIssues.ok) {
-    return { importBroken: 0, unusedFilesCount: 0, unusedDepsCount: 0, knipUnresolved: 0, knipUnlisted: 0, deadCodePassed: true };
+    return { importBroken: 0, unusedFilesCount: 0, unusedDepsCount: 0, knipUnresolved: 0, knipUnlisted: 0, deadCodePassed: undefined, deadCodePartial: true };
   }
   const missingCount = displayMissingIssues(importIssues);
   const brokenCount = displayBrokenIssues(importIssues);
   const importBroken = missingCount + brokenCount;
-  return { importBroken, unusedFilesCount: 0, unusedDepsCount: 0, knipUnresolved: 0, knipUnlisted: 0, deadCodePassed: importBroken === 0 };
+  return { importBroken, unusedFilesCount: 0, unusedDepsCount: 0, knipUnresolved: 0, knipUnlisted: 0, deadCodePassed: importBroken === 0 ? undefined : false, deadCodePartial: true };
 }
 
 function runProjectHealth(targetPath) {
@@ -900,7 +903,7 @@ function runProjectHealth(targetPath) {
     }
   }
 
-  return { ceAvailable, importBroken: result.importBroken, unusedFilesCount: result.unusedFilesCount, unusedDepsCount: result.unusedDepsCount, knipUnresolved: result.knipUnresolved, knipUnlisted: result.knipUnlisted, deadCodePassed: result.deadCodePassed, orphanCount };
+  return { ceAvailable, importBroken: result.importBroken, unusedFilesCount: result.unusedFilesCount, unusedDepsCount: result.unusedDepsCount, knipUnresolved: result.knipUnresolved, knipUnlisted: result.knipUnlisted, deadCodePassed: result.deadCodePassed, deadCodePartial: result.deadCodePartial === true, orphanCount };
 }
 
 function runSafetyChecks(targetPath) {
@@ -1004,5 +1007,12 @@ export function handleVerifyHandlers(_action, _params, targetPath, context) {
 
   const totalIssues = computeAndStore(stubs, tools, project, safety, llmAudit, targetPath, context);
 
+  // knip 没跑成时不能发「0 个问题」的通过结论 —— 那是把降级检查当成了全量检查。
+  if (project.deadCodePartial) {
+    return {
+      status: 'warn',
+      message: `11 道检查完成: ${totalIssues} 个问题（Pass 7 死代码检查降级：knip 未运行，结果不完整）`,
+    };
+  }
   return `11 道检查完成: ${totalIssues} 个问题`;
 }
