@@ -157,8 +157,12 @@ function scanAndRecord(targetPath, context) {
       fixableRules: rules,
     });
   }
+  // 空输出 = 工具没跑起来（未安装/执行失败），必须与「真的没问题」区分开：
+  // 以前 raw 为空时文本兜底数出 0 处 → 报「未发现 AI 代码气味」并设 aislopPassed，
+  // 于是门禁跟着假绿。扫描范围为空永远不等于通过。
+  const ranOk = String(raw).trim() !== '';
   if (context) {
-    context.aislopPassed = total === 0;
+    context.aislopPassed = ranOk && total === 0;
     context.aislop_issue_count = total;
     context.aislop_fixable = fixable;
     if (reportPath) context.aislop_report_path = reportPath;
@@ -166,7 +170,10 @@ function scanAndRecord(targetPath, context) {
   return { total, fixable, reportPath, raw, diagnostics: json?.diagnostics || [] };
 }
 
-function scanMessage({ total, fixable, reportPath }) {
+function scanMessage({ total, fixable, reportPath, raw }) {
+  if (String(raw ?? '').trim() === '') {
+    return { status: 'warn', message: 'aislop 扫描未完成：npx aislop 没有任何输出（未安装或执行失败），本次没有结论' };
+  }
   if (total === 0) {
     return { status: 'pass', message: `aislop 扫描完成: 未发现 AI 代码气味${reportPath ? `（报告: ${reportPath}）` : ''}` };
   }
@@ -178,7 +185,8 @@ function scanMessage({ total, fixable, reportPath }) {
 
 function handleScan(targetPath, context) {
   const result = scanAndRecord(targetPath, context);
-  if (result.total === 0) console.log(chalk.green('  ✅ aislop 未发现 AI 代码气味'));
+  if (String(result.raw ?? '').trim() === '') console.log(chalk.yellow('  ⚠ aislop 没有输出，本次没有结论'));
+  else if (result.total === 0) console.log(chalk.green('  ✅ aislop 未发现 AI 代码气味'));
   if (result.total > 0) console.log(chalk.yellow(`  ⚠ aislop: ${result.total} 处问题，报告 ${result.reportPath}`));
   return scanMessage(result);
 }

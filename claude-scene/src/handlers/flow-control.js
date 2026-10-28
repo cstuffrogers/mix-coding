@@ -32,39 +32,48 @@ export function handleSelect(_action, params, _targetPath, context) {
   return `选择完成：${selected}`;
 }
 
-export function handleConfirm(_action, params, _targetPath, context) {
+export function handleConfirm(_action, params, _targetPath, _context) {
   if (params?.message) {
     console.log(chalk.dim(`  确认内容: ${params.message}`));
   }
-  if (context) context.user_confirmed = true;
-  return '确认完成';
+  // 确认 = 有人说了「是」。交互层会先接这一步（handleConfirmation / handleConfirmDialog），
+  // 真走到这里说明交互层没接管、也没人回答 —— 此时无条件写 user_confirmed=true，
+  // 下游 condition(user_confirmed) 跟着假绿，等于引擎替用户点了头。
+  return {
+    status: 'fail',
+    message: '确认步骤没拿到回答：需要人工确认（-y 表示是、--decline 表示否）',
+  };
 }
 
 export function handleInstallDeps(_action, _params, targetPath, context) {
   const packagePath = join(targetPath, 'package.json');
-  if (existsSync(packagePath)) {
-    try {
-      safeExec('npm install', targetPath, { stdio: 'inherit' });
-      if (context) context.install_failed = false;
-    } catch {
-      if (context) context.install_failed = true;
-      return '依赖安装失败（npm install 出错）';
-    }
+  if (!existsSync(packagePath)) {
+    // 没有 package.json 就什么都没装，以前也返回「依赖安装完成」。
+    return { status: 'skip', message: '依赖安装跳过：目标项目没有 package.json' };
+  }
+  try {
+    safeExec('npm install', targetPath, { stdio: 'inherit' });
+    if (context) context.install_failed = false;
+  } catch {
+    if (context) context.install_failed = true;
+    return { status: 'fail', message: '依赖安装失败（npm install 出错）' };
   }
   return '依赖安装完成';
 }
 
 export function handleDocsUpdate(_action, _params, targetPath) {
   const readmePath = join(targetPath, 'README.md');
-  if (existsSync(readmePath)) {
-    let readme = readFileSync(readmePath, 'utf-8');
-    const date = new Date().toISOString().split('T', 1)[0];
-    if (!readme.includes('Last updated:')) {
-      readme += `\n\n---\n\nLast updated: ${date}\n`;
-      writeFileSync(readmePath, readme);
-    }
+  if (!existsSync(readmePath)) {
+    return { status: 'skip', message: '文档更新跳过：目标项目没有 README.md' };
   }
-  return '文档更新完成';
+  let readme = readFileSync(readmePath, 'utf-8');
+  const date = new Date().toISOString().split('T', 1)[0];
+  if (readme.includes('Last updated:')) {
+    return { status: 'noop', message: '文档无需更新（README 已有 Last updated 行）' };
+  }
+  readme += `\n\n---\n\nLast updated: ${date}\n`;
+  writeFileSync(readmePath, readme);
+  return `文档更新完成（写入 Last updated: ${date}）`;
 }
 
 export function handleCheckEnvFile(_action, _params, targetPath, context) {
@@ -74,10 +83,12 @@ export function handleCheckEnvFile(_action, _params, targetPath, context) {
     return '.env 文件已存在';
   }
   if (context) context.missing_env_vars_detected = true;
+  // 这是「检查」步骤：检查结果就是发现了缺口。以前返回裸字符串，引擎把它判 ✓ pass ——
+  // 「环境变量缺失」在报告里看起来是通过。发现缺口要看得见。
   if (existsSync(envExample)) {
-    return '.env 文件缺失（可生成）';
+    return { status: 'warn', message: '.env 缺失（可从 .env.example 生成）' };
   }
-  return '.env 和 .env.example 均缺失';
+  return { status: 'warn', message: '.env 和 .env.example 均缺失：工程没有环境变量模板' };
 }
 
 export function handleGenerateEnv(_action, _params, targetPath) {

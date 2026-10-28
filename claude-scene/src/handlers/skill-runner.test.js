@@ -23,16 +23,20 @@ beforeEach(() => {
 afterEach(() => { try { rmSync(tmp, { recursive: true, force: true }); } catch { /* ok */ } });
 
 describe('handleInvokeSkill', () => {
-  it('returns skip message for unknown skill', () => {
+  // 契约变更（本轮修假绿）：展示清单/有替代方案都不等于“执行了 skill”，
+  // 所以不再返回裸字符串让引擎按正则猜成 pass，而是显式 noop/skip。
+  it('returns skip for unknown skill', () => {
     const result = handleInvokeSkill('invokeSkill', { skill: 'nonexistent-skill' }, tmp, {});
-    expect(result).toContain('需要在对话模式中执行');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('跳过');
   });
 
   it.each(['sec-bug-hunt', 'ai-friendly-web-design', 'mobile-ui-review'])(
-    'returns CLI alternative message for %s',
+    'returns CLI alternative as noop for %s',
     (skill) => {
       const result = handleInvokeSkill('invokeSkill', { skill }, tmp, {});
-      expect(result).toContain('CLI 静态替代方案');
+      expect(result.status).toBe('noop');
+      expect(result.message).toContain('CLI 静态替代方案');
     },
   );
 
@@ -47,8 +51,8 @@ describe('handleInvokeSkill', () => {
     mkdirSync(skillDir, { recursive: true });
     writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: review-checklist\n---\n## Section\n- [ ] item one\n- [ ] item two\n');
     const result = handleInvokeSkill('invokeSkill', { skill: 'review-checklist' }, projectDir, {});
-    expect(result).toContain('参考内容已展示');
-    expect(result).toContain('2 项清单');
+    expect(result.status).toBe('noop');
+    expect(result.message).toContain('2 项清单');
   });
 
   it('populates context with skill data when context provided', () => {
@@ -65,12 +69,12 @@ describe('handleInvokeSkill', () => {
 
   it('handles missing params gracefully', () => {
     const result = handleInvokeSkill('invokeSkill', {}, tmp, {});
-    expect(result).toContain('需要在对话模式中执行');
+    expect(result.status).toBe('skip');
   });
 
   it('handles null context gracefully', () => {
     const result = handleInvokeSkill('invokeSkill', { skill: 'nonexistent' }, tmp, null);
-    expect(result).toContain('需要在对话模式中执行');
+    expect(result.status).toBe('skip');
   });
 });
 
@@ -94,8 +98,8 @@ describe('vendored Trail of Bits skills', () => {
   it.each(TOB)('%s is loadable through handleInvokeSkill', (name) => {
     const ctx = {};
     const result = handleInvokeSkill('invokeSkill', { skill: name }, ENGINE_DIR, ctx);
-    expect(result).not.toContain('需要在对话模式中执行');
-    expect(result).toContain('参考内容已展示');
+    expect(result.status).toBe('noop');
+    expect(result.message).toContain('参考内容已载入 context');
     expect(ctx[`skill_${name}_name`]).toBeTruthy();
   });
 
@@ -124,7 +128,7 @@ describe('vendored Trail of Bits skills', () => {
     // The whole point of vendoring: usable with no network and no npm install.
     // Guard the handler contract rather than the (absent) subprocess plumbing.
     const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges' }, ENGINE_DIR, null);
-    expect(result).toContain('参考内容已展示');
+    expect(result.message).toContain('参考内容已载入 context');
   });
 
   it.each(TOB)('%s keeps its CC BY-SA attribution notice', (name) => {
@@ -153,8 +157,8 @@ describe('skill resolution from an arbitrary project directory', () => {
     mkdirSync(target, { recursive: true });
     const ctx = {};
     const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges' }, target, ctx);
-    expect(result).not.toContain('需要在对话模式中执行');
-    expect(result).toContain('参考内容已展示');
+    expect(result.status).toBe('noop');
+    expect(result.message).toContain('参考内容已载入 context');
   });
 
   it('prefers a project-local override over the engine copy', () => {
@@ -164,7 +168,7 @@ describe('skill resolution from an arbitrary project directory', () => {
     writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: sharp-edges\n---\n## Local\n- [ ] local-only item\n');
     const ctx = {};
     const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges' }, target, ctx);
-    expect(result).toContain('1 项清单');
+    expect(result.message).toContain('1 项清单');
     expect(ctx['skill_sharp-edges_checklist'][0].text).toBe('local-only item');
   });
 

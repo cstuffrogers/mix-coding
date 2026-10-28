@@ -288,7 +288,7 @@ export function renderPromptText(text, context = {}) {
 }
 
 /** 打印「这步要人回答但没人可问」的告示，给出可重跑的选项，然后中止 */
-export function reportAwaitingAnswer(awaiting, stepNum) {
+function reportAwaitingAnswer(awaiting, stepNum) {
   console.log(chalk.red(`\n✖ Step ${stepNum} 需要人工回答，但当前是非交互环境（无 TTY），引擎不会替你猜：`));
   console.log(chalk.bold(`   ${awaiting.prompt}`));
   const hints = awaiting.hints?.length ? awaiting.hints : [
@@ -363,7 +363,7 @@ export async function handleConfirmDialog(step, options, context) {
 }
 
 /** options 可能是字符串 / {id,label} / {label,description} 三种写法，统一成 {id,label,description} */
-export function toChoices(decl) {
+function toChoices(decl) {
   return (decl || []).map((o) => {
     if (typeof o === 'string') return { id: o, label: o, description: '' };
     const id = o.id ?? o.label;
@@ -469,19 +469,45 @@ function applyDeclaredDefault(step, choices, apply) {
   console.log(chalk.gray('   （按场景声明的 auto_default 取值）'));
 }
 
+/**
+ * --mode 的解析：对标步骤里声明的选项 id 校验。
+ * 认不出的 id 不静默忽略 —— 否则 `--mode full_audit`（写错字或用了旧名）
+ * 会退到默认值，而用户以为指定了「全量审计」。
+ * @returns {{valid: string[], invalid: string[], available: string[]}}
+ */
+export function resolveModeOverride(step, requested) {
+  const available = (step.params?.options || [])
+    .map(o => (typeof o === 'string' ? o : o.id))
+    .filter(Boolean);
+  const wanted = String(requested ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  return {
+    valid: wanted.filter(w => available.includes(w)),
+    invalid: wanted.filter(w => !available.includes(w)),
+    available,
+  };
+}
+
 async function handleModeSelection(step, options, context) {
   if (step.action !== 'selectModes' || !Array.isArray(step.params?.options)) return false;
 
   const withDefaults = step.params.options.map(o =>
     typeof o === 'string' ? { id: o, label: o, default: false } : o,
   );
+  const override = resolveModeOverride(step, options.mode);
+  if (override.invalid.length) {
+    console.log(chalk.yellow(`  ⚠ --mode 里有认不出的模式：${override.invalid.join(', ')}（可用：${override.available.join(', ')}）`));
+  }
 
   if (options.auto) {
-    // 默认模式来自场景里逐项声明的 default:true（不是引擎猜的第一项），但要让它可见：
+    // 默认模式来自场景里逐项声明的 default:true（不是引擎猜的第一项），但要让它们可见：
     // 否则“本次审查到底跑了哪几套”只能靠翻 JSON 才知道。
-    context.selected_modes = withDefaults.filter(o => o.default).map(o => o.id);
-    console.log(chalk.gray(`\n⚙ ${step.description || '模式'}：按场景声明的默认值 → ${context.selected_modes.join(', ') || '（无）'}（--mode 可覆盖）`));
-    noteDecision(context, `modes=${context.selected_modes.join(',')}`);
+    const picked = override.valid.length > 0
+      ? override.valid
+      : withDefaults.filter(o => o.default).map(o => o.id);
+    context.selected_modes = picked;
+    const source = override.valid.length > 0 ? '--mode' : '场景声明的默认值';
+    console.log(chalk.gray(`\n⚙ ${step.description || '模式'}：按${source} → ${picked.join(', ') || '（无）'}`));
+    noteDecision(context, `modes=${picked.join(',')}`);
     return true;
   }
 
@@ -489,7 +515,11 @@ async function handleModeSelection(step, options, context) {
     type: 'checkbox',
     name: 'modes',
     message: step.params.prompt || step.description || '请选择：',
-    choices: withDefaults.map(o => ({ name: o.label, value: o.id, checked: !!o.default })),
+    choices: withDefaults.map(o => ({
+      name: o.label,
+      value: o.id,
+      checked: override.valid.length > 0 ? override.valid.includes(o.id) : !!o.default,
+    })),
   }]);
   context.selected_modes = answers.modes.length > 0
     ? answers.modes

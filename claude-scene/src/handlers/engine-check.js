@@ -100,7 +100,9 @@ export function handleCheckActionMessages(_action, _params, targetPath, context)
   const messagesFile = join(DATA_DIR, 'action-messages.js');
 
   if (!existsSync(actionsFile) || !existsSync(messagesFile)) {
-    return '无法找到 actions.js 或 action-messages.js';
+    // 这几个分支以前返回裸字符串：既不含「跳过」也不含「不可用」，
+    // 于是「引擎自己找不到自己的文件」在自检报告里是 ✓ pass —— 最讽刺的一种假绿。
+    return { status: 'warn', message: 'action-messages 完整性检查未完成：找不到 actions.js 或 action-messages.js（引擎安装不完整）' };
   }
 
   const actionsSrc = readFileSync(actionsFile, 'utf-8');
@@ -108,7 +110,9 @@ export function handleCheckActionMessages(_action, _params, targetPath, context)
 
   // Extract ACTION_REGISTRY keys (only inside the ACTION_REGISTRY block)
   const registryBlock = actionsSrc.match(/export const ACTION_REGISTRY = \{([\s\S]*?)\n\};/);
-  if (!registryBlock) return '无法解析 ACTION_REGISTRY';
+  if (!registryBlock) {
+    return { status: 'warn', message: 'action-messages 完整性检查未完成：actions.js 里解析不出 ACTION_REGISTRY 块（结构被改动过？）' };
+  }
 
   const registryKeys = extractObjectKeys(registryBlock[1]);
   const messageKeys = extractObjectKeys(
@@ -128,7 +132,7 @@ export function handleCheckActionMessages(_action, _params, targetPath, context)
     return 'action-messages 完整性检查通过';
   }
 
-  return `发现 ${orphanKeys.length} 个缺少 action message 的 handler`;
+  return { status: 'warn', message: `发现 ${orphanKeys.length} 个缺少 action message 的 handler` };
 }
 
 // ── Check: gate flags ──
@@ -137,7 +141,9 @@ export function handleCheckGateFlags(_action, _params, targetPath, context) {
   const handlersDir = join(__dirname, '..', 'handlers');
   const gateFlagsFile = join(DATA_DIR, 'gate-flags.js');
 
-  if (!existsSync(gateFlagsFile)) return '无法找到 gate-flags.js';
+  if (!existsSync(gateFlagsFile)) {
+    return { status: 'warn', message: 'gate-flags 完整性检查未完成：找不到 data/gate-flags.js（引擎安装不完整）' };
+  }
 
   const contextFlags = collectContextFlags(handlersDir);
   const gateSrc = readFileSync(gateFlagsFile, 'utf-8');
@@ -164,7 +170,7 @@ export function handleCheckGateFlags(_action, _params, targetPath, context) {
     return 'gate-flags 完整性检查通过';
   }
 
-  return `发现 ${orphanFlags.length} 个未映射的 context flag`;
+  return { status: 'warn', message: `发现 ${orphanFlags.length} 个未映射的 context flag` };
 }
 
 // ── Fix: action messages ──
@@ -306,8 +312,10 @@ export function handleSelfCheckReport(_action, _params, _targetPath, context) {
   if (context) context.checkReport = report;
   // 报告本身不是检查：把显式状态带上，否则正文里的「❌ 失败」会被当成
   // 本步骤自己的失败（假红，而且和 check-smoke 重复计数）。
+  // 但「什么都没跑」（smokePassed undefined）也不能记 pass——摘要里写着
+  // 「⏭ 未执行」，汇总却给一个绿勾，等于让没验证过的东西看起来通过了。
   return {
-    status: smokeOk === false ? 'warn' : 'pass',
+    status: smokeOk === true ? 'pass' : 'warn',
     message: report,
   };
 }

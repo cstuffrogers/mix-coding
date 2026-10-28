@@ -49,6 +49,16 @@ export function handleCreatePR(_action, params, targetPath) {
 export function handleAutoUpdate(_action, params, targetPath, context) {
   const mode = params?.mode || 'pull';
   const isRebase = params?.rebase !== false;
+  // 没有远程仓库时 `git pull origin` 必定失败，但这不是「代码更新失败」——
+  // 是本地仓库本来就没地方拉。以前报「执行异常（无错误输出）」并被判 fail，
+  // 让任何在自己仓库里跑 deps 的人都看到一盏不明所以的红灯。
+  let remotes = '';
+  try {
+    remotes = safeExec('git remote 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
+  } catch { /* 不是 git 仓库：继续走下面的分支，让真实错误浮出来 */ }
+  if (remotes === '') {
+    return { status: 'skip', message: '代码更新跳过：仓库没有配置远程（git remote 为空）' };
+  }
   try {
     if (mode === 'fetch') {
       safeExec('git fetch origin 2>&1', targetPath, { stdio: 'pipe' });
@@ -59,8 +69,14 @@ export function handleAutoUpdate(_action, params, targetPath, context) {
     return '代码已更新到最新版本';
   } catch (e) {
     if (context) context.lastStepFailed = true;
-    const detail = String(e.stderr || e.stdout || e.message || '').trim().slice(0, 120);
-    return detail ? `代码更新失败: ${detail}` : '代码更新失败: git pull 执行异常（无错误输出）';
+    // execSync 的 e.message 形如「Command failed: git pull…\nfatal: …」，
+    // 以前只看 stderr/stdout，两者都空时把真实原因（在 message 里）丢了。
+    const raw = [e.stderr, e.stdout, e.message].filter(Boolean).join('\n');
+    const realLine = raw.split(/[\r\n]+/).map(l => l.trim())
+      .find(l => l && !l.startsWith('Command failed'));
+    return realLine
+      ? { status: 'fail', message: `代码更新失败: ${realLine.slice(0, 160)}` }
+      : { status: 'fail', message: '代码更新失败：git 退出码非零但没有任何输出（检查网络或 origin 权限）' };
   }
 }
 

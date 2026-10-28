@@ -35,14 +35,22 @@ describe('handleSelect', () => {
 });
 
 describe('handleConfirm', () => {
-  it('returns confirmation message', () => {
-    const result = handleConfirm('confirm', { message: '确定要执行吗？' }, '/tmp');
-    expect(result).toBe('确认完成');
+  // 契约变更（本轮修假绿）：以前无论有没有人回答都返回「确认完成」并把
+  // context.user_confirmed 写成 true —— 交互层一旦没接管，下游 condition
+  // 就以为用户点过头了。现在：走到 handler 说明没人回答，就诚实报错。
+  it('refuses to confirm without an answer', () => {
+    const ctx = {};
+    const result = handleConfirm('confirm', { message: '确定要执行吗？' }, '/tmp', ctx);
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('-y');
+    expect(ctx.user_confirmed).toBeUndefined();
   });
 
-  it('works without message param', () => {
-    const result = handleConfirm('confirm', {}, '/tmp');
-    expect(result).toBe('确认完成');
+  it('still refuses without a message param', () => {
+    const ctx = {};
+    const result = handleConfirm('confirm', {}, '/tmp', ctx);
+    expect(result.status).toBe('fail');
+    expect(ctx.user_confirmed).toBeUndefined();
   });
 });
 
@@ -61,11 +69,13 @@ describe('handleCheckPrerequisites', () => {
 });
 
 describe('handleCheckEnvFile', () => {
+  // 契约变更：检查发现缺失 → warn（以前裸字符串含「缺失」被判 ✓ pass）
   it('detects missing env file and sets context flag', () => {
     const ctx = {};
     const result = handleCheckEnvFile('check-env-file', {}, '/tmp', ctx);
     expect(ctx.missing_env_vars_detected).toBe(true);
-    expect(result).toContain('缺失');
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('缺失');
   });
 });
 

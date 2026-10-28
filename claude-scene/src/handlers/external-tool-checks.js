@@ -48,12 +48,16 @@ export function handleKnipCheck(_action, _params, targetPath, context) {
         if (context) context.deadCodePassed = true;
         return '死代码检测完成: 无死代码';
       }
-      return '死代码检测完成（结果解析失败）';
+      // 解析不出结果 = 没拿到结论。以前返回「完成（结果解析失败）」，
+      // 消息里有「完成」二字，报告里就是这个 gate ✓ pass。
+      return { status: 'warn', message: `死代码检测未完成：knip 输出无法解析（${String(result).trim().slice(0, 80) || '空输出'}）` };
     }
   } catch (e) {
     console.log(chalk.dim(`  ⚠ knip 不可用: ${e.message?.slice(0, 100) || '未安装'}`));
   }
-  return '死代码检测完成（knip 不可用）';
+  // 工具没装 = 这一步什么都没做。以前同样写成「完成（knip 不可用）」，靠 NOOP 正则
+  // 碰巧记成 noop；显式 skip 才不依赖文案巧合。
+  return { status: 'skip', message: '死代码检测跳过：knip 未安装（npm i -D knip 后可启用）' };
 }
 
 export function _parseNoleakOutput(raw) {
@@ -373,13 +377,17 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
       if (result.isScanFailed) isScanFailed = true;
     } catch (e) {
       if (e.message && e.message.includes('NOT_FOUND')) {
-        return 'SkillSpector 扫描完成: 跳过（不可用）';
+        return { status: 'skip', message: 'SkillSpector 扫描跳过：本机没有 skillspector' };
       }
       isScanFailed = true;
     }
   }
 
-  if (isScanFailed && allFindings.length === 0) return 'SkillSpector 扫描完成: 部分失败';
+  // 「部分失败」带「部分」二字，恰好命中 detectHandlerFailure 的排除名单 → 以前记 pass。
+  // 扫描没跑完就不算通过，但也不该判 fail（没有证据说技能有问题）。
+  if (isScanFailed && allFindings.length === 0) {
+    return { status: 'warn', message: 'SkillSpector 扫描未完成: 部分技能目录执行失败，没有扫描结果' };
+  }
 
   return reportSkillspectorFindings(allFindings, context);
 }

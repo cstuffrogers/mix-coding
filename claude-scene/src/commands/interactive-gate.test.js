@@ -9,7 +9,7 @@ const { default: inquirer } = await import('inquirer');
 const {
   handleConfirmation, handleOptionSelection, renderPromptText, deriveStepStatus,
   handleConfirmDialog, choiceToConfirm, handleInteractiveStep, recordInteractiveStep,
-  resolveThemeChoice, brandConsent, buildSceneContext,
+  resolveThemeChoice, brandConsent, buildSceneContext, resolveModeOverride,
 } = await import('./start.js');
 const { handleChoose, handleAskUser } = await import('../handlers/flow-control.js');
 const { handleDesignInput } = await import('../handlers/design.js');
@@ -685,5 +685,35 @@ describe('未传的 flag 不能被实例化成 false', () => {
     await handleConfirmDialog(step, { auto: true, skipSweep: true }, context);
     expect(context._awaitingAnswer).toBeUndefined();
     expect(context.withSweep).toBe(false);
+  });
+});
+
+/**
+ * `--mode`：review/refactor/ui-polish 的模式勾选。
+ *
+ * 这些步骤的提示里一直写着「--mode 可覆盖」，但 index.js 从来没注册这个 flag ——
+ * 用户按提示传 `--mode full_audit` 会被 commander 忽略，引擎照旧跑默认模式，
+ * 报告看起来「按你的要求跑了」。要么实现，要么删文案；本轮实现它。
+ */
+describe('--mode 覆盖模式勾选', () => {
+  const step = {
+    step: 0, action: 'selectModes', description: '选择审查模式',
+    params: { options: [{ id: 'code_review', default: true }, { id: 'full_audit' }, { id: 'security_deep' }] },
+  };
+
+  it('认得出的模式原样返回', () => {
+    expect(resolveModeOverride(step, 'full_audit,security_deep'))
+      .toMatchObject({ valid: ['full_audit', 'security_deep'], invalid: [] });
+  });
+
+  it('认不出的模式单独列出来，不静默丢弃', () => {
+    const r = resolveModeOverride(step, 'full_audit,full_audti');
+    expect(r.valid).toEqual(['full_audit']);
+    expect(r.invalid).toEqual(['full_audti']);
+    expect(r.available).toEqual(['code_review', 'full_audit', 'security_deep']);
+  });
+
+  it('没传 --mode 时 valid/invalid 都为空（交给场景默认值）', () => {
+    expect(resolveModeOverride(step)).toMatchObject({ valid: [], invalid: [] });
   });
 });

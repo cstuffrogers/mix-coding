@@ -131,12 +131,14 @@ export function handleInvokeSkill(_action, params, targetPath, context) {
 
   const hasCliAlternative = ['sec-bug-hunt', 'ai-friendly-web-design', 'mobile-ui-review'].includes(skillName);
   if (hasCliAlternative) {
-    return `Skill "${skillName}" 有 CLI 静态替代方案，已由对应 handler 执行`;
+    // 以前返回「已由对应 handler 执行」→ 引擎看到「已…执行」记 ✓ pass。
+    // 但这里只是「有这个替代方案」，本步骤自己没执行任何东西 —— 那是另一个步骤的事。
+    return { status: 'noop', message: `Skill "${skillName}" 有 CLI 静态替代方案（由对应 handler 执行，本步骤不重复执行）` };
   }
 
   const skillPath = resolveSkillPath(skillName, targetPath);
   if (!skillPath || !existsSync(skillPath)) {
-    return `Skill "${skillName}" 需要在对话模式中执行，CLI 模式跳过（无 SKILL.md）`;
+    return { status: 'skip', message: `Skill "${skillName}" 跳过：本机没有它的 SKILL.md（对话模式下由 agent 直接调用）` };
   }
 
   const content = readFileSync(skillPath, 'utf-8');
@@ -150,5 +152,7 @@ export function handleInvokeSkill(_action, params, targetPath, context) {
     context[`skill_${skillName}_name`] = displayName;
   }
 
-  return `Skill "${displayName}" 参考内容已展示（${checklist.length} 项清单）— 完整执行需对话模式`;
+  // 展示清单 ≠ 执行 skill：以前这句带「已展示」被判 ✓ pass，汇总里就多了一个
+  // 实际没发生的「审查清单已加载并生效」。清单进了 context 供对话模式使用 = noop。
+  return { status: 'noop', message: `Skill "${displayName}" 参考内容已载入 context（${checklist.length} 项清单）— 具体执行需对话模式` };
 }

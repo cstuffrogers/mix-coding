@@ -1423,3 +1423,51 @@ CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只
 | installDeps 探针 | 假 non-React 工程 / 本仓库 | 只装 `animate.css`（点名跳过 lucide-react）/ `warn(ERESOLVE)` |
 
 附带决策：「引擎自己填的默认值不算用户表态」——凡 `context_flag` 指向的值，必须是用户/flag 显式给的才算答复。
+
+## 2026-10-28 第三轮：26 场景全量审计（跑不通 / 假绿 / 假信号）
+
+前两轮修了 60+ 处之后，按要求再来一轮**全量**：26 个场景、586 个步骤、244 个 action、89 个 condition。
+
+### 怎么查的
+| 手段 | 覆盖 | 结论 |
+|---|---|---|
+| 26 场景 `--dry-run --auto` | 全量 586 步 | 全部 `exit 0`，无「无处理器 / 未知动作」 |
+| `action → handler` 覆盖比对 | 244 action | 除 interactive 层（`selectModes`/`selectSetupKind` 由 `handleInteractiveStep` 接管）外无缺口 |
+| **空项目探针**：在空目录逐个调用只读类 handler | 65 个 check/scan/audit 类 action | 只剩 4 个「什么都没做却报 pass」，已修 |
+| condition 可判定性 | 89 condition | 19 个貌似孤儿标识符里 17 个是字符串碎片噪声；`setup_kind` 有写入源，`enh_*` 三项由 `--enh` 控制（设计如此） |
+| 场景文案提到的 CLI flag vs 实际注册 | 26 场景 | 5 个未注册的 `--xxx` 全是外部命令参数（`git diff --name-only`、`aislop fix --safe` 等），非假信号 |
+| 真跑（setup / check / deps / rollback / onboard / review -S） | 6 场 | 逻辑全通；挖出下表的假绿 |
+
+### 修了什么（11 处）
+| # | 症状 | 现在 |
+|---|---|---|
+| 1 | `--mode`「可覆盖」写进了提示，index.js 却从没注册 → 用户传了被忽略，报告看着像「按你的要求跑了」 | 注册 `-m/--mode`；认不出的模式黄字列出来 + 打印来源（`按--mode` / `按场景声明的默认值`） |
+| 2 | engine-check：找不到自己的 `actions.js`/`action-messages.js`/`gate-flags.js`、解析不出 `ACTION_REGISTRY` → 记 ✓ pass（引擎自检假绿） | 一律 `warn` 并说明「检查未完成」 |
+| 3 | engine-check：`发现 N 个缺少 action message` / `N 个未映射 flag` → pass（发现问题的句式不匹配 WARN_RES） | 显式 `warn` |
+| 4 | `selfCheckReport` 在「冒烟测试 ⏭ 未执行」时仍记 pass（摘要写未执行、汇总给绿勾） | `smokePassed === true` 才 pass，否则 warn |
+| 5 | `handleConfirm` 无条件写 `context.user_confirmed = true` → 交互层一旦漏接，下游 condition 以为用户点了头 | 走到 handler 说明没人回答 → `fail`（`-y`/`--decline` 由交互层处理） |
+| 6 | `installDeps` 无 `package.json` 也报「安装完成」；`docsUpdate` 无 README 也报「更新完成」 | `skip`；README 已有 `Last updated` → `noop` |
+| 7 | `checkEnvFile` 发现 `.env` 缺失却记 pass（「环境变量缺失」在报告里是通过） | `warn`，并点名「可从 .env.example 生成」 |
+| 8 | knip「结果解析失败」→ pass；「knip 不可用」→ 靠 NOOP 正则碰巧算 noop | 显式 `warn` / `skip` |
+| 9 | SkillSpector「部分失败」→ pass（「部分」恰好在 `detectHandlerFailure` 排除名单里） | `warn`「扫描未完成」；`NOT_FOUND` → `skip` |
+| 10 | deps：`npm outdated` 输出无法解析 → 一句「（不可用）」蒙过去；`checkBreakingChanges` 则判 **fail**（工具没跑通被说成发现了 Breaking Changes = 假红） | 两者都 `warn` 且附真实原因；`{}` 才是真 pass |
+| 11 | `invokeSkill`「参考内容已展示（N 项清单）— 完整执行需对话模式」→ pass；`aislop` 零输出 → 「未发现 AI 代码气味」+ `aislopPassed=true` | 前者 `noop`、后者 `warn`；`git autoUpdate` 无 remote 也从 fail 改 `skip`（本地仓库没远程不是「更新失败」） |
+
+### 验证
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 全量回归 | `npx vitest run` | **932 测试 / 72 文件全绿**（+10 例） |
+| 根 lint | `npm run lint` | 0 error / 0 warning |
+| 引擎 lint | `cd claude-scene && npx eslint . --max-warnings 0` | 通过 |
+| 死码 | `npm run scan:deadcode` | Total dead: 0 |
+| 全量真跑 | `start review --auto -S` | `EXIT=0`，报告 **100/100**，`pass 17 / fail 0 / warn 2 / skip 19 / noop 5` |
+| 自检 | `start check --auto` | `EXIT=0`，`pass 10 / fail 0 / warn 1` |
+| 闸门 | `start rollback --auto` / `start onboard --auto` | `EXIT=2`，打印选项 |
+| `--mode` | `start review --auto --mode full_audit,bogus` | 黄字列出 `bogus` + 可用值；日志 `detail: modes=full_audit` |
+
+两条 warn 都是诚实信号：`2.7 工作区有未提交改动，跳过现场自检`（提交后重跑即 pass）、`4.57 SkillSpector 扫描未完成`（原来这条是假绿 pass）。
+
+附带决策：
+- **「检查步骤发现问题」必须看得见**——`发现 N 个 X` 的句式不匹配 WARN_RES 就一直是 pass，所以这类检查一律返回显式 `warn`，不靠文案正则猜。
+- **工具没跑通 ≠ 发现问题**：`npm outdated` 崩了是 `warn`（没结论），不是 `fail`（不是「发现 Breaking Changes」）。
+- **本地仓库没有 remote 不是失败**：`git remote` 为空时更新步骤记 `skip`。
