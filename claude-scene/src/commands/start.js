@@ -671,6 +671,13 @@ function printSummary(sceneId, context = null) {
 }
 
 async function handleStepError(step, context, sceneId, resolvedParams) {
+  // 质量门禁里声明了 block_*（block_release / block_merge / block_critical）：
+  // 这就是「失败即阻断」的承诺，不该再依赖场景有没有记得写 on_error。
+  if (context.gateBlocked) {
+    console.log(chalk.red(`\n✖ Step ${step.step} 质量门禁阻断（场景声明了 block_*），工作流中止`));
+    printSummary(sceneId, context);
+    process.exit(1);
+  }
   if (!context.lastStepFailed || !step.on_error) return;
 
   if (step.on_error === 'abort') {

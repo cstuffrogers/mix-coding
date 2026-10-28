@@ -121,8 +121,7 @@
       "service": "BuildService",
       "action": "productionBuild",
       "params": {
-        "optimize": true,
-        "sourcemap": false
+        "optimize": true
       },
       "description": "执行生产构建（优化、去sourcemap）",
       "on_error": "abort",

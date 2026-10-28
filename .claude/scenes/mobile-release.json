@@ -112,8 +112,7 @@
       "service": "MobileService",
       "action": "mobileBumpVersion",
       "params": {
-        "mode": "semver",
-        "source_step": 4
+        "mode": "semver"
       },
       "produces": "new_version",
       "description": "自动更新版本号（从 step 4 获取 bump_type → 更新 package.json/build.gradle/Info.plist/pubspec.yaml）→ 输出版本号供后续步骤使用",

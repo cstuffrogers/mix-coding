@@ -233,8 +233,7 @@
       "service": "TestEngine",
       "action": "runSuite",
       "params": {
-        "mode": "unit",
-        "check_coverage": true
+        "mode": "unit"
       },
       "description": "运行生成的测试套件，验证功能正确性并检查覆盖率",
       "on_error": "abort",

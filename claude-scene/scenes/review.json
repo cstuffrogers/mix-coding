@@ -96,8 +96,7 @@
             "label": "AI/设计审查",
             "default": false
           }
-        ],
-        "multi_select": true
+        ]
       },
       "description": "交互式选择审查模式，存入 context.selected_modes"
     },
@@ -322,8 +321,7 @@
       "service": "Skill",
       "action": "invokeSkill",
       "params": {
-        "skill": "impeccable",
-        "subcommand": "critique"
+        "skill": "impeccable"
       },
       "description": "Impeccable 设计批判",
       "condition": "impeccable_available && selected_modes.includes('ai_design')"
@@ -335,7 +333,6 @@
       "action": "sec-bug-hunt",
       "params": {
         "scope": "current_diffs",
-        "min_confidence": 0.85,
         "block_merge_on_critical": true
       },
       "description": "代码安全深度审计",
@@ -348,9 +345,7 @@
       "layer": "capability",
       "service": "SecuritySkill",
       "action": "recheck-cli",
-      "params": {
-        "maxSteps": 10000
-      },
+      "params": {},
       "description": "ReDoS 正则扫描",
       "condition": "selected_modes.includes('security_deep')"
     },

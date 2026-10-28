@@ -312,7 +312,7 @@ function setContextResults(context, findings) {
   if (hasCritical || hasHigh) context.high_severity_found = true;
 }
 
-export function handleSecBugHunt(_action, _params, targetPath, context) {
+export function handleSecBugHunt(_action, params, targetPath, context) {
   // [patched:scan-all-sources] 三个向量原来都只认 <repo>/src（本项目没有 src/ → 扫 0 文件仍报「无问题」）
   const files = listProjectCodeFiles(targetPath);
   if (!assertSources(files, context, '安全漏洞扫描')) {
@@ -330,12 +330,17 @@ export function handleSecBugHunt(_action, _params, targetPath, context) {
 
   // [patched:verdict-unify] 高/严重问题必须计入场景 ✗ fail：否则
   // 「review 报告 failed: N」与「场景 fail: 0」两套口径互相矛盾。
-  if (context && findings.some((f) => f.severity === 'critical' || f.severity === 'high')) {
-    context.lastStepFailed = true;
-  }
+  // review 场景还声明了 block_merge_on_critical: true。注意：CLI 不执行合
+  // 并动作，所以这里只能把结论写成「不可合并」，不能提 gateBlocked
+  // （那会直接中止 review 本身，连报告都不出 —— 也不是这个键的意思）。
+  const blockingFinding = findings.some((f) => f.severity === 'critical' || f.severity === 'high');
+  if (context && blockingFinding) context.lastStepFailed = true;
+  const mergeNote = blockingFinding && params?.block_merge_on_critical === true
+    ? '；block_merge_on_critical 生效：结论为不可合并'
+    : '';
 
   const note = npmAudit.note ? `；${npmAudit.note}` : '';
-  return `安全漏洞深度扫描完成: ${findings.length ? `${findings.length} 类问题` : '无问题'}（扫描 ${files.length} 个源码文件${note}）`;
+  return `安全漏洞深度扫描完成: ${findings.length ? `${findings.length} 类问题` : '无问题'}（扫描 ${files.length} 个源码文件${note}）${mergeNote}`;
 }
 const CONSOLE_CALL_RE = /\bconsole\.(?:log|warn|error|info|debug)\s*\(/;
 

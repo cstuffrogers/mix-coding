@@ -128,6 +128,15 @@ function printSections(content) {
 
 export function handleInvokeSkill(_action, params, targetPath, context) {
   const skillName = params?.skill || 'unknown';
+  // 场景里同一个 skill 反复调用时，用 subcommand（shape/critique/polish/layout…）
+  // 或 dimensions 区分不同模式。以前这两个键没人读 —— 十几个步骤在引擎眼里
+  // 完全一样，模式信息白白丢掉。这里至少要把它们带进结论和 context。
+  const subcommand = params?.subcommand;
+  const dimensions = Array.isArray(params?.dimensions) ? params.dimensions : [];
+  const modeNote = [
+    subcommand ? `模式 ${subcommand}` : '',
+    dimensions.length ? `维度 ${dimensions.join('/')}` : '',
+  ].filter(Boolean).join('，');
 
   const hasCliAlternative = ['sec-bug-hunt', 'ai-friendly-web-design', 'mobile-ui-review'].includes(skillName);
   if (hasCliAlternative) {
@@ -150,9 +159,14 @@ export function handleInvokeSkill(_action, params, targetPath, context) {
     context[`skill_${skillName}_checklist`] = checklist;
     context[`skill_${skillName}_sections`] = sections;
     context[`skill_${skillName}_name`] = displayName;
+    if (subcommand) context[`skill_${skillName}_subcommand`] = subcommand;
+    if (dimensions.length) context[`skill_${skillName}_dimensions`] = dimensions;
   }
 
   // 展示清单 ≠ 执行 skill：以前这句带「已展示」被判 ✓ pass，汇总里就多了一个
   // 实际没发生的「审查清单已加载并生效」。清单进了 context 供对话模式使用 = noop。
-  return { status: 'noop', message: `Skill "${displayName}" 参考内容已载入 context（${checklist.length} 项清单）— 具体执行需对话模式` };
+  return {
+    status: 'noop',
+    message: `Skill "${displayName}" 参考内容已载入 context（${checklist.length} 项清单${modeNote ? `，${modeNote}` : ''}）— 具体执行需对话模式`,
+  };
 }

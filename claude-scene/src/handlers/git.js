@@ -1,17 +1,23 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { execSync } from 'child_process';
+import { tmpdir } from 'os';
 import { join } from 'path';
 import { safeExec, escapeArg } from '../lib/safe-exec.js';
 
 export function handleCreateBranch(_action, params, targetPath) {
   const branchType = params?.branch_type || 'feature';
+  const base = params?.base_branch;
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const branchName = `${branchType}/auto-${timestamp}`;
   try {
-    safeExec(`git checkout -b ${escapeArg(branchName)} 2>&1`, targetPath, { stdio: 'pipe' });
-    return `分支已创建: ${branchName}`;
+    // base_branch 以前没人读（场景里写了 "main"）。用 `git checkout -b <name> <base>`
+    // 让它真的生效；base 不存在时 git 会报错，下面照实报。
+    const baseArg = base ? ` ${escapeArg(base)}` : '';
+    safeExec(`git checkout -b ${escapeArg(branchName)}${baseArg} 2>&1`, targetPath, { stdio: 'pipe' });
+    return `分支已创建: ${branchName}${base ? `（基于 ${base}）` : ''}`;
   } catch (e) {
-    return `分支创建跳过: ${e.message}`;
+    // 以前分支没建成也返回「分支创建跳过: …」，引擎按「跳过」算 pass。
+    return { status: 'fail', message: `分支创建失败: ${String(e.message).split('\n').slice(-1)[0].slice(0, 100)}` };
   }
 }
 
@@ -34,15 +40,22 @@ export function handleCommitPush(_action, params, targetPath) {
 }
 
 export function handleCreatePR(_action, params, targetPath) {
+  // auto_assign / auto_label 以前也是死的（场景里写了）。gh 有对应参数：
+  // --assignee @me、--label a --label b。
+  const labels = Array.isArray(params?.auto_label) ? params.auto_label : [];
   try {
-    const result = safeExec(`gh pr create --title ${escapeArg(params?.title || 'Auto PR')} --body ${escapeArg(params?.body || 'Auto-generated PR')} 2>&1 || true`, targetPath, { stdio: 'pipe' }).toString().trim();
+    let cmd = `gh pr create --title ${escapeArg(params?.title || 'Auto PR')} --body ${escapeArg(params?.body || 'Auto-generated PR')}`;
+    if (params?.auto_assign) cmd += ' --assignee @me';
+    for (const label of labels) cmd += ` --label ${escapeArg(label)}`;
+    // 以前拼了 `|| true`：gh 不存在也只是 exit 0 → 假绿。
+    const result = safeExec(cmd, targetPath, { stdio: 'pipe' }).toString().trim();
     return `PR 已创建: ${result}`;
   } catch (e) {
-    const errMsg = e.stderr ? e.stderr.toString() : e.message;
-    if (errMsg && errMsg.includes('command not found')) {
-      return 'PR 创建跳过（gh CLI 不可用）';
+    const errMsg = [e.stderr, e.stdout, e.message].filter(Boolean).join('\n').trim();
+    if (errMsg.includes('command not found') || errMsg.includes('ENOENT')) {
+      return { status: 'skip', message: 'PR 未创建：gh CLI 不可用' };
     }
-    return `PR 创建失败: ${errMsg?.slice(0, 100)}`;
+    return { status: 'fail', message: `PR 创建失败: ${errMsg.split('\n').slice(-1)[0].slice(0, 100)}` };
   }
 }
 
@@ -94,55 +107,87 @@ export function handleBumpVersion(_action, params, targetPath, context) {
 
 export function handleCreateTag(_action, params, targetPath, context) {
   const version = params?.version || '';
+  // annotated（场景里写了 true）以前没人读：`git tag -a` 是写死的。
+  // annotated: false → 轻量 tag（没有 tag message）。
+  const annotated = params?.annotated !== false;
   try {
     let tagName = version;
     if (!tagName) {
       const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf-8'));
       tagName = `v${pkg.version}`;
     }
-    safeExec(`git tag -a ${escapeArg(tagName)} -m ${escapeArg(`Release ${tagName}`)} 2>&1`, targetPath, { stdio: 'pipe' });
+    const tagCmd = annotated
+      ? `git tag -a ${escapeArg(tagName)} -m ${escapeArg(`Release ${tagName}`)}`
+      : `git tag ${escapeArg(tagName)}`;
+    safeExec(`${tagCmd} 2>&1`, targetPath, { stdio: 'pipe' });
     safeExec(`git push origin ${escapeArg(tagName)} 2>&1`, targetPath, { stdio: 'pipe' });
-    return `Tag 已创建: ${tagName}`;
+    return `Tag 已创建: ${tagName}${annotated ? '（annotated）' : '（轻量）'}`;
   } catch (e) {
     if (context) context.lastStepFailed = true;
-    return `Tag 创建失败: ${e.message}`;
+    return { status: 'fail', message: `Tag 创建失败: ${String(e.message).split('\n').slice(-1)[0].slice(0, 100)}` };
   }
 }
 
 export function handleDeploy(_action, params, targetPath) {
   const pkgPath = join(targetPath, 'package.json');
+  // strategy 以前没人读（场景里写 rolling）。真部署策略由项目自己的 deploy 脚本决定，
+  // 引擎无法伪造，所以只在输出里回显声明值，别让它看起来被应用了。
+  const strategy = params?.strategy;
+  const strategyNote = strategy ? `（声明的策略: ${strategy}，由部署脚本自身实现）` : '';
   if (existsSync(pkgPath)) {
     try {
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
       if (pkg.scripts?.deploy) {
         safeExec('npm run deploy 2>&1', targetPath, { stdio: 'inherit' });
-        return '部署完成';
+        return `部署完成${strategyNote}`;
       }
       if (pkg.scripts?.build) {
         safeExec('npm run build 2>&1', targetPath, { stdio: 'inherit' });
-        return '部署完成（仅构建）';
+        // 「仅构建」不是「部署完成」——以前的文案会让人以为已经上线了。
+        return { status: 'warn', message: `只完成了构建，没有部署（项目没有 deploy 脚本）${strategyNote}` };
       }
     } catch (e) {
-      return `部署失败: ${e.message}`;
+      return { status: 'fail', message: `部署失败: ${String(e.message).split('\n').slice(-1)[0].slice(0, 100)}` };
     }
   }
-  return '部署跳过（无可部署项目）';
+  return { status: 'skip', message: `部署未执行：无可部署项目${strategyNote}` };
 }
 
-export function handleCreateRelease(_action, params, targetPath) {
+export function handleCreateRelease(_action, params, targetPath, context) {
   const tag = params?.tag || '';
   const title = params?.title || 'Release';
-  const notes = params?.notes || '';
+  // mobile-release 声明了 body_ref / tag_ref / prerelease，以前全都不读。
+  // body_ref 指向 context 里的变量名（如 changelog_content）—— 变量不存在就
+  // 不用空串冒充正文，而是在返回里说明。
+  const bodyRef = params?.body_ref;
+  const bodyFromContext = bodyRef && context ? context[bodyRef] : undefined;
+  const notes = params?.notes || (typeof bodyFromContext === 'string' ? bodyFromContext : '');
+  const target = params?.tag_ref && context ? context[params.tag_ref] : undefined;
+  const prerelease = params?.prerelease === true;
   try {
     let cmd = `gh release create ${escapeArg(tag || 'latest')}`;
     if (title) cmd += ` --title ${escapeArg(title)}`;
-    if (notes) cmd += ` --notes ${escapeArg(notes)}`;
+    if (target) cmd += ` --target ${escapeArg(String(target))}`;
+    if (prerelease) cmd += ' --prerelease';
     // 以前这里拼了 `|| true`：gh 不存在 / 没登录也只是 exit 0，于是
     // "Release 已创建: gh: command not found" 被记成 ✓ pass。
+    // 正文走临时文件（--notes-file），不经 shell 引号/JSON 转义。
+    let notesFile = null;
+    if (notes) {
+      notesFile = join(tmpdir(), `mix-coding-release-notes-${Date.now()}.md`);
+      writeFileSync(notesFile, notes, 'utf-8');
+      cmd += ` --notes-file ${escapeArg(notesFile)}`;
+    }
     const result = safeExec(cmd, targetPath, { stdio: 'pipe' }).toString().trim();
-    return `Release 已创建: ${result}`;
+    const missingBody = bodyRef && typeof bodyFromContext !== 'string' ? `（body_ref=${bodyRef} 在 context 里不存在，正文为空）` : '';
+    return `Release 已创建: ${result}${missingBody}`;
   } catch (e) {
-    return { status: 'warn', message: `Release 未创建：gh CLI 不可用（${String(e.message).split('\n')[0].slice(0, 80)}）（CLI 不执行，需在对话模式由 agent 完成）` };
+    const full = [e.message, e.stderr, e.stdout].filter(Boolean).join('\n');
+    const first = String(e.message).split('\n')[0].slice(0, 80);
+    if (/command not found|ENOENT|not recognized/i.test(full)) {
+      return { status: 'skip', message: `Release 未创建：gh CLI 不可用（${first}）` };
+    }
+    return { status: 'fail', message: `Release 创建失败: ${first}` };
   }
 }
 

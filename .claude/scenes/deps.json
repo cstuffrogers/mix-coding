@@ -52,10 +52,7 @@
       "layer": "capability",
       "service": "BuildService",
       "action": "checkOutdated",
-      "params": {
-        "ecosystem": "auto",
-        "include_dev": true
-      },
+      "params": {},
       "description": "扫描所有过期依赖（自动检测 npm/pip/cargo/go mod）",
       "on_error": "abort"
     },
@@ -64,10 +61,7 @@
       "layer": "capability",
       "service": "DepsService",
       "action": "deprecated-deps",
-      "params": {
-        "ecosystem": "auto",
-        "includeTransitive": false
-      },
+      "params": {},
       "description": "废弃/未维护依赖检测：npm outdated 识别 deprecated 包，标记已停止维护的依赖"
     },
     {

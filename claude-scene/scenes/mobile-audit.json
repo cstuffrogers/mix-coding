@@ -61,9 +61,7 @@
       "layer": "capability",
       "service": "MobileService",
       "action": "autoInstall",
-      "params": {
-        "missing_only": true
-      },
+      "params": {},
       "description": "自动安装步骤2检测到的缺失工具（MobSF/mobsfscan/Bearer/DependencyCheck），安装失败不阻断后续"
     },
     {
@@ -83,10 +81,7 @@
       "layer": "capability",
       "service": "MobSFMCP",
       "action": "upload",
-      "params": {
-        "auto_build": false,
-        "source_step": 2.6
-      },
+      "params": {},
       "description": "上传 step 2.6 构建产物（APK/IPA）至 MobSF 服务，auto_build 关闭——依赖前置构建步骤",
       "condition": "mobsf_mcp_available && mobile_platform",
       "timeout": 600

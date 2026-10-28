@@ -89,7 +89,10 @@ export function handleGenerateOptimizePlan(_action, params, _targetPath, context
   }
 
   if (context) context.optimize_plan = plan;
-  return `优化方案已生成（${plan.length} 项，按收益排序）`;
+  // 场景声明了 prioritize: "impact"（mobile-optimize）。以前这个键没人读，
+  // 而下面的固定排序恰好就是按 impact 来的 —— 声明的意图和实际行为要能对上。
+  const priority = params?.prioritize || 'impact';
+  return `优化方案已生成（${plan.length} 项，按 ${priority === 'impact' ? '收益' : priority === 'effort' ? '成本' : priority} 排序）`;
 }
 
 export function handleExecuteOptimize(_action, params, _targetPath, context) {

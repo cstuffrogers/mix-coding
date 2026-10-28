@@ -60,8 +60,7 @@
             "label": "架构优化",
             "default": false
           }
-        ],
-        "multi_select": true
+        ]
       },
       "description": "交互式选择重构模式"
     },
@@ -319,8 +318,7 @@
       "service": "TestEngine",
       "action": "runSuite",
       "params": {
-        "mode": "unit",
-        "check_coverage": true
+        "mode": "unit"
       },
       "description": "重构后运行测试套件，确保语义不变",
       "on_error": "abort"
@@ -358,8 +356,7 @@
       "service": "ReviewEngine",
       "action": "runReview",
       "params": {
-        "mode": "refactor",
-        "check_safety": true
+        "mode": "refactor"
       },
       "description": "重构质量检查：代码规范、重构完整性、影响范围评估",
       "condition": "testPassed === true"

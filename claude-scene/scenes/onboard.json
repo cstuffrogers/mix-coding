@@ -74,7 +74,6 @@
       "service": "BuildService",
       "action": "installDeps",
       "params": {
-        "ecosystem": "auto",
         "frozen_lockfile": true
       },
       "description": "安装项目依赖（自动选择npm/pip/cargo/go mod）",

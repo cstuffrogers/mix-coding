@@ -43,7 +43,6 @@
       "service": "SentryMCP",
       "action": "listIssues",
       "params": {
-        "statsPeriod": "7d",
         "limit": 10
       },
       "description": "使用 Sentry MCP 查询最近7天的错误和安全事件",
@@ -254,8 +253,7 @@
       "service": "CodeEngine",
       "action": "fix",
       "params": {
-        "mode": "semantic",
-        "infer_type": true
+        "mode": "semantic"
       },
       "description": "语义修复：自动定位根因、AI生成修复建议，人工确认后执行"
     },
@@ -317,8 +315,7 @@
       "action": "verify",
       "params": {
         "scope": "bugfix",
-        "mode": "targeted",
-        "verify_reproduction": false
+        "mode": "targeted"
       },
       "description": "验证修复：确认bug不再复现，原有功能未被破坏",
       "on_error": "abort",

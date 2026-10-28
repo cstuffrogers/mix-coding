@@ -568,10 +568,10 @@ export function handleZizmor(_action, _params, targetPath, context) {
 
 // ── jscpd — code duplication detector (4.7k+ stars) ──
 
-function runJscpd(targetPath) {
+function runJscpd(targetPath, minTokens = 50) {
   try {
     return safeExec(
-      'npx jscpd --format json --min-tokens 50 --min-lines 5 --ignore "node_modules,.git,.claude,dist,build,coverage,.next" . 2>&1',
+      `npx jscpd --format json --min-tokens ${minTokens} --min-lines 5 --ignore "node_modules,.git,.claude,dist,build,coverage,.next" . 2>&1`,
       targetPath,
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
     ).toString();
@@ -598,10 +598,14 @@ function reportJscpdFound(clones, pct, context) {
   return `代码重复检测完成: ${clones} 处重复，重复率 ${pct.toFixed(1)}%`;
 }
 
-export function handleJscpd(_action, _params, targetPath, context) {
-  const raw = runJscpd(targetPath);
+export function handleJscpd(_action, params, targetPath, context) {
+  // 场景声明了 minTokens（review#…写的是 50）。以前 runJscpd 写死了--min-tokens 50，
+  // 参数是装饰品。
+  const minTokens = Number.parseInt(params?.minTokens, 10);
+  const raw = runJscpd(targetPath, Number.isFinite(minTokens) && minTokens > 0 ? minTokens : 50);
   if (!raw) {
-    return '代码重复检测完成（jscpd 不可用）';
+    // jscpd 没输出 = 没拿到结论（不可用/崩了）。以前这句带「完成」二字，引擎判 pass。
+    return { status: 'warn', message: '代码重复检测未完成: jscpd 无输出（未安装或执行失败）' };
   }
 
   const parsed = parseJscpdResult(raw);

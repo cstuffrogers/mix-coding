@@ -45,20 +45,24 @@ export function handleConfirm(_action, params, _targetPath, _context) {
   };
 }
 
-export function handleInstallDeps(_action, _params, targetPath, context) {
+export function handleInstallDeps(_action, params, targetPath, context) {
   const packagePath = join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
     // 没有 package.json 就什么都没装，以前也返回「依赖安装完成」。
     return { status: 'skip', message: '依赖安装跳过：目标项目没有 package.json' };
   }
+  // frozen_lockfile（onboard 里写了 true）以前没人读：锁文件不一致时照样
+  // `npm install` 把版本飘了。声明了就用 npm ci（严格按 lockfile，不一致直接失败）。
+  const frozen = params?.frozen_lockfile === true;
+  const cmd = frozen ? 'npm ci' : 'npm install';
   try {
-    safeExec('npm install', targetPath, { stdio: 'inherit' });
+    safeExec(cmd, targetPath, { stdio: 'inherit' });
     if (context) context.install_failed = false;
   } catch {
     if (context) context.install_failed = true;
-    return { status: 'fail', message: '依赖安装失败（npm install 出错）' };
+    return { status: 'fail', message: `依赖安装失败（${cmd} 出错）` };
   }
-  return '依赖安装完成';
+  return frozen ? '依赖安装完成（npm ci，严格按 lockfile）' : '依赖安装完成';
 }
 
 export function handleDocsUpdate(_action, _params, targetPath) {
@@ -118,28 +122,88 @@ export function handleStartDevServer(_action, _params, targetPath, context) {
 }
 
 function runTests(targetPath) {
+  // 以前用「输出里有没有 failed 字样」判成败：
+  //   - `0 failed` 也匹配 → 真红的假象；
+  //   - `2>&1` 把 stderr 混进来，弃用警告里带 fail 也红；
+  // 退出码才是测试的真实结论。没脚本/没装依赖是「没跑成」，不是「失败」。
   try {
-    const result = safeExec('npm test 2>&1', targetPath, { stdio: 'pipe' }).toString();
-    return !result.includes('failed') && !result.includes('FAIL');
-  } catch (e) {
-    if (e.stdout) {
-      const out = e.stdout.toString();
-      return !out.includes('failed') && !out.includes('FAIL');
+    safeExec('npm test', targetPath, { stdio: 'pipe' });
+    return { verdict: 'pass' };
+  } catch (error) {
+    const text = [error?.message, error?.stdout?.toString?.(), error?.stderr?.toString?.()]
+      .filter(Boolean).join(' ');
+    if (/Missing script|ENOENT|Cannot find|No test files|not found/i.test(text)) {
+      return { verdict: 'not-run', detail: '没有可运行的测试脚本' };
     }
-    return false;
+    return { verdict: 'fail' };
   }
 }
 
-export function handleVerify(_action, _params, targetPath, context) {
-  const packagePath = join(targetPath, 'package.json');
-  const verified = existsSync(packagePath) ? runTests(targetPath) : true;
-  if (context) context.testPassed = verified;
-  if (!verified) {
-    if (context) context.lastStepFailed = true;
-  } else {
-    console.log(chalk.green('  ✅ 验证通过'));
+/** health_check：真的去敲一下服务地址，敲不到就不发通过结论 */
+async function checkHealth(params, context) {
+  const url = params?.url || context?.dev_server_url || context?.deploy_url;
+  if (!url) {
+    return { status: 'warn', message: '健康检查未执行：没有服务地址（context 里没有 dev_server_url / deploy_url，也没传 url 参数）' };
   }
-  return verified ? '验证通过' : '验证失败';
+  const attempts = Math.max(1, Number(params?.retry) || 1);
+  const timeout = Number(params?.timeout) || 5000;
+  let lastError = '';
+  for (let i = 1; i <= attempts; i += 1) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return { status: 'pass', message: `健康检查通过: ${url} → HTTP ${res.status}（第 ${i}/${attempts} 次）` };
+      lastError = `HTTP ${res.status}`;
+    } catch (error) {
+      lastError = error?.name === 'AbortError' ? `超时 ${timeout}ms` : (error?.message || '请求失败');
+    }
+  }
+  return { status: 'fail', message: `健康检查失败: ${url} → ${lastError}（重试 ${attempts} 次）` };
+}
+
+export async function handleVerify(_action, params, targetPath, context) {
+  if ((params?.mode || 'smoke_test') === 'health_check') {
+    return verifyHealthCheck(params, context);
+  }
+  return verifyByTestRun(params, targetPath, context);
+}
+
+async function verifyHealthCheck(params, context) {
+  const result = await checkHealth(params, context);
+  const label = params?.scope ? `${params.scope} 健康检查` : '健康检查';
+  if (result.status === 'pass') {
+    if (context) context.healthCheckPassed = true;
+    return `${label}通过: ${result.message.replace('健康检查通过: ', '')}`;
+  }
+  if (context) {
+    context.healthCheckPassed = result.status === 'fail' ? false : undefined;
+    if (result.status === 'fail') context.lastStepFailed = true;
+  }
+  return result;
+}
+
+/** smoke_test / targeted / e2e 都落在「跑测试」上，区别只在跑哪一套。 */
+function verifyByTestRun(params, targetPath, context) {
+  const mode = params?.mode || 'smoke_test';
+  const packagePath = join(targetPath, 'package.json');
+  if (!existsSync(packagePath)) {
+    // 以前没有 package.json 直接算「验证通过」——什么都没验证。
+    return { status: 'warn', message: '验证未执行：没有 package.json，没有可运行的东西（不是通过）' };
+  }
+  const { verdict, detail } = runTests(targetPath);
+  if (verdict === 'not-run') {
+    if (context) context.testPassed = undefined;
+    return { status: 'warn', message: `验证未执行：${detail}` };
+  }
+  const verified = verdict === 'pass';
+  if (context) context.testPassed = verified;
+  if (!verified && context) context.lastStepFailed = true;
+  const label = params?.scope ? `${params.scope}（${mode}）` : mode;
+  if (!verified) return { status: 'fail', message: `验证失败: ${label} 测试未通过` };
+  console.log(chalk.green('  ✅ 验证通过'));
+  return `验证通过: ${label}`;
 }
 
 export function handleSend(_action, params, targetPath) {
@@ -160,43 +224,45 @@ export function handleSend(_action, params, targetPath) {
 }
 
 export function handleNotify(_action, params, targetPath) {
-  const message = params?.message;
-  if (message) {
-    console.log(chalk.green(`  ${message}`));
+  // 场景里两种写法都有：notify {message} 和 notify {title, content, level}，
+  // 还有只写 type 的（success/info/error，当作日志级别用）。
+  // 以前只认 message，于是 rollback#14 / setup#8 一句都不打印、日志也不写，
+  // 却统一返回「任务完成通知已发送」—— 通知没发出去，步骤却是绿的。
+  const level = (params?.level || params?.type || 'complete').toUpperCase();
+  const title = params?.title;
+  const message = params?.message || (params?.content ? `${title ? `${title}: ` : ''}${params.content}` : '');
+  if (!message) {
+    return { status: 'warn', message: '通知未发送：这一步没有 message / title+content，没什么可通知的' };
   }
 
-  if (targetPath && message) {
+  console.log(chalk.green(`  ${message}`));
+
+  if (targetPath) {
     try {
       const notifLog = join(targetPath, '.claude', 'notifications.log');
       mkdirSync(dirname(notifLog), { recursive: true });
-      writeFileSync(notifLog, `[${new Date().toISOString()}] [COMPLETE] ${message}\n`, { flag: 'a' });
-    } catch { /* non-critical */ }
+      writeFileSync(notifLog, `[${new Date().toISOString()}] [${level}] ${message}\n`, { flag: 'a' });
+    } catch (error) {
+      return { status: 'warn', message: `通知已打印，但写入通知日志失败: ${error.message}` };
+    }
   }
 
   return `任务完成通知已发送`;
 }
 
-export function handleCeAction(action, _params, targetPath, context) {
+export function handleCeAction(action, params, targetPath, context) {
   const ceAction = action.replace('ce-', '');
   const desc = CE_DESCRIPTIONS[ceAction];
   if (!desc) {
     return `CE ${ceAction}: 未知操作`;
   }
-
+  // 场景给 CE 步骤带了意图参数（ce-plan: detail_level / risk_analysis /
+  // tech_selection）。以前这些键没人读，等于把用户的要求吞了。这里是引导性
+  // handler：把要求打到屏幕上，agent 才能照做。
+  const preferences = describePreferences(params);
   const ceConfigPath = targetPath ? join(targetPath, '..', '.claude', 'plugins', 'compound-engineering.json') : null;
   const ceAvailable = ceConfigPath ? existsSync(ceConfigPath) : false;
-  const isInClaudeCode = isConversationMode();
-
-  if (ceAvailable && isInClaudeCode) {
-    console.log(chalk.cyan(`\n🧠 CE ${ceAction}: ${desc}`));
-    console.log(chalk.dim('  → CE Plugin 已安装，对话模式中由 Claude Code 调用'));
-  } else if (ceAvailable) {
-    console.log(chalk.yellow(`\n🧠 CE ${ceAction}: ${desc}`));
-    console.log(chalk.dim('  ⚠ CE Plugin 已安装但非对话模式，无法调用'));
-  } else {
-    console.log(chalk.yellow(`\n🧠 CE ${ceAction}: ${desc}`));
-    console.log(chalk.dim('  ⚠ CE Plugin 未安装，操作仅设置上下文标志'));
-  }
+  printCeBanner(ceAction, desc, ceAvailable, preferences);
 
   // Set context flags so downstream steps can react
   if (context) {
@@ -225,7 +291,35 @@ export function handleCeAction(action, _params, targetPath, context) {
     }
   }
 
-  return `CE ${ceAction}: ${ceAvailable && isInClaudeCode ? 'CE Plugin 就绪（对话模式执行）' : ceAvailable ? 'CE Plugin 已安装但需对话模式' : '上下文已设置（CE Plugin 未安装）'}`;
+  const base = ceAvailable && isConversationMode() ? 'CE Plugin 就绪（对话模式执行）' : ceAvailable ? 'CE Plugin 已安装但需对话模式' : '上下文已设置（CE Plugin 未安装）';
+  return `CE ${ceAction}: ${base}${preferences ? `（要求: ${preferences}）` : ''}`;
+}
+
+function printCeBanner(ceAction, desc, ceAvailable, preferences) {
+  const isInClaudeCode = isConversationMode();
+  const paint = ceAvailable && isInClaudeCode ? chalk.cyan : chalk.yellow;
+  console.log(paint(`\n🧠 CE ${ceAction}: ${desc}`));
+  if (ceAvailable && isInClaudeCode) {
+    console.log(chalk.dim('  → CE Plugin 已安装，对话模式中由 Claude Code 调用'));
+  } else if (ceAvailable) {
+    console.log(chalk.dim('  ⚠ CE Plugin 已安装但非对话模式，无法调用'));
+  } else {
+    console.log(chalk.dim('  ⚠ CE Plugin 未安装，操作仅设置上下文标志'));
+  }
+  if (preferences) console.log(chalk.dim(`  → 本次要求: ${preferences}`));
+}
+
+/** 把步骤声明的要求参数渲染成人话（true → 只写键名） */
+function describePreferences(params) {
+  if (!params || typeof params !== 'object') return '';
+  return Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== false)
+    .map(([key, value]) => {
+      if (value === true) return key;
+      if (Array.isArray(value)) return `${key}=${value.join('/')}`;
+      return `${key}=${String(value)}`;
+    })
+    .join('，');
 }
 
 export function handleAnalyze(_action, params, targetPath, context) {
@@ -336,22 +430,49 @@ function evalSingleCheck(check, context) {
   return evalStandardGate(check, context);
 }
 
+/** 场景声明的具名门禁（`gate: "setup_config"`） */
+function evalNamedGate(name, context) {
+  if (name !== 'setup_config') return { kind: 'unknown', label: name };
+  // 设施是否真的搭出来了：e2e / monitor 各自的 handler 会写 flag，
+  // property 那支不落文件，靠这三个键判断是否有人表过态。
+  const flags = ['setupConfigured', 'e2eConfigured', 'monitorConfigured'].map((k) => context?.[k]);
+  if (flags.every((v) => v === undefined)) return { kind: 'skipped', label: name };
+  return flags.includes(true) ? { kind: 'passed', label: name } : { kind: 'failed', label: name };
+}
+
 export function handleCheckGate(_action, params, _targetPath, context) {
-  const checks = params?.checks || ['lint', 'typecheck', 'security'];
+  // 场景里要么写 checks 列表，要么写 gate: "<具名门禁>"。
+  // 以前后者没人读，于是 setup#3 的「配置质量门禁」实际在查 lint/typecheck/security ——
+  // 门禁名字是装饰，查的是另一回事。
+  const named = params?.gate ? evalNamedGate(params.gate, context) : null;
+  if (named?.kind === 'unknown') {
+    return { status: 'warn', message: `质量门禁 "${params.gate}" 未实现：引擎不认识这个门禁名（没拿默认检查项冒充）` };
+  }
+  const checks = named ? [params.gate] : (params?.checks || ['lint', 'typecheck', 'security']);
   const results = { passed: [], failed: [], blocked: [], skipped: [], unknown: [] };
 
-  for (const check of checks) {
+  if (named) results[named.kind].push(named.label);
+  for (const check of named ? [] : checks) {
     const r = evalSingleCheck(check, context);
     results[r.kind].push(r.label);
   }
 
   if (results.failed.length) console.error(chalk.yellow(`  ⚠ 失败: ${results.failed.join(', ')}`));
   const hasFailures = results.failed.length > 0 || results.blocked.length > 0;
+  // block_release / block_merge / block_critical：场景声明了「这项失败就阻断」，
+  // 以前这些键没人读，阻断全靠 step.on_error。这里把它变成真信号，
+  // 引擎（handleStepError）会读 gateBlocked 中止工作流。
+  const blockKeys = Object.keys(params || {}).filter((k) => k.startsWith('block_') && params[k]);
   if (hasFailures && context) {
     context.lastStepFailed = true;
-    if (results.blocked.length) context.gateBlocked = true;
+    if (results.blocked.length || blockKeys.length) context.gateBlocked = true;
   }
 
+  return gateVerdict(results, checks, params, blockKeys);
+}
+
+/** 把各项检查结果收成一个显式结论（没结论的时候绝不报「通过」） */
+function gateVerdict(results, checks, params, blockKeys) {
   const effectiveTotal = checks.length - results.skipped.length;
   // 全部检查项都没有结果时以前报「质量门禁通过: 0/0」→ 一个检查都没跑却记 ✓ pass。
   // 没执行不是通过；认不出的检查名也不能被默默吞掉。
@@ -369,11 +490,20 @@ export function handleCheckGate(_action, params, _targetPath, context) {
   }
   // 阻断/未通过直接给显式 fail：以前只靠 lastStepFailed + 「未通过」文案，
   // 而「未通过」不含「失败」，任何一个调用方忘了看 lastStepFailed 就成假绿。
+  const blockNote = blockKeys.length ? `（已声明 ${blockKeys.join(', ')}，工作流阻断）` : '';
   if (results.blocked.length) {
-    return { status: 'fail', message: `质量门禁阻断: ${results.blocked.join('; ')}` };
+    return { status: 'fail', message: `质量门禁阻断: ${results.blocked.join('; ')}${blockNote}` };
   }
   if (results.failed.length) {
-    return { status: 'fail', message: `质量门禁未通过: ${results.failed.join('; ')}` };
+    return { status: 'fail', message: `质量门禁未通过: ${results.failed.join('; ')}${blockNote}` };
+  }
+  // mode: strict —— 有检查项根本没跑过时不许发「通过」：
+  // 以前跳过项从分母里扣掉，5 项只跑了 2 项也报「通过 2/2」。
+  if (params?.mode === 'strict' && results.skipped.length > 0) {
+    return {
+      status: 'warn',
+      message: `质量门禁严格模式：${results.skipped.length} 项没有结果（${results.skipped.join(', ')}），通过 ${results.passed.length}/${checks.length}，不发通过结论`,
+    };
   }
   return `质量门禁通过: ${results.passed.length}/${effectiveTotal}`;
 }

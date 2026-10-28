@@ -74,37 +74,47 @@ export function handleCleanup(_action, params, targetPath, context) {
 export function handleAutoFix(_action, params, targetPath, context) {
   const include = params?.include || ['lint', 'security'];
   const fixed = [];
-
   if (include.includes('lint') || include.includes('complexity')) {
-    const eslintConfig = join(targetPath, 'eslint.config.js');
-    if (existsSync(eslintConfig)) {
-      try {
-        safeExec('npx eslint . --fix --quiet 2>&1 || true', targetPath, { stdio: 'pipe' });
-        fixed.push('ESLint');
-      } catch { /* eslintrc not found */ }
-    }
+    const label = tryEslintFix(targetPath, params?.maxAttempts);
+    if (label) fixed.push(label);
   }
-
   if (include.includes('security')) {
     try {
       safeExec('npm audit fix 2>&1 || true', targetPath, { stdio: 'pipe' });
       fixed.push('npm-audit');
     } catch { /* npm audit not available */ }
   }
-
   if (fixed.length && context) context.fixApplied = true;
   return fixed.length ? `自动修复完成: ${fixed.join(', ')}` : '无需修复';
 }
 
-export function handleGenerateRefactorPlan(_action, _params, _targetPath, context) {
-  if (context) context.refactor_plan_generated = true;
-  return { status: 'noop', message: '重构计划未生成（CLI 不执行，需在对话模式由 agent 完成）' };
+/** setup 场景声明了 maxAttempts: 3。以前没人读，`--fix` 只跑一轮。 */
+function tryEslintFix(targetPath, rawAttempts) {
+  if (!existsSync(join(targetPath, 'eslint.config.js'))) return null;
+  const maxAttempts = Math.max(1, Number.parseInt(rawAttempts, 10) || 1);
+  let clean = false;
+  for (let attempt = 0; attempt < maxAttempts && !clean; attempt += 1) {
+    try {
+      // 不带 `|| true`：退出码 0 才代表「没有剩下的可修问题了」，可以停
+      safeExec('npx eslint . --fix --quiet', targetPath, { stdio: 'pipe' });
+      clean = true;
+    } catch { /* 还有剩余问题：下一轮再试 */ }
+  }
+  const suffix = clean ? '' : `，${maxAttempts} 轮后仍有问题`;
+  return maxAttempts > 1 ? `ESLint（最多 ${maxAttempts} 轮${suffix}）` : `ESLint${suffix}`;
 }
 
-export function handleApplyTransformations(_action, params, _targetPath, context) {
+export function handleGenerateRefactorPlan(_action, params, _targetPath, _context) {
+  // 以前这里写 context.refactor_plan_generated = true —— 计划根本没生成，
+  // 却给下游留了一个「已生成」的旗子（而且这个旗子全仓库没人读）。
+  const testsNote = params?.include_tests === true ? '（要求包含测试改造）' : '';
+  return { status: 'noop', message: `重构计划未生成（CLI 不执行，需在对话模式由 agent 完成）${testsNote}` };
+}
+
+export function handleApplyTransformations(_action, params, _targetPath, _context) {
   const transformations = params?.transformations || [];
-  if (context) context.transformations_applied = true;
-  return { status: 'noop', message: `重构变换未应用（CLI 不执行，需在对话模式由 agent 完成）: ${transformations.join(', ')}` };
+  const guard = params?.preserve_behavior === true ? '（要求保持行为不变，后续回归测试必须全绿）' : '';
+  return { status: 'noop', message: `重构变换未应用（CLI 不执行，需在对话模式由 agent 完成）: ${transformations.join(', ')}${guard}` };
 }
 
 export function handleAnalyzeInterface(_action, _params, _targetPath, context) {

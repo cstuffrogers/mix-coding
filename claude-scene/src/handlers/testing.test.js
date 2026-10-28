@@ -1,3 +1,4 @@
+/* global Buffer */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest,
@@ -28,44 +29,63 @@ describe('handleRunSuite', () => {
     vi.clearAllMocks();
   });
 
-  it('returns success when no package.json exists', () => {
+  // 契约变更（第五轮）：测试结论只看退出码，输出内容不参与判断；
+  // 「没跑成」与「跑挂了」分开（skip/warn vs fail）——以前的用例断言的
+  // 正是旧行为（对输出跑正则 + 没 package.json 也算跑过）。
+  it('没有 package.json → skip，且不冒充「跑过了」', () => {
     mockExistsSync.mockReturnValue(false);
     const ctx = {};
     const result = handleRunSuite('run-suite', { mode: 'unit' }, '/tmp', ctx);
-    expect(result).toContain('未找到 package.json');
-    expect(ctx.testPassed).toBeNull();
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('未测量');
+    expect(ctx.testPassed).toBeUndefined();
   });
 
-  it('sets testPassed=false when test output contains "failed"', () => {
+  it('退出码非零 → fail', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { test: 'vitest' } }));
-    mockSafeExec.mockReturnValue('Tests: 3 passed, 1 failed');
+    mockSafeExec.mockImplementation(() => {
+      const error = new Error('Command failed: npm test');
+      error.stdout = Buffer.from('Tests: 3 passed, 1 failed');
+      throw error;
+    });
     const ctx = {};
     const result = handleRunSuite('run-suite', { mode: 'unit' }, '/tmp', ctx);
     expect(ctx.testPassed).toBe(false);
     expect(ctx.lastStepFailed).toBe(true);
-    expect(result).toContain('失败');
+    expect(result.status).toBe('fail');
   });
 
-  it('handles JSON.parse error gracefully (regression test)', () => {
+  it('输出里有 "failed" 但退出码是 0 → 通过（`0 failed` 不再假红）', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { test: 'vitest' } }));
+    mockSafeExec.mockReturnValue('Tests: 12 passed, 0 failed');
+    const ctx = {};
+    const result = handleRunSuite('run-suite', { mode: 'unit' }, '/tmp', ctx);
+    expect(ctx.testPassed).toBe(true);
+    expect(String(result)).toContain('全部通过');
+  });
+
+  it('package.json 解析失败 → warn（没测量，不是失败）', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockImplementation(() => { throw new Error('Invalid JSON'); });
     const ctx = {};
     const result = handleRunSuite('run-suite', { mode: 'unit' }, '/tmp', ctx);
-    expect(ctx.testPassed).toBe(false);
-    expect(result).toContain('失败');
+    expect(result.status).toBe('warn');
+    expect(ctx.testPassed).toBeUndefined();
   });
 
-  it('uses vitest when no test script', () => {
+  it('没有 test 脚本时用 vitest', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { vitest: 'vitest' } }));
     mockSafeExec.mockReturnValue('All tests passed');
     const ctx = {};
     handleRunSuite('run-suite', { mode: 'unit' }, '/tmp', ctx);
+    expect(mockSafeExec).toHaveBeenCalledWith('npx vitest run', '/tmp', { stdio: 'pipe' });
     expect(ctx.testPassed).toBe(true);
   });
 
-  it('integration mode falls back to unit when no integration script', () => {
+  it('integration 模式没有 integration 脚本时回落 unit', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { test: 'jest' } }));
     mockSafeExec.mockReturnValue('All passed');
@@ -74,30 +94,22 @@ describe('handleRunSuite', () => {
     expect(ctx.testPassed).toBe(true);
   });
 
-  it('integration mode uses test:integration when available', () => {
+  it('integration 模式用 test:integration，且不再挂 `|| true`（退出码要真实）', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { 'test:integration': 'vitest integration' } }));
     mockSafeExec.mockReturnValue('All passed');
     const ctx = {};
     handleRunSuite('run-suite', { mode: 'integration' }, '/tmp', ctx);
-    expect(mockSafeExec).toHaveBeenCalledWith(
-      'npm run test:integration 2>&1 || true',
-      '/tmp',
-      { stdio: 'pipe' },
-    );
+    expect(mockSafeExec).toHaveBeenCalledWith('npm run test:integration', '/tmp', { stdio: 'pipe' });
   });
 
-  it('integration mode uses playwright when e2e script exists', () => {
+  it('integration 模式用 playwright（e2e 脚本）', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { e2e: 'playwright test' } }));
     mockSafeExec.mockReturnValue('All passed');
     const ctx = {};
     handleRunSuite('run-suite', { mode: 'integration' }, '/tmp', ctx);
-    expect(mockSafeExec).toHaveBeenCalledWith(
-      'npx playwright test 2>&1 || true',
-      '/tmp',
-      { stdio: 'pipe' },
-    );
+    expect(mockSafeExec).toHaveBeenCalledWith('npx playwright test', '/tmp', { stdio: 'pipe' });
   });
 });
 

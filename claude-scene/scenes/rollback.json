@@ -89,8 +89,7 @@
       "action": "rollback",
       "params": {
         "target": "${selected_version}",
-        "mode": "git_revert",
-        "preserve_data": true
+        "mode": "git_revert"
       },
       "description": "执行Git回滚到目标版本（保留数据库/用户数据）",
       "condition": "user_confirmed === true",

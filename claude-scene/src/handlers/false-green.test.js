@@ -94,11 +94,40 @@ describe('假绿回归：修复/回归测试验证', () => {
 describe('假绿回归：gh CLI 不可用', () => {
   // 以前命令里拼了 `|| true`，gh 不存在也 exit 0，于是
   // "Release 已创建: gh: command not found" 被记成 ✓ pass。
-  it('gh 起不来 → warn 且明说未创建', () => {
-    safeExec.mockImplementation(() => { throw Object.assign(new Error('Command failed: gh release create'), { status: 127 }); });
+  // 契约变更（第五轮）：以前「gh 出错」一律当 warn（工具没跑通）。但 gh 出错分两种：
+  // 没装（跳过，本来就没得跑）和 装了但失败（认证/网络/参数错 —— 是真的没发出去）。
+  // 后者以前混在 warn 里，会被当成「不是项目的问题」放过去。
+  it('gh 没装 → skip，说明未创建', () => {
+    safeExec.mockImplementation(() => { throw new Error(['Command failed: gh release create', 'gh: command not found'].join('\n')); });
     const r = handleCreateRelease('x', { tag: 'v1' }, '/tmp', {});
-    expect(r.status).toBe('warn');
+    expect(r.status).toBe('skip');
     expect(r.message).toContain('未创建');
+  });
+
+  it('gh 装了但执行失败 → fail（认证/参数错不是「工具不可用」）', () => {
+    safeExec.mockImplementation(() => { throw Object.assign(new Error(['Command failed: gh release create', 'HTTP 401: Bad credentials'].join('\n')), { status: 1 }); });
+    const r = handleCreateRelease('x', { tag: 'v1' }, '/tmp', {});
+    expect(r.status).toBe('fail');
+    expect(r.message).toContain('创建失败');
+  });
+
+  it('body_ref 指向的 context 变量不存在 → 正文为空要说出来', () => {
+    safeExec.mockReturnValue(Buffer.from('https://github.com/o/r/releases/v1'));
+    const r = handleCreateRelease('x', { tag: 'v1', body_ref: 'changelog_content' }, '/tmp', {});
+    expect(String(r)).toContain('changelog_content');
+    // 有正文时走 --notes-file（不是把正文塞进 shell 引号里）
+    const ctx = { changelog_content: ['## v1', '- fix'].join('\n') };
+    handleCreateRelease('x', { tag: 'v1', body_ref: 'changelog_content' }, '/tmp', ctx);
+    const lastCmd = safeExec.mock.calls.at(-1)[0];
+    expect(lastCmd).toContain('--notes-file');
+  });
+
+  it('prerelease / tag_ref 真的进了 gh 命令', () => {
+    safeExec.mockReturnValue(Buffer.from('ok'));
+    handleCreateRelease('x', { tag: 'v1', tag_ref: 'new_version', prerelease: true }, '/tmp', { new_version: 'v1.2.3' });
+    const cmd = safeExec.mock.calls.at(-1)[0];
+    expect(cmd).toContain('--prerelease');
+    expect(cmd).toContain('--target v1.2.3');
   });
 
   it('创建成功 → 报已创建', () => {

@@ -6,70 +6,192 @@ import { safeExec } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
 
 export function handleTestCoverage(_action, params, targetPath, context) {
-  const packagePath = join(targetPath, 'package.json');
-  let isRan = false;
-  if (existsSync(packagePath)) {
-    try {
-      safeExec('npx vitest run --coverage --coverage.include="src/**" 2>&1', targetPath, { stdio: 'inherit' });
-      isRan = true;
-    } catch { isRan = false; /* vitest coverage not configured */ }
+  if (!existsSync(join(targetPath, 'package.json'))) {
+    if (context) context.coveragePassed = undefined;
+    return { status: 'skip', message: '覆盖率未测量：没有 package.json' };
   }
-  if (context) context.coveragePassed = isRan;
-  return '测试覆盖率分析完成';
+
+  // 以前把「命令跑起来了」当成「覆盖率通过」（coveragePassed = isRan）：
+  // 33% 的覆盖率也报「分析完成」→ pass。场景里写着的 threshold（80/85）
+  // 根本没人读。现在要真的把这个百分数量出来、跟阈值比。
+  const { output, ran } = runCoverage(targetPath);
+  const percent = parseCoveragePercent(output);
+  if (percent === null) {
+    if (context) context.coveragePassed = undefined;
+    const why = ran ? '--coverage 输出里没有统计表（没配 coverage provider？）' : '覆盖率命令没跑成';
+    return { status: 'warn', message: `覆盖率未测得：${why}（没数据 ≠ 达标）` };
+  }
+
+  const threshold = Number(params?.threshold);
+  const baselineNote = updateBaseline(params, targetPath, percent);
+  if (!(Number.isFinite(threshold) && threshold > 0)) {
+    if (context) context.coveragePassed = undefined;
+    return { status: 'warn', message: `覆盖率 ${percent}%（场景未声明 threshold，只报告不判定）${baselineNote}` };
+  }
+  return judgeCoverage({ percent, threshold, baselineNote, params, context });
+}
+
+/** 有阈值才判定。block_on_fail: true → 当场 fail；没声明 → warn 但把 flag 留给门禁 */
+function judgeCoverage({ percent, threshold, baselineNote, params, context }) {
+  const passed = percent >= threshold;
+  if (context) {
+    context.coveragePassed = passed;
+    context.coveragePercent = percent;
+  }
+  if (passed) return `覆盖率 ${percent}% ≥ 阈值 ${threshold}%（达标）${baselineNote}`;
+
+  const message = `覆盖率 ${percent}% 低于阈值 ${threshold}%${baselineNote}`;
+  if (params?.block_on_fail === true) {
+    if (context) context.lastStepFailed = true;
+    return { status: 'fail', message };
+  }
+  return { status: 'warn', message: `${message}（未声明 block_on_fail，交给质量门禁判定）` };
+}
+
+function runCoverage(targetPath) {
+  try {
+    return { output: safeExec('npx vitest run --coverage', targetPath, { stdio: 'pipe' }).toString(), ran: true };
+  } catch (error) {
+    // 低于阈值时 vitest 以非零退出 —— 结果仍在 stdout 里，不能丢。
+    const output = [error?.stdout?.toString?.(), error?.stderr?.toString?.(), error?.message].filter(Boolean).join('\n');
+    return { output, ran: false };
+  }
+}
+
+/** vitest/istanbul 文本表里 All files 那一行的 % Lines，或 jest 的 Lines 汇总行 */
+function parseCoveragePercent(text) {
+  const allFiles = text.split('\n').find((line) => /^\s*All files\s*\|/.test(line));
+  if (allFiles) {
+    const cols = allFiles.split('|').map((c) => c.trim());
+    // 列顺序：File | % Stmts | % Branch | % Funcs | % Lines | Uncovered
+    const value = Number.parseFloat(cols[4] ?? cols[1]);
+    if (Number.isFinite(value)) return value;
+  }
+  for (const key of ['Lines', 'Statements']) {
+    const m = text.match(new RegExp(`${key}\\s*:\\s*([\\d.]+)%`));
+    if (m) return Number.parseFloat(m[1]);
+  }
+  return null;
+}
+
+/** compare_to_baseline: 把这次覆盖率存成基线，并给出与上次的差 */
+function updateBaseline(params, targetPath, percent) {
+  if (params?.compare_to_baseline !== true) return '';
+  const file = join(targetPath, '.claude', 'coverage-baseline.json');
+  let previous = null;
+  try {
+    if (existsSync(file)) previous = JSON.parse(readFileSync(file, 'utf-8')).percent;
+  } catch { previous = null; }
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify({ percent, updatedAt: new Date().toISOString() }, null, 2)}\n`);
+  } catch { return '（基线写入失败，本次差值未知）'; }
+  if (typeof previous !== 'number') return '（首次记录基线）';
+  const delta = percent - previous;
+  return `（较基线 ${previous}% ${delta >= 0 ? '+' : ''}${delta.toFixed(1)}）`;
+}
+
+/** 测试命令的真实结论：退出码。没脚本 / 没装依赖是「没跑成」，不是「失败」。 */
+function classifyTestRun(error) {
+  const text = [error?.message, error?.stdout?.toString?.(), error?.stderr?.toString?.()]
+    .filter(Boolean).join(' ');
+  if (/Missing script|ENOENT|Cannot find|No test files|not found/i.test(text)) return 'not-run';
+  return 'fail';
 }
 
 export function handleTestUnit(_action, _params, targetPath, context) {
   const packagePath = join(targetPath, 'package.json');
-  let testPassed = null;
-  if (existsSync(packagePath)) {
-    try {
-      const result = safeExec('npm test 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-      testPassed = !/[Ff]ail|FAIL/.test(result);
-    } catch { testPassed = false; }
+  if (!existsSync(packagePath)) {
+    if (context) context.testPassed = undefined;
+    return { status: 'skip', message: '单元测试未运行：没有 package.json（未测量）' };
   }
-  if (context) context.testPassed = testPassed;
-  if (testPassed === null) return '单元测试运行完成（未找到 package.json，无测试可运行）';
-  return testPassed ? '单元测试运行完成（全部通过）' : '单元测试运行完成（部分失败）';
+  // 以前是 `npm test 2>&1 || true` + 正则找 fail 字样：退出码被吃掉，
+  // 而且「0 failed」也会被当成失败（假红）。
+  let testPassed;
+  try {
+    safeExec('npm test', targetPath, { stdio: 'pipe' });
+    testPassed = true;
+  } catch (error) {
+    const verdict = classifyTestRun(error);
+    if (verdict === 'not-run') {
+      if (context) context.testPassed = undefined;
+      return { status: 'warn', message: '单元测试未跑成：没有可运行的测试脚本（未测量，不算通过）' };
+    }
+    testPassed = false;
+  }
+  if (context) {
+    context.testPassed = testPassed;
+    if (!testPassed) context.lastStepFailed = true;
+  }
+  return testPassed
+    ? '单元测试运行完成（全部通过）'
+    : { status: 'fail', message: '单元测试运行完成（存在失败用例）' };
 }
 
 function pickTestCommand(mode, pkg) {
   const scripts = pkg.scripts || {};
   if (mode === 'integration') {
-    if (scripts['test:integration']) return 'npm run test:integration 2>&1 || true';
-    if (scripts['test:e2e'] || scripts.e2e) return 'npx playwright test 2>&1 || true';
+    if (scripts['test:integration']) return 'npm run test:integration';
+    if (scripts['test:e2e'] || scripts.e2e) return 'npx playwright test';
   }
-  if (scripts.test) return 'npm test 2>&1 || true';
-  if (scripts.vitest) return 'npx vitest run 2>&1 || true';
+  if (scripts.test) return 'npm test';
+  if (scripts.vitest) return 'npx vitest run';
   return null;
 }
 
 export function handleRunSuite(_action, params, targetPath, context) {
   const mode = params?.mode || 'unit';
-  const packagePath = join(targetPath, 'package.json');
-  let testPassed = null;
-
-  if (existsSync(packagePath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
-      const cmd = pickTestCommand(mode, pkg);
-      const testResult = cmd
-        ? safeExec(cmd, targetPath, { stdio: 'pipe' }).toString()
-        : '';
-
-      if (testResult && /[Ff]ail|FAIL/.test(testResult)) {
-        testPassed = false;
-      } else if (testResult) {
-        testPassed = true;
-      }
-    } catch { testPassed = false; /* test runner unavailable */ }
+  const setup = loadTestSetup(targetPath, mode);
+  if (setup.error) {
+    if (context) context.testPassed = undefined;
+    return setup.error;
   }
-
+  const verdict = runTestCommand(setup.cmd, targetPath);
+  if (verdict === 'not-run') {
+    if (context) context.testPassed = undefined;
+    return { status: 'warn', message: `测试套件未跑成：${setup.cmd} 不可用（未测量，不算通过）` };
+  }
+  const testPassed = verdict === 'pass';
   if (context) {
     context.testPassed = testPassed;
-    if (testPassed === false) context.lastStepFailed = true;
+    if (!testPassed) context.lastStepFailed = true;
   }
-  if (testPassed === null) return '测试套件运行完成（未找到 package.json，无测试可运行）';
-  return testPassed ? '测试套件运行完成（全部通过）' : '测试套件运行完成（部分失败）';
+  return testPassed
+    ? '测试套件运行完成（全部通过）'
+    : { status: 'fail', message: '测试套件运行完成（存在失败用例）' };
+}
+
+/** 准备阶段：package.json 可读、且有对应测试脚本（否则给一个显式 skip/warn） */
+function loadTestSetup(targetPath, mode) {
+  const packagePath = join(targetPath, 'package.json');
+  if (!existsSync(packagePath)) {
+    return { error: { status: 'skip', message: '测试套件未运行：没有 package.json（未测量）' } };
+  }
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+  } catch {
+    return { error: { status: 'warn', message: '测试套件未运行：package.json 解析失败' } };
+  }
+  const cmd = pickTestCommand(mode, pkg);
+  if (!cmd) {
+    return { error: { status: 'warn', message: `测试套件未运行：package.json 里没有 ${mode} 对应的测试脚本` } };
+  }
+  return { cmd };
+}
+
+/**
+ * 以前命令串末尾挂 `|| true`（退出码被吃掉），再靠输出里有没有 fail 字样猜：
+ * 「0 failed」→ 假红；真的全绿但输出带 'FAIL' 字样的路径 → 也假红。
+ * 现在只看退出码，并把「没跑成」与「跑挂了」分开。
+ */
+function runTestCommand(cmd, targetPath) {
+  try {
+    safeExec(cmd, targetPath, { stdio: 'pipe' });
+    return 'pass';
+  } catch (error) {
+    return classifyTestRun(error) === 'not-run' ? 'not-run' : 'fail';
+  }
 }
 
 export function handleRunAffected(_action, _params, targetPath, context) {
@@ -120,9 +242,9 @@ export function handleRunAffected(_action, _params, targetPath, context) {
 }
 
 const CI_CHECKS = [
-  { name: 'linting', cmd: 'npx eslint . --max-warnings 50 2>&1', ctxKey: 'lintPassed' },
-  { name: 'typing', cmd: 'npx tsc --noEmit 2>&1', ctxKey: 'typecheckPassed' },
-  { name: 'coverage', cmd: 'npx vitest run --coverage 2>&1', ctxKey: 'coveragePassed' },
+  { name: 'linting', cmd: 'npx eslint . --max-warnings 50', ctxKey: 'lintPassed' },
+  { name: 'typing', cmd: 'npx tsc --noEmit', ctxKey: 'typecheckPassed' },
+  { name: 'coverage', cmd: 'npx vitest run --coverage', ctxKey: 'coveragePassed' },
 ];
 
 export function handleRunCI(_action, params, targetPath, context) {

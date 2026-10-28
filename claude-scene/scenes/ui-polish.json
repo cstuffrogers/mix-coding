@@ -74,8 +74,7 @@
             "label": "Impeccable 打磨",
             "default": true
           }
-        ],
-        "multi_select": true
+        ]
       },
       "description": "交互式选择美化模式"
     },
@@ -793,7 +792,6 @@
       "service": "PlaywrightMCP",
       "action": "browser_screenshot",
       "params": {
-        "fullPage": true,
         "viewports": [
           "desktop",
           "tablet",

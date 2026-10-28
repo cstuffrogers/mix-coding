@@ -5,6 +5,8 @@ import {
   handleCheckGate, handleCeAction,
 } from './flow-control.js';
 import { handleCheckPrerequisites } from './prerequisites.js';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 vi.mock('chalk', () => {
   const noop = (s) => s;
@@ -128,11 +130,12 @@ describe('handleGenerateEnv', () => {
 });
 
 describe('handleVerify', () => {
-  it('sets testPassed context on test success', () => {
+  it('没有 package.json 时不再算「验证通过」（以前直接 verified = true）', async () => {
     const ctx = {};
-    const result = handleVerify('verify', {}, '/tmp', ctx);
-    expect(typeof result).toBe('string');
-    expect('testPassed' in ctx).toBe(true);
+    // 用 join 拼临时目录：Unix 的 /tmp 被 sonarjs 判为 publicly writable
+    const result = await handleVerify('verify', {}, join(tmpdir(), 'mix-coding-no-such-project'), ctx);
+    expect(result.status).toBe('warn');
+    expect(ctx.testPassed).toBeUndefined();
   });
 });
 
@@ -247,6 +250,56 @@ describe('handleCheckGate', () => {
                'dead_links', 'build_leaks', 'i18n'],
     }, '/tmp', ctx);
     expect(result).toContain('通过');
+  });
+});
+
+describe('handleCheckGate：block_* / mode / gate 参数真的生效', () => {
+  // 场景里写 block_release / block_merge / block_critical 的四个门禁步骤，
+  // 以前这几个键根本没人读，阻断全靠 step.on_error —— 参数是装饰。
+  it('声明 block_release 且检查失败 → 置 gateBlocked（引擎据此中止）', () => {
+    const ctx = { lintPassed: false };
+    const result = handleCheckGate('checkGate', { checks: ['lint'], block_release: true }, '/tmp', ctx);
+    expect(result.status).toBe('fail');
+    expect(ctx.gateBlocked).toBe(true);
+    expect(result.message).toContain('block_release');
+  });
+
+  it('没有 block_* 且只是失败 → 不置 gateBlocked（该由门禁项自己决定）', () => {
+    const ctx = { lintPassed: false };
+    handleCheckGate('checkGate', { checks: ['lint'] }, '/tmp', ctx);
+    expect(ctx.gateBlocked).toBeUndefined();
+  });
+
+  it('mode: strict —— 有检查项没跑过就不发通过结论', () => {
+    const ctx = { lintPassed: true };
+    const result = handleCheckGate('checkGate', { checks: ['lint', 'test'], mode: 'strict' }, '/tmp', ctx);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('test');
+  });
+
+  it('mode: strict 且全部有结果 → 照常通过', () => {
+    const ctx = { lintPassed: true, testPassed: true };
+    const result = handleCheckGate('checkGate', { checks: ['lint', 'test'], mode: 'strict' }, '/tmp', ctx);
+    expect(String(result)).toContain('通过: 2/2');
+  });
+
+  // setup#3 写的是 gate: "setup_config"，以前这个键没人读，
+  // 于是「配置质量门禁」实际在查 lint/typecheck/security（查的是另一回事）。
+  it('gate: setup_config 读设施 flag，而不是偷偷查 lint', () => {
+    const ok = handleCheckGate('checkGate', { gate: 'setup_config' }, '/tmp', { e2eConfigured: true });
+    expect(String(ok)).toContain('通过');
+
+    const bad = handleCheckGate('checkGate', { gate: 'setup_config' }, '/tmp', { e2eConfigured: false });
+    expect(bad.status).toBe('fail');
+
+    const unknownState = handleCheckGate('checkGate', { gate: 'setup_config' }, '/tmp', {});
+    expect(unknownState.status).toBe('skip');
+  });
+
+  it('不认识的具名门禁 → warn，不拿默认检查项冒充', () => {
+    const result = handleCheckGate('checkGate', { gate: 'no_such_gate' }, '/tmp', { lintPassed: true });
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('no_such_gate');
   });
 });
 

@@ -61,9 +61,7 @@
       "layer": "capability",
       "service": "MobileService",
       "action": "autoInstall",
-      "params": {
-        "missing_only": true
-      },
+      "params": {},
       "description": "自动安装缺失依赖（给出安装命令，交互模式下用户确认后执行）",
       "auto_execute": false
     },

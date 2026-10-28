@@ -230,7 +230,7 @@ function _collectSemgrepResults(semgrep, config, targetPath, chunks) {
   return acc;
 }
 
-export function handleSemgrepScan(_action, _params, targetPath, context) {
+export function handleSemgrepScan(_action, params, targetPath, context) {
   const files = listProjectCodeFiles(targetPath);
   if (!files.length) {
     assertSources(files, context, 'Semgrep 逻辑/IO 扫描');
@@ -245,7 +245,14 @@ export function handleSemgrepScan(_action, _params, targetPath, context) {
   }
 
   const { config, source } = resolveSemgrepConfig(targetPath);
-  console.log(chalk.dim(`  ℹ 规则: ${source === 'project' ? '项目自带 .semgrep.yml' : '引擎内置 logic-io 规则包'}`));
+  // 场景里声明了 ruleset: "logic-io"。以前这个键没人读 —— 只打一句「引擎内置
+  // logic-io 规则包」就算交差。现在：声明的规则集与引擎实际用的对不上时要说出来，
+  // 否则用户以为换规则集换了（其实没换）。
+  const declaredRuleset = params?.ruleset;
+  if (declaredRuleset && source === 'engine' && declaredRuleset !== 'logic-io') {
+    console.log(chalk.yellow(`  ⚠ 场景声明的 ruleset=${declaredRuleset}，但引擎只内置 logic-io 规则包（已按 logic-io 执行）`));
+  }
+  console.log(chalk.dim(`  ℹ 规则: ${source === 'project' ? '项目自带 .semgrep.yml' : `引擎内置 ${declaredRuleset || 'logic-io'} 规则包`}`));
 
   // 扫描目标 = 项目源码清单（和 ESLint 一致），分批交过去。
   const chunks = chunkScanTargets(files);
