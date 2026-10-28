@@ -47,7 +47,7 @@ describe('shouldPromptInAuto（--auto 下的交互步骤）', () => {
 
 describe('review 场景 Step 2.68 契约', () => {
   const scene = JSON.parse(readFileSync(REVIEW_SCENE, 'utf8'));
-  const step = scene.flow.find(s => s.step === 2.68);
+  const step = scene.flow.find(s => String(s.step) === '2.68');
 
   it('存在，且是交互层需要确认的步骤', () => {
     expect(step).toBeDefined();
@@ -75,7 +75,7 @@ describe('review 场景 Step 2.68 契约', () => {
 describe('生效的 review 场景（项目覆盖层优先）', () => {
   const effectivePath = resolveScenePath('review');
   const effective = JSON.parse(readFileSync(effectivePath, 'utf8'));
-  const step = effective.flow.find(s => s.step === 2.68);
+  const step = effective.flow.find(s => String(s.step) === '2.68');
 
   it('实际会执行的那份，2.68 同样带 ask_even_in_auto', () => {
     expect(effectivePath).toBeTruthy();

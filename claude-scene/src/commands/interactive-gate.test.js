@@ -7,8 +7,7 @@ vi.mock('inquirer', () => ({ default: { prompt: vi.fn() } }));
 
 const { default: inquirer } = await import('inquirer');
 const {
-  handleConfirmation, handleOptionSelection, renderPromptText,
-  deriveStepStatus, handleConfirmDialog,
+  handleConfirmation, handleOptionSelection, renderPromptText, deriveStepStatus,
 } = await import('./start.js');
 const { handleChoose, handleAskUser } = await import('../handlers/flow-control.js');
 const { handleDesignInput } = await import('../handlers/design.js');
@@ -30,9 +29,6 @@ const { handleDesignInput } = await import('../handlers/design.js');
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCENES = join(SRC, '..', 'scenes');
 
-function clearAwaiting(context) {
-  delete context._awaitingAnswer;
-}
 
 beforeEach(() => {
   inquirer.prompt.mockReset();

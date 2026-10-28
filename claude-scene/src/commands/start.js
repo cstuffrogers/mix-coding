@@ -203,11 +203,17 @@ function markAwaiting(context, step, { prompt, label, hints = [] }) {
   };
 }
 
-/** 命令行显式表态：--yes / --decline（--no 在 commander 里是取反语法，不能用） */
+/** 命令行显式表态：--yes / --decline（--no 在 commander 里是取反语法，不能用）
+ *  返回 undefined = 没表态（不是 false：「没答案」和「拒绝了」是两件事） */
 function explicitConfirmDecision(options) {
   if (options?.yes === true) return true;
-  if (options?.decline === true) return false;
-  return undefined;
+  return options?.decline === true ? false : undefined;
+}
+
+/** -S / --skip-sweep 这两个 sweep 专用 flag 的显式表态；undefined = 没表态 */
+function sweepFlagDecision(options) {
+  if (options?.withSweep === true) return 'run';
+  return options?.skipSweep === true ? 'skip' : undefined;
 }
 
 /** 把步骤文案里的 ${ctxKey} 渲染出来，让用户看到「到底在确认什么」 */
@@ -237,7 +243,7 @@ export async function handleConfirmDialog(step, options, context) {
 
   // 1) 用户已经表过态：-S / --skip-sweep（sweep 专用）、--yes / --decline（通用）
   const raw = context?.sweepDecision
-    ?? (options.withSweep === true ? 'run' : (options.skipSweep === true ? 'skip' : undefined))
+    ?? sweepFlagDecision(options)
     ?? explicitConfirmDecision(options);
   if (raw !== undefined) {
     setContextFlag(step, context, options, typeof raw === 'string' ? raw === 'run' : raw);
@@ -295,33 +301,13 @@ export async function handleOptionSelection(step, options, context, sceneId) {
   const dynamicOpts = step.params?.dynamic_options;
 
   // 环境变量这类「填空」步骤：没值就等于没做，不能再写个空字符串报「已接收」。
-  if (step.action === 'input') {
-    if (options.auto && step.params?.default === undefined) {
-      markAwaiting(context, step, {
-        prompt: renderPromptText(step.params?.message || step.description, context),
-        label: step.description || step.action,
-        hints: [{ flag: '（补齐后重跑）', text: '先把缺的值写进 .env / 环境变量，再重跑本场景' }],
-      });
-      return true;
-    }
-    return false;
-  }
-
+  if (step.action === 'input') return gateInputStep(step, options, context);
   // 动态选项（如 rollback 的 recent_releases）没有取数实现：以前返回
   // 「无可用选项」还记 pass，等于回滚目标由空气决定。现在直接要人给。
-  if (!decl || decl.length === 0) {
-    if (!dynamicOpts) return handleModeSelection(step, options, context);
-    markAwaiting(context, step, {
-      prompt: `${renderPromptText(step.params?.message || step.description, context)}\n   （引擎不会自己取「${dynamicOpts}」列表，需要你直接给出目标）`,
-      label: step.description || step.action,
-      hints: [{ flag: '--choice <目标>', text: `手动指定该项（如 ${dynamicOpts === 'recent_releases' ? 'v1.2.0' : '具体值'}）` }],
-    });
-    return true;
-  }
+  if (!decl || decl.length === 0) return gateDynamicOptions(step, options, context, dynamicOpts);
 
   const choices = toChoices(decl);
   const ids = choices.map(c => c.id).filter(Boolean);
-
   const apply = (selected) => {
     context.selectedOption = selected;
     context.choiceDecision = selected;
@@ -330,12 +316,7 @@ export async function handleOptionSelection(step, options, context, sceneId) {
   };
 
   // 1) 命令行显式指定
-  const requested = context.choiceDecision ?? options.choice;
-  if (requested !== undefined && requested !== '' && requested !== true) {
-    const override = resolveChoiceOverride({ params: { options: choices } }, requested);
-    if (override.id) { apply(override.id); return true; }
-    console.log(chalk.yellow(`  ⚠ ${override.warning}（不会静默取默认值）`));
-  }
+  if (applyRequestedChoice(step, options, context, choices, apply)) return true;
 
   // 2) 真终端现场选
   if (!options.auto) {
@@ -351,10 +332,7 @@ export async function handleOptionSelection(step, options, context, sceneId) {
 
   // 3) 场景显式声明的安全默认
   if (step.params?.auto_default !== undefined) {
-    const override = resolveChoiceOverride({ params: { options: choices } }, step.params.auto_default);
-    const fallback = override.id ?? String(step.params.auto_default);
-    apply(fallback);
-    console.log(chalk.gray(`   （按场景声明的 auto_default 取值）`));
+    applyDeclaredDefault(step, choices, apply);
     return true;
   }
 
@@ -365,6 +343,48 @@ export async function handleOptionSelection(step, options, context, sceneId) {
     hints: [{ flag: '--choice <值>', text: `可选：${ids.join(' / ')}` }],
   });
   return true;
+}
+
+/** 填空类步骤（缺环境变量）：非 auto 交给下层，auto 下没人可问就中止 */
+function gateInputStep(step, options, context) {
+  if (!options.auto || step.params?.default !== undefined) return false;
+  markAwaiting(context, step, {
+    prompt: renderPromptText(step.params?.message || step.description, context),
+    label: step.description || step.action,
+    hints: [{ flag: '（补齐后重跑）', text: '先把缺的值写进 .env / 环境变量，再重跑本场景' }],
+  });
+  return true;
+}
+
+/** 没有静态选项：要么不是选择类步骤（交给下层），要么是动态选项（要人给） */
+function gateDynamicOptions(step, options, context, dynamicOpts) {
+  if (!dynamicOpts) return handleModeSelection(step, options, context);
+  markAwaiting(context, step, {
+    prompt: `${renderPromptText(step.params?.message || step.description, context)}\n   （引擎不会自己取「${dynamicOpts}」列表，需要你直接给出目标）`,
+    label: step.description || step.action,
+    hints: [{ flag: '--choice <目标>', text: `手动指定该项（如 ${dynamicOpts === 'recent_releases' ? 'v1.2.0' : '具体值'}）` }],
+  });
+  return true;
+}
+
+/** --choice / 上下文里已写定的选择；传了不认识的值也不静默回落 */
+function applyRequestedChoice(step, options, context, choices, apply) {
+  const requested = context.choiceDecision ?? options.choice;
+  if (requested === undefined || requested === '' || requested === true) return false;
+  const override = resolveChoiceOverride({ params: { options: choices } }, requested);
+  if (override.id) {
+    apply(override.id);
+    return true;
+  }
+  console.log(chalk.yellow(`  ⚠ ${override.warning}（不会静默取默认值）`));
+  return false;
+}
+
+/** 场景自己声明了 auto_default（如 deps 的「安全更新」）才採用，并打印用了什么 */
+function applyDeclaredDefault(step, choices, apply) {
+  const override = resolveChoiceOverride({ params: { options: choices } }, step.params.auto_default);
+  apply(override.id ?? String(step.params.auto_default));
+  console.log(chalk.gray('   （按场景声明的 auto_default 取值）'));
 }
 
 async function handleModeSelection(step, options, context) {
@@ -761,6 +781,28 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context) {
   context.stepResults.push({ action: step.action, status });
 }
 
+/**
+ * 「该问而无人可问」的收尾：落 fail 记录、打印告示、然后中止（exit 2）。
+ * 不写默认值、不装通过 —— 剩下的只能由调用方把问题转给人。
+ */
+function abortForAwaitingAnswer(sceneId, step, context) {
+  const awaiting = context._awaitingAnswer;
+  delete context._awaitingAnswer;
+  LOG_SUMMARY.total++; LOG_SUMMARY.fail++;
+  appendLog({ step: step.step, action: step.action, status: 'fail', reason: 'needs-answer', detail: awaiting.label, time: new Date().toISOString() });
+  reportAwaitingAnswer(awaiting, step.step);
+  printSummary(sceneId);
+  process.exit(2);
+}
+
+/** 交互步骤在日志和汇总里留痕（以前直接 return，事后无从追问「到底问没问」） */
+function recordInteractiveStep(step, context) {
+  const flag = step.params?.context_flag;
+  const detail = flag ? `${flag}=${context[flag]}` : undefined;
+  LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
+  appendLog({ step: step.step, action: step.action, status: 'skip', reason: 'interactive', detail, time: new Date().toISOString() });
+}
+
 async function runStep(sceneId, step, context, options) {
   const stepNum = step.step;
 
@@ -779,22 +821,8 @@ async function runStep(sceneId, step, context, options) {
   }
 
   if (await handleInteractiveStep(sceneId, step, context, options)) {
-    // 该问而无人可问：不落默认值、不装通过，直接中止并叫调用方去问人。
-    if (context._awaitingAnswer) {
-      const awaiting = context._awaitingAnswer;
-      context._awaitingAnswer = undefined;
-      LOG_SUMMARY.total++; LOG_SUMMARY.fail++;
-      appendLog({ step: stepNum, action: step.action, status: 'fail', reason: 'needs-answer', detail: awaiting.label, time: new Date().toISOString() });
-      reportAwaitingAnswer(awaiting, stepNum);
-      printSummary(sceneId);
-      process.exit(2);
-    }
-    // 交互步骤以前直接 return，日志和汇总里一点痕迹都没有 —— 观感上等于「这步不存在」。
-    // 补一条 skip 记录（reason: interactive）并带上决策结果，方便事后追问「到底问没问」。
-    const flag = step.params?.context_flag;
-    const detail = flag ? `${flag}=${context[flag]}` : undefined;
-    LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
-    appendLog({ step: stepNum, action: step.action, status: 'skip', reason: 'interactive', detail, time: new Date().toISOString() });
+    if (context._awaitingAnswer) abortForAwaitingAnswer(sceneId, step, context);
+    recordInteractiveStep(step, context);
     return;
   }
 

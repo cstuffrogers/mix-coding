@@ -26,7 +26,7 @@ export function handleSelect(_action, params, _targetPath, context) {
   if (!selected) {
     return {
       status: 'fail',
-      message: `需要人工选择（${options.map(labelOf).join(' / ')}）：非交互模式下不再默认取第一项`,
+      message: `需要人工选择（${options.map(o => labelOf(o)).join(' / ')}）：非交互模式下不再默认取第一项`,
     };
   }
   return `选择完成：${selected}`;
@@ -238,7 +238,7 @@ export function handleAnalyze(_action, params, targetPath, context) {
 export function handleChoose(_action, params, _targetPath, context) {
   const { options } = params || {};
   const labelOf = opt => (typeof opt === 'object' ? (opt.label ?? opt.id) : opt);
-  const labels = (options || []).map(labelOf).filter(Boolean);
+  const labels = (options || []).map(o => labelOf(o)).filter(Boolean);
 
   // 以前这里取第一项当“已选择”——release 的第一项是 major，rollback 的第一项是
   // 空数组里不存在的目标。选项列表本身是给人看的，不是默认值。
