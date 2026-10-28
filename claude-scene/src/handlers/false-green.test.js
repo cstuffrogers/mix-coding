@@ -17,6 +17,7 @@ const { handleCreateRelease, handleAutoUpdate } = await import('./git.js');
 const { handleInstallDeps, handleDocsUpdate } = await import('./flow-control.js');
 const { handleCheckOutdated } = await import('./deps.js');
 const { handleAislopScan } = await import('./aislop.js');
+const { handleSkillspectorScan } = await import('./external-tool-checks.js');
 const { handleApiDocs } = await import('./docs.js');
 const { UI_POLISH_ACTIONS } = await import('./ui-polish.js');
 
@@ -184,5 +185,34 @@ describe('假绿回归：没做成的步骤不许记 pass', () => {
   it('仓库没有配远程 → 代码更新 skip，而不是「更新失败」', () => {
     // 非 git 目录里 `git remote` 直接抛错 → remotes 为空 → skip（不是 fail）
     expect(handleAutoUpdate('autoUpdate', {}, project(), {}).status).toBe('skip');
+  });
+});
+
+describe('假绿回归：SkillSpector 扫描没跑完', () => {
+  it('扫描抛错且没有结果 → warn，并挑一句真实的错误（不是库的弃用警告）', () => {
+    const dir = project({ '.claude/skills/demo/SKILL.md': '# demo' });
+    safeExec
+      .mockReturnValueOnce(Buffer.from('SkillSpector v2.1.4'))  // probe --version
+      .mockImplementationOnce(() => {
+        const err = new Error([
+          'Command failed: skillspector scan',
+          '/py/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: xxx',
+          'Traceback (most recent call last):',
+          'RuntimeError: model endpoint unreachable',
+        ].join('\n'));
+        throw err;
+      });
+    const r = handleSkillspectorScan('skillspectorScan', {}, dir, {});
+    expect(r.status).toBe('warn');
+    expect(r.message).toContain('model endpoint unreachable');
+    expect(r.message).not.toContain('LangChainPendingDeprecationWarning');
+  });
+
+  it('本机没装 skillspector → skip（不是「部分失败」的 warn）', () => {
+    const dir = project({ '.claude/skills/demo/SKILL.md': '# demo' });
+    safeExec.mockImplementationOnce(() => { throw new Error("'skillspector' is not recognized as an internal or external command"); });
+    const r = handleSkillspectorScan('skillspectorScan', {}, dir, {});
+    expect(r.status).toBe('skip');
+    expect(r.message).toContain('没有安装 skillspector');
   });
 });

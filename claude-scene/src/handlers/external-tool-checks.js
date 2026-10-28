@@ -319,11 +319,62 @@ function buildScanTargets(targetPath) {
   return targets;
 }
 
+/**
+ * 工具装了没？没装就别跑：以前不探测直接扫，命令不存在时 execSync 会在
+ * cmd.exe 里挂到 timeout（ETIMEDOUT），报成「部分技能目录执行失败」——
+ * 每条 review 都挂一个看不懂的 warn，而真实原因只是没安装。
+ */
+const SKILLSPECTOR_TIMEOUT_MS = () => Number(process.env.SKILLSPECTOR_TIMEOUT_MS) || 120000;
+
+/**
+ * 从外部工具的错误输出里挑一句人话。
+ * 实测 skillspector 失败时 stderr 头部是一堆 LangChain 弃用警告，直接取第一行会
+ * 把「某个依赖库要改默认值」当成失败原因展示给用户。
+ */
+function pickToolFailReason(detail) {
+  const lines = String(detail || '').split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+  // 「Traceback (most recent call last):」是头部，真正的错误行在最后。
+  const noise = /^Command failed|^Traceback|Warning/i;
+  const real = lines.find(l => /(Error|Exception|错误|失败|denied|No such)/i.test(l) && !noise.test(l));
+  if (real) return real;
+  const meaningful = lines.filter(l => !noise.test(l));
+  return meaningful.at(-1) || lines.at(-1) || '';
+}
+
+function probeTool(cmd, targetPath) {
+  try {
+    // 这个 CLI 光 import 依赖就要 ~30s（实测 skillspector --version 28s），
+    // 探测超时给少了会把「装了但启动慢」误判成「没装」。
+    safeExec(`${cmd} --version 2>&1`, targetPath, { stdio: 'pipe', timeout: 45000 });
+    return { available: true };
+  } catch (e) {
+    const detail = [e.message, e.stdout?.toString?.(), e.stderr?.toString?.()]
+      .filter(Boolean).join('\n');
+    if (/ETIMEDOUT|timed ?out/i.test(detail)) return { available: true, slow: true };
+    return { available: false, detail };
+  }
+}
+
 function scanSingleTarget(cmd, targetPath, allFindings) {
-  const raw = safeExec(cmd, targetPath, { stdio: 'pipe', timeout: 60000 }).toString();
+  let raw;
+  try {
+    raw = safeExec(cmd, targetPath, { stdio: 'pipe', timeout: SKILLSPECTOR_TIMEOUT_MS() }).toString();
+  } catch (e) {
+    // linter 类 CLI 找到问题时用非零退出码报信（skillspector 实测：exit 1 +
+    // 完整 JSON 在 stdout）。以前 execSync 一抛就当扫描失败，于是「抓到了
+    // 1 个 CRITICAL / 62 个 HIGH」被报成「扫描未完成，没有结果」。
+    if (/ETIMEDOUT|timed ?out/i.test(String(e.message || ''))) throw e;
+    // stdout 才是 JSON；和 stderr 拼起来会让 JSON.parse 直接碎掉
+    // （stderr 里是 Python 依赖的弃用警告）。
+    raw = e.stdout?.toString?.() || '';
+    if (!raw.trim()) raw = e.stderr?.toString?.() || '';
+    if (!raw.trim()) throw e;
+  }
   try {
     const result = JSON.parse(raw);
-    const findings = result.findings || result.results || [];
+    // skillspector 把结果放在 issues 里（不是 findings/results）——
+    // 只认 findings 会让 101 条发现变成「无问题」的假绿。
+    const findings = result.findings || result.results || result.issues || [];
     allFindings.push(...findings);
     return { isScanFailed: false };
   } catch {
@@ -352,11 +403,31 @@ function reportSkillspectorFindings(allFindings, context) {
       console.log(chalk.yellow(`    🟡 ${f.pattern || f.rule || f.type}: ${f.location?.file || f.file || f.path}`));
     }
     if (context) context.skillspectorPassed = critical.length === 0;
-    return `SkillSpector 扫描完成: ${total} 个问题`;
+    // 显式状态：「N 个问题」靠 WARN_RES 猜太脆，而且这里本来就该让人看见。
+    return {
+      status: 'warn',
+      message: `SkillSpector 扫描完成: ${total} 个问题（CRITICAL ${critical.length} / HIGH ${high.length}）`,
+    };
   }
 
   if (context) context.skillspectorPassed = true;
-  return 'SkillSpector 扫描完成: 无问题';
+  return { status: 'pass', message: 'SkillSpector 扫描完成: 无问题' };
+}
+
+/** 扫描抛错时归类：工具根本不存 / 真正的失败原因。 */
+function classifyScanError(e) {
+  const detail = [e.message, e.stdout?.toString?.(), e.stderr?.toString?.()]
+    .filter(Boolean).join('\n');
+  // 命令不存在时 execSync 也会抛（退出码 127），以前只看 message 里有没有
+  // "NOT_FOUND"，其余一律当「部分失败」。结果本机没装 skillspector 时，
+  // 每条 review 都挂一个看不懂的 warn。
+  if (/NOT_FOUND|not found|ENOENT|not recognized|command not found/i.test(detail)) {
+    return { missing: true };
+  }
+  const reason = /ETIMEDOUT|timed ?out/i.test(detail)
+    ? `扫描超时（每个目标 ${Math.round(SKILLSPECTOR_TIMEOUT_MS() / 1000)}s，可设 SKILLSPECTOR_TIMEOUT_MS 放宽）`
+    : pickToolFailReason(detail);
+  return { missing: false, reason };
 }
 
 export function handleSkillspectorScan(_action, _params, targetPath, context) {
@@ -364,29 +435,38 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
   if (targets.length === 0) return { status: 'skip', message: 'SkillSpector 扫描跳过: 没有技能目录' };
 
   const skillspectorCmd = _resolvePythonTool('skillspector', null);
+  const probe = probeTool(skillspectorCmd, targetPath);
+  if (!probe.available) {
+    return { status: 'skip', message: 'SkillSpector 扫描跳过：本机没有安装 skillspector（pip install skillspector 后可启用）' };
+  }
   const hasLlmKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
   const llmFlag = hasLlmKey ? '' : ' --no-llm';
 
   const allFindings = [];
   let isScanFailed = false;
+  let failReason = '';
 
   for (const target of targets) {
     try {
-      const cmd = `${skillspectorCmd} scan ${target} --format json${llmFlag} 2>&1`;
+      // 不要 2>&1：stderr 里是 Python 依赖的弃用警告，混进 stdout 会让 JSON 解析失败。
+      const cmd = `${skillspectorCmd} scan ${target} --format json${llmFlag}`;
       const result = scanSingleTarget(cmd, targetPath, allFindings);
       if (result.isScanFailed) isScanFailed = true;
     } catch (e) {
-      if (e.message && e.message.includes('NOT_FOUND')) {
-        return { status: 'skip', message: 'SkillSpector 扫描跳过：本机没有 skillspector' };
-      }
+      const err = classifyScanError(e);
+      if (err.missing) return { status: 'skip', message: 'SkillSpector 扫描跳过：本机没有可用的 skillspector' };
       isScanFailed = true;
+      failReason ||= err.reason;
     }
   }
 
   // 「部分失败」带「部分」二字，恰好命中 detectHandlerFailure 的排除名单 → 以前记 pass。
   // 扫描没跑完就不算通过，但也不该判 fail（没有证据说技能有问题）。
   if (isScanFailed && allFindings.length === 0) {
-    return { status: 'warn', message: 'SkillSpector 扫描未完成: 部分技能目录执行失败，没有扫描结果' };
+    return {
+      status: 'warn',
+      message: `SkillSpector 扫描未完成: 部分技能目录执行失败，没有扫描结果${failReason ? `（${failReason.slice(0, 120)}）` : ''}`,
+    };
   }
 
   return reportSkillspectorFindings(allFindings, context);

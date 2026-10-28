@@ -1471,3 +1471,21 @@ CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只
 - **「检查步骤发现问题」必须看得见**——`发现 N 个 X` 的句式不匹配 WARN_RES 就一直是 pass，所以这类检查一律返回显式 `warn`，不靠文案正则猜。
 - **工具没跑通 ≠ 发现问题**：`npm outdated` 崩了是 `warn`（没结论），不是 `fail`（不是「发现 Breaking Changes」）。
 - **本地仓库没有 remote 不是失败**：`git remote` 为空时更新步骤记 `skip`。
+
+### 追加：SkillSpector 那一步（一直挂着 warning 的根源）
+`4.57` 长期显示「部分技能目录执行失败，没有扫描结果」，看着像是环境问题，实际是四个叠在一起的 bug：
+
+| # | 假设 | 事实 |
+|---|---|---|
+| 1 | 「本机没装 skillspector」 | 装了；`skillspector --version` 光 import LangGraph 就要 **28s**，探测超时 15s 直接把它判死 |
+| 2 | 「退出码非零 = 扫描失败」 | 它找到问题时 exit 1，**完整 JSON 仍在 stdout**；`execSync` 一抛，结果被丢掉 |
+| 3 | 结果字段是 `findings`/`results` | 实际是 **`issues`** → 101 条发现全被当成「无问题」（这才是最严重的一条：假绿） |
+| 4 | 命令 `2>&1` 方便看错误 | stderr 里的 LangChain 弃用警告混进 stdout → `JSON.parse` 碎掉 → 又变成「无法解析」 |
+
+现在：先探测（45s 容忍 28s 启动）→ 非零退出也试着解析 stdout → 认 `findings|results|issues` → 去掉 `2>&1` →
+没有结果才 `warn` 并附**一句人话**（跳过 `Warning`/`Traceback` 行）→ 有结果就如实报
+`SkillSpector 扫描完成: 105 个问题（CRITICAL 1 / HIGH 66）`（显式 `warn`，不靠正则）。
+
+顺带说明：这 105 条基本来自我们自己 skills 文档里的**示例代码**（`sharp-edges/references/lang-php.md` 的 webshell 例子、
+`insecure-defaults` 的默认口令例子）。这正是 `sharp-edges` / `insecure-defaults` 两个 skill 存在的意义 —— 报出来比藏起来好。
+代价：这步要 ~2.5 分钟（工具自身启动慢，可用 `SKILLSPECTOR_TIMEOUT_MS` 调整上限）。
