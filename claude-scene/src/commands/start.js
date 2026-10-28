@@ -25,8 +25,34 @@ const THEME_NAMES = {
   daisyui: 'DaisyUI',
   'animal-island': 'Animal Island UI',
   custom: 'Custom',
+  huashu: 'Huashu 40 风格库',
+  'awm-brand': 'Awesome Design MD 品牌',
   'liquid-glass': 'Liquid Glass（Apple 液态玻璃效果）',
 };
+
+// 主题清单同时服务三处：TTY 的 inquirer 列表、非交互时的选项表、--choice 的序号映射。
+// 以前只有 inquirer 里有一份，非交互模式下闸门给的却是 --yes/--decline —— 问题问的是
+// 「请输入数字选择主题」，能回答的 flag 却答不上，用户回「2」还可能被当成「拒绝」。
+const THEME_CHOICES = [
+  { value: 'daisyui', label: 'DaisyUI（35+ 专业主题）' },
+  { value: 'animal-island', label: 'Animal Island UI（自然、圆润风格）' },
+  { value: 'custom', label: 'Custom（自定义颜色）' },
+  { value: 'huashu', label: 'Huashu 40 风格库' },
+  { value: 'awm-brand', label: 'Awesome Design MD 品牌' },
+  { value: 'liquid-glass', label: 'Liquid Glass（Apple 液态玻璃效果）' },
+];
+
+/** --theme / --choice / TTY 的取值统一成主题 key；认不出就返回 undefined（不猜） */
+export function resolveThemeChoice(raw) {
+  if (raw === undefined || raw === null || raw === true || raw === '') return;
+  const value = String(raw).trim().toLowerCase();
+  const index = Number(value);
+  if (Number.isSafeInteger(index) && index >= 1 && index <= THEME_CHOICES.length) {
+    return THEME_CHOICES[index - 1].value;
+  }
+  const hit = THEME_CHOICES.find(c => c.value === value || c.label.toLowerCase() === value);
+  return hit?.value;
+}
 
 // ── Execution logging ──
 
@@ -84,14 +110,7 @@ async function handleThemeSelection(step, options, context) {
   if (step.params?.theme_selection && !options.theme && !options.auto) {
     const answers = await inquirer.prompt([{
       type: 'list', name: 'theme', message: step.params.message,
-      choices: [
-        { name: '1. DaisyUI（35+专业主题）', value: 'daisyui' },
-        { name: '2. Animal Island UI（自然、圆润风格）', value: 'animal-island' },
-        { name: '3. Custom（自定义颜色）', value: 'custom' },
-        { name: '4. Huashu 40 风格库', value: 'huashu' },
-        { name: '5. Awesome Design MD 品牌', value: 'awm-brand' },
-        { name: '6. Liquid Glass（Apple 液态玻璃效果，liquid-glass-react）', value: 'liquid-glass' },
-      ],
+      choices: THEME_CHOICES.map((c, i) => ({ name: `${i + 1}. ${c.label}`, value: c.value })),
     }]);
     context.selectedTheme = answers.theme;
     noteDecision(context, `theme=${answers.theme}`);
@@ -182,9 +201,18 @@ function setContextFlag(step, context, options, answer) {
   }
 
   const stepDesc = step.description?.toLowerCase() || '';
-  const answered = !options.auto && (answer ?? context._confirmAnswer) !== undefined;
-  const enabled = !options.auto ? (answer ?? context._confirmAnswer) : true;
-  answered && noteDecision(context, 'confirm-answer');
+  // 显式答案永远优先。以前这里是 `!options.auto ? answer : true`：带 --auto 时
+  // 不管答案是什么都当「是」，于是没声明 context_flag 的确认步骤（如 new-project
+  // 3.5「是否需要 Open Design」）上 `--decline` / `--choice 2` 被吞掉，屏幕上
+  // 还印「✅ 已启用」——flag 与结果相反，比不问更坏。
+  const resolved = answer ?? context._confirmAnswer;
+  const answered = typeof resolved === 'boolean';
+  // 没人回答、又没声明 auto_default：沿用历史语义（auto = 放行），
+  // 但这条路径已经不会静默走到（确认步骤没答案时 handleConfirmDialog /
+  // handleConfirmation 都去 markAwaiting 了），留作防御。
+  const fallback = Boolean(options.auto);
+  const enabled = answered ? Boolean(resolved) : fallback;
+  if (answered) noteDecision(context, 'confirm-answer');
   return applyDescriptionFlag(stepDesc, enabled, context);
 }
 
@@ -227,6 +255,19 @@ function sweepFlagDecision(options) {
   return options?.skipSweep === true ? 'skip' : undefined;
 }
 
+/**
+ * 步骤声明的 context_flag 已被别的 flag 填好（--brand => user_confirmed_open_design）时，
+ * 直接拿这个值当确认答案；undefined = 该 flag 还没值，交回闸门去问人。
+ */
+function declaredFlagAnswer(step, context) {
+  const flag = step?.params?.context_flag;
+  if (!flag) return;
+  const value = context?.[flag];
+  // 只有 boolean 才算表态；其它情况必须回 undefined（不能被 ?? 链当成「已答否」）
+  if (typeof value !== 'boolean') return;
+  return value;
+}
+
 /** 命令行的 --choice 也能答 confirm 类问题：序号（1/2）或原文（跑/不跑/是/否）都认 */
 const CONFIRM_YES = new Set(['1', 'yes', 'y', 'true', '是', '要', '跑', 'run', 'with-sweep']);
 const CONFIRM_NO = new Set(['2', 'no', 'n', 'false', '否', '不要', '不跑', 'skip', 'skip-sweep']);
@@ -258,7 +299,7 @@ export function reportAwaitingAnswer(awaiting, stepNum) {
   // agent 再用对应 flag（或 --choice 1）重跑。只列 flag 时用户看不到「跑」这个选项。
   console.log(chalk.yellow('\n   选项（把序号或原文回给 agent，agent 用对应 flag 重跑）：'));
   hints.forEach((h, i) => {
-    console.log(`     ${i + 1}) ${chalk.cyan(String(h.flag).padEnd(20))}${h.text}`);
+    console.log(`     ${i + 1}) ${chalk.cyan(String(h.flag).padEnd(24))}${h.text}`);
   });
   console.log(chalk.gray('   都不传 => 再次停在同一个问题，不会静默取默认值。'));
   console.log(chalk.gray(`   决策标签：${awaiting.label}`));
@@ -277,7 +318,11 @@ export async function handleConfirmDialog(step, options, context) {
   const raw = context?.sweepDecision
     ?? sweepFlagDecision(options)
     ?? explicitConfirmDecision(options)
-    ?? rawChoice;
+    ?? rawChoice
+    // 步骤声明了 context_flag 且该 flag 已有值（例如 --brand 蕴含
+    // user_confirmed_open_design）=> 这个值就是答案，不用再问一遍。
+    // 「值存在即权威」与 plan 的 attestation_enabled 同一套约定。
+    ?? declaredFlagAnswer(step, context);
   if (raw !== undefined) {
     setContextFlag(step, context, options, typeof raw === 'string' ? raw === 'run' : raw);
     return true;
@@ -664,6 +709,41 @@ function loadScene(sceneId) {
   return JSON.parse(raw);
 }
 
+/**
+ * 主题选择型确认步骤的三条出口：
+ *   true  = 已选定/已拒绝，调用方直接返回
+ *   false = 没选定，交回调用方继续（理论上不该发生）
+ *   undefined 由调用方继续走普通确认逻辑（仅当用户显式拒绝时）
+ */
+function resolveThemeStep(step, options, context, shown) {
+  const raw = context?.selectedTheme
+    || resolveThemeChoice(context?.choiceDecision)
+    || resolveThemeChoice(options?.choice)
+    || resolveThemeChoice(options?.theme);
+  if (raw && THEME_NAMES[raw]) {
+    context.selectedTheme = raw;
+    noteDecision(context, `theme=${raw}`);
+    // --theme 在场景开头已经印过一次，别刷两遍
+    if (!options?.theme) console.log(chalk.green(`✅ 已选择主题：${THEME_NAMES[raw]}`));
+    return true;
+  }
+  if (options?.theme && !THEME_NAMES[String(options.theme).toLowerCase()]) {
+    console.log(chalk.yellow(`  ⚠ --theme "${options.theme}" 不是已知主题，忽略`));
+  }
+  // 用户明确拒绝美化 → 走普通确认逻辑（记 user_confirmed=false）
+  if (explicitConfirmDecision(options) === false) return;
+  // 其余情况（没表态 / 只传了 --yes）：主题还没选，不能拿 --yes 当选定值。
+  markAwaiting(context, step, {
+    prompt: shown,
+    label: '主题选择（ui-polish 6）',
+    hints: THEME_CHOICES.map((c, i) => ({
+      flag: `--theme ${c.value}`,
+      text: `${i + 1}) ${c.label}`,
+    })),
+  });
+  return true;
+}
+
 /** 处理确认型步骤；返回 true 表示已完全处理，调用方应提前返回 */
 export async function handleConfirmation(step, options, context) {
   const isConfirmationStep = step.action === 'confirm' || !!step.confirm_message;
@@ -671,6 +751,13 @@ export async function handleConfirmation(step, options, context) {
   if (!confirmMsg) return false;
 
   const shown = renderPromptText(confirmMsg, context);
+
+  // 0) 主题选择型确认（ui-polish 6）：这步问的是「选哪个主题」，不是「要不要继续」。
+  //    以前非交互下给了 --yes/--decline 两个选项，问题本身没人能回答。
+  if (step.params?.theme_selection) {
+    const handled = resolveThemeStep(step, options, context, shown);
+    if (handled !== undefined) return handled;
+  }
 
   // 1) 命令行已明确表态：--yes 放行 / --decline 拒绝
   const decided = context.confirmDecision ?? explicitConfirmDecision(options);
@@ -1026,7 +1113,7 @@ export function shouldAbortOnEnclosure(context) {
   return Array.isArray(context.boundaryViolations) && context.boundaryViolations.length > 0;
 }
 
-function buildSceneContext(options) {
+export function buildSceneContext(options) {
   const prompt = options.prompt || '';
   return {
     prompt,
@@ -1043,15 +1130,29 @@ function buildSceneContext(options) {
     strictEnclosure: Boolean(options.strictEnclosure),
     // --with-sweep：跳过询问，强制在审查前跑一次探测器自检
     sweepForced: Boolean(options.withSweep),
-    // 交互步骤 2.68 会把它改成用户的当场选择（默认 false，未选就不跑）
-    withSweep: Boolean(options.withSweep),
+    // 交互步骤 2.68 会把它改成用户的当场选择；未传 -S 时必须留 undefined。
+    // 以前写的是 Boolean(options.withSweep) —— flag 没传就等于「用户说了不要」，
+    // 而 2.68 声明了 context_flag=withSweep，于是「值存在即权威」把 false 当成
+    // 已答复，闸门根本不会再问（假绿：从没问过人却记 pass）。
+    withSweep: options.withSweep === true ? true : undefined,
     // 用户是否已就 sweep 明确表态（-S 跑 / --skip-sweep 不跑）；undefined = 没表态
     sweepDecision: options.withSweep === true ? 'run' : (options.skipSweep === true ? 'skip' : undefined),
-    // --brand：用户已指定品牌设计系统；undefined = 没表态，od-brand-pick 会去问人
+    // --brand：用户已指定品牌设计系统。只设 user_selected_brand 不够 ——
+    // new-project 3.5 会再问一次「是否需要 Open Design」，3.551/3.55…3.79 与
+    // ui-polish 6.3…7.15 的 condition 又都看 user_confirmed_open_design。
+    // 于是 --brand 在非交互运行里几乎等于没传：先 exit 2，重跑后下游全被条件跳过。
+    // 选了具体品牌 = 明确要用 Open Design；--brand skip = 明确不用。
     user_selected_brand: options.brand || undefined,
+    user_confirmed_open_design: brandConsent(options.brand),
     // --attest true|false：plan 7 的 SHA256 认证表态；undefined = 没表态，会去问人
     attestation_enabled: parseAttestFlag(options.attest),
   };
+}
+
+/** --brand 蕴含的 Open Design 表态：具体品牌 = 用，skip = 不用，没传 = 没表态 */
+export function brandConsent(brand) {
+  if (brand === undefined || brand === null || brand === '') return;
+  return String(brand).trim().toLowerCase() !== 'skip';
 }
 
 /** --attest 只接受 true/false（以及 1/0、yes/no）；别的一律当「没表态」，不猜 */

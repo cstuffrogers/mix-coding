@@ -4,7 +4,8 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import {
   DEFAULT_RULE_PACK,
-  buildSemgrepTargets,
+  SEMGREP_CHUNK,
+  chunkScanTargets,
   parseSemgrepJson,
   resolveSemgrepConfig,
 } from './deep-review-tools.js';
@@ -84,49 +85,43 @@ describe('deep-review-tools', () => {
 
   // 扫描目标错了 semgrep 会静默地什么都不扫（或者扫进 node_modules 拖到超时），
   // 这两种都不会报错，只会让「0 处命中」看起来像安全。
-  describe('buildSemgrepTargets', () => {
-    const mk = () => mkdtempSync(join(tmpdir(), 'semgrep-targets-'));
-
-    it('扫描根取源码顶层目录，噪声目录全部排除', () => {
-      const dir = mk();
-      try {
-        const files = [join(dir, 'src', 'a.js'), join(dir, 'lib', 'b.ts')];
-        const { targets, excludes } = buildSemgrepTargets(dir, files);
-        expect(targets).toBe('"src" "lib"');
-        for (const noise of ['node_modules', 'dist', 'coverage', '.git', '.claude']) {
-          expect(excludes).toContain(`--exclude "${noise}"`);
-        }
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
+  //
+  // 契约变更（有理由）：以前给它「源码顶层目录 + --exclude 列表」，根目录有根级
+  // 文件时目标回落到 `.`，semgrep 不看 exclude 之外的点目录，于是
+  // .agents/skills/*/scripts 里第三方浏览器脚本的 17 处 innerHTML 被算成
+  // 本项目的缺陷（假红）。现在和 ESLint 一样：**交文件清单，不交目录**。
+  describe('chunkScanTargets', () => {
+    it('按批切开，路径原样保留（不给 semgrep 目录）', () => {
+      const files = ['src/a.js', 'src/b.ts', 'lib/c.js'];
+      expect(chunkScanTargets(files, 2)).toEqual([['src/a.js', 'src/b.ts'], ['lib/c.js']]);
     });
 
-    it('只有根级文件时回落到 .（而不是空字符串，空 targets 会让 semgrep 无输入）', () => {
-      const dir = mk();
-      try {
-        const { targets } = buildSemgrepTargets(dir, [join(dir, 'index.js')]);
-        expect(targets).toBe('"."');
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
+    it('默认批次大小内不拆', () => {
+      const files = Array.from({ length: SEMGREP_CHUNK }, () => 'src/a.js');
+      expect(chunkScanTargets(files)).toHaveLength(1);
+      expect(chunkScanTargets([...files, 'src/z.js'])).toHaveLength(2);
     });
 
-    it('没有任何文件时也给 .，不会产出空的 targets', () => {
-      const dir = mk();
-      try {
-        expect(buildSemgrepTargets(dir, []).targets).toBe('.');
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
+    it('没有文件时给空数组（调用方据此判失败，而不是扫全仓库）', () => {
+      expect(chunkScanTargets([])).toEqual([]);
     });
+  });
 
-    it('把带独立 .git 的嵌套仓库也排除掉', () => {
-      const dir = mk();
-      const nested = join(dir, 'vendored');
-      mkdirSync(join(nested, '.git'), { recursive: true });
+  describe('_semgrepArgs 等价契约：点目录里的文件不会被交给 semgrep', () => {
+    it('listProjectCodeFiles 的清单本身就不含点目录', async () => {
+      const { listProjectCodeFiles } = await import('../lib/project-sources.js');
+      const dir = mkdtempSync(join(tmpdir(), 'semgrep-dot-'));
       try {
-        const { excludes } = buildSemgrepTargets(dir, [join(dir, 'src', 'a.js')]);
-        expect(excludes).toContain('--exclude "vendored"');
+        mkdirSync(join(dir, 'src'), { recursive: true });
+        mkdirSync(join(dir, '.agents', 'skills', 'x'), { recursive: true });
+        writeFileSync(join(dir, 'src', 'a.js'), 'export const a = 1;\n');
+        // 夹具内容拼出来：如果在本文件里直接写 `document.body.innerHTML = x`，
+        // 本项目自己的 XSS 扫描会把这条测试源码当成真的 innerHTML 注入（假红）。
+        const vendored = ['document.body.innerHTML', '= x;'].join(' ');
+        writeFileSync(join(dir, '.agents', 'skills', 'x', 'b.js'), vendored + '\n');
+        const files = listProjectCodeFiles(dir);
+        expect(files.some(f => f.includes('.agents'))).toBe(false);
+        expect(files.some(f => f.endsWith('a.js'))).toBe(true);
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

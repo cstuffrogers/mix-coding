@@ -236,7 +236,9 @@
       "params": {
         "prompt": "是否需要使用 Open Design 开发 UI 界面？",
         "type": "confirm",
-        "default": false
+        "default": false,
+        "context_flag": "user_confirmed_open_design",
+        "flag_label": "Open Design AI 设计"
       },
       "description": "询问用户是否需要 Open Design AI 设计",
       "auto_execute": false

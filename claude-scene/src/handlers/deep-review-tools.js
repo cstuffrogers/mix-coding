@@ -14,10 +14,10 @@
 //     having run is worse than an honest skip.
 //   - An empty scan target is a FAILURE (assertSources), never a pass.
 import { existsSync, readdirSync } from 'fs';
-import { delimiter, join } from 'path';
+import { delimiter, join, relative } from 'path';
 import chalk from 'chalk';
-import { safeExec } from '../lib/safe-exec.js';
-import { assertSources, codeRoots, listProjectCodeFiles, loadScanIgnore } from '../lib/project-sources.js';
+import { safeExec, safeExecFile } from '../lib/safe-exec.js';
+import { assertSources, listProjectCodeFiles } from '../lib/project-sources.js';
 import { PACKAGE_ROOT } from '../lib/paths.js';
 
 export const DEFAULT_RULE_PACK = join(PACKAGE_ROOT, 'src', 'rules', 'semgrep-logic-io.yml');
@@ -133,53 +133,50 @@ export function resolveSemgrepConfig(targetPath) {
   return { config: DEFAULT_RULE_PACK, source: 'engine' };
 }
 
-// Semgrep scans whatever paths it is given, so handing it "." re-includes the
-// directories listProjectCodeFiles just filtered out (coverage reports, vendored
-// UMD bundles, nested repos with their own .git). Scanning "." produced 12
-// findings in this repo, all in generated or vendored files, and 0 in real code.
-// Scan the same roots the source list came from, and exclude the noise dirs.
-const NOISE_DIRS = [
-  'node_modules', 'dist', 'build', 'coverage', '.git', '.claude', '.codegraph',
-  'android', 'ios', '__pycache__', 'vendor', 'venv', '.venv', 'target', '.next',
-  '.vite', 'test-results', 'playwright-report',
-];
+// Semgrep scans whatever paths it is given. 过去给它「源码根目录 + exclude 列表」，
+// 根本不够：listProjectCodeFiles 跳过所有点目录，而根目录里有根级文件时目标会回落到
+// `.`——semgrep 不看 exclude 之外的点目录，于是把 .agents/skills/*/scripts 里的
+// 第三方浏览器脚本当成本项目源码扫了，17 处 innerHTML 挂在我们账上（假红）。
+// 和 ESLint 那边同一个道理：**交文件清单，不交目录**。
+// 一次塞 200+ 个路径会超 Windows 命令行上限，所以分批。
+export const SEMGREP_CHUNK = 60;
 
-// Directories at the top level that carry their own .git = vendored/nested
-// repos. listProjectCodeFiles drops their files, but when a root-level config
-// file makes "." a scan root, semgrep would walk back into them.
-function _nestedRepoDirs(targetPath) {
+/** 把待扫文件切批（默认 60/批） */
+export function chunkScanTargets(files, size = SEMGREP_CHUNK) {
+  const chunks = [];
+  for (let i = 0; i < files.length; i += size) chunks.push(files.slice(i, i + size));
+  return chunks;
+}
+
+function _semgrepArgs(config, chunk, targetPath) {
+  return [
+    '--config', config, '--json', '--quiet', '--metrics=off',
+    '--no-git-ignore', '--max-target-bytes', '2000000',
+    ...chunk.map(f => relative(targetPath, f) || f),
+  ];
+}
+
+function _runSemgrepChunk(semgrep, config, targetPath, chunk) {
+  // _candidateCommands 里 Windows 候选带着引号（为了历史 shell 拼接），
+  // safeExecFile 走 argv，不要把引号留给可执行文件名。
+  const bin = semgrep.command.replace(/^"|"$/g, '');
+  const options = {
+    stdio: 'pipe',
+    maxBuffer: 32 * 1024 * 1024,
+    timeout: 600000,
+    // PYTHONUTF8: Windows Python defaults to GBK and fails decoding
+    // rule/config files that contain any non-ASCII byte.
+    env: { ..._probeEnv(semgrep.extraPath), PYTHONUTF8: '1' },
+  };
   try {
-    return readdirSync(targetPath, { withFileTypes: true })
-      .filter(e => e.isDirectory() && existsSync(join(targetPath, e.name, '.git')))
-      .map(e => e.name);
-  } catch {
-    return [];
+    return safeExecFile(bin, _semgrepArgs(config, chunk, targetPath), targetPath, options).toString();
+  } catch (e) {
+    // semgrep 在有匹配时也可能以非 0 退出，stdout 里是完整 JSON ——
+    // 把它当「执行失败」丢掉就又成了假红。
+    const out = e?.stdout ? e.stdout.toString() : '';
+    if (out.trim()) return out;
+    throw e;
   }
-}
-
-/** Scan targets + exclude flags aligned with listProjectCodeFiles(). */
-export function buildSemgrepTargets(targetPath, files) {
-  const excludes = [...NOISE_DIRS, ...loadScanIgnore(targetPath), ..._nestedRepoDirs(targetPath)]
-    .map(d => `--exclude "${d}"`)
-    .join(' ');
-  const roots = codeRoots(targetPath, files).map(r => `"${r}"`).join(' ');
-  return { targets: roots || '.', excludes };
-}
-
-function _runSemgrep(semgrep, config, targetPath, scan) {
-  return safeExec(
-    `${semgrep.command} --config "${config}" --json --quiet --metrics=off `
-    + `--no-git-ignore --max-target-bytes 2000000 ${scan.excludes} ${scan.targets} 2>&1 || true`,
-    targetPath,
-    {
-      stdio: 'pipe',
-      maxBuffer: 32 * 1024 * 1024,
-      timeout: 600000,
-      // PYTHONUTF8: Windows Python defaults to GBK and fails decoding
-      // rule/config files that contain any non-ASCII byte.
-      env: { ..._probeEnv(semgrep.extraPath), PYTHONUTF8: '1' },
-    },
-  ).toString();
 }
 
 function _printSemgrepFindings(findings, blocking) {
@@ -205,6 +202,34 @@ function _reportSemgrepErrors(ruleErrors, parseErrors, context) {
   }
 }
 
+/**
+ * 逐批跑 semgrep，返回汇总结果。
+ * 抽出来是为了让 handleSemgrepScan 的认知复杂度留在 15 以下——它要做的判断
+ * （一批都没成 / 部分失败 / 有阻断级发现 / 干净）比循环本身更值得 readable。
+ */
+function _collectSemgrepResults(semgrep, config, targetPath, chunks) {
+  const acc = { findings: [], ruleErrors: [], parseErrors: [], failures: [], parsed: 0 };
+  for (const chunk of chunks) {
+    let raw;
+    try {
+      raw = _runSemgrepChunk(semgrep, config, targetPath, chunk);
+    } catch (e) {
+      acc.failures.push(String(e?.message || e).split('\n')[0].slice(0, 80));
+      continue;
+    }
+    const result = parseSemgrepJson(raw);
+    if (result.parseFailed) {
+      acc.failures.push(`输出无法解析（${chunk.length} 个文件）`);
+      continue;
+    }
+    acc.parsed += 1;
+    acc.findings.push(...result.findings);
+    acc.ruleErrors.push(...result.ruleErrors);
+    acc.parseErrors.push(...result.parseErrors);
+  }
+  return acc;
+}
+
 export function handleSemgrepScan(_action, _params, targetPath, context) {
   const files = listProjectCodeFiles(targetPath);
   if (!files.length) {
@@ -222,21 +247,22 @@ export function handleSemgrepScan(_action, _params, targetPath, context) {
   const { config, source } = resolveSemgrepConfig(targetPath);
   console.log(chalk.dim(`  ℹ 规则: ${source === 'project' ? '项目自带 .semgrep.yml' : '引擎内置 logic-io 规则包'}`));
 
-  let raw;
-  try {
-    raw = _runSemgrep(semgrep, config, targetPath, buildSemgrepTargets(targetPath, files));
-  } catch (e) {
-    console.log(chalk.dim(`  ⚠ semgrep 执行失败: ${String(e.message).slice(0, 120)}`));
+  // 扫描目标 = 项目源码清单（和 ESLint 一致），分批交过去。
+  const chunks = chunkScanTargets(files);
+  console.log(chalk.dim(`  ℹ 扫描目标: ${files.length} 个源码文件 / ${chunks.length} 批`));
+
+  const collected = _collectSemgrepResults(semgrep, config, targetPath, chunks);
+  return _summarizeSemgrepScan({ ...collected, files, chunks }, context);
+}
+
+function _summarizeSemgrepScan({ files, chunks, findings, ruleErrors, parseErrors, failures, parsed }, context) {
+  // 一批都没成 = 什么也没查，不能当「无发现」。
+  if (parsed === 0) {
+    console.log(chalk.dim(`  ⚠ semgrep 执行失败: ${failures[0] || '无输出'}`));
     if (context) context.semgrepSkipped = true;
-    // 工具装上但跑不起来 ≠ 没什么可查，以前和「未安装」一样当跳过，实际是扫描缺席。
-    return { status: 'warn', message: `Semgrep 未完成：执行失败（${String(e.message).slice(0, 80)}）` };
+    return { status: 'warn', message: `Semgrep 未完成：执行失败（${failures[0] || '无输出'}）` };
   }
 
-  const { findings, ruleErrors, parseErrors, parseFailed } = parseSemgrepJson(raw);
-  if (parseFailed) {
-    if (context) context.semgrepSkipped = true;
-    return 'Semgrep 跳过: 输出无法解析';
-  }
   _reportSemgrepErrors(ruleErrors, parseErrors, context);
 
   const blocking = findings.filter(f => f.severity === 'ERROR');
@@ -245,10 +271,18 @@ export function handleSemgrepScan(_action, _params, targetPath, context) {
   if (context) {
     context.semgrepPassed = blocking.length === 0;
     context.semgrepFindings = findings;
+    context.semgrepScannedFiles = files.length;
+    if (failures.length) context.semgrepPartialFailures = failures;
   }
+
+  // 部分批次挂了 → 结论不完整，必须显式告警，不能只看已扫到的那部分就说「无发现」。
+  if (failures.length) {
+    return { status: 'warn', message: `Semgrep 扫描不完整：${failures.length}/${chunks.length} 批失败（${failures[0]}），本次结果不可当结论` };
+  }
+
   return findings.length
     // 文案必须包含「N 处发现」，start.js 的 WARN_RES 才会把该步归为 warn。
     // 写成「N 处候选」会被当成 pass——扫描出阻断级缺陷却报通过。
     ? `Semgrep 逻辑/IO 扫描完成: ${findings.length} 处发现（高危 ${blocking.length} 处）`
-    : 'Semgrep 逻辑/IO 扫描完成: 无发现';
+    : `Semgrep 逻辑/IO 扫描完成: 无发现（${files.length} 个源码文件）`;
 }

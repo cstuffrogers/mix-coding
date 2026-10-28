@@ -84,12 +84,13 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | 填空类（缺失环境变量） | 让用户先补 `.env` / 环境变量，再重跑 |
 | review 的 sweep（2.68） | `-S`（跑） / `--skip-sweep`（不跑），也可 `--choice 1` / `--choice 2` |
 | setup 的设施类型（0） | `--kind e2e\|monitor\|property` |
-| 品牌选择（`od-brand-pick`：new-project 3.551 / ui-polish 5.9） | `--brand <name>`（vercel/linear/stripe/notion/apple…） |
+| 品牌选择（`od-brand-pick`：new-project 3.551 / ui-polish 5.9） | `--brand <name>`（vercel/linear/stripe/notion/apple…）；new-project 的 3.5「是否用 Open Design」也一并有答 |
+| 主题选择（ui-polish 6，问题是「请输入数字选择主题」） | `--theme daisyui\|animal-island\|custom\|huashu\|awm-brand\|liquid-glass`，或 `--choice <1-6>` |
 | plan 7 的 SHA256 认证（默认不启用） | `--attest true`（启用，plan 8 会跑 attest-plan.sh） / `--attest false`（明确不启用） |
 
 涉及场景：`feature`(9)、`release`(6)、`rollback`(3/5)、`deps`(5)、`optimize`(4/7/10)、
-`refactor`(12)、`ui-polish`(6)、`mobile-release`(4)、`bugfix`(8)、`onboard`(6)、
-`new-project`(3.5)、`review`(2.68)、`plan`(7)
+`refactor`(12)、`ui-polish`(5.9 品牌 / 6 主题)、`mobile-release`(4)、`bugfix`(8)、`onboard`(6)、
+`new-project`(1.6 / 3.3 / 3.5 是否用 Open Design / 3.551 品牌)、`review`(2.68)、`plan`(7 认证)
 
 **禁止**：
 - 不加 flag 重跑（会再停在同一个问题）；

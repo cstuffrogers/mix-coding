@@ -232,23 +232,25 @@ function loadTokensFromSkillFiles(targetPath) {
   return null;
 }
 
+// 返回 { count, source }：source 决定调用方该报 pass 还是 warn。
+// 以前无论走哪条分支都只回一个数字，于是「一个品牌都没导入、写的是内置默认
+// token」也被报成「设计资源导出完成」——文件是真的，设计是假的。
 function exportDesignTokens(context, targetPath, tokensCss) {
   const brandCss = context?.od_brand_css || context?.awm_brand_css;
   if (brandCss) {
     writeFileSync(tokensCss, brandCss, 'utf-8');
-    return 1;
+    return { count: 1, source: 'brand' };
   }
   const tokensFromSkill = loadTokensFromSkillFiles(targetPath);
   if (tokensFromSkill) {
     writeFileSync(tokensCss, tokensFromSkill, 'utf-8');
-    return 1;
+    return { count: 1, source: 'skill' };
   }
-  const existingTokens = checkExistingTokens(targetPath);
-  if (existingTokens) {
-    return 0;
+  if (checkExistingTokens(targetPath)) {
+    return { count: 0, source: 'existing' };
   }
   writeFileSync(tokensCss, buildDefaultTokensCss(), 'utf-8');
-  return 1;
+  return { count: 1, source: 'default' };
 }
 
 function exportDesignSpec(designDir, context) {
@@ -281,11 +283,20 @@ export function handleExportAssets(_action, _params, targetPath, context) {
   ensureDir(designDir);
 
   const tokensCss = join(designDir, 'tokens.css');
-  const exportedCount = exportDesignTokens(context, targetPath, tokensCss);
+  const { count, source } = exportDesignTokens(context, targetPath, tokensCss);
 
   exportDesignSpec(designDir, context);
 
-  return `设计资源导出完成: ${exportedCount + 1} 个文件`;
+  if (source === 'default') {
+    return {
+      status: 'warn',
+      message: `设计资源导出：没有可用的品牌 token，${tokensCss} 写的是引擎内置默认值（不是真实设计系统）`,
+    };
+  }
+  if (source === 'existing') {
+    return `设计资源导出完成: 已有 tokens.css 保持不变（${join('src', 'assets', 'design-system')}）`;
+  }
+  return `设计资源导出完成: ${count + 1} 个文件（token 来源: ${source === 'brand' ? '品牌设计系统' : '技能 token'}）`;
 }
 
 export function handlePersist(_action, _params, targetPath, context) {
@@ -339,14 +350,14 @@ function extractCssVars(mdContent) {
 export function handleAwmBrandImport(_action, params, _targetPath, context) {
   const brand = params?.brand || context?.user_selected_brand;
   if (!brand || brand.toLowerCase() === 'skip') {
-    return '品牌导入已跳过';
+    return { status: 'skip', message: '品牌导入跳过：未选定品牌' };
   }
 
   const brandKey = brand.toLowerCase().trim();
   const brandFile = join(BRANDS_DIR, `${brandKey}.md`);
 
   if (!existsSync(brandFile)) {
-    return `品牌 "${brand}" 未找到`;
+    return { status: 'warn', message: `品牌导入未完成：${brandFile} 不存在` };
   }
 
   const content = readFileSync(brandFile, 'utf-8');
@@ -451,7 +462,17 @@ export function handleOdBrandPick(_action, _params, _targetPath, context) {
 
   if (availablePick.length === 0) {
     if (context) context.od_brand_shortlist = [];
-    return '品牌精选列表为空（回退到自动选择）';
+    const asked = context?.user_selected_brand;
+    // 以前这里返回「品牌精选列表为空（回退到自动选择）」并被记 pass：
+    // 一个品牌都没装，所谓「回退到自动选择」根本没发生（start.js 也不再
+    // 预置第一个品牌了），用户却看到一步绿。
+    if (asked) {
+      return {
+        status: 'warn',
+        message: `品牌未选定：--brand ${asked} 找不到对应设计系统（本机 open-design 品牌目录为空）`,
+      };
+    }
+    return { status: 'skip', message: '品牌选择跳过：本机没有 open-design 品牌目录，无法展示精选列表' };
   }
 
   availablePick.forEach((b, i) => {
@@ -462,6 +483,10 @@ export function handleOdBrandPick(_action, _params, _targetPath, context) {
     context.od_brand_shortlist = availablePick;
     const picked = context.user_selected_brand?.toLowerCase().trim();
     if (picked && availableSet.has(picked)) {
+      // 选中品牌 = Open Design 流程要用（下游 3.55…3.79 与 ui-polish 6.3…7.15 的
+      // condition 都看 user_confirmed_open_design）。以前只写 user_selected_brand，
+      // 于是这些步骤全被当「条件不满足」默默跳过——品牌选了，却什么都没导入。
+      context.user_confirmed_open_design = true;
       return `品牌已按 --brand 选为 ${picked}（精选 ${availablePick.length} 个）`;
     }
     // 以前这里把 user_selected_brand 预置成第一个品牌（注释写着 so downstream steps
@@ -515,7 +540,9 @@ export function handleOdBrandImport(_action, params, _targetPath, context) {
   const brandDir = join(OD_DESIGN_SYSTEMS_DIR, brandKey);
 
   if (!existsSync(brandDir)) {
-    return `open-design 品牌 "${brand}" 未找到（目录: ${brandDir}）`;
+    // 「未找到」这类文案会被 start.js 归为 noop（= 没装，不算问题），
+    // 但用户已经点了这个品牌、命令也带上了 --brand —— 没导入是缺陷，不是缺工具。
+    return { status: 'warn', message: `品牌导入未完成：open-design 品牌 "${brand}" 不在 ${brandDir}` };
   }
 
   const imported = context ? importBrandFiles(context, brandDir) : 0;

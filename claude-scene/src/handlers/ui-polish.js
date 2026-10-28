@@ -34,25 +34,80 @@ const COMPONENT_MAP = {
   '<Loading': { component: 'Loading', skip: true },
 };
 
+// 美化主题各自需要什么依赖：react 标记的只对 React/Next 工程有意义。
+// 以前这里无条件 `npm install lucide-react animate.css`：非 React 工程也会去装，
+// 一旦 npm 因为和美化毫无关系的 peer 冲突报错，整步就记 fail —— 美化还没开始就红了，
+// 真正的原因（本项目就不是 React 工程）反而没人说出来。
+export const UI_POLISH_INSTALL_PACKAGES = [
+  { pkg: 'animate.css', react: false },
+  { pkg: 'lucide-react', react: true },
+  { pkg: 'animal-island-ui', react: true, theme: 'animal-island' },
+  { pkg: 'liquid-glass-react', react: true, theme: 'liquid-glass' },
+];
+
+function readDeps(targetPath) {
+  try {
+    const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf8'));
+    return { ...pkg.dependencies, ...pkg.devDependencies };
+  } catch {
+    return null;
+  }
+}
+
+export function isReactProject(targetPath) {
+  const deps = readDeps(targetPath);
+  if (!deps) return false;
+  return Object.keys(deps).some(k => k === 'react' || k === 'next');
+}
+
+/** 选定主题 + 工程类型之后真正要装的包（顺序稳定，便于日志与断言） */
+export function selectInstallPackages(theme, react) {
+  return UI_POLISH_INSTALL_PACKAGES
+    .filter(spec => (!spec.theme || spec.theme === theme) && (!spec.react || react))
+    .map(spec => spec.pkg);
+}
+
+function reactMajorOf(targetPath) {
+  const spec = String(readDeps(targetPath)?.react ?? '');
+  const m = spec.match(/(\d+)/);
+  return m ? Number.parseInt(m[1], 10) : 0;
+}
+
+/**
+ * npm 的报错是几十行日志，整段塞进步骤消息只会把结论淹没。
+ * 但只留第一行也不行 —— 第一行固定是 `Command failed: <cmd>`，真正的原因
+ * （ERESOLVE / 404 / EACCES）在第二轮。所以跳过壳行取第一条实质错误。
+ */
+function firstReasonOf(error) {
+  const lines = String(error?.message || error)
+    .split(/[\r\n]+/)
+    .map(l => l.trim());
+  const reason = lines.find(l => l && !l.startsWith('Command failed'));
+  return (reason || '无错误输出').slice(0, 160);
+}
+
 function handleInstallDeps(targetPath, theme) {
-  if (theme === 'animal-island') {
-    safeExec('npm install animal-island-ui', targetPath, { stdio: 'ignore' });
+  const react = isReactProject(targetPath);
+  const pkgs = selectInstallPackages(theme, react);
+  // 兜底：将来若某主题只剩 React 专属包，不能执行不带参数的 `npm install`（= 装全量），
+  // 更不能记 pass —— 什么都没装就叫完成是假绿。
+  if (pkgs.length === 0) {
+    return { status: 'skip', message: `依赖安装跳过：本工程不是 React/Next，主题 ${theme} 需要的组件库都用不上` };
   }
-  if (theme === 'liquid-glass') {
-    // liquid-glass-react: Apple 液态玻璃效果（折射/色散/磨砂/弹性）
-    // peerDeps: react >=19；React 18 项目使用 --legacy-peer-deps。
-    let installCmd = 'npm install liquid-glass-react';
-    try {
-      const pkg = JSON.parse(readFileSync(join(targetPath, 'package.json'), 'utf8'));
-      const reactSpec = (pkg.dependencies?.react || pkg.devDependencies?.react || '').toString();
-      const m = reactSpec.match(/(\d+)/);
-      const reactMajor = m ? parseInt(m[1], 10) : 0;
-      if (reactMajor > 0 && reactMajor < 19) installCmd = 'npm install liquid-glass-react --legacy-peer-deps';
-    } catch { /* ignore */ }
-    safeExec(installCmd, targetPath, { stdio: 'ignore' });
+
+  // liquid-glass-react 的 peerDeps 是 react >=19，React 18 工程必须带 --legacy-peer-deps。
+  const legacyPeer = pkgs.includes('liquid-glass-react') && reactMajorOf(targetPath) < 19;
+  const cmd = `npm install ${pkgs.join(' ')}${legacyPeer ? ' --legacy-peer-deps' : ''}`;
+  try {
+    safeExec(cmd, targetPath, { stdio: 'ignore' });
+  } catch (e) {
+    // 装不上 = 美化依赖没就位。说清缺什么，不把 npm 堆栈当结论，也不假装通过。
+    return { status: 'warn', message: `依赖安装未完成：${cmd} 失败（${firstReasonOf(e)}），后续美化组件可能不可用` };
   }
-  safeExec('npm install lucide-react animate.css', targetPath, { stdio: 'ignore' });
-  return '依赖安装完成';
+  // 非 React 工程少装的库要写出来，否则「依赖安装完成: animate.css」会让人
+  // 以为 lucide-react 也装上了，后续图标美化失败时又是一头雾水。
+  const skipped = react ? '' : '（跳过 lucide-react 等 React 专属库：本工程不是 React/Next）';
+  return `依赖安装完成: ${pkgs.join(' ')}${skipped}`;
 }
 
 // Promote <button> → <Button>, inferring type from className and stripping it.
