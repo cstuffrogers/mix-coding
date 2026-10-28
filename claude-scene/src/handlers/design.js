@@ -302,12 +302,23 @@ export function handleExportAssets(_action, _params, targetPath, context) {
 export function handlePersist(_action, _params, targetPath, context) {
   const designDir = join(targetPath, '.claude', 'designs');
   ensureDir(designDir);
-  writeFileSync(join(designDir, 'current.json'), JSON.stringify({
-    timestamp: new Date().toISOString(),
-    variant: context?.design_variant || 'unknown',
-    selected: context?.design_selected || 'unknown',
-  }, null, 2), 'utf-8');
-  return '设计数据已持久化';
+  // `design_variant` 全仓库无人写入，以前只写 `variant: 'unknown'` ——
+  // 一份「持久化成功」的文件里塞两个 unknown 字面量，比不写更难查。
+  const selected = context?.design_selected ?? null;
+  const variant = context?.design_variant ?? selected;
+  const target = join(designDir, 'current.json');
+  try {
+    writeFileSync(target, JSON.stringify({ timestamp: new Date().toISOString(), variant, selected }, null, 2), 'utf-8');
+  } catch (error) {
+    return { status: 'warn', message: `设计数据未写入 ${target}: ${error.message}` };
+  }
+  if (!existsSync(target)) {
+    return { status: 'warn', message: `设计数据写入后找不到文件: ${target}` };
+  }
+  if (!variant) {
+    return { status: 'warn', message: `设计数据已写入 ${target}，但本次没有任何设计选择（variant/selected 均为空）` };
+  }
+  return `设计数据已持久化: ${variant}（${target}）`;
 }
 
 export function handleDesignInput(_action, params, _targetPath, context) {

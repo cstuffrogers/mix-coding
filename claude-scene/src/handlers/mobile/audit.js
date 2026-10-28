@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import { join } from "path";
 import chalk from 'chalk';
 import { safeExec } from '../../lib/safe-exec.js';
@@ -170,57 +170,107 @@ export function handleMasvsCheck(_action, params, _targetPath, context) {
   return `MASVS ${level} 检查完成（${checks.length} 个领域）`;
 }
 
+function measureBundleSize(targetPath) {
+  try {
+    const files = scanDir(targetPath, { filter: f => /\.(js|ts|jsx|tsx)$/.test(f) && !f.includes('node_modules') });
+    let totalSize = 0;
+    for (const f of files) {
+      try { totalSize += statSync(f).size; } catch { /* skip */ }
+    }
+    // 扫不到文件时 totalSize 就是 0B —— 「0B」听着像测量结果，其实什么都没量到。
+    return files.length === 0 ? 'N/A' : formatBytes(totalSize);
+  } catch {
+    return 'N/A';
+  }
+}
+
 export function handlePerfBaseline(_action, params, targetPath, context) {
   const metrics = params?.metrics || ['bundle_size', 'startup_time', 'fps', 'memory', 'network'];
-
   const baseline = {};
   for (const m of metrics) {
-
-    if (m === 'bundle_size') {
-      try {
-        const files = scanDir(targetPath, { filter: f => /\.(js|ts|jsx|tsx)$/.test(f) && !f.includes('node_modules') });
-        let totalSize = 0;
-        for (const f of files) {
-          try { totalSize += statSync(f).size; } catch { /* skip */ }
-        }
-        baseline[m] = formatBytes(totalSize);
-      } catch {
-        baseline[m] = 'N/A';
-      }
-    } else {
-      baseline[m] = 'device_required';
-    }
+    // 只有 bundle_size 能在 CLI 里真算出来；其余都要真机/模拟器。
+    baseline[m] = m === 'bundle_size' ? measureBundleSize(targetPath) : 'device_required';
   }
 
   if (context) context.performance_baseline = baseline;
-  return `性能基线采集完成（${Object.keys(baseline).length} 项指标）`;
+  // 以前一律报「采集完成 N 项」：其中 N-1 项都是 device_required（= 没采到）。
+  const measured = Object.entries(baseline).filter(([, v]) => v !== 'device_required' && v !== 'N/A');
+  // 「要真机」和「扫不到文件」是两回事，混在一句里会让人以为全都得插设备。
+  const deviceOnly = Object.entries(baseline).filter(([, v]) => v === 'device_required').map(([k]) => k);
+  const noSource = Object.entries(baseline).filter(([, v]) => v === 'N/A').map(([k]) => k);
+  const why = [];
+  if (deviceOnly.length) why.push(`${deviceOnly.length} 项需要真机/模拟器（${deviceOnly.join(', ')}）`);
+  if (noSource.length) why.push(`${noSource.length} 项没扫到源码（${noSource.join(', ')}）`);
+  const reason = why.join('；');
+  if (measured.length === 0) {
+    return { status: 'noop', message: `性能基线未采集：${reason}` };
+  }
+  const measuredNote = measured.map(([k, v]) => `${k}=${v}`).join(', ');
+  const missingNote = why.length ? `；另有未采集项：${reason}` : '';
+  return { status: why.length ? 'warn' : 'pass', message: `性能基线已采集 ${measured.length} 项（${measuredNote}）${missingNote}` };
 }
 
 export function handleStoreCompliance(_action, _params, targetPath, context) {
+  // 以前三个 check 的返回值被直接扔掉（`for (...) { check(); }`），其中「非公开 API」
+  // 还是 `check: () => true` —— 不管项目长什么样都报「商店合规检查完成」。
+  // 检查不产生结论就等于没检查：ok=true 过、false 没过、null 静态查不出来（不许算通过）。
   const checks = [
-    { name: 'Privac yInfo.xcprivacy (iOS)', check: () => existsSync(join(targetPath, 'ios', 'PrivacyInfo.xcprivacy')) },
-    { name: '通知渠道 (Android)', check: () => existsSync(join(targetPath, 'android', 'app', 'src', 'main', 'AndroidManifest.xml')) },
-    { name: '非公开 API', check: () => true },
+    { name: 'PrivacyInfo.xcprivacy (iOS)', check: () => existsSync(join(targetPath, 'ios', 'PrivacyInfo.xcprivacy')) },
+    { name: 'AndroidManifest.xml 通知渠道 (Android)', check: () => existsSync(join(targetPath, 'android', 'app', 'src', 'main', 'AndroidManifest.xml')) },
+    { name: '非公开 API 扫描', check: () => null },
   ];
+  const results = checks.map(({ name, check }) => ({ name, ok: check() }));
+  const passed = results.filter(r => r.ok === true).map(r => r.name);
+  const failed = results.filter(r => r.ok === false).map(r => r.name);
+  const unknown = results.filter(r => r.ok === null).map(r => r.name);
+  if (context) context.store_compliance = { passed, failed, unknown };
 
-  for (const { check } of checks) {
-    check();
-  }
-
-  if (context) context.store_compliance_checked = true;
-  return '商店合规检查完成';
+  const parts = [`商店合规检查: ${passed.length}/${results.length} 通过`];
+  if (failed.length) parts.push(`未通过: ${failed.join('、')}`);
+  if (unknown.length) parts.push(`无法静态判定: ${unknown.join('、')}`);
+  // 有未通过 = 警告；全都查不出来 = 也警告（不许把「没查」当「合规」）。
+  if (failed.length === 0 && unknown.length === 0) return { status: 'pass', message: parts.join('；') };
+  return { status: 'warn', message: parts.join('；') };
 }
 
-export function handleMobileGenerateReport(_action, params, _targetPath, context) {
+export function handleMobileGenerateReport(_action, params, targetPath, context) {
   const format = params?.format || 'markdown';
-
-  if (context) context.mobile_report_generated = true;
-  return `移动端审计报告已生成（格式: ${format}）`;
+  // 以前只把 context.mobile_report_generated 置 true 就报「报告已生成」，一个字节都没写。
+  // 现在真写文件并回读校验；写不出来就说没生成。
+  if (!targetPath) return { status: 'warn', message: '移动端审计报告未生成：不知道目标项目路径' };
+  const dir = join(targetPath, '.claude', 'reports');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const file = join(dir, `mobile-audit-${stamp}.${format === 'json' ? 'json' : 'md'}`);
+  const audit = {
+    generated_at: new Date().toISOString(),
+    format,
+    project: context?.mobile_project ?? context?.project_type ?? 'unknown',
+    platform: context?.platform ?? 'unknown',
+    component_compliance: context?.component_compliance,
+    store_compliance: context?.store_compliance,
+    anti_patterns: context?.antipatterns,
+    performance_baseline: context?.performance_baseline,
+  };
+  const body = format === 'json'
+    ? JSON.stringify(audit, null, 2)
+    : ['# 移动端审计报告', '', `生成时间: ${audit.generated_at}`, '', `- 项目类型: ${audit.project}`, `- 平台: ${audit.platform}`, '', '## 详细数据', '', '```json', JSON.stringify(audit, null, 2), '```', ''].join('\n');
+  try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(file, body, 'utf-8');
+  } catch (e) {
+    return { status: 'warn', message: `移动端审计报告未生成：写入失败（${String(e.message).slice(0, 80)}）` };
+  }
+  if (!existsSync(file)) return { status: 'warn', message: `移动端审计报告未生成：写完后找不到 ${file}` };
+  if (context) context.mobile_report_path = file;
+  return { status: 'pass', message: `移动端审计报告已生成（${format}）: ${file}` };
 }
 
-export function handleMobileAutoFix(_action, params, _targetPath, context) {
+export function handleMobileAutoFix(_action, params, _targetPath, _context) {
   const mode = params?.mode || 'safe';
-
-  if (context) context.mobile_autofix_applied = true;
-  return `自动修复完成（模式: ${mode}）`;
+  // 以前无条件「自动修复完成」并置 context.mobile_autofix_applied = true —— 没改过一行代码。
+  // CLI 侧没有移动端自动修复能力，只能给建议：不让「完成」二字替我们撒谎。
+  return {
+    status: 'noop',
+    message: `自动修复未执行（模式: ${mode}）：移动端修复需要真机/模拟器验证，CLI 不会直接改代码`,
+  };
 }

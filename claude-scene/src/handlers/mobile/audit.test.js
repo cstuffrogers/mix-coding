@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
   handleDetectProject, handleMobileAutoInstall, handleBuildApp, handleScanSource, handleScanDependencies,
+  handlePerfBaseline, handleStoreCompliance, handleMobileGenerateReport, handleMobileAutoFix,
 } from './audit.js';
 import { evaluateCondition } from '../../lib/conditions.js';
 
@@ -96,5 +97,73 @@ describe('没跑成的移动端步骤必须自报 skip', () => {
     const result = handleScanDependencies('scanDependencies', { source: 'npm' }, PROJ, {});
     expect(result.status).toBe('skip');
     expect(result.message).toContain('npm');
+  });
+});
+
+// 这一组守「报告里写的话必须真的发生了」：
+// 以前 perfBaseline 一律报「采集完成 N 项」（其实 N-1 项是 device_required）、
+// generateReport 只置一个旗子就报「报告已生成」（零字节）、autoFix 报「修复完成」（没动代码）、
+// storeCompliance 的 check 返回值被丢掉还带个 `() => true`。
+describe('移动端审计：不许把「没做」说成「完成」', () => {
+  let root;
+  beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'audit-honest-')); });
+  afterEach(() => { rmSync(root, { recursive: true, force: true }); });
+
+  it('性能基线：只有 device_required 时是 noop，不报「采集完成」', () => {
+    const ctx = {};
+    const r = handlePerfBaseline('perfBaseline', { metrics: ['fps', 'memory'] }, root, ctx);
+    expect(r.status).toBe('noop');
+    expect(r.message).not.toContain('采集完成');
+    expect(ctx.performance_baseline).toEqual({ fps: 'device_required', memory: 'device_required' });
+  });
+
+  it('性能基线：bundle_size 真算了才 pass', () => {
+    mkdirSync(join(root, 'src'), { recursive: true });
+    writeFileSync(join(root, 'src', 'a.js'), 'x'.repeat(2048));
+    const r = handlePerfBaseline('perfBaseline', { metrics: ['bundle_size'] }, root, {});
+    expect(r.status).toBe('pass');
+    expect(r.message).toContain('bundle_size=');
+  });
+
+  it('商店合规：全都查不出来时 warn，不许算通过', () => {
+    const ctx = {};
+    const r = handleStoreCompliance('storeCompliance', {}, root, ctx);
+    expect(r.status).toBe('warn');
+    expect(r.message).toContain('无法静态判定: 非公开 API 扫描');
+    expect(ctx.store_compliance.unknown).toEqual(['非公开 API 扫描']);
+  });
+
+  it('商店合规：文件齐全 + 仍有无法静态判定的项 → warn', () => {
+    mkdirSync(join(root, 'ios'), { recursive: true });
+    mkdirSync(join(root, 'android', 'app', 'src', 'main'), { recursive: true });
+    writeFileSync(join(root, 'ios', 'PrivacyInfo.xcprivacy'), '{}');
+    writeFileSync(join(root, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'), '<manifest/>');
+    const ctx = {};
+    const r = handleStoreCompliance('storeCompliance', {}, root, ctx);
+    expect(r.status).toBe('warn');
+    expect(ctx.store_compliance.passed).toHaveLength(2);
+    expect(ctx.store_compliance.failed).toEqual([]);
+  });
+
+  it('审计报告：真写文件、回读存在，才说已生成', () => {
+    const ctx = { platform: 'ios', performance_baseline: { fps: 'device_required' } };
+    const r = handleMobileGenerateReport('mobileGenerateReport', { format: 'markdown' }, root, ctx);
+    expect(r.status).toBe('pass');
+    expect(readFileSync(ctx.mobile_report_path, 'utf-8')).toContain('# 移动端审计报告');
+    expect(ctx.mobile_report_generated).toBeUndefined();
+  });
+
+  it('审计报告：没有目标路径时明确说没生成', () => {
+    const r = handleMobileGenerateReport('mobileGenerateReport', {}, '', {});
+    expect(r.status).toBe('warn');
+    expect(r.message).toContain('未生成');
+  });
+
+  it('自动修复：CLI 不动代码 → noop，且不写 mobile_autofix_applied', () => {
+    const ctx = {};
+    const r = handleMobileAutoFix('mobileAutoFix', { mode: 'safe' }, root, ctx);
+    expect(r.status).toBe('noop');
+    expect(r.message).toContain('未执行');
+    expect(ctx.mobile_autofix_applied).toBeUndefined();
   });
 });

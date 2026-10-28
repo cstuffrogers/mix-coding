@@ -2,11 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   handleSelect, handleConfirm, handleCheckEnvFile,
   handleGenerateEnv, handleVerify, handleNotify, handleChoose, handleAskUser,
-  handleCheckGate, handleCeAction,
+  handleCheckGate, handleCeAction, handleReport, handleSend,
 } from './flow-control.js';
 import { handleCheckPrerequisites } from './prerequisites.js';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+
+const mkTmp = () => mkdtempSync(join(tmpdir(), 'mix-coding-flow-'));
 
 vi.mock('chalk', () => {
   const noop = (s) => s;
@@ -337,5 +340,114 @@ describe('安全门禁：没扫过 ≠ 没有高危', () => {
     const r = handleCheckGate('checkGate', { checks: ['security_scan', 'tests_pass'] }, '/tmp', {});
     expect(r.status).toBe('skip');
     expect(r.message).toContain('未执行');
+  });
+});
+
+describe('handleReport：报告内容必须和本次真实结果对得上', () => {
+  const mkTmp = () => mkdtempSync(join(tmpdir(), 'mix-coding-report-'));
+
+  it('没有目标目录 → skip，不发「已生成」', () => {
+    const r = handleReport('report', {}, '', {});
+    expect(r.status).toBe('skip');
+    expect(r.message).toContain('未生成');
+  });
+
+  it('写出文件后才算生成，且标题/路径可复核', () => {
+    const dir = mkTmp();
+    const r = handleReport('report', {}, dir, { stepResults: [{ step: 1, action: 'verify', status: 'pass' }] });
+    expect(r).toContain('报告已生成');
+    const match = /报告已生成: (.+?)（/.exec(r);
+    expect(match).not.toBeNull();
+    expect(existsSync(match[1])).toBe(true);
+  });
+
+  it('报告里有步骤结果摘要，并点名没通过的步骤', () => {
+    const dir = mkTmp();
+    const r = handleReport('report', {}, dir, {
+      stepResults: [
+        { step: 1, action: 'verify', status: 'pass' },
+        { step: 2, action: 'test-coverage', status: 'fail', detail: '覆盖率 42% < 阈值 80%' },
+      ],
+    });
+    const file = /报告已生成: (.+?)（/.exec(r)[1];
+    const body = readFileSync(file, 'utf-8');
+    expect(body).toContain('## 步骤结果');
+    expect(body).toContain('覆盖率 42% < 阈值 80%');
+    expect(body).toContain('| 2 | test-coverage | fail |');
+  });
+
+  it('不把引擎内部键（_ 开头 / completedSteps / stepResults）dump 进给人看的报告', () => {
+    const dir = mkTmp();
+    const r = handleReport('report', {}, dir, {
+      _awaitingAnswer: { label: '内部' },
+      completedSteps: [1, 2],
+      stepResults: [{ step: 1, action: 'verify', status: 'pass' }],
+      user_confirmed: true,
+    });
+    const body = readFileSync(/报告已生成: (.+?)（/.exec(r)[1], 'utf-8');
+    expect(body).toContain('user_confirmed');
+    expect(body).not.toContain('_awaitingAnswer');
+    expect(body).not.toContain('**completedSteps**');
+    expect(body).not.toContain('**stepResults**');
+  });
+});
+
+describe('通知文案不能和本次结果矛盾', () => {
+  it('前面有失败步骤时不说「任务完成」', () => {
+    const r = handleNotify('notify', { message: '搞定了' }, '', {
+      stepResults: [{ step: 3, action: 'test-unit', status: 'fail' }],
+    });
+    expect(r).toContain('失败');
+    expect(r).not.toContain('任务完成');
+  });
+
+  it('没有失败步骤时保持原文案', () => {
+    const r = handleNotify('notify', { message: '搞定了' }, '', {
+      stepResults: [{ step: 3, action: 'test-unit', status: 'pass' }],
+    });
+    expect(r).toBe('任务完成通知已发送');
+  });
+
+  it('send 没有项目目录时不许说「已发送」', () => {
+    const r = handleSend('send', { title: '构建结果' }, '');
+    expect(r.status).toBe('warn');
+    expect(r.message).toContain('没有发送');
+  });
+
+  it('send 写日志成功时才说已写入', () => {
+    const dir = mkTmp();
+    const r = handleSend('send', { title: '构建结果', content: 'ok' }, dir);
+    expect(r).toContain('已写入通知日志');
+    expect(readFileSync(join(dir, '.claude', 'notifications.log'), 'utf-8')).toContain('构建结果');
+  });
+});
+
+describe('CE 步骤不许写「没发生的事」', () => {
+  // 用临时目录当 targetPath：checkCePlugin 问的是「目标项目装没装」，
+  // 拿仓库自己当目标会被宿主环境（本机装了 CE 插件）污染成假绿。
+  const emptyProject = () => mkTmp();
+
+  it('CE 插件不可用 → 记 requested，不记 executed', () => {
+    const ctx = {};
+    const r = handleCeAction('ce-plan', {}, emptyProject(), ctx);
+    expect(r).toContain('CE plan');
+    expect(ctx.ce_requested).toEqual(['plan']);
+    expect(ctx.ce_executed).toBeUndefined();
+    expect(ctx.ce_planned).toBeUndefined();
+  });
+
+  it('同一个 CE 动作重复出现不会重复记账', () => {
+    const dir = emptyProject();
+    const ctx = {};
+    handleCeAction('ce-review', {}, dir, ctx);
+    handleCeAction('ce-review', {}, dir, ctx);
+    expect(ctx.ce_requested).toEqual(['review']);
+  });
+
+  it('不写 ce_<action>_executed 这类没人读的旗子', () => {
+    const ctx = {};
+    handleCeAction('ce-debug', {}, emptyProject(), ctx);
+    // 只允许 ce_requested（数组）；ce_planned / ce_<action>_executed 一律不许再出现。
+    expect(Object.keys(ctx)).toEqual(['ce_requested']);
   });
 });

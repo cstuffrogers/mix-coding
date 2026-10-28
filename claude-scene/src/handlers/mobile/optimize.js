@@ -92,32 +92,45 @@ export function handleGenerateOptimizePlan(_action, params, _targetPath, context
   // 场景声明了 prioritize: "impact"（mobile-optimize）。以前这个键没人读，
   // 而下面的固定排序恰好就是按 impact 来的 —— 声明的意图和实际行为要能对上。
   const priority = params?.prioritize || 'impact';
-  return `优化方案已生成（${plan.length} 项，按 ${priority === 'impact' ? '收益' : priority === 'effort' ? '成本' : priority} 排序）`;
+  const byLabel = priority === 'impact' ? '按收益排序' : priority === 'effort' ? '按成本排序' : `按 ${priority} 排序`;
+  return `优化方案已生成（${plan.length} 项，${byLabel}）`;
 }
 
 export function handleExecuteOptimize(_action, params, _targetPath, context) {
-  const isAutoOnly = params?.auto_fix_only !== false;
-
-  const applied = [];
-  const skipped = [];
-
-  if (isAutoOnly) {
-    applied.push('dead import 清理建议', '重复请求合并建议');
-    skipped.push('WebP 转换（需设备验证）', '代码分割（需手动审查）');
-  }
-
+  // 以前这里凭空 push 两条字符串（「dead import 清理建议」「重复请求合并建议」）
+  // 然后报「优化执行完成: 2 项应用」—— 一行代码都没改，却把「建议」记成了「已应用」，
+  // 还写进 context.optimize_applied（然后进了报告）。没做就是没做。
+  // auto_fix_only 现在只控制「列出哪些待人工确认的自动修复项」。
+  const autoOnly = params?.auto_fix_only !== false;
+  const candidates = autoOnly
+    ? ['dead import 清理', '重复请求合并']
+    : ['dead import 清理', '重复请求合并', 'WebP 转换', '代码分割'];
+  const needsDevice = autoOnly ? ['WebP 转换（需设备验证）', '代码分割（需手动审查）'] : [];
   if (context) {
-    context.optimize_applied = applied;
-    context.optimize_skipped = skipped;
+    // 注意：写的是「建议」不是「已应用」—— 后者是谎。
+    context.optimize_suggestions = candidates;
+    context.optimize_needs_manual = needsDevice;
   }
-  return `优化执行完成: ${applied.length} 项应用, ${skipped.length} 项跳过`;
+  const manualNote = needsDevice.length ? `；另有 ${needsDevice.length} 项需要人工确认（${needsDevice.join('、')}）` : '';
+  return {
+    status: 'noop',
+    message: `优化未执行：本步只列出 ${candidates.length} 项待做建议（${candidates.join('、')}），没有修改任何代码${manualNote}`,
+  };
 }
 
 export function handleRemeasure(_action, _params, _targetPath, context) {
-
   const before = context?.performance_baseline || {};
-  const after = { remeasured_at: new Date().toISOString() };
-
-  if (context) context.remeasure_result = { before, after };
-  return '重新测量完成';
+  // 以前只塞一个 `remeasured_at` 时间戳就报「重新测量完成」—— 指标一个没测，
+  // 下游 checkGate 看 performance_baseline 还是 device_required，却因为这一步 ✓ 让人以为测过了。
+  const unmeasured = Object.entries(before)
+    .filter(([, v]) => typeof v === 'string' && v.includes('device'))
+    .map(([k]) => k);
+  if (context) {
+    context.remeasure_result = { attempted_at: new Date().toISOString(), measured: false, missing: unmeasured };
+  }
+  const scope = unmeasured.length ? `（${unmeasured.join(', ')} 仍无实测值）` : '（本次没有性能基线可对比）';
+  return {
+    status: 'noop',
+    message: `优化后指标未重新测量${scope}：真机/模拟器数据 CLI 拿不到，需要人工或对话模式重测后再填 performance_baseline`,
+  };
 }

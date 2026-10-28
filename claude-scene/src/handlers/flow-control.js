@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { safeExec, escapeArg } from '../lib/safe-exec.js';
 import GATE_FLAGS from '../data/gate-flags.js';
 import { isConversationMode } from '../lib/platform.js';
+import { checkCePlugin } from './handler-verify.js';
 
 const CE_DESCRIPTIONS = {
   plan: 'CE Plugin 生成详细实施方案：任务拆解、依赖分析、风险识别、时间预估',
@@ -217,13 +218,16 @@ export function handleSend(_action, params, targetPath) {
       mkdirSync(dirname(notifLog), { recursive: true });
       const entry = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${title}: ${content}\n`;
       writeFileSync(notifLog, entry, { flag: 'a' });
-    } catch { /* non-critical */ }
+    } catch (error) {
+      return { status: 'warn', message: `通知「${title}」打印了，但写入 ${join('.claude', 'notifications.log')} 失败: ${error.message}` };
+    }
+    return `通知已发送: ${title}（已写入通知日志）`;
   }
 
-  return `通知已发送: ${title}`;
+  return { status: 'warn', message: `通知「${title}」没有发送：没有项目目录，日志无处可写` };
 }
 
-export function handleNotify(_action, params, targetPath) {
+export function handleNotify(_action, params, targetPath, context) {
   // 场景里两种写法都有：notify {message} 和 notify {title, content, level}，
   // 还有只写 type 的（success/info/error，当作日志级别用）。
   // 以前只认 message，于是 rollback#14 / setup#8 一句都不打印、日志也不写，
@@ -247,7 +251,16 @@ export function handleNotify(_action, params, targetPath) {
     }
   }
 
-  return `任务完成通知已发送`;
+  return notifyVerdict(context);
+}
+
+/** 前面有步骤失败时不能报「任务完成」—— 通知文本与真实结果矛盾更容易误导 */
+function notifyVerdict(context) {
+  const failures = (Array.isArray(context?.stepResults) ? context.stepResults : [])
+    .filter((r) => r.status === 'fail');
+  if (!failures.length) return '任务完成通知已发送';
+  const names = failures.slice(0, 3).map((f) => `Step ${f.step ?? '?'} ${f.action}`).join('、');
+  return `通知已发送（本次有 ${failures.length} 个步骤失败：${names}）—— 不报「已完成」`;
 }
 
 export function handleCeAction(action, params, targetPath, context) {
@@ -260,35 +273,20 @@ export function handleCeAction(action, params, targetPath, context) {
   // tech_selection）。以前这些键没人读，等于把用户的要求吞了。这里是引导性
   // handler：把要求打到屏幕上，agent 才能照做。
   const preferences = describePreferences(params);
-  const ceConfigPath = targetPath ? join(targetPath, '..', '.claude', 'plugins', 'compound-engineering.json') : null;
-  const ceAvailable = ceConfigPath ? existsSync(ceConfigPath) : false;
+  // 之前这里自己拼了个 `targetPath/../.claude/plugins/…`：路径错一层，而且和
+  // 条件系统的 plugin_ce_available / handler-verify 的 checkCePlugin 各问各的。
+  // 统一问 checkCePlugin（问的是「目标项目装没装」）。
+  const ceAvailable = checkCePlugin(targetPath);
   printCeBanner(ceAction, desc, ceAvailable, preferences);
 
-  // Set context flags so downstream steps can react
+  // 以前无条件写 `ce_<action>_executed = true` + `ce_planned/ce_reviewed/...`：
+  // 这两个键全仓库无人读，而且 CE 插件没装时也是 true —— 写了就撒谎。
+  // 现在只记「被要求过」和「真的交给了对话模式」，不写没意义的布尔值。
   if (context) {
-    context[`ce_${ceAction}_executed`] = true;
-    context.ce_plugin_available = ceAvailable;
-
-    switch (ceAction) {
-      case 'brainstorm':
-        context.ce_brainstormed = true;
-        break;
-      case 'plan':
-        context.ce_planned = true;
-        break;
-      case 'review':
-        context.ce_reviewed = true;
-        break;
-      case 'debug':
-        context.ce_debugged = true;
-        break;
-      case 'compound':
-        context.ce_compounded = true;
-        break;
-      case 'work':
-        context.ce_worked = true;
-        break;
-    }
+    const executed = ceAvailable && isConversationMode();
+    const bucket = executed ? 'ce_executed' : 'ce_requested';
+    if (!Array.isArray(context[bucket])) context[bucket] = [];
+    if (!context[bucket].includes(ceAction)) context[bucket].push(ceAction);
   }
 
   const base = ceAvailable && isConversationMode() ? 'CE Plugin 就绪（对话模式执行）' : ceAvailable ? 'CE Plugin 已安装但需对话模式' : '上下文已设置（CE Plugin 未安装）';
@@ -361,16 +359,48 @@ export function handleChoose(_action, params, _targetPath, context) {
   return `已选择: ${selected}`;
 }
 
+function buildStepSection(steps) {
+  const counts = {};
+  for (const r of steps) counts[r.status] = (counts[r.status] || 0) + 1;
+  const countLine = Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join(' / ');
+  const lines = ['## 步骤结果', '', `共 ${steps.length} 步（${countLine}）`, ''];
+  const notPass = steps.filter((r) => r.status !== 'pass');
+  if (notPass.length === 0) return lines;
+  lines.push('| 步骤 | action | 状态 | 说明 |', '| --- | --- | --- | --- |');
+  for (const r of notPass) {
+    lines.push(`| ${r.step ?? '?'} | ${r.action} | ${r.status} | ${String(r.detail || '').replace(/\|/g, '/')} |`);
+  }
+  lines.push('');
+  return lines;
+}
+
+function buildContextSection(context) {
+  const lines = ['## 上下文', ''];
+  let unset = 0;
+  for (const [key, val] of Object.entries(context)) {
+    if (typeof val === 'function' || REPORT_INTERNAL_KEYS.has(key) || key.startsWith('_')) continue;
+    // `undefined` 插值进模板就是字符串 "undefined"：报告里一列「未设置」比不给更误导。
+    if (val === undefined) {
+      unset += 1;
+      continue;
+    }
+    lines.push(`- **${key}**: ${typeof val === 'object' ? JSON.stringify(val).slice(0, 200) : val}`);
+  }
+  if (unset > 0) lines.push('', `（另有 ${unset} 个键本次未设置，没写进报告）`);
+  return lines;
+}
+
 function buildReportSections(context) {
   if (!context) return [];
-  const sections = [];
-  for (const [key, val] of Object.entries(context)) {
-    if (typeof val !== 'function' && key !== 'targetPath') {
-      sections.push(`- **${key}**: ${typeof val === 'object' ? JSON.stringify(val).slice(0, 200) : val}`);
-    }
-  }
-  return sections;
+  // 报告以前就是一个 context 原文 dump：既没有「哪步没通过」的摘要，又把
+  // _awaitingAnswer / completedSteps 这类引擎内部键一起写进给人看的文件。
+  const steps = Array.isArray(context.stepResults) ? context.stepResults : [];
+  const stepSection = steps.length ? buildStepSection(steps) : [];
+  return [...stepSection, ...buildContextSection(context)];
 }
+
+/** 不往报告里写的键：要么已经在「步骤结果」里总结过，要么是引擎内部状态 */
+const REPORT_INTERNAL_KEYS = new Set(['stepResults', 'completedSteps', 'targetPath']);
 
 function writeReportFile(targetPath, sections) {
   const reportDir = join(targetPath, '.claude', 'reports');
@@ -379,16 +409,25 @@ function writeReportFile(targetPath, sections) {
   }
   const reportPath = join(reportDir, `report-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.md`);
   writeFileSync(reportPath, `# 报告\n\n生成时间: ${new Date().toISOString()}\n\n${sections.join('\n')}\n`);
+  return reportPath;
 }
 
-export function handleReport(_action, params, targetPath, context) {
-  if (targetPath) {
-    try {
-      const sections = buildReportSections(context);
-      writeReportFile(targetPath, sections);
-    } catch { /* non-critical */ }
+export function handleReport(_action, _params, targetPath, context) {
+  if (!targetPath) {
+    return { status: 'skip', message: '报告未生成：没有目标目录（不是「已生成」）' };
   }
-  return '报告已生成';
+  let reportPath;
+  try {
+    reportPath = writeReportFile(targetPath, buildReportSections(context));
+  } catch (error) {
+    return { status: 'warn', message: `报告写入失败: ${error.message}` };
+  }
+  // 「写了文件才算生成」：以前 catch 把异常吞掉，照样报「报告已生成」。
+  if (!reportPath || !existsSync(reportPath)) {
+    return { status: 'warn', message: `报告写入后找不到文件（${reportPath || '无路径'}），不发「已生成」` };
+  }
+  const steps = Array.isArray(context?.stepResults) ? context.stepResults.length : 0;
+  return `报告已生成: ${reportPath}（含 ${steps} 步结果摘要）`;
 }
 
 export function handleAskUser(_action, params, _targetPath, context) {

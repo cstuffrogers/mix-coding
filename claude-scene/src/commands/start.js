@@ -642,6 +642,17 @@ function applyPostStepContext(step, context, sceneId) {
   }
 }
 
+/**
+ * 把非 pass 步骤渲染成可核对的行。计数（fail: 1）不告诉你哪步不行，
+ * 收尾摘要与报告都靠这个列表说清楚「到底哪里没过」。
+ */
+export function describeNotPassSteps(stepResults, limit = 12) {
+  const list = (Array.isArray(stepResults) ? stepResults : [])
+    .filter((r) => r && typeof r.status === 'string' && r.status !== 'pass');
+  const lines = list.slice(0, limit).map((r) => `Step ${r.step ?? '?'} ${r.action} → ${r.status}`);
+  return { lines, total: list.length };
+}
+
 function printSummary(sceneId, context = null) {
   console.log(chalk.dim(`\n${'─'.repeat(40)}`));
   const { pass, fail, skip, noop, warn } = LOG_SUMMARY;
@@ -660,6 +671,17 @@ function printSummary(sceneId, context = null) {
   }
   if (fail > 0 || noop > 0 || warn > 0 || unjudged.length > 0) {
     console.log(chalk.dim(`  日志: ${LOG_PATH}`));
+  }
+  // 计数不等于内容：block 收尾时用户最需要知道「具体哪几歩不行」。
+  const { lines, total } = describeNotPassSteps(context?.stepResults);
+  if (lines.length > 0) {
+    console.log(chalk.yellow('  未通过 / 未执行的步骤：'));
+    for (const line of lines) {
+      console.log(chalk.yellow(`     ${line}`));
+    }
+    if (total > lines.length) {
+      console.log(chalk.dim(`     …共 ${total} 步，完整列表见报告/日志`));
+    }
   }
   console.log(chalk.dim('─'.repeat(40)));
   // Acceptance triple: bind delivery to a reviewed check, not handoff alone.
@@ -700,7 +722,7 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
     if (context.lastStepFailed) {
       context.fixFailedCount = (context.fixFailedCount || 0) + 1;
       console.log(chalk.red(`\n✖ Step ${step.step} 重试 3 次后仍失败（on_error=retry），工作流中止`));
-      printSummary(sceneId);
+      printSummary(sceneId, context);
       process.exit(1);
     }
   }
@@ -884,8 +906,23 @@ export async function handleInteractiveStep(sceneId, step, context, options) {
 }
 
 // Auto-detect no-op: tool unavailable / nothing to check / config missing
-// eslint-disable-next-line sonarjs/super-linear-regex
-const NOOP_RES = [/不可用/i, /无[^]*?[目录配置]/, /未安装/, /未找到/, /not found/i, /not available/i, /已?跳过/, /no\s+.*?found/i];
+// eslint-disable-next-line sonarjs/super-linear-regex -- /no\s+.*?found/i 是原有兜底规则
+const NOOP_RES = [/不可用/i, /未安装/, /未找到/, /not found/i, /not available/i, /已?跳过/, /no\s+.*?found/i];
+
+// 「无 X 目录 / 无配置文件」＝没事可做。以前写成 `/无[^]*?[目录配置]/`：能跨 200 多字，
+// 于是「无问题（扫描 215 个源码文件）」里只要有「无」+ 后面碰到目/录/配/置 任何一个字，
+// 扫了一天的活儿就被记成 noop。这里用有界扫描替代正则（也让 sonar 的回溯告警消失）。
+const NOTHING_TO_CHECK_WINDOW = 14;
+function saysNothingToCheck(text) {
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf('无', from);
+    if (at === -1) return false;
+    const tail = text.slice(at + 1, at + 1 + NOTHING_TO_CHECK_WINDOW);
+    if (tail.includes('目录') || tail.includes('配置')) return true;
+    from = at + 1;
+  }
+}
 // Auto-detect warn: passes but result indicates non-zero issues (aislop findings, vulnerabilities, etc.)
 // 两个坑都踩过：
 //   1. `\d+` 让「11 道检查完成: 0 个问题」被判成告警 —— 0 就是干净，得从 1 起算。
@@ -948,7 +985,7 @@ export function deriveStepStatus(result, context) {
   if (!String(resultStr ?? '').trim()) {
     return { resultStr: '（处理器没有返回任何结果，检查该动作是否真的执行了）', stepStatus: 'warn' };
   }
-  const isNoop = NOOP_RES.some(re => re.test(resultStr));
+  const isNoop = NOOP_RES.some(re => re.test(resultStr)) || saysNothingToCheck(resultStr);
   const isWarn = !isNoop && hasWarnResult(resultStr);
   return { resultStr, stepStatus: isNoop ? 'noop' : (isWarn ? 'warn' : 'pass') };
 }
@@ -1016,8 +1053,11 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context) {
   }
   appendLog({ step: stepNum, action: step.action, status, iteration: context.iteration || 1, duration_ms: duration, result: resultStr.slice(0, 200), time: new Date().toISOString() });
   // Track per-step { action, status } for the acceptance reviewed-check gate.
+  // step/detail 是给收尾摘要和报告看的：只有 action+status 时，事后看到
+  // 「report → warn」也无法知道 warn 的是什么。
   if (!Array.isArray(context.stepResults)) context.stepResults = [];
-  context.stepResults.push({ action: step.action, status });
+  const detail = String(resultStr || '');
+  context.stepResults.push({ step: stepNum, action: step.action, status, detail: detail.length > 120 ? `${detail.slice(0, 120)}…` : detail });
 }
 
 /**
@@ -1030,7 +1070,7 @@ function abortForAwaitingAnswer(sceneId, step, context) {
   LOG_SUMMARY.total++; LOG_SUMMARY.fail++;
   appendLog({ step: step.step, action: step.action, status: 'fail', reason: 'needs-answer', detail: awaiting.label, time: new Date().toISOString() });
   reportAwaitingAnswer(awaiting, step.step);
-  printSummary(sceneId);
+  printSummary(sceneId, context);
   process.exit(2);
 }
 
@@ -1148,7 +1188,7 @@ async function runStep(sceneId, step, context, options) {
   if (shouldAbortOnEnclosure(context)) {
     console.log(chalk.red('\n✖ 圈地越界（--strict-enclosure）：边界超限即中止，不在破了的地界上继续施工'));
     console.log(chalk.yellow('   先 git status 看改动范围，必要时按围栏快照回滚（fenceRestore）'));
-    printSummary(sceneId);
+    printSummary(sceneId, context);
     process.exit(1);
   }
 
@@ -1273,13 +1313,13 @@ function enforceAcceptanceGate(scene, context, sceneId) {
   if (acceptance.missingVerify) {
     console.log(chalk.red('  ✖ 验收阻断：本次工作流包含变更类步骤但未执行任何验证类步骤（lint/test/verify/build）。'));
     console.log(chalk.red('    交付前必须补跑验证并报告「变更 + 验证命令 + 验证结果」三元组。'));
-    printSummary(sceneId);
+    printSummary(sceneId, context);
     process.exit(1);
   }
   if (acceptance.unreviewedChange) {
     console.log(chalk.red('  ✖ 验收阻断：本次工作流有变更，但验证类步骤未通过（全部 fail/noop/skip）。'));
     console.log(chalk.red('    交付前必须让验证步骤 pass 或 warn（通过带发现），并报告「变更 + 验证命令 + 验证结果」三元组。'));
-    printSummary(sceneId);
+    printSummary(sceneId, context);
     process.exit(1);
   }
 }

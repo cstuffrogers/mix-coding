@@ -316,7 +316,7 @@ export function handleSecBugHunt(_action, params, targetPath, context) {
   // [patched:scan-all-sources] 三个向量原来都只认 <repo>/src（本项目没有 src/ → 扫 0 文件仍报「无问题」）
   const files = listProjectCodeFiles(targetPath);
   if (!assertSources(files, context, '安全漏洞扫描')) {
-    return '安全漏洞深度扫描失败: 未找到任何源码文件（扫描范围为空，结果不可信）';
+    return { status: 'fail', message: '安全漏洞深度扫描失败: 未找到任何源码文件（扫描范围为空，结果不可信）' };
   }
   const npmAudit = scanNpmAudit(targetPath);
   const findings = [
@@ -340,7 +340,14 @@ export function handleSecBugHunt(_action, params, targetPath, context) {
     : '';
 
   const note = npmAudit.note ? `；${npmAudit.note}` : '';
-  return `安全漏洞深度扫描完成: ${findings.length ? `${findings.length} 类问题` : '无问题'}（扫描 ${files.length} 个源码文件${note}）${mergeNote}`;
+  const summary = `安全漏洞深度扫描: ${findings.length ? `${findings.length} 类问题` : '无问题'}（扫描 ${files.length} 个源码文件${note}）${mergeNote}`;
+  // 显式状态：以前只返回字符串，靠 NOOP_RES 正则猜 —— 消息里一句「npm audit
+  // 接口不可用」就把真扫了 215 个文件的步骤判成 noop（= 什么都没做）。
+  if (blockingFinding) return { status: 'fail', message: summary };
+  if (findings.length > 0) return { status: 'warn', message: summary };
+  // 干净但覆盖有缺口（依赖漏洞未知）不许发 pass：没查的部分≠没问题。
+  if (npmAudit.note) return { status: 'warn', message: summary };
+  return { status: 'pass', message: summary };
 }
 const CONSOLE_CALL_RE = /\bconsole\.(?:log|warn|error|info|debug)\s*\(/;
 
@@ -428,10 +435,12 @@ export function handleLogSanitization(_action, _params, targetPath, context) {
     return `日志脱敏扫描失败（未能扫描，结果不可信）: ${error.message}`;
   }
   if (!raw.trim()) {
-    return '日志脱敏扫描完成: 无问题';
+    // 一个 console.* 调用都没有：不是「扫描通过」，是「没有可扫的行」—— 说清楚。
+    return { status: 'pass', message: '日志脱敏扫描完成: 未发现任何 console.* 调用（没有可泄露的日志面）' };
   }
 
   const findings = _collectLogFindings(raw);
+  const scannedLines = raw.trim().split(/\r?\n/).length;
 
   if (findings.length > 0) {
     console.log(chalk.red(`  🔴 发现 ${findings.length} 处日志敏感数据泄露`));
@@ -441,5 +450,5 @@ export function handleLogSanitization(_action, _params, targetPath, context) {
   }
 
   if (context) context.logSanitizationPassed = findings.length === 0;
-  return `日志脱敏扫描完成: ${findings.length ? `${findings.length} 处泄露` : '无问题'}`;
+  return `日志脱敏扫描完成: ${findings.length ? `${findings.length} 处泄露` : '无问题'}（扫描 ${scannedLines} 行 console 调用）`;
 }

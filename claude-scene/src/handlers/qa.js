@@ -5,15 +5,17 @@ import { join } from 'path';
  * QA workflow handlers.
  */
 
-export function handleMapRoutes(_action, params, _targetPath, context) {
-  if (params?.source !== 'git_diff') return '跳过（未指定 source）';
+export function handleMapRoutes(_action, params, targetPath, context) {
+  if (params?.source !== 'git_diff') return { status: 'skip', message: '路由映射未执行：未指定 source' };
   const files = context?.gitDiffFiles || [];
   const frontendExts = ['.tsx', '.jsx', '.vue', '.html', '.css', '.scss'];
   const frontendFiles = files.filter((f) => frontendExts.some((ext) => f.endsWith(ext)));
   // Heuristic: derive page routes from src/pages, src/views, or src/app
   const pages = [];
   for (const dir of ['src/pages', 'src/views', 'src/app']) {
-    const dirPath = join(context?.targetPath || '.', dir);
+    // 以前读的是 context.targetPath（引擎并不保证写过）而把形参 targetPath 丢掉 ——
+    // 于是路由永远在 cwd 下找，目标项目不是 cwd 时一个页面也扫不到还报「映射完成」。
+    const dirPath = join(targetPath || context?.targetPath || '.', dir);
     if (!existsSync(dirPath)) continue;
     try {
       for (const f of readdirSync(dirPath)) {
@@ -23,7 +25,8 @@ export function handleMapRoutes(_action, params, _targetPath, context) {
     } catch { /* ignore */ }
   }
   if (context) context.routePages = pages;
-  return `路由映射完成: ${pages.length} 个页面候选，${frontendFiles.length} 个前端变更文件`;
+  const changeNote = frontendFiles.length === 0 ? '（本次 diff 里没有前端文件变更）' : '';
+  return { status: 'pass', message: `路由映射: ${pages.length} 个页面候选${changeNote}` };
 }
 
 export function handleLoadPages(_action, _params, _targetPath, context) {
@@ -34,10 +37,15 @@ export function handleLoadPages(_action, _params, _targetPath, context) {
 }
 
 export function handleTestInteractions(_action, params, _targetPath, context) {
-  if (!context?.has_frontend_changes) return '跳过（无前端变更）';
+  if (!context?.has_frontend_changes) return { status: 'skip', message: '交互流程检测未执行：无前端变更' };
+  // 以前报「N 个流程已识别」，其实一个流程都没跑 —— flows 只是场景里抄下来的名字。
+  // 真跑流程要浏览器（Playwright/MCP），CLI 侧只能把它们登记成「待测」。
   const flows = params?.flows || ['form-submit', 'navigation'];
   if (context) context.interactionFlows = flows;
-  return `交互流程检测完成: ${flows.length} 个流程已识别`;
+  return {
+    status: 'noop',
+    message: `交互流程未检测（需浏览器）：已登记 ${flows.length} 个待测流程（${flows.join('、')}）`,
+  };
 }
 
 export function handleVisualCheck(_action, params, _targetPath, context) {
@@ -84,7 +92,15 @@ export function handleClassifyBugs(_action, params, _targetPath, context) {
     buckets.INFO.push('frontend-changed');
   }
   if (context) context.bugBuckets = buckets;
-  return `Bug 分类完成: ${Object.values(buckets).flat().length} 条分类到 ${levels.length} 个等级`;
+  // 这里没有任何 bug 数据：只是把待测流程/视觉项登记成待验证条目。
+  // 说「Bug 分类完成: N 条」会让人以为 N 个缺陷已经分好级了。
+  const total = Object.values(buckets).flat().length;
+  return {
+    status: 'noop',
+    message: total === 0
+      ? `Bug 分类未执行：没有任何缺陷数据（只支持 ${levels.length} 个等级: ${levels.join('/')}）`
+      : `Bug 分类未执行：${total} 条待验证项只是登记（前端变更/待测流程），不是已确认缺陷`,
+  };
 }
 
 export function handleGenerateQAReport(_action, _params, targetPath, context) {

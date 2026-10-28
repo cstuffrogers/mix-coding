@@ -117,6 +117,23 @@ describe('deriveStepStatus 文本启发式', () => {
     expect(deriveStepStatus('3 failed', ctx()).stepStatus).toBe('fail');
   });
 
+  // 真跑出来的坑：sec-bug-hunt 扫了 215 个文件、结论「无问题」，只因消息里带了
+  // 一句「npm audit 接口不可用」就被 NOOP_RES 判成 noop —— 干了一天活记成「什么都没做」。
+  // 现在 handler 返回显式 status，启发式不再有机会误判；这条用例钉住「显式优先」。
+  // 旧的 `/无[^]*?[目录配置]/` 能跨整句匹配：明明扫了文件，只要有「无」+「目/录/配/置」
+  // 就被当成「没事可做」→ noop。现在限成短距离的「无X目录/配置」。
+  it('「无问题（扫描 N 个文件）」不能被判成 noop', () => {
+    expect(deriveStepStatus('无问题（扫描 215 个源码文件）', ctx()).stepStatus).toBe('pass');
+    expect(deriveStepStatus('无 node_modules 目录，跳过依赖检查', ctx()).stepStatus).toBe('noop');
+    expect(deriveStepStatus('无配置文件', ctx()).stepStatus).toBe('noop');
+  });
+
+  it('消息里提到「不可用」不影响显式状态', () => {
+    const message = ['安全漏洞深度扫描: 无问题', '（扫描 215 个源码文件；2/2 个 package-lock 的 npm audit 接口不可用）'].join('');
+    expect(deriveStepStatus(message, ctx()).stepStatus).toBe('noop'); // 纯文本仍会被误判
+    expect(deriveStepStatus({ status: 'warn', message }, ctx()).stepStatus).toBe('warn'); // 显式状态优先
+  });
+
   it('「未重复写入」是去重的正常路径', () => {
     expect(deriveStepStatus('记忆内容与最近记录相同，4 个后端均未重复写入（正常去重，本轮无新增）', ctx()).stepStatus).toBe('pass');
     expect(deriveStepStatus('检测到 2 处重复记录', ctx()).stepStatus).toBe('warn');

@@ -36,12 +36,16 @@ describe('threat-scan 规则命中', () => {
     expect(detail).toContain('开放重定向(Python)');
     // 常量目标不能被算成漏洞
     expect(detail).not.toContain("redirect('/safe')");
-    expect(output).toContain('3 类问题');
+    // 契约变更：改成显式 { status, message }（以前靠 NOOP_RES 正则猜状态）。
+    // 这三条是 high/critical → 必须 fail（review 报告与场景口径不能两套）。
+    expect(output.status).toBe('fail');
+    expect(output.message).toContain('3 类问题');
   });
 
   it('空扫描范围按失败处理，不谎报「没有漏洞」', async () => {
     const output = await handleSecBugHunt('a', {}, join(root, 'not-exist'), {});
-    expect(output).toContain('未找到任何源码文件');
+    expect(output.status).toBe('fail');
+    expect(output.message).toContain('未找到任何源码文件');
   });
 
   // 旧正则要求「引号后面紧跟 +」，于是 execSync('ls ' + dir) 这种最常见的
@@ -59,7 +63,8 @@ describe('threat-scan 规则命中', () => {
     const detail = logged.join('');
     expect(detail).toContain('命令注入: exec/spawn 拼接字符串: 1 处');
     expect(detail).toContain('命令注入: exec/spawn 模板串插值: 1 处');
-    expect(output).toContain('2 类问题');
+    expect(output.status).toBe('fail');
+    expect(output.message).toContain('2 类问题');
   });
 
   // --no-config-lookup 在部分 eslint 版本/配置形态下不生效，项目自己的 lint 规则
