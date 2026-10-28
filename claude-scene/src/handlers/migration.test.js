@@ -51,7 +51,7 @@ describe('handleMigrationReview', () => {
     mockReadFileSync.mockReturnValue('ALTER TABLE users ADD COLUMN status VARCHAR NOT NULL');
     const ctx = {};
     handleMigrationReview('migration-review', {}, '/tmp', ctx);
-    expect(ctx.migrationHighCount).toBeGreaterThan(0);
+    expect(ctx.migrationFindings.some((f) => f.severity === 'HIGH' || f.severity === 'CRITICAL')).toBe(true);
     expect(ctx.migrationReviewPassed).toBe(false);
   });
 
@@ -61,7 +61,7 @@ describe('handleMigrationReview', () => {
     mockReadFileSync.mockReturnValue('DROP TABLE legacy_users');
     const ctx = {};
     handleMigrationReview('migration-review', {}, '/tmp', ctx);
-    expect(ctx.migrationHighCount).toBeGreaterThan(0);
+    expect(ctx.migrationFindings.some((f) => f.severity === 'HIGH' || f.severity === 'CRITICAL')).toBe(true);
     expect(ctx.migrationReviewPassed).toBe(false);
   });
 

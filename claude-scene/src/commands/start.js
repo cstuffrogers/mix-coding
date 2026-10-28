@@ -161,6 +161,22 @@ async function handleAwmBrandSelection(step, options, context) {
   return true;
 }
 
+/**
+ * 记下一次「确认」的结果。
+ *
+ * 以前这里只写通用的 `context.user_confirmed`，而专用 flag 只有
+ * handleConfirmDialog → setContextFlag 那条路才落。后果：refactor:12 问的是
+ * 「是否执行自动重构」，写下的只有 user_confirmed，下游就只能拿
+ * `user_confirmed === true` 把关 —— 任何一次不相关的确认（是否提交代码、
+ * 是否发布）都会把它打开。专用 flag（user_confirmed_refactor /
+ * user_confirmed_open_design）现在两条路径都会落，条件可以只认自己那道题。
+ */
+function recordConfirmAnswer(step, enabled, context) {
+  context.user_confirmed = enabled;
+  noteDecision(context, `user_confirmed=${enabled}`);
+  applyDescriptionFlag((step.description || '').toLowerCase(), enabled, context);
+}
+
 function applyDescriptionFlag(stepDesc, enabled, context) {
   const isDesign = stepDesc.includes('open design') || stepDesc.includes('ui');
   const isRefactor = stepDesc.includes('重构') || stepDesc.includes('refactor');
@@ -720,7 +736,6 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
       console.log(chalk.green(`   ${retryResult}`));
     }
     if (context.lastStepFailed) {
-      context.fixFailedCount = (context.fixFailedCount || 0) + 1;
       console.log(chalk.red(`\n✖ Step ${step.step} 重试 3 次后仍失败（on_error=retry），工作流中止`));
       printSummary(sceneId, context);
       process.exit(1);
@@ -843,8 +858,7 @@ export async function handleConfirmation(step, options, context) {
   // 1) 命令行已明确表态：--yes 放行 / --decline 拒绝
   const decided = context.confirmDecision ?? explicitConfirmDecision(options);
   if (decided !== undefined) {
-    context.user_confirmed = decided;
-    noteDecision(context, `user_confirmed=${decided}`);
+    recordConfirmAnswer(step, decided, context);
     console.log(chalk[decided ? 'green' : 'gray'](`\n${decided ? '✅ 已确认' : '⏭ 已拒绝'}（命令行显式表态）：${shown.split('\n')[0]}`));
     return step.action === 'confirm';
   }
@@ -854,7 +868,7 @@ export async function handleConfirmation(step, options, context) {
     const answers = await inquirer.prompt([
       { type: 'confirm', name: 'proceed', message: shown, default: true },
     ]);
-    context.user_confirmed = answers.proceed;
+    recordConfirmAnswer(step, answers.proceed, context);
     if (!answers.proceed) {
       console.log(chalk.yellow(`  ⏭ 用户跳过 Step ${step.step}`));
       LOG_SUMMARY.total++;
@@ -868,7 +882,7 @@ export async function handleConfirmation(step, options, context) {
 
   // 3) 场景显式声明 auto 下可自动放行（auto_confirm: true）才走这条
   if (step.params?.auto_confirm === true) {
-    context.user_confirmed = true;
+    recordConfirmAnswer(step, true, context);
     noteDecision(context, 'user_confirmed=true（场景声明的 auto_confirm）');
     return step.action === 'confirm';
   }
@@ -1220,7 +1234,6 @@ export function buildSceneContext(options) {
     targetPath: options.target || '',
     // 圈地越界在默认模式下只判该步骤失败；strict 模式越界即整体中止。
     selectedTheme: options.theme || '',
-    securityScanResult: {},
     selectedOption: options.option || '',
     refactor_points: [],
     database_required: /数据库|database|db|存储|数据|postgres|mysql|supabase|mongo/i.test(prompt),

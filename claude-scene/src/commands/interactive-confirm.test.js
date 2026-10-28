@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 vi.mock('inquirer', () => ({ default: { prompt: vi.fn() } }));
 
 const { default: inquirer } = await import('inquirer');
-const { handleConfirmDialog, shouldPromptInAuto } = await import('./start.js');
+const { handleConfirmDialog, handleConfirmation, shouldPromptInAuto } = await import('./start.js');
 const { resolveScenePath } = await import('../lib/paths.js');
 
 /**
@@ -187,5 +187,51 @@ describe('handleConfirmDialog：--auto 下也要真的问，且答案生效', ()
 
     expect(inquirer.prompt).toHaveBeenCalledTimes(1);
     expect(context.withSweep).toBe(true);
+  });
+});
+
+/**
+ * 确认答案必须落到「这道题自己的」flag 上。
+ *
+ * refactor 场景 12 问「是否执行自动重构」，13 是破坏性步骤（提取方法/提取类/
+ * 重命名标识符）。以前 12 只写通用的 `context.user_confirmed`，13 就只能拿
+ * `user_confirmed === true` 把关 —— 而它会被任何一次不相关的确认（是否提交代码、
+ * 是否发布）打开。专用 flag `user_confirmed_refactor` 只走 handleConfirmDialog
+ * 那条路，而 12 是 `action: 'confirm'` 走 handleConfirmation，于是永远没人写。
+ */
+describe('handleConfirmation：确认答案要落到专用 flag', () => {
+  const REFACTOR_CONFIRM = {
+    step: 12,
+    action: 'confirm',
+    auto_execute: false,
+    description: '人工确认重构方案',
+    params: { message: '是否执行自动重构（提取方法/提取类/重命名标识符）？' },
+  };
+
+  it('--yes → user_confirmed_refactor=true', async () => {
+    const context = {};
+    await handleConfirmation(REFACTOR_CONFIRM, { auto: true, yes: true }, context);
+    expect(context.user_confirmed).toBe(true);
+    expect(context.user_confirmed_refactor).toBe(true);
+  });
+
+  it('--decline → user_confirmed_refactor=false（不是不写）', async () => {
+    const context = {};
+    await handleConfirmation(REFACTOR_CONFIRM, { auto: true, decline: true }, context);
+    expect(context.user_confirmed).toBe(false);
+    expect(context.user_confirmed_refactor).toBe(false);
+  });
+
+  it('别的确认步骤不会被误写成重构确认', async () => {
+    const commitConfirm = {
+      ...REFACTOR_CONFIRM,
+      step: 9,
+      description: '人工确认后触发代码提交和后续流程',
+      params: { message: '是否提交并推送？' },
+    };
+    const context = {};
+    await handleConfirmation(commitConfirm, { auto: true, yes: true }, context);
+    expect(context.user_confirmed).toBe(true);
+    expect(context.user_confirmed_refactor).toBeUndefined();
   });
 });

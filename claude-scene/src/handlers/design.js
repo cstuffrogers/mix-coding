@@ -89,12 +89,16 @@ export function deriveMetricsFromContext(context = {}) {
     const r = context.huashu_review;
     m.push({ label: '设计总分', value: `${r.percent}%` });
   }
-  if (context.securityScanResult && context.securityScanResult.highSeverityFound !== undefined) {
+  // 以前读的是 context.securityScanResult.highSeverityFound —— 那个对象从来没人写
+  // （buildSceneContext 里只塞了个 {}），安全问题永远不进图。真实事实在
+  // context.high_severity_found（review / npm-scan / open-redirect 等写的）。
+  if (context.high_severity_found !== undefined) {
+    const high = context.high_severity_found === true;
     m.push({
       label: '安全问题',
-      value: context.securityScanResult.highSeverityFound ? 'HIGH' : 'OK',
-      delta: context.securityScanResult.highSeverityFound ? '需修复' : '已通过',
-      deltaPositive: !context.securityScanResult.highSeverityFound,
+      value: high ? 'HIGH' : 'OK',
+      delta: high ? '需修复' : '已通过',
+      deltaPositive: !high,
     });
   }
   if (typeof context.codeMetricsFindings === 'number') {

@@ -66,7 +66,9 @@ function runBuiltinScan(migrationFiles) {
 function setMigrationContext(context, findings, highOrAbove) {
   if (!context) return;
   context.migrationFindings = findings;
-  context.migrationHighCount = highOrAbove;
+  // 以前还写了个 migrationHighCount，唯一的读者是 conditions.js 里一个没人引用的
+  // 谓词（`migrationHighCount > 0`）—— 两边一起删了：门禁看 migrationReviewPassed，
+  // 明细看 migrationFindings，多存一个计数只会让人以为它在驱动什么。
   context.migrationReviewPassed = highOrAbove === 0;
   if (highOrAbove > 0) context.lastStepFailed = true;
 }

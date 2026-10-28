@@ -297,7 +297,7 @@
         "preserve_behavior": true
       },
       "description": "应用重构变换：提取方法、提取类、重命名标识符",
-      "condition": "user_confirmed === true"
+      "condition": "user_confirmed_refactor === true"
     },
     {
       "step": 13.5,

@@ -15,16 +15,16 @@ describe('deriveMetricsFromContext', () => {
     expect(m).toContainEqual({ label: '设计总分', value: '82%' });
   });
 
-  it('derives a HIGH security metric when highSeverityFound is true', () => {
-    const m = deriveMetricsFromContext({ securityScanResult: { highSeverityFound: true } });
+  it('derives a HIGH security metric when high_severity_found is true', () => {
+    const m = deriveMetricsFromContext({ high_severity_found: true });
     const sec = m.find(x => x.label === '安全问题');
     expect(sec.value).toBe('HIGH');
     expect(sec.delta).toBe('需修复');
     expect(sec.deltaPositive).toBe(false);
   });
 
-  it('derives an OK security metric when highSeverityFound is false', () => {
-    const m = deriveMetricsFromContext({ securityScanResult: { highSeverityFound: false } });
+  it('derives an OK security metric when high_severity_found is false', () => {
+    const m = deriveMetricsFromContext({ high_severity_found: false });
     const sec = m.find(x => x.label === '安全问题');
     expect(sec.value).toBe('OK');
     expect(sec.deltaPositive).toBe(true);
@@ -36,8 +36,8 @@ describe('deriveMetricsFromContext', () => {
     expect(m).toContainEqual({ label: '反模式', value: '3' });
   });
 
-  it('does not emit a security metric when highSeverityFound is absent', () => {
-    const m = deriveMetricsFromContext({ securityScanResult: {} });
+  it('does not emit a security metric when the fact is unknown', () => {
+    const m = deriveMetricsFromContext({});
     expect(m.find(x => x.label === '安全问题')).toBeUndefined();
   });
 });

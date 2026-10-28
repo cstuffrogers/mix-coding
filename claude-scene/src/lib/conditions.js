@@ -79,19 +79,6 @@ const SIMPLE_CONDITIONS = {
     ctx.email_required === true || ctx.emailRequired === true ||
     /邮件|邮箱|通知信|验证信|邮件模板|email|resend|newsletter/i.test(ctx.prompt || ''),
 
-  'migrationHighCount > 0': (ctx) => (ctx.migrationHighCount || 0) > 0,
-
-  'fix_failed_count >= 3': (ctx) => ctx.fixFailedCount >= 3,
-
-  generate_doc_site: (ctx) =>
-    /文档站点|网站|在线文档|doc site/i.test(ctx.prompt || ''),
-
-  fixes_applied: (ctx) =>
-    ctx.fixApplied === true || ctx.securityScanResult?.fixesApplied || false,
-
-  high_severity_found: (ctx) =>
-    ctx.securityScanResult?.highSeverityFound || false,
-
   // CE Plugin — check for actual installation file
   plugin_ce_available: (ctx) => {
     const ceConfig = join(rootOf(ctx), '.claude', 'plugins', 'compound-engineering.json');
@@ -131,10 +118,7 @@ const SIMPLE_CONDITIONS = {
   tavily_mcp_available: () => hasMcpServer('tavily'),
   context7_mcp_available: () => hasMcpServer('context7'),
   codegraph_mcp_available: () => hasMcpServer('codegraph'),
-  crg_mcp_available: () => hasMcpServer('codegraph'),
   crg_skill_available: () => isConversationMode(),
-  // CRG graph already built for this repo (.code-review-graph/ dir exists)
-  crg_graph_built: (ctx) => existsSync(join(rootOf(ctx), '.code-review-graph')),
   supabase_mcp_available: () => hasMcpServer('supabase'),
   stripe_mcp_available: () => hasMcpServer('stripe'),
   resend_mcp_available: () => hasMcpServer('resend'),
@@ -178,6 +162,13 @@ const SIMPLE_CONDITIONS = {
   },
   detox_mcp_available: () => hasMcpServer('detox'),
 };
+
+/**
+ * 谓词名清单：供契约测试（`conditions-contract.test.js`）枚举。
+ * 场景条件里能直接写的名字只有这些（其余都得是 context 上真被写过的键）——
+ * 写错一个字母就是一个恒假条件，而「条件不满足 → 跳过」看起来和正常跳过一模一样。
+ */
+export const CONDITION_PREDICATES = Object.freeze(Object.keys(SIMPLE_CONDITIONS));
 
 // eslint-disable-next-line sonarjs/super-linear-regex
 const CMP_RE = /^(\w+)\s*(===?|!==?)\s*(.+)$/;
@@ -296,7 +287,7 @@ const CONDITION_KEYWORDS = new Set([
 ]);
 
 /**
- * 真值完全取决于「前置步骤写入的 flag」的谓词（如 testPassed / fixes_applied）。
+ * 真值完全取决于「前置步骤写入的 flag」的谓词（如 testPassed / e2e_verified）。
  * 这类谓词只读 ctx，dry-run 下必然是 false（没人写 flag），因此 false 不具权威性。
  * 反向例子：`build_artifacts_exist` / `*_mcp_available` 读的是文件与配置，现场就能求值。
  *
@@ -311,8 +302,6 @@ const RUNTIME_STATE_PREDICATES = new Set([
   'user_confirmed_open_design',
   'user_confirmed_refactor',
   'open_design_executed',
-  'fixes_applied',
-  'high_severity_found',
   'mobile_platform',
   'ios_platform',
   'android_platform',

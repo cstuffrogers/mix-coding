@@ -22,10 +22,7 @@ import { isConversationMode } from './lib/platform.js';
  * @property {boolean} [typecheckPassed] - TypeScript check passed
  * @property {boolean} [analyzeCompleted] - Competitive analysis completed
  * @property {boolean} [fixApplied] - Auto-fix was applied
- * @property {object} [securityScanResult] - Security scan outcome
- * @property {boolean} [securityScanResult.highSeverityFound]
- * @property {boolean} [securityScanResult.fixesApplied]
- * @property {number} [fixFailedCount] - Count of failed auto-fix attempts
+ * @property {boolean} [high_severity_found] - Security scan found high/critical issues
  * @property {number} [codeMetricsFindings] - Complexity violations found
  * @property {number} [antiPatternFindings] - Anti-patterns found
  * @property {string[]} [refactor_points] - Identified refactor targets

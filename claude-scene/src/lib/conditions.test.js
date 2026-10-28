@@ -126,13 +126,10 @@ describe('evaluateCondition', () => {
       expect(evaluateCondition('user_confirmed_refactor', { user_confirmed_refactor: true })).toBe(true);
     });
 
-    it('evaluates fix_failed_count >= 3', () => {
-      const key = 'fix_failed_count >= 3';
-      expect(evaluateCondition(key, { fixFailedCount: 5 })).toBe(true);
-      expect(evaluateCondition(key, { fixFailedCount: 2 })).toBe(false);
-      expect(evaluateCondition(key, {})).toBe(false);
-    });
-
+    // `fix_failed_count >= 3` / `migrationHighCount > 0` / `fixes_applied` / `high_severity_found`
+    // 四个谓词已被删除：全仓库没有任何场景条件引用它们（`fixFailedCount` 的唯一写入
+    // 紧跟着 process.exit(1)，没人读得到；`securityScanResult` 从来只被初始化成 {}）。
+    // 契约守卫见 conditions-contract.test.js：谓词要么被场景用到，要么不存在。
     it('evaluates user_mentioned_competitor_or_domain', () => {
       const key = 'user_mentioned_competitor_or_domain';
       expect(evaluateCondition(key, { prompt: '帮我做竞品分析' })).toBe(true);
