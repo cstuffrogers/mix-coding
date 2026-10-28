@@ -1536,3 +1536,59 @@ CLI 这一层什么都没执行，却都 `return` 一段纯字符串。引擎只
   都不算检查过。
 - **降级检查不许发通过结论**（knip fallback），要发就发 `warn` 并点名降级。
 - **门禁 flag 只能由真的做了检查的步骤写**，不许有「先自己盖章、下一步再验证」的循环。
+
+## 2026-10-28 第五轮：场景 params 契约 —— 「写了没人读」的开关
+
+前三轮解决的是「跑了但结论假」，这一轮问的是更前面一步：**场景里写的参数，引擎到底读没读？**
+用户勾了 `threshold: 80`、`retry: 3`、`base_branch: main`，引擎按自己的默认值跑完还报 ✓ ——
+不报错、不提示、日志里也看不出来。这类「静默失效」比假绿更难发现：连断言都写不出来。
+
+### 怎么审的（口径很关键）
+第一版审计脚本按 **handler 函数体** 判可达域，结论「308 行参数全是死的」→ 差点删掉：
+- `confirm.params.theme_selection` —— 读者在引擎层 `start.js`，不在 handler 里；
+- `ui-polish` 的 `invokeSkill.command` —— 读者是 `handlers/ui-polish.js` 的派发表。
+
+已经 `git checkout -- claude-scene/scenes .claude/scenes` 全量回滚一次。改口径为
+**`claude-scene/src` 全部非测试 JS** 后剩 41 个 `(action,key)` 组合、两副本共 126 处。
+
+### 二选一：接上去，或者删掉（不留「装饰性」参数）
+| 参数 | 处理 |
+|---|---|
+| `test-coverage.threshold` / `compare_to_baseline` / `block_on_fail` | 真解析 istanbul/jest 百分比 + 写 `.claude/coverage-baseline.json` + 阈值判定 |
+| `test-unit`/`run-suite` 的命令串 | 去掉 `|| true` / `2>&1`，只看退出码；「没跑成」与「跑挂了」分开 |
+| `checkGate.block_release/block_merge/block_critical` | 真置 `context.gateBlocked`（引擎 `handleStepError` 读它 abort） |
+| `checkGate.mode` / `gate` | strict 不发通过；具名门禁走 `evalNamedGate`，未知名字 warn 不冒名 |
+| `verify.mode=health_check` + `url/retry/timeout` | 真去敲 URL，失败按 retry 重试，最后 fail |
+| `notify.title/content/level/type` | 真写 `.claude/notifications.log`，空内容 → warn |
+| `git.createBranch.base_branch` / `createPR.auto_assign|auto_label` / `createTag.annotated` / `createRelease.body_ref|tag_ref|prerelease` | 全部进命令行；`body_ref` 取不到正文时明说「正文为空」 |
+| `autoFix.maxAttempts` | 真的循环 `eslint --fix` 直到退出码 0 |
+| `installDeps.frozen_lockfile` | `npm ci` |
+| `jscpd.minTokens` / `semgrep.ruleset` | `--min-tokens` / 声明与内置不一致时黄字告知 |
+| `ce-plan.detail_level|risk_analysis|tech_selection`、`invokeSkill.subcommand|dimensions` | 渲染成「本次要求: …」并写进结论（引导性 handler 的唯一可观测输出） |
+| `generateOptimizePlan.prioritize` / `generateRefactorPlan.include_tests` / `applyTransformations.preserve_behavior` | 渲染进返回文案 |
+| 其余 17 个键（`ecosystem`/`sourcemap`/`maxSteps`/`check_safety`/`multi_select`/`fullPage`…） | **从场景删除**（两副本共 86 行），不是留着当墓碑 |
+
+### 顺带修掉的三个坑
+- `handleCreateRelease` 以前「gh 出错一律 warn」→ 拆成「没装 = skip」/「装了但失败 = fail」；
+- `handleStartDevServer`、`applyTransformations` 之类「什么都没做却先写 `xxx_executed = true`」的旗子删掉；
+- `security/threat-scan` 的 `block_merge_on_critical` **不能**接 `gateBlocked`（那会连 review 报告都不出），
+  改成把「结论为不可合并」写进结论文字 —— 参数生效，语义不歪。
+
+### 新增常驻守卫
+`claude-scene/src/commands/params-contract.test.js`：场景 params 的每个键必须在引擎源码里出现，
+**零容忍、不设白名单**（真需要例外就在测试里显式列名 + 写理由，不许把断言改成「至少通过 N 个」）。
+
+### 验证
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **991 passed**（+28：verify/notify 契约 12、覆盖率闸门 8、checkGate 参数 6、params 契约 1） |
+| lint | `npm run lint` / `cd claude-scene && npx eslint . --max-warnings 0` | 0 problem |
+| 死码 | `npm run scan:deadcode` | Total dead 0 |
+| 26 场景 | 逐个 `--dry-run --auto` | 全部 exit 0 |
+| review 真跑 | `start review --auto --skip-sweep` | exit 0；pass 18 / fail 0 / warn 1（SkillSpector 105 问题）/ skip 19 / noop 5 |
+
+### 决策
+- **删键前必须把「引擎层读者」算进可达域** —— 只查 handler 会误删（已踩过，回滚过一次）。
+- **场景 JSON 是手工排版**：删键用行级编辑（含 CRLF 处理）+ `JSON.parse` 复核，禁止整体 `JSON.stringify` 重写。
+- **参数只有两种合法归宿**：接到真实行为上，或从场景删除。「保留以备将来」= 下次审计的噪声。
+- **参数生效不许改变语义**（`block_merge_on_critical` 不中止 review）。
