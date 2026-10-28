@@ -71,13 +71,13 @@ export function handleApiDocs(_action, params, targetPath, context) {
   try {
     const srcDir = join(targetPath, includeDir);
     if (!existsSync(srcDir)) {
-      return 'API 文档生成完成（无源文件目录）';
+      return { status: 'skip', message: `API 文档生成跳过：没有源文件目录 ${includeDir}` };
     }
 
     const { moduleMap, totalExports } = scanExports(targetPath, srcDir);
 
     if (totalExports === 0) {
-      return 'API 文档生成完成（无可提取内容）';
+      return { status: 'skip', message: 'API 文档生成跳过：源文件里没有可提取的导出' };
     }
 
     const apiDir = join(targetPath, 'docs', 'api');
@@ -99,7 +99,10 @@ export function handleApiDocs(_action, params, targetPath, context) {
   }
 
   if (context) context.apiDocsGenerated = docEntries;
-  return docEntries > 0 ? `API 文档已生成 (${docEntries} 个模块)` : 'API 文档生成完成（无可提取内容）';
+  // docEntries 为 0 说明一份文档都没写出来（提取报错或没导出），以前照样记 ✓ pass。
+  return docEntries > 0
+    ? `API 文档已生成 (${docEntries} 个模块)`
+    : { status: 'skip', message: 'API 文档未生成：没有写出任何模块文档（提取失败或无可提取内容）' };
 }
 
 // ── Changelog helpers ──

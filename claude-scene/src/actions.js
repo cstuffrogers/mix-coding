@@ -718,6 +718,14 @@ export const ACTION_REGISTRY = {
 
 // ── Dispatch ──
 
+/**
+ * 场景 step 的 action 到底有没有落点？试运行和巡检都靠它，
+ * 别只靠「跑一遍看看有没有报错」—— 没有处理器的步颩看起来什么都没发生。
+ */
+export function hasActionHandler(action) {
+  return typeof ACTION_REGISTRY[action] === 'function';
+}
+
 export async function executeAction(sceneId, action, params, context, targetPath) {
   try {
     if (action.startsWith('ce-')) {
@@ -731,14 +739,11 @@ export async function executeAction(sceneId, action, params, context, targetPath
     }
 
     // 未知动作以前静默返回「执行完成」—— 场景里 action 名写错也报 ✓ pass。
-    // ui-polish 有自己的一套 action 表（UI_POLISH_ACTIONS），不走这里，不报。
-    if (!hasActionMessage(action) && sceneId !== 'ui-polish') {
-      console.warn(`\n⚠️ 未知动作 "${action}"（既不在 ACTION_REGISTRY 也没有消息模板）—— 这一步什么都没做`);
-      if (context) context.unknownAction = action;
-      // 返回显式 warn：否则消息字符串会被当成「有输出」记 ✓ pass。
-      return { status: 'warn', message: getActionMessage(action) };
-    }
-    return getActionMessage(action);
+    // 也不能靠消息模板兜底：模板里有文案 ≠ 真的做了事。没处理器就一律 warn。
+    console.warn(`\n⚠️ 未知动作 "${action}"（ACTION_REGISTRY 里没有处理器）—— 这一步什么都没做`);
+    if (context) context.unknownAction = action;
+    // 返回显式 warn：否则消息字符串会被当成「有输出」记 ✓ pass。
+    return { status: 'warn', message: hasActionMessage(action) ? `${getActionMessage(action)}（未找到该动作的处理器，实际未执行）` : `未找到动作 "${action}" 的处理器` };
   } catch (error) {
     if (context) context.lastStepFailed = true;
     console.error(`\n⚠️ 执行 ${action} 时出错: ${error.message}`);

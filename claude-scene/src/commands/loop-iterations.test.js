@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveIterations, shouldStopLooping, deriveStepStatus, spinnerMethodFor, paintByStatus } from './start.js';
+import { resolveIterations, shouldStopLooping, deriveStepStatus, spinnerMethodFor, paintByStatus, normalizeStepStatus } from './start.js';
 
 // 回归：`claude-scene start loop --auto "循环10次"` 之前只是把「循环10次」当纯文本塞进
 // prompt —— 引擎根本没有迭代概念，一次就结束。现在 --iterations 才是真驱动。
@@ -73,8 +73,23 @@ describe('deriveStepStatus 显式状态', () => {
     expect(resultStr).toBe('类型检查跳过');
   });
 
-  it('未知 status 回落到文本启发式', () => {
-    expect(deriveStepStatus({ status: 'weird', message: '已跳过该步骤' }, { lastStepFailed: false }).stepStatus).toBe('noop');
+  // 以前认不出的 status 会掉回文本启发式：`{status:'error', message:'EACCES'}` 里没有
+  // 「失败」二字，就被记成 ✓ pass。现在认不出 = 状态不明 = warn（可见），绝不猜成 pass。
+  it('未知 status 记 warn，不回落文本启发式', () => {
+    expect(deriveStepStatus({ status: 'weird', message: '已跳过该步骤' }, { lastStepFailed: false }).stepStatus).toBe('warn');
+    expect(deriveStepStatus({ status: 'error', message: 'EACCES: permission denied' }, { lastStepFailed: false }).stepStatus).toBe('fail');
+  });
+
+  it('处理器的同义 status 归一成五态', () => {
+    expect(normalizeStepStatus('success')).toBe('pass');
+    expect(normalizeStepStatus('created')).toBe('pass');
+    expect(normalizeStepStatus('EXISTS')).toBe('noop');
+    expect(normalizeStepStatus('skipped')).toBe('skip');
+    expect(normalizeStepStatus('not_found')).toBe('skip');
+    expect(normalizeStepStatus('issues')).toBe('warn');
+    expect(normalizeStepStatus('failed')).toBe('fail');
+    expect(normalizeStepStatus()).toBeNull();
+    expect(normalizeStepStatus('')).toBeNull();
   });
 
   it('纯文本结果行为不变', () => {

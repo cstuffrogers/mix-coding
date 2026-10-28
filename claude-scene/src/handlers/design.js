@@ -109,12 +109,15 @@ export function deriveMetricsFromContext(context = {}) {
 export function handleAnalyzeConsistency(_action, _params, targetPath, context) {
 
   const findings = { good: [], warn: [] };
+  let scanned = 0;
+  let scanFailed = false;
 
   // Quick static check: count CSS variable usage vs hardcoded values across all CSS files
   try {
     const cssFiles = scanDir(targetPath, {
       filter: (f) => f.endsWith('.css') && !f.includes('node_modules'),
     }).slice(0, 30);
+    scanned = cssFiles.length;
 
     for (const p of cssFiles) {
       try {
@@ -133,14 +136,22 @@ export function handleAnalyzeConsistency(_action, _params, targetPath, context) 
     if (cssFiles.length === 0) {
       console.log(chalk.yellow('  ⚠ 未找到 CSS 文件进行一致性检查'));
     }
-  } catch { /* non-critical */ }
+  } catch {
+    scanFailed = true;
+  }
 
   if (context) {
     context.consistency_findings = findings;
     context.consistency_warn_count = findings.warn.length;
   }
 
-  return '设计一致性检查完成';
+  // 以前不管扫到什么都回「检查完成」→ 找出 20 处硬编码也记 ✓ pass，
+  // 根本没 CSS 文件也记 ✓ pass。这三条分别对应 出错 / 没扫到 / 有发现。
+  if (scanFailed) return { status: 'warn', message: '设计一致性检查未完成：扫描 CSS 时出错' };
+  if (scanned === 0) return { status: 'skip', message: '设计一致性检查跳过：项目里没有 CSS 文件' };
+  return findings.warn.length > 0
+    ? { status: 'warn', message: `设计一致性检查：${findings.warn.length}/${scanned} 个 CSS 文件的硬编码色值多于变量` }
+    : `设计一致性检查完成：${scanned} 个 CSS 文件，无硬编码色值超标`;
 }
 
 function checkExistingTokens(targetPath) {

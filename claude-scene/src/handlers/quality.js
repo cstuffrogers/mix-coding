@@ -23,12 +23,12 @@ export function handleApplyTemplate(_action, params, targetPath) {
   } else {
     console.log(chalk.dim('  无模板目录，模板应用需 Claude Code 对话上下文'));
   }
-  return `模板 ${template} 已应用（CLI 轻量模式）`;
+  return { status: 'noop', message: `模板 ${template} 未应用（CLI 不执行，需在对话模式由 agent 完成）` };
 }
 
 export function handleImplementLogic(_action, _params, _targetPath, context) {
   if (context) context.logic_implemented = true;
-  return '核心逻辑实现完成（CLI 轻量模式）';
+  return { status: 'noop', message: '核心逻辑未实现（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 
 function cleanNodeModules(targetPath, cleaned) {
@@ -98,18 +98,18 @@ export function handleAutoFix(_action, params, targetPath, context) {
 
 export function handleGenerateRefactorPlan(_action, _params, _targetPath, context) {
   if (context) context.refactor_plan_generated = true;
-  return '重构计划已生成（CLI 轻量模式）';
+  return { status: 'noop', message: '重构计划未生成（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 
 export function handleApplyTransformations(_action, params, _targetPath, context) {
   const transformations = params?.transformations || [];
   if (context) context.transformations_applied = true;
-  return `重构变换已应用（CLI 轻量模式）: ${transformations.join(', ')}`;
+  return { status: 'noop', message: `重构变换未应用（CLI 不执行，需在对话模式由 agent 完成）: ${transformations.join(', ')}` };
 }
 
 export function handleAnalyzeInterface(_action, _params, _targetPath, context) {
   if (context) context.interface_analyzed = true;
-  return '接口设计分析完成（CLI 轻量模式）';
+  return { status: 'noop', message: '接口设计未分析（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 
 export function handleDetectLanguage(_action, _params, targetPath, context) {

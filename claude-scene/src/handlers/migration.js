@@ -77,7 +77,7 @@ export function handleMigrationReview(_action, _params, targetPath, context) {
 
   if (migrationFiles.length === 0) {
     // Don't set Passed — let gate report as skipped (no migrations to review)
-    return '迁移审查完成（无迁移文件）';
+    return { status: 'skip', message: '迁移审查跳过：无迁移文件' };
   }
 
   const guardian = runGuardian(targetPath);

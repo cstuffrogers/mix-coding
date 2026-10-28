@@ -29,8 +29,9 @@ export function handleUpdateDeps(_action, params, targetPath) {
       safeExec('npm update 2>&1', targetPath, { stdio: 'pipe' });
     }
     return '依赖更新完成';
-  } catch {
-    return `依赖更新部分完成`;
+  } catch (e) {
+    // 以前只说「部分完成」—— 既像成功又像失败，最后靠正则只看到「完成」二字 → ✓ pass。
+    return { status: 'warn', message: `依赖更新未完成：${String(e.message).slice(0, 120)}` };
   }
 }
 

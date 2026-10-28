@@ -121,23 +121,24 @@ export function handleCreateRelease(_action, params, targetPath) {
     let cmd = `gh release create ${escapeArg(tag || 'latest')}`;
     if (title) cmd += ` --title ${escapeArg(title)}`;
     if (notes) cmd += ` --notes ${escapeArg(notes)}`;
-    cmd += ' 2>&1 || true';
+    // 以前这里拼了 `|| true`：gh 不存在 / 没登录也只是 exit 0，于是
+    // "Release 已创建: gh: command not found" 被记成 ✓ pass。
     const result = safeExec(cmd, targetPath, { stdio: 'pipe' }).toString().trim();
     return `Release 已创建: ${result}`;
-  } catch {
-    return 'Release 创建完成（CLI 轻量模式）';
+  } catch (e) {
+    return { status: 'warn', message: `Release 未创建：gh CLI 不可用（${String(e.message).split('\n')[0].slice(0, 80)}）（CLI 不执行，需在对话模式由 agent 完成）` };
   }
 }
 
 export function handleListReleases(_action, _params, targetPath) {
   try {
-    const result = safeExec('gh release list --limit 10 2>&1 || true', targetPath, { stdio: 'pipe' }).toString().trim();
+    const result = safeExec('gh release list --limit 10 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
     if (result) {
       return `Release 列表已获取`;
     }
     return 'Release 列表为空';
-  } catch {
-    return 'Release 列表获取完成（CLI 轻量模式）';
+  } catch (e) {
+    return { status: 'warn', message: `Release 列表未获取：gh CLI 不可用（${String(e.message).split('\n')[0].slice(0, 80)}）` };
   }
 }
 
@@ -178,10 +179,9 @@ export function handleCreateIssue(_action, params, targetPath) {
     let cmd = `gh issue create --title ${escapeArg(title)}`;
     if (body) cmd += ` --body ${escapeArg(body)}`;
     if (labels.length) cmd += ` --label ${escapeArg(labels.join(','))}`;
-    cmd += ' 2>&1 || true';
     const result = safeExec(cmd, targetPath, { stdio: 'pipe' }).toString().trim();
     return `Issue 已创建: ${result}`;
-  } catch {
-    return 'Issue 创建完成（CLI 轻量模式）';
+  } catch (e) {
+    return { status: 'warn', message: `Issue 未创建：gh CLI 不可用（${String(e.message).split('\n')[0].slice(0, 80)}）（CLI 不执行，需在对话模式由 agent 完成）` };
   }
 }

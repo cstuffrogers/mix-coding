@@ -149,30 +149,36 @@ describe('handleCheckGate', () => {
     expect(result).toContain('通过');
   });
 
-  it('skips checks not yet run', () => {
+  // 以前「全部检查都没跑」也报 通过 0/0 —— 一个检查都没执行却记 ✓ pass。
+  it('一个检查都没跑时不说「通过」', () => {
     const ctx = {};
     const result = handleCheckGate('check-gate', { checks: ['lint', 'typecheck', 'test'] }, '/tmp', ctx);
-    expect(result).toContain('通过');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('未执行');
   });
 
   it('blocks on high severity security finding', () => {
     const ctx = { securityScanResult: { highSeverityFound: true } };
     const result = handleCheckGate('check-gate', { checks: ['security'] }, '/tmp', ctx);
-    expect(result).toContain('阻断');
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('阻断');
     expect(ctx.lastStepFailed).toBe(true);
     expect(ctx.gateBlocked).toBe(true);
   });
 
-  it('flags unknown checks', () => {
+  // 认不出的检查名以前被默默吞掉（既不算 pass 也不算 fail），结果只报「通过 1/2」。
+  it('认不出的检查项要显式告警', () => {
     const ctx = { lintPassed: true };
     const result = handleCheckGate('check-gate', { checks: ['lint', 'unknown_check'] }, '/tmp', ctx);
-    expect(result).toContain('通过');
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('unknown_check');
   });
 
   it('handles failed checks', () => {
     const ctx = { lintPassed: false, typecheckPassed: true };
     const result = handleCheckGate('check-gate', { checks: ['lint', 'typecheck'] }, '/tmp', ctx);
-    expect(result).toContain('未通过');
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('未通过');
   });
 
   it('handles all gate check types', () => {

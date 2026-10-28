@@ -29,7 +29,9 @@ describe('handleMigrationReview', () => {
     mockExistsSync.mockReturnValue(false);
     const ctx = {};
     const result = handleMigrationReview('migration-review', {}, '/tmp', ctx);
-    expect(result).toContain('无迁移文件');
+    // 没有迁移文件 = 没审到东西 → skip，以前记 ✓ pass
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('无迁移文件');
     expect(ctx.migrationReviewPassed).toBeUndefined();
   });
 

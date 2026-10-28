@@ -357,7 +357,7 @@ function reportSkillspectorFindings(allFindings, context) {
 
 export function handleSkillspectorScan(_action, _params, targetPath, context) {
   const targets = buildScanTargets(targetPath);
-  if (targets.length === 0) return 'SkillSpector 扫描完成: 无技能目录';
+  if (targets.length === 0) return { status: 'skip', message: 'SkillSpector 扫描跳过: 没有技能目录' };
 
   const skillspectorCmd = _resolvePythonTool('skillspector', null);
   const hasLlmKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
@@ -526,7 +526,8 @@ export function handleJscpd(_action, _params, targetPath, context) {
     return '代码重复检测完成: 无重复';
   }
 
-  return '代码重复检测完成: 无法解析输出';
+  // 解析不了输出 = 没拿到结论，以前记 ✓ pass。
+  return { status: 'warn', message: '代码重复检测未完成: 无法解析 jscpd 输出' };
 }
 
 // ── Stryker — mutation testing (2.9k+ stars) ──

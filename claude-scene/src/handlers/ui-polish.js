@@ -185,12 +185,15 @@ function handleVerifyIconUpgrade(targetPath) {
   }
   return materialRefs === 0
     ? '验证通过: Material Icons/Symbols 引用数为 0'
-    : `验证完成: 仍有 ${materialRefs} 处 Material Icons/Symbols 引用`;
+    // 「仍有 N 处」以前只是普通文本 → 记 ✓ pass。没清干净就是没达成目标，至少得 ⚡ warn。
+    : { status: 'warn', message: `验证完成: 仍有 ${materialRefs} 处 Material Icons/Symbols 引用` };
 }
 
 function handleVerifyDaisyUIComponents(targetPath) {
   const files = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?)$/.test(f) });
-  const daisyClasses = /\b(btn|btn-primary|card|input-bordered|badge|tabs|select-bordered|textarea-bordered|btn-ghost)\b/g;
+  // 不带 g：带 g 的正则 .test() 会留下 lastIndex，在 for 循环里逐文件复用会漏判
+  // （第二个文件从上次命中的下标往后找），统计结果就是假的。
+  const daisyClasses = /\b(btn|btn-primary|card|input-bordered|badge|tabs|select-bordered|textarea-bordered|btn-ghost)\b/;
   let withDaisy = 0, total = files.filter(f => /\.(jsx|tsx)$/.test(f)).length;
   for (const f of files) {
     if (/\.(jsx|tsx)$/.test(f) && daisyClasses.test(readFileSync(f, 'utf-8'))) withDaisy++;
@@ -201,7 +204,7 @@ function handleVerifyDaisyUIComponents(targetPath) {
 
 function handleVerifyAnimations(targetPath) {
   const viewFiles = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?)$/.test(f) && !f.includes('node_modules') });
-  const animRe = /\b(animate-in|slide-in-from-bottom|slide-in-from-top|fade-in|slide-in-from-left|slide-in-from-right)\b/g;
+  const animRe = /\b(animate-in|slide-in-from-bottom|slide-in-from-top|fade-in|slide-in-from-left|slide-in-from-right)\b/;
   let withAnim = 0;
   for (const f of viewFiles) {
     if (animRe.test(readFileSync(f, 'utf-8'))) withAnim++;
@@ -213,12 +216,14 @@ function handleVerifyAnimations(targetPath) {
     animateCssRefs += (readFileSync(f, 'utf-8').match(/animate\.css|animate__/gi) || []).length;
   }
   const animMsg = animateCssRefs === 0 ? 'animate.css 引用为 0' : `仍有 ${animateCssRefs} 处 animate.css 引用`;
-  return `验证完成: ${withAnim}/${viewFiles.length} 视图文件使用自定义动画 (${pct}%), ${animMsg}`;
+  const message = `验证完成: ${withAnim}/${viewFiles.length} 视图文件使用自定义动画 (${pct}%), ${animMsg}`;
+  // 目标是「不再有 animate.css 引用」：还剩就是没做完，别按 pass 放过。
+  return animateCssRefs === 0 ? message : { status: 'warn', message };
 }
 
 function handleVerifyMicroInteractions(targetPath) {
   const files = scanDir(targetPath, { filter: (f) => /\.(jsx?|tsx?)$/.test(f) && !f.includes('node_modules') });
-  const microRe = /\b(hover:-translate-y-0\.5|hover:shadow-lg|active:scale-\[0\.98\]|transition-colors|hover-lift|hover-glow|active-press)\b/g;
+  const microRe = /\b(hover:-translate-y-0\.5|hover:shadow-lg|active:scale-\[0\.98\]|transition-colors|hover-lift|hover-glow|active-press)\b/;
   let withMicro = 0;
   for (const f of files) {
     if (microRe.test(readFileSync(f, 'utf-8'))) withMicro++;
@@ -239,7 +244,7 @@ function handleVerifyNoHardcodedIndigo(targetPath) {
   }
   return found === 0
     ? '验证通过: 硬编码 indigo 色在项目源码中为 0'
-    : `验证完成: 仍有 ${found} 处硬编码 indigo 色`;
+    : { status: 'warn', message: `验证完成: 仍有 ${found} 处硬编码 indigo 色` };
 }
 
 function handleCompletionGate(action, params, targetPath, context) {
@@ -250,7 +255,7 @@ function handleBrowserScreenshot() {
   return '浏览器截图需 Playwright MCP（对话模式执行），CLI 模式跳过';
 }
 
-const UI_POLISH_ACTIONS = {
+export const UI_POLISH_ACTIONS = {
   installDeps:        { handler: handleInstallDeps,        args: ['targetPath', 'theme'] },
   applyDaisyUI:       { handler: (action, params, targetPath, context) => applyDaisyUI(action, params, targetPath, context), args: ['action', 'params', 'targetPath', 'context'] },
   applyDaisyUIComponents: { handler: handleApplyDaisyUIComponents, args: ['targetPath', 'theme', 'context'] },

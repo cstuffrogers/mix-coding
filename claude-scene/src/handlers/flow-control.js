@@ -337,9 +337,27 @@ export function handleCheckGate(_action, params, _targetPath, context) {
   }
 
   const effectiveTotal = checks.length - results.skipped.length;
-  return results.blocked.length
-    ? `质量门禁阻断: ${results.blocked.join('; ')}`
-    : results.failed.length
-      ? `质量门禁未通过: ${results.failed.join('; ')}`
-      : `质量门禁通过: ${results.passed.length}/${effectiveTotal}`;
+  // 全部检查项都没有结果时以前报「质量门禁通过: 0/0」→ 一个检查都没跑却记 ✓ pass。
+  // 没执行不是通过；认不出的检查名也不能被默默吞掉。
+  if (effectiveTotal === 0) {
+    return {
+      status: 'skip',
+      message: `质量门禁未执行：${checks.join(', ')} 都没有结果（对应步骤未跑或未记录）`,
+    };
+  }
+  if (results.unknown.length) {
+    return {
+      status: 'warn',
+      message: `质量门禁部分无法判定：${results.unknown.join(', ')} 不是已知检查项（已执行：${results.passed.length}/${effectiveTotal}）`,
+    };
+  }
+  // 阻断/未通过直接给显式 fail：以前只靠 lastStepFailed + 「未通过」文案，
+  // 而「未通过」不含「失败」，任何一个调用方忘了看 lastStepFailed 就成假绿。
+  if (results.blocked.length) {
+    return { status: 'fail', message: `质量门禁阻断: ${results.blocked.join('; ')}` };
+  }
+  if (results.failed.length) {
+    return { status: 'fail', message: `质量门禁未通过: ${results.failed.join('; ')}` };
+  }
+  return `质量门禁通过: ${results.passed.length}/${effectiveTotal}`;
 }

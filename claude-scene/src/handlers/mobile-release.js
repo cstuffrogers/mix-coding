@@ -164,7 +164,7 @@ export function handleGrayReleaseConfig(_action, _params, _targetPath, context) 
 export function handleIosRelease(_action, params, _targetPath, context) {
   const lane = params?.lane || 'beta';
   if (context) context.ios_released = true;
-  return `iOS ${lane} 发布完成（CLI 轻量模式）`;
+  return { status: 'noop', message: `iOS ${lane} 未发布（CLI 不执行，需在对话模式由 agent 完成）` };
 }
 
 // ── Android Release ──
@@ -172,5 +172,5 @@ export function handleIosRelease(_action, params, _targetPath, context) {
 export function handleAndroidRelease(_action, params, _targetPath, context) {
   const track = params?.track || 'internal';
   if (context) context.android_released = true;
-  return `Android ${track} 发布完成（CLI 轻量模式）`;
+  return { status: 'noop', message: `Android ${track} 未发布（CLI 不执行，需在对话模式由 agent 完成）` };
 }

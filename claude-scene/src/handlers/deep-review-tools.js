@@ -228,7 +228,8 @@ export function handleSemgrepScan(_action, _params, targetPath, context) {
   } catch (e) {
     console.log(chalk.dim(`  ⚠ semgrep 执行失败: ${String(e.message).slice(0, 120)}`));
     if (context) context.semgrepSkipped = true;
-    return 'Semgrep 跳过: 执行失败';
+    // 工具装上但跑不起来 ≠ 没什么可查，以前和「未安装」一样当跳过，实际是扫描缺席。
+    return { status: 'warn', message: `Semgrep 未完成：执行失败（${String(e.message).slice(0, 80)}）` };
   }
 
   const { findings, ruleErrors, parseErrors, parseFailed } = parseSemgrepJson(raw);

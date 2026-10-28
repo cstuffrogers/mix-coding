@@ -505,7 +505,7 @@ export function handleVisualRegression(_action, params, targetPath, context) {
   const packagePath = path.join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
     if (context) context.visualRegressionPassed = false;
-    return '视觉回归测试完成（无 package.json）';
+    return { status: 'skip', message: '视觉回归测试跳过：目标目录没有 package.json' };
   }
 
   try {

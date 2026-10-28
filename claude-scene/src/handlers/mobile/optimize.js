@@ -11,13 +11,14 @@ export function handleMeasureBaseline(_action, params, _targetPath, context) {
   }
 
   if (context) context.performance_baseline = baseline;
-  return `性能基线测量完成（${metrics.length} 项指标）`;
+  // 所有指标都是 device_required（真机才能测），以前却报「测量完成（5 项指标）」→ ✓ pass。
+  return { status: 'noop', message: `性能基线未测量：${metrics.length} 项指标都需要真机` };
 }
 
 export function handleAnalyzeBundle(_action, params, targetPath, context) {
 
   if (context) context.bundle_analyzed = true;
-  return 'Bundle 分析完成（CLI 轻量模式）';
+  return { status: 'noop', message: 'Bundle 未分析（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 
 export function handleAnalyzeAssets(_action, _params, targetPath, context) {

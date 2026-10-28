@@ -7,8 +7,8 @@ import inquirer from 'inquirer';
 import ora from 'ora';
 import { evaluateCondition, explainCondition } from '../lib/conditions.js';
 import { resolveParams } from '../lib/template.js';
-import { executeAction } from '../actions.js';
-import { executeUIPolish } from '../handlers/ui-polish.js';
+import { executeAction, hasActionHandler } from '../actions.js';
+import { executeUIPolish, UI_POLISH_ACTIONS } from '../handlers/ui-polish.js';
 import { applyEnhancements } from '../lib/enhancements.js';
 import { PROJECT_ROOT, resolveScenePath, describePaths } from '../lib/paths.js';
 import { detectHandlerFailure } from '../lib/failure-detection.js';
@@ -556,14 +556,23 @@ function applyPostStepContext(step, context, sceneId) {
   }
 }
 
-function printSummary(sceneId) {
+function printSummary(sceneId, context = null) {
   console.log(chalk.dim(`\n${'─'.repeat(40)}`));
   const { pass, fail, skip, noop, warn } = LOG_SUMMARY;
   const failIcon = fail > 0 ? chalk.red(`  ✗ fail: ${fail}`) : chalk.green('  ✗ fail: 0');
   const warnIcon = warn > 0 ? chalk.yellow(`  ⚡ warn: ${warn}`) : chalk.green('  ⚡ warn: 0');
   const noopIcon = noop > 0 ? chalk.yellow(`  ⚠ noop: ${noop}`) : chalk.green('  ⚠ noop: 0');
   console.log(chalk.cyan(`  Scene: ${sceneId}  `) + chalk.green(`✓ pass: ${pass}  `) + failIcon + warnIcon + chalk.gray(`  ⏭ skip: ${skip}  `) + noopIcon);
-  if (fail > 0 || noop > 0 || warn > 0) {
+  // skip 里混着两种东西：条件明确不满足，和「运行时键没人写过，根本没法判」。
+  // 后者没跑 ≠ 不该跑，汇总里必须点名，否则就是静默跳过。
+  const unjudged = context?._unjudgedSteps || [];
+  if (unjudged.length > 0) {
+    console.log(chalk.yellow(`  ⚠ ${unjudged.length} 个步骤因运行时状态未判定被跳过（没跑，不等于不该跑）：`));
+    for (const item of unjudged.slice(0, 10)) {
+      console.log(chalk.yellow(`     Step ${item.step} ${item.description}（缺 ${item.keys.join(', ')}）`));
+    }
+  }
+  if (fail > 0 || noop > 0 || warn > 0 || unjudged.length > 0) {
     console.log(chalk.dim(`  日志: ${LOG_PATH}`));
   }
   console.log(chalk.dim('─'.repeat(40)));
@@ -580,12 +589,12 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
 
   if (step.on_error === 'abort') {
     console.log(chalk.red(`\n✖ Step ${step.step} 失败（on_error=abort），工作流中止`));
-    printSummary(sceneId);
+    printSummary(sceneId, context);
     process.exit(1);
   }
   if (step.on_error === 'fail_workflow') {
     console.log(chalk.red(`\n✖ Step ${step.step} 失败（on_error=fail_workflow），安全阻断，工作流中止`));
-    printSummary(sceneId);
+    printSummary(sceneId, context);
     process.exit(1);
   }
   if (step.on_error === 'retry') {
@@ -800,13 +809,52 @@ export function deriveStepStatus(result, context) {
 
 const EXPLICIT_STATUSES = new Set(['pass', 'fail', 'skip', 'noop', 'warn']);
 
+/**
+ * 处理器自己的 status 词汇表（success/created/error/exists…）→ 引擎五态。
+ * 以前只认五个值的白名单，其余全部掉进「拿 message 正则猜」：
+ * `{ status: 'error', message: 'EACCES: permission denied' }` 里没有「失败」二字，
+ * 于是被记成 ✓ pass —— 43 处 return 都踩在这条缝上。
+ * 映射原则：只有「真的做了事」才 pass；「什么都不用做」= noop；
+ * 「输入不在了」= skip；「有发现」= warn；「出错」= fail。
+ */
+const STATUS_ALIASES = new Map([
+  ['success', 'pass'],
+  ['ok', 'pass'],
+  ['complete', 'pass'],
+  ['completed', 'pass'],
+  ['done', 'pass'],
+  ['created', 'pass'],
+  ['applied', 'pass'],
+  ['failed', 'fail'],
+  ['failure', 'fail'],
+  ['error', 'fail'],
+  ['skipped', 'skip'],
+  ['not_found', 'skip'],
+  ['notfound', 'skip'],
+  ['missing', 'skip'],
+  ['exists', 'noop'],
+  ['already_exists', 'noop'],
+  ['unchanged', 'noop'],
+  ['warning', 'warn'],
+  ['partial', 'warn'],
+  ['issues', 'warn'],
+]);
+
+/** 认不出的 status 一律 warn（可见），绝不回落到正则把「没准确定状态」猜成 pass */
+export function normalizeStepStatus(status) {
+  if (typeof status !== 'string' || !status.trim()) return null;
+  const key = status.trim().toLowerCase();
+  if (EXPLICIT_STATUSES.has(key)) return key;
+  return STATUS_ALIASES.get(key) ?? 'warn';
+}
+
 /** 处理器返回 { status, message } 时以 status 为准（不再被正则误判为 pass）。 */
 function getExplicitStatus(result) {
   if (!result || typeof result !== 'object') return null;
   // 缺“交互层”的处理器（gatherRequirements / confirmAttestation）返回 interactive：
   // 没人回答就等于没做，记 skip 而不是 pass。
   if (result.status === 'interactive') return 'skip';
-  return EXPLICIT_STATUSES.has(result.status) ? result.status : null;
+  return normalizeStepStatus(result.status);
 }
 
 function recordStepResult(step, stepNum, status, duration, resultStr, context) {
@@ -884,15 +932,27 @@ function finishInteractiveStep(sceneId, step, context) {
   recordInteractiveStep(step, context);
 }
 
+/**
+ * 条件里的键从头到尾没人写过 → 这一步既不算「不满足」也不算跑过。
+ * 单独抽出来，免得 runStep 的认知复杂度撞到 sonarjs 的 15 上限。
+ */
+function noteUnjudgedStep(step, stepNum, unknown, context, options) {
+  const line = `  ❓ 未判定 Step ${stepNum}: ${step.description || step.action}（依赖运行时状态：${unknown.join(', ')}）`;
+  console.log(options.dryRun ? chalk.gray(line) : chalk.yellow(line));
+  context._unjudgedConditions = (context._unjudgedConditions || 0) + 1;
+  context._unjudgedSteps = context._unjudgedSteps || [];
+  context._unjudgedSteps.push({ step: stepNum, description: step.description || step.action, keys: unknown });
+}
+
 async function runStep(sceneId, step, context, options) {
   const stepNum = step.step;
 
   if (step.condition && !evaluateCondition(step.condition, context)) {
     const { unknown } = explainCondition(step.condition, context);
     if (unknown.length > 0) {
-      // 试运行不执行步骤，这些键要等前面的步骤跑完才有 —— 不能报「条件不满足」。
-      console.log(chalk.gray(`  ❓ 未判定 Step ${stepNum}: ${step.description || step.action}（依赖运行时状态：${unknown.join(', ')}）`));
-      context._unjudgedConditions = (context._unjudgedConditions || 0) + 1;
+      // 真实执行里同样会出现：条件依赖的键从头到尾没人写过 —— 那一步就不会跑。
+      // 以前一律灰色一行带过，汇总里只多一个 skip，看着像「条件不满足」。
+      noteUnjudgedStep(step, stepNum, unknown, context, options);
     } else {
       console.log(chalk.gray(`  ⏭ 跳过 Step ${stepNum}: ${step.description || step.action}（条件不满足）`));
     }
@@ -1003,23 +1063,41 @@ export function parseAttestFlag(raw) {
   if (['false', '0', 'no', 'n', '否', '关'].includes(text)) return false;
 }
 
-function previewDryRunStep(step, context, options = {}) {
+/**
+ * 一个 step 到底有没有落点：交互层由 handleInteractiveStep 拦，ui-polish 有自己一套表，
+ * 其余必须能在 ACTION_REGISTRY 里找到处理器。
+ */
+function hasStepHandler(sceneId, step) {
+  if (step.layer === 'interactive') return true;
+  if (hasActionHandler(step.action)) return true;
+  return sceneId === 'ui-polish' && Boolean(UI_POLISH_ACTIONS[step.action]);
+}
+
+function previewCondition(step, context) {
+  if (!step.condition) return;
+  const { met, unknown } = explainCondition(step.condition, context);
+  const verdict = met
+    ? chalk.green('满足')
+    : (unknown.length > 0
+      ? chalk.yellow(`未判定（运行时状态：${unknown.join(', ')}）`)
+      : chalk.red('不满足'));
+  console.log(chalk.gray(`     └─ 条件 [${step.condition}]: ${verdict}`));
+  if (!met && unknown.length > 0) context._unjudgedConditions = (context._unjudgedConditions || 0) + 1;
+}
+
+function previewDryRunStep(step, context, options = {}, sceneId = '') {
   const icon = LAYER_ICONS[step.layer] || '📦';
   const stepIcon = step.auto_execute === false ? '⏸' : '▶';
   const autoLabel = step.auto_execute === false ? '需确认' : '自动';
   const desc = step.description || step.action;
   console.log(chalk.dim(`  ${stepIcon} Step ${step.step} [${autoLabel}] ${icon}`));
   console.log(chalk.gray(`     └─ ${desc}`));
-  if (step.condition) {
-    const { met, unknown } = explainCondition(step.condition, context);
-    const verdict = met
-      ? chalk.green('满足')
-      : (unknown.length > 0
-        ? chalk.yellow(`未判定（运行时状态：${unknown.join(', ')}）`)
-        : chalk.red('不满足'));
-    console.log(chalk.gray(`     └─ 条件 [${step.condition}]: ${verdict}`));
-    if (!met && unknown.length > 0) context._unjudgedConditions = (context._unjudgedConditions || 0) + 1;
+  // 试运行以前只看条件，不看 action 有没有处理器 —— 名字写错/表里漏掉的步骤
+  // 在预览里是「▶ Step N 自动」一行，跑起来也只是一行看不出问题的输出。
+  if (!hasStepHandler(sceneId, step)) {
+    console.log(chalk.red(`     └─ ✖ 这个 action 没有任何处理器（实跑只会记 warn，什么都没做）`));
   }
+  previewCondition(step, context);
   if (step.action === 'selectSetupKind') {
     const override = resolveChoiceOverride(step, options.kind);
     if (override.warning) console.log(chalk.yellow(`     └─ ⚠ ${override.warning}`));
@@ -1079,7 +1157,7 @@ function countFindings(context) {
 async function runFlow(sceneId, scene, context, options) {
   for (const step of scene.flow) {
     if (options.dryRun) {
-      previewDryRunStep(step, context, options);
+      previewDryRunStep(step, context, options, sceneId);
       continue;
     }
     await runStep(sceneId, step, context, options);
@@ -1149,6 +1227,6 @@ export async function startScene(sceneId, options) {
     context._sceneId = sceneId;
     await executeAction(sceneId, 'autoRemember', {}, context, context.targetPath || PROJECT_ROOT);
     enforceAcceptanceGate(scene, context, sceneId);
-    printSummary(sceneId);
+    printSummary(sceneId, context);
   }
 }
