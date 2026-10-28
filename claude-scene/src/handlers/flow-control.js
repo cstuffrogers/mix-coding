@@ -15,12 +15,21 @@ const CE_DESCRIPTIONS = {
 };
 
 export function handleSelect(_action, params, _targetPath, context) {
-  if (params?.options && params.options.length > 0) {
-    const selected = context?.selectedOption || params.options[0];
-    if (context) context.selectedOption = selected;
-    return `选择完成：${selected}`;
+  const options = params?.options || [];
+  const labelOf = opt => (typeof opt === 'string' ? opt : (opt.label ?? opt.id));
+  if (options.length === 0) {
+    return { status: 'fail', message: '没有可选项：该步骤需要人工选择，引擎不会凭空生成答案' };
   }
-  return '选择完成（无选项）';
+  // 以前取 options[0]。release 的版本类型第一项就是 major，于是 --auto 下
+  // 静默按大版本发布；现在没有答案就诚实报错，不装成“选完了”。
+  const selected = context?.selectedOption;
+  if (!selected) {
+    return {
+      status: 'fail',
+      message: `需要人工选择（${options.map(labelOf).join(' / ')}）：非交互模式下不再默认取第一项`,
+    };
+  }
+  return `选择完成：${selected}`;
 }
 
 export function handleConfirm(_action, params, _targetPath, context) {
@@ -228,19 +237,23 @@ export function handleAnalyze(_action, params, targetPath, context) {
 
 export function handleChoose(_action, params, _targetPath, context) {
   const { options } = params || {};
-  const choices = (options || []).map(opt => {
-    if (typeof opt === 'object' && opt.label) return { label: opt.label, description: opt.description || '' };
-    return { label: opt, description: '' };
-  });
-  if (choices.length > 0) {
-    const selected = choices[0].label;
-    if (context) {
-      context.selectedOption = selected;
-      if (context._sceneId === 'design') context.design_selected = selected;
+  const labelOf = opt => (typeof opt === 'object' ? (opt.label ?? opt.id) : opt);
+  const labels = (options || []).map(labelOf).filter(Boolean);
+
+  // 以前这里取第一项当“已选择”——release 的第一项是 major，rollback 的第一项是
+  // 空数组里不存在的目标。选项列表本身是给人看的，不是默认值。
+  const selected = context?.selectedOption;
+  if (!selected) {
+    if (labels.length === 0) {
+      return { status: 'fail', message: '无可用选项：该步骤需要外部提供候选（动态列表尚未实现）' };
     }
-    return `已选择: ${selected}`;
+    return {
+      status: 'fail',
+      message: `需要人工选择（${labels.join(' / ')}）：非交互模式下不再默认取第一项`,
+    };
   }
-  return '无可用选项';
+  if (context && context._sceneId === 'design') context.design_selected = selected;
+  return `已选择: ${selected}`;
 }
 
 function buildReportSections(context) {
@@ -274,16 +287,14 @@ export function handleReport(_action, params, targetPath, context) {
 }
 
 export function handleAskUser(_action, params, _targetPath, context) {
-  const type = params?.type || 'confirm';
-  const defVal = params?.default;
-  const answer = type === 'confirm' ? (defVal !== undefined ? defVal : true) : (defVal || '');
-
-  if (context) {
-    context.user_confirmed = answer;
-    context[`asked_${params?.key || 'generic'}`] = answer;
-  }
-
-  return `用户应答: ${answer}`;
+  // 走到这里说明交互层没拦住（或调用方直接 dispatch）：绝不能替用户编一个答案。
+  // 以前 auto 下返回 default / true，plan-ceo-review 的「请确认目标功能」就这样被自动点头。
+  const prompt = params?.prompt || params?.message || '（该步骤未声明问题文本）';
+  if (context) context[`asked_${params?.key || 'generic'}`] = undefined;
+  return {
+    status: 'fail',
+    message: `需要人工回答：${prompt}（非交互模式下不代答；用 --yes / --decline 表态，或先问用户）`,
+  };
 }
 
 function evalSecurityGate(check, context) {

@@ -12,6 +12,12 @@ description: Safe dependency update: check outdated → update one-by-one → te
 /deps
 ```
 
+
+## 非交互环境（agent / pi / 脚本代跑）
+
+step 5 需要人工回答：依赖更新策略（已声明安全默认「安全更新」）。没有 TTY 也没传表态时，引擎会**停在该步并 exit 2**（不会替你取默认值）。
+此时先把问题问用户，再按答案重跑：`--choice 全量更新|小版本更新|补丁更新` 覆盖默认。如果是「真终端」里用户自己跑，引擎会弹确认。
+
 ## 执行流程
 
 ### Phase 0: Pre-flight 准备（对话模式）

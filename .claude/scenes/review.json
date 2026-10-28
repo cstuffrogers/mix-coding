@@ -236,7 +236,8 @@
         "prompt": "是否现在现场跑一次探测器自检（detector-sweep，约 1~2 分钟，需工作区干净）？选否则只读上一份记录",
         "default": false,
         "context_flag": "withSweep",
-        "auto_default": false
+        "flag_label": "探测器自检 sweep（现场跑，约 1~2 分钟）",
+        "ask_even_in_auto": true
       },
       "description": "询问是否在审查前现场跑一次探测器自检",
       "auto_execute": false,

@@ -290,7 +290,13 @@ export function handlePersist(_action, _params, targetPath, context) {
 
 export function handleDesignInput(_action, params, _targetPath, context) {
   const { key } = params || {};
-  if (key && context) context[key] = params?.default || '';
+  const value = params?.default ?? '';
+  // 以前无条件写空字符串然后报「已接收」——onboard 的“填写缺失环境变量”就成了
+  // 假完成。没值就不写，并明说这步没真正完成。
+  if (key && context && value) context[key] = value;
+  if (!value) {
+    return { status: 'warn', message: `设计输入「${key || '未命名'}」没有值：非交互模式下无从填写，该步骤未真正完成` };
+  }
   return '设计输入已接收';
 }
 

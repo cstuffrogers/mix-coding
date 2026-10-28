@@ -52,6 +52,10 @@ program
   .option('-F, --force-iterations', '发现数不下降也把 --iterations 轮数跑满（默认会提前收敛退出）')
   .option('-e, --strict-enclosure', '边界越限立即中止整个工作流（默认只判该步骤失败并继续）')
   .option('-S, --with-sweep', 'review 前现场跑一次探测器自检（2~3 分钟，需工作区干净），否则 2.7 只能读旧记录')
+  .option('--skip-sweep', 'review 明确跳过现场自检；非交互环境下代替用户回答「不跑」')
+  .option('-y, --yes', '对需要确认的步骤（提交/推送/发布/回滚/自动重构…）统一回答「是」；非交互环境下代替用户表态')
+  .option('--decline', '对需要确认的步骤统一回答「否」；非交互环境下代替用户表态（--no 在 commander 里是取反语法，故用此名）')
+  .option('--choice <value>', '对需要单选的步骤（版本类型/更新策略/性能问题/回滚目标…）直接给值，不再默认取第一项')
   .option('--no-fold', '不折叠步骤输出（默认超过 6 行的 pass/warn 输出折成摘要，完整内容落盘 .claude/logs/）')
   // 旧习惯 `start loop --auto "需求"` 会把需求当多余位置参数直接报错退出。
   // 允许通过，但明确提示应该写 -p，并把它当需求用（否则用户只看到一行 red 报错）。

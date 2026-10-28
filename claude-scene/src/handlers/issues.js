@@ -25,8 +25,13 @@ export function handleVerifyFix(_action, _params, targetPath) {
     const result = safeExec('npx vitest run 2>&1', targetPath, { stdio: 'pipe' }).toString();
     const isPassed = !result.includes('failed') && !result.includes('FAIL');
     return isPassed ? '修复验证通过' : '修复验证: 测试失败';
-  } catch {
-    return '修复验证完成（无测试运行器）';
+  } catch (err) {
+    // 以前 catch 里返回「修复验证完成（无测试运行器）」→ 记 pass。
+    // 测试器都跑不起来，就等于没验证 —— 只能是 warn，不能是 pass。
+    return {
+      status: 'warn',
+      message: `修复验证未执行：测试运行器不可用（${String(err?.message || err).split('\n')[0].slice(0, 80)}）—— Bug 修复未经测试验证`,
+    };
   }
 }
 

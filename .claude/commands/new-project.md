@@ -14,6 +14,12 @@ argument-hint: "[项目描述]"
 /new-project "Vue3 + Express full-stack blog with auth"
 ```
 
+
+## 非交互环境（agent / pi / 脚本代跑）
+
+step 3.5 需要人工回答：「是否需要 Open Design 开发 UI？」。没有 TTY 也没传表态时，引擎会**停在该步并 exit 2**（不会替你取默认值）。
+此时先把问题问用户，再按答案重跑：`--yes` / `--decline`。如果是「真终端」里用户自己跑，引擎会弹确认。
+
 ## 执行流程
 
 ### Phase 0: Pre-flight 准备（对话模式）

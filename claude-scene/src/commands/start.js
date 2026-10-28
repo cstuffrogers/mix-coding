@@ -156,56 +156,214 @@ function applyDescriptionFlag(stepDesc, enabled, context) {
   return true;
 }
 
-function setContextFlag(step, context, options) {
+function setContextFlag(step, context, options, answer) {
   // Prefer structured context_flag param; fall back to description sniffing
   const flag = step.params?.context_flag;
   if (flag) {
-    // auto 模式没人能回答，取 auto_default（默认 true，其它场景语义不变）。
+    // 没人回答时（--auto 且没问）取 auto_default（默认 true，其它场景语义不变）。
     // 所以「默认不跑」的交互步骤必须显式写 auto_default: false。
     const autoDefault = step.params?.auto_default ?? true;
-    context[flag] = options.auto ? autoDefault : context._confirmAnswer;
-    console.log(chalk[context[flag] ? 'green' : 'gray'](`\n${context[flag] ? '✅ 已启用' : '⏭ 跳过'} ${flag}`));
+    const answered = answer !== undefined;
+    context[flag] = answered ? answer : (options.auto ? autoDefault : false);
+    // 打印裸 flag 名（withSweep）等于没说人话，优先用 flag_label。
+    const label = step.params?.flag_label || flag;
+    const suffix = answered ? '' : '（未询问，取默认值）';
+    console.log(chalk[context[flag] ? 'green' : 'gray'](`\n${context[flag] ? '✅ 已启用' : '⏭ 跳过'} ${label}${suffix}`));
     return true;
   }
 
   const stepDesc = step.description?.toLowerCase() || '';
-  const enabled = !options.auto ? context._confirmAnswer : true;
+  const enabled = !options.auto ? (answer ?? context._confirmAnswer) : true;
   return applyDescriptionFlag(stepDesc, enabled, context);
 }
 
-async function handleConfirmDialog(step, options, context) {
+/**
+ * --auto 的语义是「不打断」，但有些步骤的默认值代价太高、藏起来就成了暗坑：
+ * review 的 detector-sweep 会临时改写工作区、跑 2~3 分钟，静默按「不跑」处理，
+ * 用户只会看到 2.7 报「自检记录已过期」，却不知道是自己没被问过。
+ * 所以标了 ask_even_in_auto 的步骤即便带 --auto 也问一句 —— 但只在真终端问：
+ * 没有 TTY（CI、agent 子进程、管道）时 inquirer 会挂死或抛错，必须退回 auto_default。
+ */
+export function shouldPromptInAuto(step, { isTTY = Boolean(process.stdin.isTTY) } = {}) {
+  if (step?.params?.ask_even_in_auto !== true) return false;
+  return isTTY;
+}
+
+/**
+ * 交互步骤的统一闸门：记下「这步要人回答」，由 runStep 中止（exit 2）并叫调用方去问人。
+ * confirm / choose-select / input 三类入口共用，保证同一套行为：
+ * 没人可问 → 不猜、不装通过、不留默认值。
+ */
+function markAwaiting(context, step, { prompt, label, hints = [] }) {
+  context._awaitingAnswer = {
+    step: step.step,
+    prompt: String(prompt || step.description || step.action).trim(),
+    label: label || step.description || step.action,
+    hints,
+  };
+}
+
+/** 命令行显式表态：--yes / --decline（--no 在 commander 里是取反语法，不能用） */
+function explicitConfirmDecision(options) {
+  if (options?.yes === true) return true;
+  if (options?.decline === true) return false;
+  return undefined;
+}
+
+/** 把步骤文案里的 ${ctxKey} 渲染出来，让用户看到「到底在确认什么」 */
+export function renderPromptText(text, context = {}) {
+  return String(text ?? '').replace(/\$\{(\w+)\}/g, (whole, key) => {
+    const v = context?.[key];
+    return v === undefined || v === null || v === '' ? whole : String(v);
+  });
+}
+
+/** 打印「这步要人回答但没人可问」的告示，给出可重跑的选项，然后中止 */
+export function reportAwaitingAnswer(awaiting, stepNum) {
+  console.log(chalk.red(`\n✖ Step ${stepNum} 需要人工回答，但当前是非交互环境（无 TTY），引擎不会替你猜：`));
+  console.log(chalk.bold(`   ${awaiting.prompt}`));
+  const hints = awaiting.hints?.length ? awaiting.hints : [
+    { flag: '-S, --with-sweep', text: '用户答「跑」：审查前现场执行 sweep（约 1~2 分钟，需工作区干净）' },
+    { flag: '--skip-sweep', text: '用户答「不跑」：明确跳过' },
+  ];
+  console.log(chalk.yellow('\n   调用方（agent / 脚本）必须先把这个问题问用户，再按答案重跑：'));
+  for (const h of hints) console.log(`     ${String(h.flag).padEnd(22)}${h.text}`);
+  console.log(chalk.gray('   都不传 => 再次停在同一个问题，不会静默取默认值。'));
+  console.log(chalk.gray(`   决策标签：${awaiting.label}`));
+}
+
+export async function handleConfirmDialog(step, options, context) {
   if (step.params?.type !== 'confirm' || !step.params?.prompt) return false;
 
-  if (!options.auto) {
+  // 1) 用户已经表过态：-S / --skip-sweep（sweep 专用）、--yes / --decline（通用）
+  const raw = context?.sweepDecision
+    ?? (options.withSweep === true ? 'run' : (options.skipSweep === true ? 'skip' : undefined))
+    ?? explicitConfirmDecision(options);
+  if (raw !== undefined) {
+    setContextFlag(step, context, options, typeof raw === 'string' ? raw === 'run' : raw);
+    return true;
+  }
+
+  // 2) 有人可问：真终端（含带 --auto 但标了 ask_even_in_auto 的步骤）
+  if (!options.auto || shouldPromptInAuto(step)) {
     const answers = await inquirer.prompt([
       { type: 'confirm', name: 'confirm', message: step.params.prompt, default: step.params.default || false },
     ]);
-    context._confirmAnswer = answers.confirm;
-    setContextFlag(step, context, options);
-  } else {
-    setContextFlag(step, context, options);
+    setContextFlag(step, context, options, answers.confirm);
+    return true;
   }
+
+  // 3) 场景显式声明了 auto 模式下的取值（auto_default）——这是被人写进场景的决定，不是引擎猜的。
+  if (step.params?.auto_default !== undefined) {
+    setContextFlag(step, context, options, step.params.auto_default);
+    return true;
+  }
+
+  // 4) 无人可问且没声明默认：交回 runStep 中止。
+  // 静默按「不跑」处理过一轮，结果就是用户以为问过、实际没人问过。
+  markAwaiting(context, step, {
+    prompt: step.params.prompt,
+    label: step.params.flag_label || step.params.context_flag || step.description || step.action,
+    hints: [
+      { flag: '--yes', text: '回答「是 / 要」' },
+      { flag: '--decline', text: '回答「否 / 不要」' },
+      ...(step.params.context_flag === 'withSweep'
+        ? [{ flag: '-S / --skip-sweep', text: 'sweep 专用表态（等价于 --yes / --decline）' }]
+        : []),
+    ],
+  });
   return true;
 }
 
-async function handleOptionSelection(step, options, context, sceneId) {
-  if (!step.params?.options || options.auto) return handleModeSelection(step, options, context);
-
-  const choices = step.params.options.map(opt => {
-    if (typeof opt === 'object' && opt.label) {
-      return { name: opt.label, value: opt.label };
-    }
-    return { name: opt, value: opt };
+/** options 可能是字符串 / {id,label} / {label,description} 三种写法，统一成 {id,label,description} */
+export function toChoices(decl) {
+  return (decl || []).map((o) => {
+    if (typeof o === 'string') return { id: o, label: o, description: '' };
+    const id = o.id ?? o.label;
+    return { id, label: o.label ?? o.id ?? String(id), description: o.description || '' };
   });
-  const answers = await inquirer.prompt([{
-    type: 'list', name: 'selectedOption', message: step.description || '请选择：',
-    choices,
-  }]);
-  context.selectedOption = answers.selectedOption;
-  if (sceneId === 'design') {
-    context.design_selected = answers.selectedOption;
+}
+
+/**
+ * 单选步骤：choose / select / input。
+ * 以前 --auto 下走 handleChoose/handleSelect 直接取 options[0] —— release 的版本类型
+ * 第一个恰是 major，于是静默按大版本发布。现在只有三种合法来源：
+ * 命令行的 --choice、场景显式声明的 auto_default、真终端现场选；都没有就中止去问人。
+ */
+export async function handleOptionSelection(step, options, context, sceneId) {
+  const decl = Array.isArray(step.params?.options) ? step.params.options : null;
+  const dynamicOpts = step.params?.dynamic_options;
+
+  // 环境变量这类「填空」步骤：没值就等于没做，不能再写个空字符串报「已接收」。
+  if (step.action === 'input') {
+    if (options.auto && step.params?.default === undefined) {
+      markAwaiting(context, step, {
+        prompt: renderPromptText(step.params?.message || step.description, context),
+        label: step.description || step.action,
+        hints: [{ flag: '（补齐后重跑）', text: '先把缺的值写进 .env / 环境变量，再重跑本场景' }],
+      });
+      return true;
+    }
+    return false;
   }
-  console.log(chalk.green(`\n✅ 已选择：${answers.selectedOption}\n`));
+
+  // 动态选项（如 rollback 的 recent_releases）没有取数实现：以前返回
+  // 「无可用选项」还记 pass，等于回滚目标由空气决定。现在直接要人给。
+  if (!decl || decl.length === 0) {
+    if (!dynamicOpts) return handleModeSelection(step, options, context);
+    markAwaiting(context, step, {
+      prompt: `${renderPromptText(step.params?.message || step.description, context)}\n   （引擎不会自己取「${dynamicOpts}」列表，需要你直接给出目标）`,
+      label: step.description || step.action,
+      hints: [{ flag: '--choice <目标>', text: `手动指定该项（如 ${dynamicOpts === 'recent_releases' ? 'v1.2.0' : '具体值'}）` }],
+    });
+    return true;
+  }
+
+  const choices = toChoices(decl);
+  const ids = choices.map(c => c.id).filter(Boolean);
+
+  const apply = (selected) => {
+    context.selectedOption = selected;
+    context.choiceDecision = selected;
+    if (sceneId === 'design') context.design_selected = selected;
+    console.log(chalk.green(`\n✅ 已选择：${selected}\n`));
+  };
+
+  // 1) 命令行显式指定
+  const requested = context.choiceDecision ?? options.choice;
+  if (requested !== undefined && requested !== '' && requested !== true) {
+    const override = resolveChoiceOverride({ params: { options: choices } }, requested);
+    if (override.id) { apply(override.id); return true; }
+    console.log(chalk.yellow(`  ⚠ ${override.warning}（不会静默取默认值）`));
+  }
+
+  // 2) 真终端现场选
+  if (!options.auto) {
+    const answers = await inquirer.prompt([{
+      type: 'list',
+      name: 'selectedOption',
+      message: step.params?.message || step.description || '请选择：',
+      choices: choices.map(c => ({ name: c.description ? `${c.label} — ${c.description}` : c.label, value: c.id })),
+    }]);
+    apply(answers.selectedOption);
+    return true;
+  }
+
+  // 3) 场景显式声明的安全默认
+  if (step.params?.auto_default !== undefined) {
+    const override = resolveChoiceOverride({ params: { options: choices } }, step.params.auto_default);
+    const fallback = override.id ?? String(step.params.auto_default);
+    apply(fallback);
+    console.log(chalk.gray(`   （按场景声明的 auto_default 取值）`));
+    return true;
+  }
+
+  // 4) 谁都没表态：中止，由调用方去问人
+  markAwaiting(context, step, {
+    prompt: renderPromptText(step.params?.message || step.description, context),
+    label: step.description || step.action,
+    hints: [{ flag: '--choice <值>', text: `可选：${ids.join(' / ')}` }],
+  });
   return true;
 }
 
@@ -217,7 +375,10 @@ async function handleModeSelection(step, options, context) {
   );
 
   if (options.auto) {
+    // 默认模式来自场景里逐项声明的 default:true（不是引擎猜的第一项），但要让它可见：
+    // 否则“本次审查到底跑了哪几套”只能靠翻 JSON 才知道。
     context.selected_modes = withDefaults.filter(o => o.default).map(o => o.id);
+    console.log(chalk.gray(`\n⚙ ${step.description || '模式'}：按场景声明的默认值 → ${context.selected_modes.join(', ') || '（无）'}（--mode 可覆盖）`));
     return true;
   }
 
@@ -262,13 +423,15 @@ async function handleSingleChoice(step, options, context) {
   const opts = step.params.options.map(o =>
     typeof o === 'string' ? { id: o, label: o, default: false } : o,
   );
-  const fallback = opts.find(o => o.default) ?? opts[0];
+  // 以前 fallback = opts[0]：没写 default 就等于默认第一项，等于替用户拍板。
+  // 现在只认场景显式声明的 default；没写就得人回答。
+  const fallback = opts.find(o => o.default);
 
   // CLI 覆盖（--kind monitor）优先于默认值：pi 里的 agent 是非交互的，
   // 没有这条就只能永远拿到 default 那一支。
   const override = resolveChoiceOverride(step, options.kind);
   if (override.warning) {
-    console.log(chalk.yellow(`  ⚠ ${override.warning}（改用默认 ${fallback?.id}）`));
+    console.log(chalk.yellow(`  ⚠ ${override.warning}${fallback ? `（改用默认 ${fallback.id}）` : '（该步未声明默认值，需要人回答）'}`));
   }
   if (override.id) {
     context[contextKey] = override.id;
@@ -279,7 +442,16 @@ async function handleSingleChoice(step, options, context) {
   }
 
   if (options.auto) {
-    context[contextKey] = fallback?.id;
+    if (fallback) {
+      context[contextKey] = fallback.id;
+      console.log(chalk.gray(`\n⏭ ${step.description || step.action}：按场景声明的默认值 ${fallback.id}`));
+      return true;
+    }
+    markAwaiting(context, step, {
+      prompt: step.params.prompt || step.description || '请选择：',
+      label: step.description || step.action,
+      hints: [{ flag: '--kind <值>', text: `可选：${opts.map(o => o.id).join(' / ')}` }],
+    });
     return true;
   }
 
@@ -422,27 +594,53 @@ function loadScene(sceneId) {
 }
 
 /** 处理确认型步骤；返回 true 表示已完全处理，调用方应提前返回 */
-async function handleConfirmation(step, options, context) {
+export async function handleConfirmation(step, options, context) {
   const isConfirmationStep = step.action === 'confirm' || !!step.confirm_message;
   const confirmMsg = isConfirmationStep ? (step.confirm_message || step.params?.message) : null;
   if (!confirmMsg) return false;
 
-  if (options.auto) {
+  const shown = renderPromptText(confirmMsg, context);
+
+  // 1) 命令行已明确表态：--yes 放行 / --decline 拒绝
+  const decided = context.confirmDecision ?? explicitConfirmDecision(options);
+  if (decided !== undefined) {
+    context.user_confirmed = decided;
+    console.log(chalk[decided ? 'green' : 'gray'](`\n${decided ? '✅ 已确认' : '⏭ 已拒绝'}（命令行显式表态）：${shown.split('\n')[0]}`));
+    return step.action === 'confirm';
+  }
+
+  // 2) 有人可问：真终端
+  if (!options.auto) {
+    const answers = await inquirer.prompt([
+      { type: 'confirm', name: 'proceed', message: shown, default: true },
+    ]);
+    context.user_confirmed = answers.proceed;
+    if (!answers.proceed) {
+      console.log(chalk.yellow(`  ⏭ 用户跳过 Step ${step.step}`));
+      LOG_SUMMARY.total++;
+      LOG_SUMMARY.skip++;
+      appendLog({ step: step.step, action: step.action, status: 'skip', reason: 'user', time: new Date().toISOString() });
+      return true;
+    }
+    return step.action === 'confirm';
+  }
+
+  // 3) 场景显式声明 auto 下可自动放行（auto_confirm: true）才走这条
+  if (step.params?.auto_confirm === true) {
     context.user_confirmed = true;
     return step.action === 'confirm';
   }
 
-  const answers = await inquirer.prompt([
-    { type: 'confirm', name: 'proceed', message: confirmMsg, default: true },
-  ]);
-  context.user_confirmed = answers.proceed;
-  if (!answers.proceed) {
-    console.log(chalk.yellow(`  ⏭ 用户跳过 Step ${step.step}`));
-    LOG_SUMMARY.total++;
-    LOG_SUMMARY.skip++;
-    appendLog({ step: step.step, action: step.action, status: 'skip', reason: 'user', time: new Date().toISOString() });
-    return true;
-  }
+  // 4) 没人可问：以前这里直接 user_confirmed = true —— 于是「是否提交代码 / 是否执行
+  // 回滚 / 是否发布」在 --auto 下全部被自动点头，push_remote 也照旧。现在一律要人回答。
+  markAwaiting(context, step, {
+    prompt: shown,
+    label: step.description || step.action,
+    hints: [
+      { flag: '--yes', text: '确认并继续（用户已看过上面的清单）' },
+      { flag: '--decline', text: '不确认，跳过后续受 user_confirmed 控制的部分' },
+    ],
+  });
   return step.action === 'confirm';
 }
 
@@ -489,6 +687,11 @@ function formatResultForDisplay(result) {
   if (result === undefined || result === null) return '';
   if (typeof result === 'object') {
     if (typeof result.message === 'string') return result.message;
+    // status:'interactive' 以前渲染成「步骤已完成（状态：interactive）」并记 pass ——
+    // plan 的“收集需求/认证确认”在 CLI 下根本没发生，却看起来完了。
+    if (result.status === 'interactive') {
+      return `需人工回答（未执行）：${result.prompt ?? '该步骤需交互输入'}`;
+    }
     return `步骤已完成（状态：${result.status ?? 'success'}）`;
   }
   return String(result);
@@ -535,6 +738,9 @@ const EXPLICIT_STATUSES = new Set(['pass', 'fail', 'skip', 'noop', 'warn']);
 /** 处理器返回 { status, message } 时以 status 为准（不再被正则误判为 pass）。 */
 function getExplicitStatus(result) {
   if (!result || typeof result !== 'object') return null;
+  // 缺“交互层”的处理器（gatherRequirements / confirmAttestation）返回 interactive：
+  // 没人回答就等于没做，记 skip 而不是 pass。
+  if (result.status === 'interactive') return 'skip';
   return EXPLICIT_STATUSES.has(result.status) ? result.status : null;
 }
 
@@ -572,7 +778,25 @@ async function runStep(sceneId, step, context, options) {
     return;
   }
 
-  if (await handleInteractiveStep(sceneId, step, context, options)) return;
+  if (await handleInteractiveStep(sceneId, step, context, options)) {
+    // 该问而无人可问：不落默认值、不装通过，直接中止并叫调用方去问人。
+    if (context._awaitingAnswer) {
+      const awaiting = context._awaitingAnswer;
+      context._awaitingAnswer = undefined;
+      LOG_SUMMARY.total++; LOG_SUMMARY.fail++;
+      appendLog({ step: stepNum, action: step.action, status: 'fail', reason: 'needs-answer', detail: awaiting.label, time: new Date().toISOString() });
+      reportAwaitingAnswer(awaiting, stepNum);
+      printSummary(sceneId);
+      process.exit(2);
+    }
+    // 交互步骤以前直接 return，日志和汇总里一点痕迹都没有 —— 观感上等于「这步不存在」。
+    // 补一条 skip 记录（reason: interactive）并带上决策结果，方便事后追问「到底问没问」。
+    const flag = step.params?.context_flag;
+    const detail = flag ? `${flag}=${context[flag]}` : undefined;
+    LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
+    appendLog({ step: stepNum, action: step.action, status: 'skip', reason: 'interactive', detail, time: new Date().toISOString() });
+    return;
+  }
 
   const spinner = ora({ text: `执行中: ${step.action}...`, color: 'cyan' }).start();
   const resolvedParams = resolveParams(step.params, context);
@@ -649,6 +873,8 @@ function buildSceneContext(options) {
     sweepForced: Boolean(options.withSweep),
     // 交互步骤 2.68 会把它改成用户的当场选择（默认 false，未选就不跑）
     withSweep: Boolean(options.withSweep),
+    // 用户是否已就 sweep 明确表态（-S 跑 / --skip-sweep 不跑）；undefined = 没表态
+    sweepDecision: options.withSweep === true ? 'run' : (options.skipSweep === true ? 'skip' : undefined),
   };
 }
 

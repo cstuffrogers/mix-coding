@@ -108,7 +108,8 @@
             "label": "全量更新",
             "description": "更新所有依赖到最新版本（风险最高）"
           }
-        ]
+        ],
+        "auto_default": "安全更新"
       },
       "description": "选择依赖更新策略",
       "auto_execute": false,

@@ -28,6 +28,21 @@ argument-hint: "[模式: code_review/full_audit/analyze_only/security_deep/quali
 | `/audit` | `/review` + 勾选"全量审计" |
 | `/analyze` | `/review` + 勾选"仅分析" |
 
+## Step 2.68：开工前必问 sweep
+
+审查开始前，**必须**先问用户一句（不是可选项）：
+
+> 是否现在现场跑一次探测器自检（detector-sweep，约 1~2 分钟，需工作区干净）？
+> 不跑的话 Step 2.7 只读上一份记录，记录过期会报 warn。
+
+拿到答案后再跑命令：
+
+- 用户答「跑」→ `claude-scene start review --auto -S`
+- 用户答「不跑」→ `claude-scene start review --auto --skip-sweep`
+
+为什么不能直接跑：引擎在无 TTY（agent 子进程）时不会替你取默认值，会停在 Step 2.68 并 **exit 2** 把问题打出来；
+真终端里它自己会弹确认（即使带 `--auto`）。两种情况都不要拿「不加参数重跑」当跳过。
+
 - **安全漏洞扫描** (`step 4`, `sec-bug-hunt`)：SQLi / XSS / 命令注入（BLOCK-MERGE 级别）
 - **ReDoS 正则扫描** (`step 4.1`, `recheck-cli`)：灾难性回溯检测
 - **开放重定向** (`step 4.2`)：URL 参数注入风险

@@ -12,6 +12,12 @@ description: Emergency rollback: identify target version → verify safety → e
 /rollback
 ```
 
+
+## 非交互环境（agent / pi / 脚本代跑）
+
+step 3/5 需要人工回答：回滚目标版本 + 二次确认。没有 TTY 也没传表态时，引擎会**停在该步并 exit 2**（不会替你取默认值）。
+此时先把问题问用户，再按答案重跑：`--choice <版本>` + `--yes` 确认回滚。如果是「真终端」里用户自己跑，引擎会弹确认。
+
 ## 执行流程
 
 ### Phase 0: Pre-flight 准备（对话模式）

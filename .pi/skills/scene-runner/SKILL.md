@@ -57,11 +57,59 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 
 当用户调用场景命令（如 /review）时：
 
-1. 按上表映射命令到场景名（旧命令走"已合并命令"映射）
+1. 按上表映射命令到场景名（旧命令走“已合并命令”映射）
 2. 在**当前工作目录**直接执行：
    `claude-scene start <scene> --auto`
 3. 可加 `--target <路径>` 审查其他目录；`--dry-run` 只看不执行
 4. 向用户报告输出
+
+## 交互闸门：exit 2 = 要你去问用户（所有场景通用）
+
+场景里 `auto_execute: false` 的步骤（确认类 / 单选类 / 填空类）在**非 TTY** 环境下
+（你在对话里代跑就是这种）**不会替你猜答案**。没人问也没表态时，引擎中止并 **exit 2**，屏幕上打出：
+
+```
+✖ Step X 需要人工回答，但当前是非交互环境（无 TTY），引擎不会替你猜：
+   <问题原文>
+   调用方（agent / 脚本）必须先把这个问题问用户，再按答案重跑：
+     <可选 flag + 含义>
+```
+
+此时你要做的只有一件事：**把问题转给用户，拿到答案后带对应 flag 重跑**。
+
+| 情况 | flag |
+|------|------|
+| 确认类（提交/推送/发布/回滚/自动重构…） | `--yes` 或 `--decline` |
+| 单选类（版本类型/更新策略/性能问题/回滚目标…） | `--choice <值>` |
+| 填空类（缺失环境变量） | 让用户先补 `.env` / 环境变量，再重跑 |
+| review 的 sweep（2.68） | `-S`（跑） / `--skip-sweep`（不跑） |
+| setup 的设施类型（0） | `--kind e2e\|monitor\|property` |
+
+涉及场景：`feature`(9)、`release`(6)、`rollback`(3/5)、`deps`(5)、`optimize`(4/7/10)、
+`refactor`(12)、`ui-polish`(6)、`mobile-release`(4)、`bugfix`(8)、`onboard`(6)、
+`new-project`(3.5)、`review`(2.68)
+
+**禁止**：
+- 不加 flag 重跑（会再停在同一个问题）；
+- 把 exit 2 当失败去重试或忽略；
+- 自己替用户选一个值（比如默认 `major`/`--yes` 推送）再跑。
+
+> 已声明安全默认值的步骤不会停：`deps` 的更新策略默认「安全更新」、`selectModes` 勾选
+> 场景里 `default: true` 的模式（如 review 的 code_review + security_deep）、`setup` 默认 e2e。
+> 引擎会把这些默认值**打印出来**（`⏭ ... 按场景声明的默认值`），不会静默。
+
+## review 的 sweep 提问（必须转达，不能自己猜）
+
+review 场景 Step 2.68 要问「是否现在现场跑一次探测器自检（detector-sweep）」。三种情形：
+
+- 用户在**真终端**自己跑 → 引擎弹确认（带 `--auto` 也弹，该步骤标了 `ask_even_in_auto`）。
+- **你在对话里代跑**（无 TTY）且没传决策 → 引擎在 2.68 **中止，exit code 2**，并打印那个问题。
+  它不会替你取默认值。**此时你必须把这个问题原样问用户**，然后按答案重跑：
+  - 用户答「跑」 → `claude-scene start review --auto -S`（现场自检，约 1~2 分钟，需工作区干净）
+  - 用户答「不跑」 → `claude-scene start review --auto --skip-sweep`（Step 2.7 只读旧记录，过期会 warn）
+- 已传 `-S` / `--skip-sweep` → 引擎不再问，直接执行。
+
+**禁止**：不要拿「不加参数重跑」当跳过（会又停在同一个问题上），也不要把 exit 2 当失败去重试或忽略。
 
 ## 示例
 

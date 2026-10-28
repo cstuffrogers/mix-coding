@@ -12,11 +12,12 @@ vi.mock('chalk', () => {
 });
 
 describe('handleSelect', () => {
-  it('selects default first option when no prior selection', () => {
+  it('没有答案时不再默认取第一项，而是明确失败', () => {
     const ctx = {};
     const result = handleSelect('select', { options: ['react', 'vue', 'svelte'] }, '/tmp', ctx);
-    expect(result).toContain('react');
-    expect(ctx.selectedOption).toBe('react');
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('react');
+    expect(ctx.selectedOption).toBeUndefined();
   });
 
   it('uses existing selection if already set', () => {
@@ -28,7 +29,8 @@ describe('handleSelect', () => {
   it('handles empty options', () => {
     const ctx = {};
     const result = handleSelect('select', {}, '/tmp', ctx);
-    expect(result).toBe('选择完成（无选项）');
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('没有可选项');
   });
 });
 
@@ -84,58 +86,59 @@ describe('handleVerify', () => {
 });
 
 describe('handleChoose', () => {
-  it('auto-selects first option and sets context', () => {
+  // 这两条旧用例断言的正是本轮的 bug：--auto 下取 options[0]，release 的第一项
+  // 恰好是 major，于是静默按大版本发布。现在没有答案就必须报错。
+  it('无答案时报失败，不默认取第一项', () => {
     const ctx = { _sceneId: 'design' };
     const result = handleChoose('choose', {
       message: '选择设计风格',
       options: ['modern', 'classic', 'minimal'],
     }, '/tmp', ctx);
-    expect(ctx.selectedOption).toBe('modern');
-    expect(ctx.design_selected).toBe('modern');
-    expect(result).toContain('modern');
+    expect(result.status).toBe('fail');
+    expect(ctx.selectedOption).toBeUndefined();
+    expect(ctx.design_selected).toBeUndefined();
   });
 
-  it('handles object-style options with labels', () => {
-    const ctx = {};
-    handleChoose('choose', {
-      options: [
-        { label: 'DaisyUI', description: '35+ themes' },
-        { label: 'Animal Island', description: 'Nature style' },
-      ],
+  it('使用交互层/命令行已经写入的选择', () => {
+    const ctx = { selectedOption: 'classic' };
+    const result = handleChoose('choose', {
+      options: [{ label: 'modern' }, { label: 'classic' }],
     }, '/tmp', ctx);
-    expect(ctx.selectedOption).toBe('DaisyUI');
+    expect(result).toBe('已选择: classic');
+  });
+
+  it('空选项列表时报失败，不再返回「无可用选项」当通过', () => {
+    const result = handleChoose('choose', { options: [] }, '/tmp', {});
+    expect(result.status).toBe('fail');
   });
 });
 
 describe('handleAskUser', () => {
-  it('auto-answers confirm with default true', () => {
+  // 以前 auto 下返回 default / true，plan-ceo-review 的「请确认目标功能」被自动点头。
+  it('不替用户编答案：永远返回 needs-answer 失败', () => {
     const ctx = {};
-    const result = handleAskUser('askUser', {
-      prompt: '确认继续？',
-      type: 'confirm',
-    }, '/tmp', ctx);
-    expect(ctx.user_confirmed).toBe(true);
-    expect(result).toContain('true');
+    const result = handleAskUser('askUser', { prompt: '确认继续？', type: 'confirm' }, '/tmp', ctx);
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('确认继续？');
+    expect(ctx.user_confirmed).toBeUndefined();
   });
 
-  it('uses provided default value', () => {
-    const ctx = {};
-    handleAskUser('askUser', {
-      prompt: '确认？',
-      type: 'confirm',
-      default: false,
-    }, '/tmp', ctx);
-    expect(ctx.user_confirmed).toBe(false);
-  });
-
-  it('auto-answers text prompts', () => {
+  it('即使给了 default 也不代答', () => {
     const ctx = {};
     const result = handleAskUser('askUser', {
-      prompt: '输入名称',
-      type: 'text',
-      default: 'my-app',
+      prompt: '确认？', type: 'confirm', default: false,
     }, '/tmp', ctx);
-    expect(result).toContain('my-app');
+    expect(result.status).toBe('fail');
+    expect(ctx.user_confirmed).toBeUndefined();
+  });
+
+  it('文本型问题同样不代答', () => {
+    const ctx = {};
+    const result = handleAskUser('askUser', {
+      prompt: '输入名称', type: 'text', default: 'my-app',
+    }, '/tmp', ctx);
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('输入名称');
   });
 });
 
