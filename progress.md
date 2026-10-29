@@ -2440,3 +2440,101 @@ determinable:false}` —— 左边已经确定假，结果就是假，与 b 无�
 - **上限截断要出声**：不是失败，但也不该默默发生。
 - **探针实证要固化成测试**：`zz-verify` 的结论落成 `acceptance-check.test.js` 的跨模块用例
   （真 handler 给 skip + 该 skip 让 `unreviewedChange=true`），否则下次谁把 warn 加回来都没人拦。
+
+---
+
+## 第十七轮（2026-10-29）· 三个「看起来跑过」的通道
+
+> 议题由第十六轮末尾给出，用户选「全部」：
+> ①`on_error: abort` 会不会吞掉已跑过的证据；②`noop` 的语义与下游；
+> ③`context` 键跨轮残留。
+
+### 审计结论（先证据、后改代码）
+
+**维度① 中止的证据**：`printSummary` 的中止分支只列「未通过 / 未执行」的步骤，
+已 pass 的成果一个字不提；`LOG_PATH` 只在 `fail/noop/warn/未判定` 时才打印；
+日志只有 `{event:'start'}` 头，**没有终点事件** —— 事后读日志分不清「中止在这」
+和「日志被截断」。所有 `printSummary` 调用点都是终态（9 处），可以安全地在那里收尾。
+
+**维度② noop 的语义**（实测三处，两真一假）：
+- 真：`actions.js` 未知动作返回 `warn` +「这一步没有执行」。实测把 `verify` 写成
+  `verifyy` → `warn` → 门禁 `PASSING_RE` 命中 → **exit 0**（什么都没执行，全绿）。
+- 真：`issues/quality/mobile-release` 六个 noop 分支置 `fixApplied / ticket_closed /
+  logic_implemented / interface_analyzed / ios_released / android_released`，
+  消息写着「未做」旗标却写「已做」（`fixApplied` 还会被 memory 写进会话记录）。
+- 假（我原以为的假红）：`qa` / `update` 场景被「有变更但验证未通过」拦下 —— 查日志
+  发现 `generateQAReport` / `writeUpdateLog` 都是 **pass**（真写了文件），门禁拦得对。
+  真正的假红只在「edit 步骤是 noop」时出现，用 `zz-noop` 复现：改前 exit 1 且宣称
+  「本次工作流有变更」，改后 exit 0 + 一行「变更类步骤未真正执行（fix），本次没有实际改动」。
+
+**维度③ context 跨轮残留**：`aislop_issue_count` / `review_issue_count` 都是每轮覆盖写。
+第 2 轮若跳过扫描步骤，收敛判断读到的是第 1 轮的数 → 「发现数未下降（5 → 5），停止空转」，
+那个 5 与本轮无关。另外两个扫描器在**工具没跑成**时也照写计数器（`aislop` 写 `total`、
+`review` 写 `issues.length`），那个 0 会被读成「本轮没有发现」→ 提前结束（假绿）。
+
+### 修复
+
+| 文件 | 改动 |
+|---|---|
+| `actions.js` | 未知动作 `warn` → `skip`，文案带「不是通过」；控制台/日志/返回值同口径 |
+| `lib/finding-count.js`（新） | `recordFindingCount`（写值 + 打轮次戳）、`countMeasuredFindings`（只认本轮，否则 `null`） |
+| `handlers/aislop.js` | `ranOk` 为假时不写发现数（原来写 0 → 「本轮没有发现」） |
+| `handlers/review.js` | 一个检查都没跑成（`summary.ran` 为空）时不写发现数 |
+| `commands/start.js` | `countFindings` 委托 `countMeasuredFindings`；`buildEndLogEntry` + `printSummary` 统一写终点事件；`printCompletedSteps` 列出中止前已 pass 的步骤；中止一律打印日志路径；「本轮没有可数的发现」文案改成「扫描步骤没跑成，或场景里没有扫描步骤」 |
+| `lib/acceptance-check.js` | 变更类步骤按状态判定（`pass/warn/fail` 才算改了），新增 `inertEditSteps`；`classifyCompletedStep` 拆出以过复杂度 |
+| `handlers/issues.js` `quality.js` `mobile-release.js` | 六个 noop 分支删掉「已做」旗标（没发生就不写，也不写 `false`） |
+| `commands/step-status-contract.test.js` | 词表补「没有执行/没有运行/没跑成/没有实测」——原表只有「未执行」，正是漏网原因 |
+
+### 守卫测试
+
+- `loop-iterations.test.js`：轮次戳三态（本轮写过 / 上一轮的旧值 / 从没写过）；
+  **静态守卫**「引擎里只有 `finding-count.js` 能直接写 `*_issue_count`」（扫 `src/` 全部非测试文件）。
+- `acceptance-check.test.js`：noop/skip 的变更类步骤不算「有变更」、`fail` 算
+  （写了一半也是写）、pass 仍然要验证（收紧 noop 不是拆门禁）、无 `stepResults` 仍是 presence-only。
+- `summary-integrity.test.js`：`buildEndLogEntry` 的中止/完成两态；终点事件必须写在
+  `printSummary` 里；中止分支必须带 `aborted` 才打印日志路径。
+- `false-green-guard.test.js`：把「未知验证动作」与 `checkAcceptance` 接起来 ——
+  `verifyy` 的 skip 不能把门禁逗过去。
+
+### 自探针（4 次注入 → 点名 → 字节级回滚 → 复绿）
+
+| # | 注入 | 谁点名 |
+|---|---|---|
+| 1 | 未知动作改回 `status:'warn'` | `step-status-contract.test.js`「warn 文案里没有「未执行/未测量/不是通过…」」 |
+| 2 | `checkAcceptance` 改回只看动作名（`changed = true`） | `acceptance-check.test.js`「noop 的变更类步骤不算「有变更」」 |
+| 3 | `countMeasuredFindings` 忽略轮次戳 | `loop-iterations.test.js`「上一轮的计数器不能当本轮的发现数」 |
+| 4 | 删掉 `appendLog(buildEndLogEntry(...))` | `summary-integrity.test.js`「printSummary 是唯一终点」 |
+
+做法：单行锚点 + `if (!before.includes(anchor)) throw new Error('PROBE injection failed')`
+（CRLF 文件里多行 `replace` 会静默不匹配），备份用仓库相对路径 `.probe-bak`，
+`finally` 里 `copyFileSync` 复原后删备份。四次都 `failed=true, named=true`，回滚后
+`git status` 只剩本轮 14 个改动文件 + 1 个新文件。
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1225 passed / 97 files**（本轮前 1215/97） |
+| lint | `npx eslint .` | 0 problems |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 problems |
+| 死码 | `npm run scan:deadcode` | Total dead 0 |
+| 26 场景 | 逐个 `start <scene> --dry-run --auto` | exit 0 ×26 |
+| review 真跑（本仓库） | `start review --auto --skip-sweep` | pass 16 / fail 0 / warn 2 / skip 21 / noop 4，**EXIT=0**（与第十六轮基线一致） |
+| 假红复现/修复 | `zz-noop`（fix→noop + verifyFix→skip） | 改前 **exit 1**「本次工作流有变更」→ 改后 **exit 0** + 「变更类步骤未真正执行（fix），本次没有实际改动」 |
+| 假绿复现/修复 | `zz-typo`（writeFile + `verifyy`） | 改前 **exit 0**（warn 被当已审阅）→ 改后两步都是 skip + 门禁不认 |
+| 真的改过仍然拦 | `qa` / `update` 场景（报告真写盘、验证跑不了） | 均 **exit 1**（门禁没被削弱） |
+| 中止证据 | `zz-abort`（recall → writeFile → verify） | 屏幕列出「中止前已完成（pass）1 步：Step 1 recall」+ 日志路径；日志末行 `{"event":"end","status":"aborted","reason":"验收阻断：变更未通过验证",…}` |
+| 完成态终点 | `zz-noop` | 日志末行 `{"event":"end","status":"completed","reason":null,"summary":{…},"completed_steps":2}` |
+| 迭代收敛 | `zz-scan --iterations 2` | 扫描步骤没跑成 → 「本轮没有可数的发现（扫描步骤没跑成，或场景里没有扫描步骤）」+ 按轮数跑满 |
+
+### 决策
+- **`skip` 也可以很响**：控制台 `console.warn` + 日志里写明原因，比把没执行标成 `warn` 更诚实；
+  「响」不等于「状态往高处写」。
+- **`warn` 属于「跑过」，`skip` 属于「没跑」**，别为了让它显眼就把没跑写成跑过。
+- **凡是被门禁消费的状态，判定口径必须按状态、不按名字**：动作名只能回答「这类步骤该不该有」，
+  不能回答「这次到底改了没」。
+- **noop 分支不许留「已做」旗标**：没发生就不写；写 `false` 也是谎（本轮压根没试过）。
+- **跨轮共享的 context 要有归属**：值本身不够，得知道它是哪一轮写的 —— 所以打轮次戳而不是清空。
+- **中途退出必须留下两样东西**：已完成的步骤（可复用）+ 日志终点事件（可核对）。
+- **失败原因也要能被验证**：本轮我最初的「qa/update 是假红」结论是错的，查日志才推翻 —— 
+  「改之前先把现象和状态对上」比「看着像 bug 就改」便宜得多。
