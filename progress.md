@@ -2238,3 +2238,97 @@ return（内部三态判词 `'pass'|'fail'|'skip'|'ok'` 豁免）。自探针：
 - **描述里承诺的能力要么有实现，要么先从描述里删掉**；守卫用「能力探针 + 文案扫描」
   两段式，探针必须能命中才有资格断言文案。
 - **重复的维度不必硬造守卫**：键名漂移已被 dead-param 契约覆盖，自证之后只记录不新增。
+
+---
+
+## 第十五轮 —— 收尾面假绿：中止不吭声 / 退出码不说话 / 交接算通过（`b29b0ee`）
+
+用户选「全部」→ 三维度并行审计（A 汇总一致性、B `on_error` 与 `lastStepFailed`、
+C 交接类步骤占比）。审计脚本统计：583 步 / 26 场景，其中 **30 interactive、
+114 handoff、271 conditional**；`on_error` 分布 `(未声明)=454 / abort=121 / retry=8`
+（**没有任何场景写 `continue`，未声明 = 静默继续**）。
+
+### 维度 A — 汇总一致 + 中止要自称中止
+
+- `LOG_SUMMARY.total` 只增不验：`recordStepResult` 先 `total++` 再 switch，
+  重试路径用 `shiftSummary` 回退桶值 —— 一旦对不上，没有任何人会发现。
+  新增 `summaryMismatch(summary)`：`total === pass+fail+warn+skip+noop` 不成立就黄字
+  打印 `⚠ 汇总不自洽: total=X 但分项合计=Y（差 Z…）`。湿跑复核：
+  43 条日志记录 = 17+2+20+4 = 43，无告警。
+- 6 条中止路径（gateBlocked / `on_error=abort` / `fail_workflow` / 重试耗尽 /
+  圈地越界 / 验收阻断 / 等待回答）以前都先打印 **一行绿色的 `✓ pass: N ✗ fail: 0`**
+  再 `exit(1)` —— 最后一眼看到的是全绿。现在 `printSummary` 收
+  `{ aborted: 原因 }`：pass 计数改称「已完成: N」，并追加
+  `⛔ 工作流已中止: <原因>` + 「上面的计数只是中止前的部分结果 —— 这次运行没有跑完，
+  不要当成通过。」
+  湿跑（`on_error: abort` 的探针场景）：`已完成: 0 … ⛔ Step 1 runSuite 失败（on_error=abort）`。
+
+### 维度 B — 退出码是权威：收尾从不设退出码（本轮最大发现）
+
+`startScene` 收尾只有 `printSummary`，**没有任何一处根据 `LOG_SUMMARY.fail` 设退出码**。
+一个 `fail: 3` 的工作流（454 步未声明 `on_error` = 继续跑完）退出码仍是 0，
+CI 与 agent 都把「跑完了」读成「全绿」。`enforceAcceptanceGate` 只拦
+「有变更但没有通过的验证步骤」，不拦普通步骤失败。
+新增 `exitCodeForSummary(summary)`：`fail > 0 → 1`，收尾红字说明后 `process.exit(1)`。
+湿跑验证：临时项目 `npm test` 必失败（`on_error: continue`）→
+先打印「✗ 1 个步骤失败（on_error 允许继续），退出码 1 —— 流程跑完了，但没有全绿」，
+`EXIT=1`（改之前是 `EXIT=0`）。
+`lastStepFailed` 方面：每步 dispatch 前都会重置（1327 行 / 重试循环内），
+上一轮的失败不会漏到下一步的门禁 —— 这一半没有 bug，不新增代码。
+
+### 维度 C — 交接类步骤不许算 pass
+
+24 个交接型 handler 里 22 个已经是显式 `noop/skip`，只剩 2 个裸字符串：
+`handleReviewFull`（`'代码审查就绪（对话模式 Skill 调用）'`）与
+`handleVerifyVisual`（`'视觉验证就绪（对话模式 Playwright 执行）'`）。
+「就绪」不含任何失败/跳过词 → `deriveStepStatus` 判 **pass**：引擎什么都没查，
+汇总里却有两步「审查 / 视觉验证」通过。改 `{ status: 'noop', message: '…（不计为通过）' }`。
+核查：26 个场景**没有任何一个**使用 `reviewFull` / `verifyVisual`（这两个 action 只供
+对话模式临时调用），因此该修复不会改变任何场景的验收门禁结果（避免 `unreviewedChange` 假红）。
+
+顺带修掉同类第 3 处：`handleCeAction` 的 4 个分支全是裸字符串
+（`'CE Plugin 就绪（对话模式执行）'` / `'已安装但需对话模式'` / `'上下文已设置（未安装）'` /
+`'未知操作'`）。现在：未识别动作 → **fail**（场景写了引擎不支持的 `ce-*` 就是配置错误）、
+已交接 → **noop**、已装但需对话模式 / 未安装 → **skip（不是通过）**。
+记账与结论抽成 `recordCeIntent` / `ceOutcome`（`cognitive-complexity` 16 → 合规）。
+
+### 守卫
+
+- `step-status-contract.test.js`：`NOT_MEASURED` 增加交接类措辞
+  （`对话模式` / `交给.*agent` / `待 agent` / `由 agent` / `需人工`）。
+  不含 `就绪` 一词：`所有工具已就绪`、`agent-egress-bench: 就绪` 是真测量，
+  加进来会误杀（假红）。新增合成用例证明该判据能命中「就绪 + 对话模式」裸字符串。
+- 新增 `commands/summary-integrity.test.js`（**7 tests**）：
+  `summaryMismatch` / `exitCodeForSummary` 单测；以及「`printSummary` 紧接着
+  `process.exit` 必须带 `aborted`」的逐行静态判据（正则 `[^)]*` 会回溯爆炸，
+  改成逐行扫描），并附合成反例断言「判据自己会失败」。
+
+### 自探针（两次注入 → 点名 → 回滚 → 复绿）
+
+1. 删掉 `enforceAcceptanceGate` 第二处 `{ aborted: … }` → `summary-integrity.test.js`
+   点名「这些中止路径没告诉读者『这条运行没跑完』」，回滚后 7 tests 全绿。
+2. 把 `handleVerifyVisual` 的 noop 换回裸 `'视觉验证就绪（对话模式 Playwright 执行）'`
+   → `step-status-contract.test.js` 点名
+   `verifyVisual → handleVerifyVisual (handlers/review.js): 视觉验证就绪…`，回滚后 6 tests 全绿。
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1199 passed / 97 files**（本轮前 1188/96） |
+| lint | `npx eslint .` | 0 |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 |
+| 死码 | `npm run scan:deadcode` | Total dead 0（Handlers 0/70、Scenes 0/26、Commands 0/33、Skills 0/29、MCP 0/3） |
+| 26 场景 | 逐个 `start <scene> --dry-run --auto` | 全部 exit 0、bad 0 |
+| review 真跑 | `start review --auto --skip-sweep` | pass 17 / fail 0 / warn 2 / skip 20 / noop 4，**exit 0**；43 条日志 = 分项合计 43 |
+| 退出码湿跑 | 临时项目 `runSuite` 必失败 | `on_error=continue` → exit 1；`abort` → exit 1 + ⛔ 中止行 |
+
+### 决策
+- **跑完了 ≠ 全绿**：退出码必须由失败步骤数决定，不能让 CI 把「流程走完」读成「通过」。
+- **中止必须有话说**：任何「打印计数后 exit」的路径都要说明「这条运行没跑完」，
+  否则最后一眼看到的就是全绿。
+- **汇总自洽性也要有读者**：`total` 与分项合计的对账写进收尾输出，差一行都要喊。
+- **交接不是通过**：把活交给 agent ≠ 引擎查过了；必须 `noop` + 「不计为通过」。
+- **未识别的配置取值是 fail，不是「未知操作」的 pass**（`ce-*` 写错 = 什么都没执行）。
+- **守卫词表宁窄不宽**：`就绪` 会误杀真测量，只收「对话模式 / 由 agent / 需人工」这类
+  明确的交接措辞 —— 收窄不漏，宽了就是假红。
