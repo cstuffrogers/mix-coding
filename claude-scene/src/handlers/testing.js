@@ -141,7 +141,15 @@ function pickTestCommand(mode, pkg) {
 
 export function handleRunSuite(_action, params, targetPath, context) {
   const mode = params?.mode || 'unit';
-  const setup = loadTestSetup(targetPath, mode);
+  // regression: true（bugfix#7 / deps#8）—— 这两步要的是「回归套件」，以前没人读：
+  // 声明了回归、跑的仍是 unit 套件。优先 regression 脚本，没有就如实说。
+  const wantRegression = params?.regression === true;
+  let setup = loadTestSetup(targetPath, wantRegression ? 'regression' : mode);
+  let regressionNote = '';
+  if (wantRegression && setup.error) {
+    regressionNote = `（未找到 regression 测试脚本，已回落 ${mode}）`;
+    setup = loadTestSetup(targetPath, mode);
+  }
   if (setup.error) {
     if (context) context.testPassed = undefined;
     return setup.error;
@@ -157,8 +165,8 @@ export function handleRunSuite(_action, params, targetPath, context) {
     if (!testPassed) context.lastStepFailed = true;
   }
   return testPassed
-    ? '测试套件运行完成（全部通过）'
-    : { status: 'fail', message: '测试套件运行完成（存在失败用例）' };
+    ? `测试套件运行完成（全部通过）${regressionNote}`
+    : { status: 'fail', message: `测试套件运行完成（存在失败用例）${regressionNote}` };
 }
 
 /** 准备阶段：package.json 可读、且有对应测试脚本（否则给一个显式 skip/warn） */

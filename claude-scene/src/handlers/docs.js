@@ -122,12 +122,36 @@ function parseConventionalCommits(messages) {
 
 // ── Changelog ──
 
+/**
+ * 把 since 声明翻译成 git rev。
+ * - 'last_release' → 最近的 tag（git describe --tags --abbrev=0）
+ * - 其他非空字符串 → 原样当作 rev
+ * - 没声明 → 空串（不限制范围）
+ * 解析不出来时也返回空串，但会打一行提示 —— 不静默当成「没有范围」。
+ */
+function resolveSinceRev(since, targetPath) {
+  if (typeof since !== 'string' || !since) return '';
+  if (since !== 'last_release') return since;
+  try {
+    const tag = safeExec('git describe --tags --abbrev=0', targetPath, { stdio: 'pipe' }).toString().trim();
+    return tag;
+  } catch {
+    console.log(chalk.dim('  ℹ 没有找到上一个 tag（since=last_release 无法解析），CHANGELOG 按最近 50 条生成'));
+    return '';
+  }
+}
+
 export function handleChangelog(_action, params, targetPath, context) {
   ensureDocsDir(targetPath);
 
   try {
+    // since: "last_release" 或具体 tag/rev —— 决定从哪个点开始生成条目。
+    // release#5 声明了它，以前没人读：永远只取最近 50 条，上一个版本之前的
+    // 提交也会被写进本版 CHANGELOG。
+    const since = resolveSinceRev(params?.since, targetPath);
+    const range = since ? `${since}..HEAD` : '';
     const log = safeExec(
-      `git log --oneline --no-decorate -50`,
+      `git log --oneline --no-decorate ${range ? `${range} ` : ''}-50`,
       targetPath, { stdio: 'pipe' }
     ).toString().trim();
 
@@ -152,7 +176,7 @@ export function handleChangelog(_action, params, targetPath, context) {
     writeFileSync(changelogPath, changelog + existing, 'utf-8');
 
     if (context) context.changelogGenerated = true;
-    return `CHANGELOG 已生成 (${commits.length} 条提交)`;
+    return `CHANGELOG 已生成 (${commits.length} 条提交${since ? `，范围 ${since}..HEAD` : ''})`;
   } catch {
     return 'CHANGELOG 生成跳过';
   }

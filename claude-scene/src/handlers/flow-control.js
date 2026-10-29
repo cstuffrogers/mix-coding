@@ -110,16 +110,22 @@ export function handleGenerateEnv(_action, _params, targetPath) {
   return '.env 已生成';
 }
 
-export function handleStartDevServer(_action, _params, targetPath, context) {
+export function handleStartDevServer(_action, params, targetPath, context) {
   const packagePath = join(targetPath, 'package.json');
-  if (existsSync(packagePath)) {
-    try {
-      safeExec('npm run dev 2>&1 || true', targetPath, { stdio: 'inherit' });
-    } catch {
-      if (context) context.dev_server_failed = true;
-    }
+  if (!existsSync(packagePath)) {
+    return { status: 'skip', message: '开发服务器未启动：目标项目没有 package.json' };
   }
-  return '开发服务器已启动';
+  // port: "auto" | 数字 —— 指定端口。onboard#10 声明了 "auto"，以前没人读。
+  const port = params?.port;
+  const portArg = Number.isSafeInteger(port) || /^\d+$/.test(String(port ?? '')) ? ` -- --port ${Number(port)}` : '';
+  // 不在这里真的跑 `npm run dev`：dev server 不会退出，engine 会卡死到超时，
+  // 而以前外面还挂着 `|| true` + stdio:'inherit'，卡完再返回「已启动」。
+  // 把命令交给 agent 在后台起，引擎只负责把「要跑什么」说清楚。
+  if (context) context.dev_server_command = `npm run dev${portArg}`;
+  return {
+    status: 'noop',
+    message: `开发服务器未由引擎启动（需在对话模式后台运行：npm run dev${portArg}）`,
+  };
 }
 
 function runTests(targetPath) {

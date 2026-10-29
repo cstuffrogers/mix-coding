@@ -34,6 +34,11 @@ export function handleCheckOutdated(_action, _params, targetPath, context) {
 
 export function handleUpdateDeps(_action, params, targetPath) {
   const packages = params?.packages || [];
+  // auto_fix: true 才真的动 node_modules / package.json。deps#7 写了它；没写的场景
+  // 应当只报告而不悄悄升级 —— 以前不管声明与否一律执行 npm update。
+  if (params?.auto_fix !== true) {
+    return { status: 'skip', message: '依赖更新跳过：场景未声明 auto_fix，不做自动升级（会改 lockfile）' };
+  }
   try {
     if (packages.length) {
       safeExec(`npm install ${packages.map(p => escapeArg(p)).join(' ')} 2>&1`, targetPath, { stdio: 'pipe' });
@@ -47,7 +52,18 @@ export function handleUpdateDeps(_action, params, targetPath) {
   }
 }
 
-export function handleCheckBreakingChanges(_action, _params, targetPath) {
+export function handleCheckBreakingChanges(_action, params, targetPath) {
+  // compare_to: 比较基准。两种取值在这里是同一个语义：拿 lockfile 里锁定的版本
+  // （= 当前安装的版本）与 registry 最新版比 —— 这正是 npm outdated 做的事。
+  // 其他取值必须出声，不能默默按自己的方式比。
+  const KNOWN_BASELINES = new Set(['lockfile_baseline', 'registry_latest']);
+  const baseline = params?.compare_to;
+  if (baseline !== undefined && !KNOWN_BASELINES.has(baseline)) {
+    return {
+      status: 'warn',
+      message: `Breaking Changes 检查未实现：场景声明的 compare_to="${baseline}" 引擎不认识（支持 ${[...KNOWN_BASELINES].join(' / ')}）`,
+    };
+  }
   let raw;
   try {
     raw = safeExec('npm outdated --json 2>&1 || true', targetPath, { stdio: 'pipe' }).toString().trim();
@@ -78,5 +94,5 @@ export function handleCheckBreakingChanges(_action, _params, targetPath) {
     });
     return { status: 'warn', message: `发现 ${breaking.length} 个潜在 Breaking Changes` };
   }
-  return { status: 'pass', message: '无 Breaking Changes' };
+  return { status: 'pass', message: `无 Breaking Changes（基准：${baseline || 'lockfile 锁定版 vs registry 最新版'}）` };
 }

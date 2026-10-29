@@ -142,14 +142,7 @@
       "layer": "capability",
       "service": "BuildService",
       "action": "languageBuild",
-      "params": {
-        "mapping": {
-          "go.mod": "go-build",
-          "Cargo.toml": "rust-build",
-          "pubspec.yaml": "flutter-build",
-          "build.gradle": "gradle-build"
-        }
-      },
+      "params": {},
       "description": "根据检测到的语言调用对应构建工具（Go/Rust/Flutter/Kotlin），JS/TS项目跳过",
       "condition": "non_js_project_detected"
     },
@@ -158,14 +151,7 @@
       "layer": "capability",
       "service": "TestEngine",
       "action": "languageTest",
-      "params": {
-        "mapping": {
-          "go.mod": "go-test",
-          "Cargo.toml": "rust-test",
-          "pubspec.yaml": "flutter-test",
-          "build.gradle": "kotlin-test"
-        }
-      },
+      "params": {},
       "description": "根据检测到的语言运行对应测试工具，建立非JS项目的测试基线",
       "condition": "non_js_project_detected",
       "on_error": "abort"

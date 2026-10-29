@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
-import { safeExec } from '../lib/safe-exec.js';
+import { safeExec, escapeArg } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
 import { assertSources, listProjectCodeFiles } from '../lib/project-sources.js';
 
@@ -22,9 +22,12 @@ function _resolvePythonTool(toolName, moduleName) {
   return toolName;
 }
 
-export function handleKnipCheck(_action, _params, targetPath, context) {
+export function handleKnipCheck(_action, params, targetPath, context) {
+  // strict: true → knip --strict（未使用的导出/类型也算问题）。场景 review#2.6
+  // 声明了它，以前没人读 —— 严格档和默认档跑出来一模一样。
+  const strictFlag = params?.strict === true ? ' --strict' : '';
   try {
-    const result = safeExec('npx knip --reporter json 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
+    const result = safeExec(`npx knip --reporter json${strictFlag} 2>&1 || true`, targetPath, { stdio: 'pipe' }).toString();
     try {
       const parsed = JSON.parse(result);
       const issues = parsed.issues || [];
@@ -109,6 +112,7 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
 
   const findings = [];
   let isPassed = true;
+  let ran = false;
 
   try {
     const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
@@ -123,6 +127,12 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 30000 }
     ).toString();
 
+    // noleak 没装 / 输出为空 = 没扫。以前 isPassed 保持 true 并写
+    // buildLeakPassed = true ——「扫描没跑」变成了「没有泄露」。
+    if (/ENOENT|not recognized|command not found/i.test(raw) || !raw.trim()) {
+      return { status: 'skip', message: '构建泄露检查跳过：noleak 不可用（没扫不等于没有泄露）' };
+    }
+    ran = true;
     const leaks = _parseNoleakOutput(raw);
     findings.push(...leaks);
 
@@ -135,6 +145,9 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
     console.log(chalk.dim('  ℹ noleak 不可用，跳过泄露检查'), e.message);
   }
 
+  if (!ran) {
+    return { status: 'warn', message: '构建泄露检查未完成：noleak 执行异常，没拿到结论' };
+  }
   if (context) context.buildLeakPassed = isPassed;
   return `构建泄露检查完成: ${findings.length ? findings.join('; ') : '无泄露'}`;
 }
@@ -430,8 +443,11 @@ function classifyScanError(e) {
   return { missing: false, reason };
 }
 
-export function handleSkillspectorScan(_action, _params, targetPath, context) {
-  const targets = buildScanTargets(targetPath);
+export function handleSkillspectorScan(_action, params, targetPath, context) {
+  // targets: ["..."] 覆盖默认扫描范围。review#4.57 显式声明了要扫的目录，
+  // 以前没人读 —— 声明被静默忽略。
+  const declaredTargets = Array.isArray(params?.targets) ? params.targets.filter((t) => typeof t === 'string' && t) : [];
+  const targets = declaredTargets.length > 0 ? declaredTargets : buildScanTargets(targetPath);
   if (targets.length === 0) return { status: 'skip', message: 'SkillSpector 扫描跳过: 没有技能目录' };
 
   const skillspectorCmd = _resolvePythonTool('skillspector', null);
@@ -442,34 +458,43 @@ export function handleSkillspectorScan(_action, _params, targetPath, context) {
   const hasLlmKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
   const llmFlag = hasLlmKey ? '' : ' --no-llm';
 
-  const allFindings = [];
-  let isScanFailed = false;
-  let failReason = '';
+  const sweep = sweepSkillTargets(targets, skillspectorCmd, llmFlag, targetPath);
+  if (sweep.missingTool) return { status: 'skip', message: 'SkillSpector 扫描跳过：本机没有可用的 skillspector' };
 
+  // 「部分失败」带「部分」二字，恰好命中 detectHandlerFailure 的排除名单 → 以前记 pass。
+  // 扫描没跑完就不算通过，但也不该判 fail（没有证据说技能有问题）。
+  if (sweep.failed && sweep.findings.length === 0) {
+    return {
+      status: 'warn',
+      message: `SkillSpector 扫描未完成: 部分技能目录执行失败，没有扫描结果${sweep.failReason ? `（${sweep.failReason.slice(0, 120)}）` : ''}`,
+    };
+  }
+
+  return reportSkillspectorFindings(sweep.findings, context);
+}
+
+/**
+ * 逐个目标目录跑 skillspector，收集发现项与失败标记。
+ * 抽成纯循环是为了把 handleSkillspectorScan 的认知复杂度拉回 15 以下（行为不变）。
+ */
+function sweepSkillTargets(targets, skillspectorCmd, llmFlag, targetPath) {
+  const findings = [];
+  let failed = false;
+  let failReason = '';
   for (const target of targets) {
     try {
       // 不要 2>&1：stderr 里是 Python 依赖的弃用警告，混进 stdout 会让 JSON 解析失败。
       const cmd = `${skillspectorCmd} scan ${target} --format json${llmFlag}`;
-      const result = scanSingleTarget(cmd, targetPath, allFindings);
-      if (result.isScanFailed) isScanFailed = true;
+      const result = scanSingleTarget(cmd, targetPath, findings);
+      if (result.isScanFailed) failed = true;
     } catch (e) {
       const err = classifyScanError(e);
-      if (err.missing) return { status: 'skip', message: 'SkillSpector 扫描跳过：本机没有可用的 skillspector' };
-      isScanFailed = true;
+      if (err.missing) return { missingTool: true, findings, failed, failReason };
+      failed = true;
       failReason ||= err.reason;
     }
   }
-
-  // 「部分失败」带「部分」二字，恰好命中 detectHandlerFailure 的排除名单 → 以前记 pass。
-  // 扫描没跑完就不算通过，但也不该判 fail（没有证据说技能有问题）。
-  if (isScanFailed && allFindings.length === 0) {
-    return {
-      status: 'warn',
-      message: `SkillSpector 扫描未完成: 部分技能目录执行失败，没有扫描结果${failReason ? `（${failReason.slice(0, 120)}）` : ''}`,
-    };
-  }
-
-  return reportSkillspectorFindings(allFindings, context);
+  return { missingTool: false, findings, failed, failReason };
 }
 
 // ── actionlint — GitHub Actions workflow syntax checker (3k+ stars) ──
@@ -540,28 +565,37 @@ function parseZizmorText(raw) {
   return { findingCount: 0 };
 }
 
-export function handleZizmor(_action, _params, targetPath, context) {
+export function handleZizmor(_action, params, targetPath, context) {
+  // persona（pedantic / regular）控制上游严格程度。cicd#2.4 声明了 pedantic，
+  // 以前没人读 —— 两个档位跑出来一样。
+  const persona = typeof params?.persona === 'string' ? params.persona : '';
+  const personaFlag = persona ? ` --persona=${escapeArg(persona)}` : '';
   const workflowsDir = join(targetPath, '.github', 'workflows');
   if (!existsSync(workflowsDir)) {
     if (context) context.zizmorPassed = true;
     return 'zizmor 检查完成: 无 GitHub Actions 工作流目录';
   }
 
-  let findingCount = 0;
+  let result;
   try {
     const raw = safeExec(
-      'npx zizmor --format json .github/workflows/ 2>&1 || true',
+      `npx zizmor --format json${personaFlag} .github/workflows/ 2>&1 || true`,
       targetPath,
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
     ).toString();
 
     const jsonResult = parseZizmorJson(raw);
-    const result = jsonResult || parseZizmorText(raw);
-    findingCount = result.findingCount;
+    result = jsonResult || parseZizmorText(raw);
+    if (!result) {
+      // 解析不出结论 ≠ 没问题。以前 findingCount 保持 0 → 报「无问题」并置
+      // zizmorPassed = true，于是工具没装 / 输出变样都成了 ✓ pass。
+      return { status: 'warn', message: `zizmor 检查未完成：输出无法解析（${String(raw).trim().slice(0, 80) || '空输出'}）` };
+    }
   } catch {
-    console.log(chalk.dim('  ℹ zizmor 不可用，跳过工作流安全审计'));
+    return { status: 'skip', message: 'zizmor 检查跳过：本机没有 zizmor（npx zizmor 未安装）' };
   }
 
+  const findingCount = result.findingCount;
   if (context) context.zizmorPassed = findingCount === 0;
   return `zizmor 检查完成: ${findingCount > 0 ? `${findingCount} 个问题` : '无问题'}`;
 }
@@ -925,14 +959,35 @@ export function handleSizeLimit(_action, _params, targetPath, context) {
 
 // ── pa11y-ci — WCAG 无障碍扫描 ──
 
-export function handlePa11yCi(_action, _params, targetPath, context) {
+export function handlePa11yCi(_action, params, targetPath, context) {
+  // standard（WCAG2A / WCAG2AA / WCAG2AAA）：无障碍标准档位。review#2.35
+  // 声明了 WCAG2AA，以前没人读 —— 扫的是 pa11y-ci 的默认档。
+  const standard = typeof params?.standard === 'string' ? params.standard : '';
+  const standardFlag = standard ? ` --standard ${escapeArg(standard)}` : '';
   try {
-    const raw = safeExec('npx pa11y-ci 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
-    if (context) context.pa11yPassed = !raw.includes('Error:');
-    return `pa11y-ci 无障碍扫描完成`;
-  } catch {
-    return 'pa11y-ci 不可用，跳过无障碍扫描';
+    // 以前 `|| true` 吞掉退出码，再用 `!raw.includes('Error:')` 猜结论：
+    // 工具没装时 catch 分支返回字符串「不可用，跳过」→ 也被记 ✓ pass。
+    safeExec(`npx pa11y-ci${standardFlag} 2>&1`, targetPath, { stdio: 'pipe', timeout: 120000 });
+  } catch (error) {
+    const text = `${error?.stdout || ''}${error?.stderr || ''}${error?.message || ''}`;
+    if (/ENOENT|not recognized|not found|command not found/i.test(text)) {
+      return { status: 'skip', message: 'pa11y-ci 无障碍扫描跳过：本机没有 pa11y-ci（npx pa11y-ci 未安装）' };
+    }
+    // 退出码非 0 = 扫出了违规（pa11y-ci 就是这么表达的），有结论：不通过
+    if (context) context.pa11yPassed = false;
+    return { status: 'fail', message: `pa11y-ci 无障碍扫描未通过（${standard || '默认标准'}）：${firstLines(text) || '见 pa11y-ci 输出'}` };
   }
+  if (context) context.pa11yPassed = true;
+  return `pa11y-ci 无障碍扫描完成（${standard || '默认标准'}）：无违规`;
+}
+
+function firstLines(text) {
+  return text
+    .split(/[\r\n]+/)
+    .filter(Boolean)
+    .slice(-3)
+    .join(' ')
+    .slice(0, 200);
 }
 
 // ── DESIGN.md lint — Google DESIGN.md CLI 格式校验 ──
@@ -940,6 +995,10 @@ export function handlePa11yCi(_action, _params, targetPath, context) {
 export function handleDesignMdLint(_action, _params, targetPath, context) {
   try {
     const raw = safeExec('npx @google/design.md lint 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
+    if (/ENOENT|not recognized|command not found/i.test(raw) || !raw.trim()) {
+      // 工具没装 = 没检查。以前 raw 为空 → 两个 includes 全 false → 置 true。
+      return { status: 'skip', message: '@google/design.md lint 跳过：本机没有这个 CLI（没检查不等于通过）' };
+    }
     if (context) context.designMdPassed = !raw.includes('error') && !raw.includes('FAIL');
     return `DESIGN.md lint 完成`;
   } catch {
@@ -960,12 +1019,27 @@ export function handleDesignMdExport(_action, _params, targetPath) {
 
 // ── CodeGraph / CodeGuardian — MCP 工具（仅对话模式可用）──
 
-export function handleCodeGraphImpact() {
-  // 未配置 codegraph MCP 时这里是明确的跳过，不是「通过」
-  return '未配置 codegraph MCP，跳过 CodeGraph 影响分析（未测量）';
+export function handleCodeGraphImpact(_action, params) {
+  // symbol / depth 是给 codegraph 的查询参数。以前完全不读：场景写的
+  // symbol:"affected_function"、depth:3 被静默丢弃，跳过的还是同一句。
+  // 引擎不执行 MCP，但必须把「本来要问什么」带进结论，否则没人看得出来声明丢了。
+  const ask = describeCodeGraphAsk(params);
+  return { status: 'skip', message: `未配置 codegraph MCP，跳过 CodeGraph 影响分析（未测量）${ask}` };
 }
 
-export function handleCodeGraphTrace() {
-  return '未配置 codegraph MCP，跳过 CodeGraph 依赖追踪（未测量）';
+export function handleCodeGraphTrace(_action, params) {
+  const ask = describeCodeGraphAsk(params);
+  return { status: 'skip', message: `未配置 codegraph MCP，跳过 CodeGraph 依赖追踪（未测量）${ask}` };
+}
+
+/** 把 codegraph 的查询参数拼成一句人话（没声明就返回空串，不凭空补默认值）。 */
+function describeCodeGraphAsk(params) {
+  if (!params || typeof params !== 'object') return '';
+  const parts = [];
+  if (params.symbol) parts.push(`symbol=${params.symbol}`);
+  if (params.from) parts.push(`from=${params.from}`);
+  if (params.to) parts.push(`to=${params.to}`);
+  if (params.depth !== undefined) parts.push(`depth=${params.depth}`);
+  return parts.length > 0 ? `；本应查询 ${parts.join(', ')}` : '';
 }
 

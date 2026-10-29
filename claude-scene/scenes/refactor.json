@@ -216,14 +216,7 @@
       "layer": "capability",
       "service": "TestEngine",
       "action": "languageTest",
-      "params": {
-        "mapping": {
-          "go.mod": "go-test",
-          "Cargo.toml": "rust-test",
-          "pubspec.yaml": "flutter-test",
-          "build.gradle": "kotlin-test"
-        }
-      },
+      "params": {},
       "description": "根据检测到的语言运行对应测试工具，建立非JS项目的重构前基线",
       "condition": "non_js_project_detected",
       "on_error": "abort"

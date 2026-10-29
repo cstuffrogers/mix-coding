@@ -10,9 +10,12 @@ export function handleLocate(_action, _params, _targetPath, context) {
   return { status: 'noop', message: '问题定位（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 
-export function handleAnalyzeDependencies(_action, _params, _targetPath, context) {
+export function handleAnalyzeDependencies(_action, params, _targetPath, context) {
   if (context) context.deps_analyzed = true;
-  return { status: 'noop', message: '依赖分析（CLI 不执行，需在对话模式由 agent 完成）' };
+  // depth（bugfix#1.4 / rollback#4）声明了依赖树深度。CLI 不执行分析（交给 agent），
+  // 但声明不能默默消失：带进结论，agent 才知道按几层看。
+  const depth = Number.isSafeInteger(params?.depth) ? `，按 depth=${params.depth} 层` : '';
+  return { status: 'noop', message: `依赖分析（CLI 不执行，需在对话模式由 agent 完成${depth}）` };
 }
 
 /**
@@ -58,7 +61,9 @@ export function handleRegression(_action, _params, targetPath) {
   return { status: 'warn', message: `回归测试未执行：${r.output.split('\n')[0].slice(0, 80) || '测试运行器不可用'}` };
 }
 
-export function handleCloseTicket(_action, _params, _targetPath, context) {
+export function handleCloseTicket(_action, params, _targetPath, context) {
   if (context) context.ticket_closed = true;
-  return { status: 'noop', message: 'Ticket 未关闭（CLI 不执行，需在对话模式由 agent 完成）' };
+  // comment：关闭时要贴的说明。以前没人读 —— 带进结论，agent 照着填。
+  const note = typeof params?.comment === 'string' && params.comment ? `；待附评论：${params.comment.split(/[\r\n]+/)[0].slice(0, 60)}` : '';
+  return { status: 'noop', message: `Ticket 未关闭（CLI 不执行，需在对话模式由 agent 完成${note}）` };
 }

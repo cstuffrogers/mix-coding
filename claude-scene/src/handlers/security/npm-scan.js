@@ -54,10 +54,15 @@ export function handleSecurityScan(_action, _params, targetPath, context) {
   return `安全扫描完成: ${issues.length ? issues.join('; ') : '无问题'}`;
 }
 
-export function handleAnalyzeSecurityVulnerabilities(_action, _params, targetPath, context) {
+export function handleAnalyzeSecurityVulnerabilities(_action, params, targetPath, context) {
   const findings = { critical: 0, high: 0, medium: 0, low: 0 };
+  // depth: npm audit --depth（依赖树深度）。review#4.58 声明了 3，以前没人读。
+  const depth = Number.isSafeInteger(params?.depth) && params.depth > 0 ? params.depth : undefined;
+  const depthFlag = depth === undefined ? '' : ` --depth ${depth}`;
+  let audited = false;
+  let unavailable = '';
   try {
-    const audit = safeExec('npm audit --json 2>&1 || true', targetPath, { stdio: 'pipe' }).toString();
+    const audit = safeExec(`npm audit --json${depthFlag} 2>&1 || true`, targetPath, { stdio: 'pipe' }).toString();
     try {
       const parsed = JSON.parse(audit);
       const vulns = parsed?.vulnerabilities || {};
@@ -65,9 +70,20 @@ export function handleAnalyzeSecurityVulnerabilities(_action, _params, targetPat
         const severity = v.severity || 'low';
         if (findings[severity] !== undefined) findings[severity]++;
       }
-    } catch { /* JSON parse failed */ }
-  } catch { /* npm audit unavailable */ }
+      audited = true;
+    } catch {
+      unavailable = String(audit).trim().slice(0, 80) || '空输出';
+    }
+  } catch (e) {
+    unavailable = String(e.message || 'npm audit 执行失败').slice(0, 80);
+  }
   const total = findings.critical + findings.high + findings.medium + findings.low;
+  if (!audited) {
+    // 以前 npm audit 没跑成时 findings 全 0 → highSeverityFound = false → 安全门禁
+    // 报「✓ 通过」。审计没跑成不是「没漏洞」，所以这里**不写**那个字段（留 undefined
+    // 让门禁如实跳过）。
+    return { status: 'warn', message: `安全漏洞分析未完成：npm audit 没给出可解析的结果（${unavailable}）` };
+  }
   if (total) {
     console.log(chalk.yellow(`  ⚠ 漏洞: Critical ${findings.critical}, High ${findings.high}, Medium ${findings.medium}, Low ${findings.low}`));
   } else {

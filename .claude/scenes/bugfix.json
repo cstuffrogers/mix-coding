@@ -177,14 +177,7 @@
       "layer": "capability",
       "service": "BuildService",
       "action": "languageBuild",
-      "params": {
-        "mapping": {
-          "go.mod": "go-build",
-          "Cargo.toml": "rust-build",
-          "pubspec.yaml": "flutter-build",
-          "build.gradle": "gradle-build"
-        }
-      },
+      "params": {},
       "description": "根据检测到的语言调用对应构建工具，验证非JS项目构建基线",
       "condition": "non_js_project_detected"
     },

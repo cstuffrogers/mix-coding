@@ -3,16 +3,21 @@ import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 
-export function handleBuild(_action, _params, targetPath) {
+export function handleBuild(_action, params, targetPath) {
   const packagePath = join(targetPath, 'package.json');
-  if (existsSync(packagePath)) {
-    try {
-      safeExec('npm run build 2>&1', targetPath, { stdio: 'inherit' });
-    } catch (e) {
-      console.log(chalk.yellow(`  ⚠ 构建失败: ${e.message?.slice(0, 100) || 'build script 不可用'}`));
-    }
+  if (!existsSync(packagePath)) {
+    return { status: 'skip', message: '构建跳过：目标项目没有 package.json' };
   }
-  return '构建完成';
+  // optimize: true（release#8 / rollback#7）—— 优化构建单独一个 script。以前没人读：
+  // 「优化构建」和「普通构建」跑的是同一条命令。
+  const script = params?.optimize === true ? 'build:optimize' : 'build';
+  try {
+    safeExec(`npm run ${script} 2>&1`, targetPath, { stdio: 'inherit' });
+  } catch (e) {
+    // 以前只打一行黄字，然后返回「构建完成」—— 构建挂了也记 ✓ pass。
+    return { status: 'fail', message: `构建失败：npm run ${script} 退出码非 0（${e.message?.slice(0, 120) || '见输出'}）` };
+  }
+  return `构建完成${params?.optimize === true ? '（优化档 build:optimize）' : ''}`;
 }
 
 export function handleApplyTemplate(_action, params, targetPath) {
@@ -122,7 +127,44 @@ export function handleAnalyzeInterface(_action, _params, _targetPath, context) {
   return { status: 'noop', message: '接口设计未分析（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 
-export function handleDetectLanguage(_action, _params, targetPath, context) {
+// 从清单文件推到语言。场景用 detect 指明「还要看哪些文件」，这里只负责「那是什么语言」
+// —— 词典不全就写「未知（文件名）」，不猜成 JS。
+const LANG_BY_MANIFEST = {
+  'pubspec.yaml': 'Dart/Flutter',
+  'build.gradle': 'Kotlin/Android',
+  'CMakeLists.txt': 'C/C++',
+  'go.mod': 'Go',
+  'Cargo.toml': 'Rust',
+};
+
+/**
+ * 纯函数：把清单列表里「磁盘上真存在」的语言按顺序收齐。
+ * 带 `*` 的清单（*.csproj）按后缀扫一遍根目录。
+ */
+function detectPresentManifests(indicators, targetPath) {
+  const detected = [];
+  let rootEntries;
+  for (const { lang, file } of indicators) {
+    if (file.includes('*')) {
+      if (rootEntries === undefined) {
+        try {
+          rootEntries = readdirSync(targetPath);
+        } catch {
+          rootEntries = [];
+        }
+      }
+      if (rootEntries.some((e) => e.endsWith(file.replace('*', '')))) detected.push(lang);
+    } else if (existsSync(join(targetPath, file)) && !detected.includes(lang)) {
+      detected.push(lang);
+    }
+  }
+  return detected;
+}
+
+export function handleDetectLanguage(_action, params, targetPath, context) {
+  // detect: ["pubspec.yaml", …] —— 场景补的清单文件。feature/bugfix/refactor/onboard
+  // 都声明了它（含 Go / Rust / Flutter / Gradle / CMake），以前没人读：一个 Flutter
+  // 项目最终落到兜底的「JavaScript/TypeScript」，后续跑 npm run build。
   const indicators = [
     { lang: 'JavaScript/TypeScript', file: 'package.json' },
     { lang: 'Python', file: 'requirements.txt' },
@@ -135,22 +177,22 @@ export function handleDetectLanguage(_action, _params, targetPath, context) {
     { lang: 'PHP', file: 'composer.json' },
     { lang: 'C#', file: '*.csproj' },
   ];
-  const detected = [];
-  for (const { lang, file } of indicators) {
-    if (file.includes('*')) {
-      const pattern = file.replace('*', '');
-      try {
-        const entries = readdirSync(targetPath);
-        if (entries.some(e => e.endsWith(pattern))) detected.push(lang);
-      } catch { /* unreadable */ }
-    } else if (existsSync(join(targetPath, file)) && !detected.includes(lang)) {
-      detected.push(lang);
-    }
+  const extra = Array.isArray(params?.detect) ? params.detect.filter((f) => typeof f === 'string' && f) : [];
+  for (const file of extra) {
+    if (indicators.some((i) => i.file === file)) continue;
+    indicators.push({ lang: LANG_BY_MANIFEST[file] || `未知（${file}）`, file });
   }
+  const detected = detectPresentManifests(indicators, targetPath);
   if (detected.length) {
     console.log(chalk.green(`  ✅ 检测到: ${detected.join(', ')}`));
   } else {
-    detected.push('JavaScript/TypeScript');
+    // 一个清单文件都没有 → 以前直接兜底成「JavaScript/TypeScript」，
+    // 于是后面拿 npm 去跑一个空白目录。没检测到就是没检测到。
+    if (context) {
+      context.detectedLanguage = undefined;
+      context.non_js_project_detected = false;
+    }
+    return { status: 'warn', message: '语言检测未完成：没找到任何已知的清单文件（package.json / go.mod / Cargo.toml …）' };
   }
   if (context) {
     context.detectedLanguage = detected[0];
@@ -169,12 +211,19 @@ export function handleLanguageBuild(_action, _params, targetPath, context) {
     'Java': 'mvn compile 2>&1',
     'Ruby': 'bundle install 2>&1',
     'PHP': 'composer install 2>&1',
+    'Dart/Flutter': 'flutter build 2>&1',
+    'Kotlin/Android': './gradlew assembleDebug 2>&1',
   };
-  const cmd = buildCommands[lang] || 'npm run build 2>&1';
+  const cmd = buildCommands[lang];
+  if (!cmd) {
+    // 以前一律兜底 `npm run build`：一个 CMake 项目也会去跑 npm。没实现就是没实现。
+    return { status: 'skip', message: `构建跳过：引擎没有为 ${lang} 定义构建命令` };
+  }
   try {
     safeExec(cmd, targetPath, { stdio: 'inherit' });
   } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 构建部分失败: ${e.message?.slice(0, 100) || '未知错误'}`));
+    // 以前只打一行黄字，然后仍然返回「构建完成」—— 构建失败也记 ✓ pass。
+    return { status: 'fail', message: `构建失败 (${lang})：${cmd.replace(' 2>&1', '')} 退出码非 0（${e.message?.slice(0, 100) || '见输出'}）` };
   }
   return `构建完成 (${lang})`;
 }
@@ -189,12 +238,18 @@ export function handleLanguageTest(_action, _params, targetPath, context) {
     'Java': 'mvn test 2>&1',
     'Ruby': 'bundle exec rspec 2>&1',
     'PHP': 'php vendor/bin/phpunit 2>&1',
+    'Dart/Flutter': 'flutter test 2>&1',
+    'Kotlin/Android': './gradlew test 2>&1',
   };
-  const cmd = testCommands[lang] || 'npm test 2>&1';
+  const cmd = testCommands[lang];
+  if (!cmd) {
+    return { status: 'skip', message: `测试跳过：引擎没有为 ${lang} 定义测试命令` };
+  }
   try {
     safeExec(cmd, targetPath, { stdio: 'inherit' });
   } catch (e) {
-    console.log(chalk.yellow(`  ⚠ 测试部分失败: ${e.message?.slice(0, 100) || '未知错误'}`));
+    // 同上：以前失败也返回「测试完成」。
+    return { status: 'fail', message: `测试失败 (${lang})：${cmd.replace(' 2>&1', '')} 退出码非 0（${e.message?.slice(0, 100) || '见输出'}）` };
   }
   return `测试完成 (${lang})`;
 }

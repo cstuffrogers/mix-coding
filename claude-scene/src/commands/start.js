@@ -913,6 +913,13 @@ function isChoiceConfirm(step) {
   return Array.isArray(step.params?.options) && step.params.options.length > 0;
 }
 
+/** 把「命令行已表态」落到记录上并返回是否算已处理（抽出来降认知复杂度，行为不变）。 */
+function applyExplicitConfirm(step, decided, context, shown) {
+  recordConfirmAnswer(step, decided, context);
+  console.log(chalk[decided ? 'green' : 'gray'](`\n${decided ? '✅ 已确认' : '⏭ 已拒绝'}（命令行显式表态）：${shown.split('\n')[0]}`));
+  return step.action === 'confirm';
+}
+
 /** 处理确认型步骤；返回 true 表示已完全处理，调用方应提前返回 */
 export async function handleConfirmation(step, options, context) {
   const isConfirmationStep = step.action === 'confirm' || !!step.confirm_message;
@@ -936,16 +943,15 @@ export async function handleConfirmation(step, options, context) {
 
   // 1) 命令行已明确表态：--yes 放行 / --decline 拒绝
   const decided = context.confirmDecision ?? explicitConfirmDecision(options);
-  if (decided !== undefined) {
-    recordConfirmAnswer(step, decided, context);
-    console.log(chalk[decided ? 'green' : 'gray'](`\n${decided ? '✅ 已确认' : '⏭ 已拒绝'}（命令行显式表态）：${shown.split('\n')[0]}`));
-    return step.action === 'confirm';
-  }
+  if (decided !== undefined) return applyExplicitConfirm(step, decided, context, shown);
 
   // 2) 有人可问：真终端
   if (!options.auto) {
+    // validation.default: false —— 场景声明的「安全默认」。以前无条件 default: true：
+    // rollback / refactor 这类破坏性确认只要用户按回车就放行，而场景早已写明默认否。
+    const safeDefault = step.params?.validation?.default !== false;
     const answers = await inquirer.prompt([
-      { type: 'confirm', name: 'proceed', message: shown, default: true },
+      { type: 'confirm', name: 'proceed', message: shown, default: safeDefault },
     ]);
     recordConfirmAnswer(step, answers.proceed, context);
     if (!answers.proceed) {
@@ -960,7 +966,11 @@ export async function handleConfirmation(step, options, context) {
   }
 
   // 3) 场景显式声明 auto 下可自动放行（auto_confirm: true）才走这条
-  if (step.params?.auto_confirm === true) {
+  // validation.required_ack: true —— 场景要求「必须有人明确点头」。这类步骤
+  // （提交代码 / 执行回滚）不接受 auto_confirm 或 --yes 之外的任何自动通过，
+  // 否则「声明了要确认」和「没人确认也照跑」就同时成立了。
+  const requiredAck = step.params?.validation?.required_ack === true;
+  if (step.params?.auto_confirm === true && !requiredAck) {
     recordConfirmAnswer(step, true, context);
     noteDecision(context, 'user_confirmed=true（场景声明的 auto_confirm）');
     return step.action === 'confirm';
