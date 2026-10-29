@@ -28,7 +28,7 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | /rollback | rollback | 紧急回滚 |
 | /setup | setup | 测试/监控/属性测试设施搭建（`--kind e2e\|monitor\|property`） |
 | /loop | loop | 自动迭代循环 |
-| /spec | analyze | Spec-Driven 开发 |
+| /spec | spec | Spec-Driven 开发 |
 | /plan-ceo-review | plan-ceo-review | 创始人策略审查 |
 | /mobile-review | mobile-review | 移动端代码审查 |
 | /mobile-audit | mobile-audit | 移动端审计 |
@@ -43,15 +43,15 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 
 | 旧命令 | 新命令 | 说明 |
 |--------|--------|------|
-| /audit | /review | review 场景勾选"全量审计"模式 |
-| /analyze | /review | review 场景勾选"仅分析"模式 |
-| /hunt | /review | 安全已并入 review 的 security_deep 模式（默认开启） |
-| /simplify | /refactor | refactor 场景勾选"代码简化"模式 |
-| /design | /ui-polish | 使用 ui-polish 场景 |
-| /polish | /ui-polish | 使用 ui-polish 场景 |
-| /e2e | /setup | `claude-scene start setup --kind e2e`（默认） |
-| /monitor | /setup | `claude-scene start setup --kind monitor` |
-| /property | /setup | `claude-scene start setup --kind property` |
+| `/audit` | `/review` | review 场景勾选"全量审计"模式 |
+| `/analyze` | `/review` | review 场景勾选"仅分析"模式 |
+| `/hunt` | `/review` | 安全已并入 review 的 security_deep 模式（默认开启） |
+| `/simplify` | `/refactor` | refactor 场景勾选"代码简化"模式 |
+| `/design` | `/ui-polish` | 使用 ui-polish 场景 |
+| `/polish` | `/ui-polish` | 使用 ui-polish 场景 |
+| `/e2e` | `/setup` | `claude-scene start setup --kind e2e`（默认） |
+| `/monitor` | `/setup` | `claude-scene start setup --kind monitor` |
+| `/property` | `/setup` | `claude-scene start setup --kind property` |
 
 ## 用法
 

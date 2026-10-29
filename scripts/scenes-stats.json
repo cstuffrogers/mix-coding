@@ -1,132 +1,158 @@
 {
-  "Bug修复": {
-    "file": "bugfix.json",
-    "steps": 34,
-    "desc": "端到端一键修复Bug流程（Jira/issue/PR --> issue注释 --> 本地分支 --> 修复 --> 测试 --> 提交 --> PR --> 回归测试 --> 关单）"
-  },
-  "引擎自检": {
-    "file": "check.json",
-    "steps": 8,
-    "desc": "引擎功能完整性检查：检测 dead actions / 场景声明但未实现的门禁 / 空转 handler（只报告，不改引擎源码也不改场景数据）"
-  },
-  "CI/CD 流水线配置": {
-    "file": "cicd.json",
-    "steps": 12,
-    "desc": "使用 Act + Task 配置本地 CI/CD 流水线，验证 GitHub Actions 工作流，生成 Taskfile.yml 任务运行器"
-  },
-  "依赖更新": {
-    "file": "deps.json",
-    "steps": 17,
-    "desc": "安全依赖更新流程：检查过期 → 逐项更新 → 测试验证 → 检查breaking changes → 更新lockfile"
-  },
-  "新功能开发": {
-    "file": "feature.json",
-    "steps": 31,
-    "desc": "端到端一键推进新功能开发流程（集成CE知识沉淀）"
-  },
-  "自动迭代循环": {
-    "file": "loop.json",
-    "steps": 18,
-    "desc": "无人值守自动迭代（集成CE知识沉淀）"
-  },
-  "移动端全维度审计": {
-    "file": "mobile-audit.json",
-    "steps": 24,
-    "desc": "一键移动端安全+性能+合规+质量审计：MobSF安全扫描 → OWASP MASVS对照 → 隐私合规 → 依赖CVE → 性能基线 → 商店清单"
-  },
-  "移动端 E2E 测试配置": {
-    "file": "mobile-e2e.json",
-    "steps": 13,
-    "desc": "自动检测项目框架→选择最佳测试工具→生成配置+示例→CI 集成"
-  },
-  "移动端开发环境搭建": {
-    "file": "mobile-onboard.json",
-    "steps": 16,
-    "desc": "自动检测并搭建移动端开发环境：Xcode/Android Studio/Node/JDK/CocoaPods，验证首次构建"
-  },
-  "移动端性能优化": {
-    "file": "mobile-optimize.json",
-    "steps": 19,
-    "desc": "测量基线→定位瓶颈→AI分析→自动优化→重新验证：包体积/启动时间/FPS/内存/网络/电池"
-  },
-  "移动端发布流程": {
-    "file": "mobile-release.json",
-    "steps": 18,
-    "desc": "端到端移动端发布：证书检查→质量门禁→版本号→CHANGELOG→TestFlight/Google Play"
-  },
-  "移动端代码审查": {
-    "file": "mobile-review.json",
-    "steps": 17,
-    "desc": "5层+移动端UI审查：ESLint+RN规则 → mobsfscan安全 → Detox截图 → mobile-ui-review UI审查 → AI语义+a11y → 聚合报告"
-  },
-  "从零开始新项目": {
-    "file": "new-project.json",
-    "steps": 70,
-    "desc": "从零开始新项目：Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Open Design → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复→Huashu 验证，双轮品控+残留修复）+ AI-Friendly 可访问性审查 → 实现 → 审查 → CE 沉淀（65步）"
-  },
-  "开发者入职/环境搭建": {
-    "file": "onboard.json",
-    "steps": 16,
-    "desc": "一键环境搭建：检测缺失依赖 → 安装 → 配置.env → 验证构建 → 启动开发服务器"
-  },
-  "性能优化": {
-    "file": "optimize.json",
-    "steps": 17,
-    "desc": "基于测量的性能优化，先定位瓶颈再修复（集成CE知识沉淀）"
-  },
-  "创始人策略审查": {
-    "file": "plan-ceo-review.json",
-    "steps": 11,
-    "desc": "从创始人视角审查功能：找到 10x 版本、砍掉 scope creep、聚焦用户价值"
-  },
-  "Manus 风格持久规划": {
-    "file": "plan.json",
-    "steps": 10,
-    "desc": "基于文件的持久化任务规划，支持会话恢复、SHA256认证、多阶段追踪"
-  },
-  "浏览器 QA 验证": {
-    "file": "qa.json",
-    "steps": 13,
-    "desc": "读取 git diff，浏览器测试受影响路由，发现 Bug 并生成结构化报告"
-  },
-  "代码重构 + 简化": {
-    "file": "refactor.json",
-    "steps": 30,
-    "desc": "代码重构与简化合并。可选模式：重构 / 简化（不改变行为）/ 架构优化"
-  },
-  "发布部署": {
-    "file": "release.json",
-    "steps": 24,
-    "desc": "端到端发布部署流程：质量门禁 → 版本号 → 构建 → 验证 → Tag → 发布"
-  },
-  "代码审查 + 安全审计": {
-    "file": "review.json",
-    "steps": 43,
-    "desc": "全面代码质量审查，可选模式：代码审查 / 全量审计 / 仅分析"
-  },
-  "快速回滚": {
-    "file": "rollback.json",
-    "steps": 16,
-    "desc": "紧急回滚流程：识别目标版本 → 验证回滚安全性 → 执行回滚 → 验证服务恢复"
-  },
-  "测试/监控设施搭建": {
-    "file": "setup.json",
-    "steps": 14,
-    "desc": "一键搭建质量观测设施：E2E 测试（MSW + Supertest + Schemathesis）或网站监控（Upptime + GitHub Actions）。两者流程同构，仅第 2 步动作不同，用 kind 参数区分。"
-  },
-  "Spec-Driven 开发": {
-    "file": "spec.json",
-    "steps": 10,
-    "desc": "把需求变成可实施的规格：speckit-specify 建 feature → product-manager 补用户故事/验收标准 → ux-designer 补交互与状态 → （可选）clarify 澄清歧义 → 规格落地门禁。产出 specs/NNN-*/spec.md。"
-  },
-  "前端美化 + 设计": {
+  "ui-polish": {
     "file": "ui-polish.json",
+    "name": "前端美化 + 设计",
     "steps": 72,
     "desc": "前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统"
   },
-  "系统资源更新": {
+  "new-project": {
+    "file": "new-project.json",
+    "name": "从零开始新项目",
+    "steps": 70,
+    "desc": "从零开始新项目：Pre-flight 设计基准 → shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Open Design → Impeccable 全维度打磨（critique 检测→12 fixes→critique 验证→3 精准修复→Huashu 验证，双轮品控+残留修复）+ AI-Friendly 可访问性审查 → 实现 → 审查 → CE 沉淀（65步）"
+  },
+  "review": {
+    "file": "review.json",
+    "name": "代码审查 + 安全审计",
+    "steps": 43,
+    "desc": "全面代码质量审查，可选模式：代码审查 / 全量审计 / 仅分析"
+  },
+  "bugfix": {
+    "file": "bugfix.json",
+    "name": "Bug修复",
+    "steps": 34,
+    "desc": "端到端一键修复Bug流程（Jira/issue/PR --> issue注释 --> 本地分支 --> 修复 --> 测试 --> 提交 --> PR --> 回归测试 --> 关单）"
+  },
+  "feature": {
+    "file": "feature.json",
+    "name": "新功能开发",
+    "steps": 31,
+    "desc": "端到端一键推进新功能开发流程（集成CE知识沉淀）"
+  },
+  "refactor": {
+    "file": "refactor.json",
+    "name": "代码重构 + 简化",
+    "steps": 30,
+    "desc": "代码重构与简化合并。可选模式：重构 / 简化（不改变行为）/ 架构优化"
+  },
+  "mobile-audit": {
+    "file": "mobile-audit.json",
+    "name": "移动端全维度审计",
+    "steps": 24,
+    "desc": "一键移动端安全+性能+合规+质量审计：MobSF安全扫描 → OWASP MASVS对照 → 隐私合规 → 依赖CVE → 性能基线 → 商店清单"
+  },
+  "release": {
+    "file": "release.json",
+    "name": "发布部署",
+    "steps": 24,
+    "desc": "端到端发布部署流程：质量门禁 → 版本号 → 构建 → 验证 → Tag → 发布"
+  },
+  "mobile-optimize": {
+    "file": "mobile-optimize.json",
+    "name": "移动端性能优化",
+    "steps": 19,
+    "desc": "测量基线→定位瓶颈→AI分析→自动优化→重新验证：包体积/启动时间/FPS/内存/网络/电池"
+  },
+  "loop": {
+    "file": "loop.json",
+    "name": "自动迭代循环",
+    "steps": 18,
+    "desc": "无人值守自动迭代（集成CE知识沉淀）"
+  },
+  "mobile-release": {
+    "file": "mobile-release.json",
+    "name": "移动端发布流程",
+    "steps": 18,
+    "desc": "端到端移动端发布：证书检查→质量门禁→版本号→CHANGELOG→TestFlight/Google Play"
+  },
+  "deps": {
+    "file": "deps.json",
+    "name": "依赖更新",
+    "steps": 17,
+    "desc": "安全依赖更新流程：检查过期 → 逐项更新 → 测试验证 → 检查breaking changes → 更新lockfile"
+  },
+  "mobile-review": {
+    "file": "mobile-review.json",
+    "name": "移动端代码审查",
+    "steps": 17,
+    "desc": "5层+移动端UI审查：ESLint+RN规则 → mobsfscan安全 → Detox截图 → mobile-ui-review UI审查 → AI语义+a11y → 聚合报告"
+  },
+  "optimize": {
+    "file": "optimize.json",
+    "name": "性能优化",
+    "steps": 17,
+    "desc": "基于测量的性能优化，先定位瓶颈再修复（集成CE知识沉淀）"
+  },
+  "mobile-onboard": {
+    "file": "mobile-onboard.json",
+    "name": "移动端开发环境搭建",
+    "steps": 16,
+    "desc": "自动检测并搭建移动端开发环境：Xcode/Android Studio/Node/JDK/CocoaPods，验证首次构建"
+  },
+  "onboard": {
+    "file": "onboard.json",
+    "name": "开发者入职/环境搭建",
+    "steps": 16,
+    "desc": "一键环境搭建：检测缺失依赖 → 安装 → 配置.env → 验证构建 → 启动开发服务器"
+  },
+  "rollback": {
+    "file": "rollback.json",
+    "name": "快速回滚",
+    "steps": 16,
+    "desc": "紧急回滚流程：识别目标版本 → 验证回滚安全性 → 执行回滚 → 验证服务恢复"
+  },
+  "setup": {
+    "file": "setup.json",
+    "name": "测试/监控设施搭建",
+    "steps": 14,
+    "desc": "一键搭建质量观测设施：E2E 测试（MSW + Supertest + Schemathesis）或网站监控（Upptime + GitHub Actions）。两者流程同构，仅第 2 步动作不同，用 kind 参数区分。"
+  },
+  "mobile-e2e": {
+    "file": "mobile-e2e.json",
+    "name": "移动端 E2E 测试配置",
+    "steps": 13,
+    "desc": "自动检测项目框架→选择最佳测试工具→生成配置+示例→CI 集成"
+  },
+  "qa": {
+    "file": "qa.json",
+    "name": "浏览器 QA 验证",
+    "steps": 13,
+    "desc": "读取 git diff，浏览器测试受影响路由，发现 Bug 并生成结构化报告"
+  },
+  "cicd": {
+    "file": "cicd.json",
+    "name": "CI/CD 流水线配置",
+    "steps": 12,
+    "desc": "使用 Act + Task 配置本地 CI/CD 流水线，验证 GitHub Actions 工作流，生成 Taskfile.yml 任务运行器"
+  },
+  "plan-ceo-review": {
+    "file": "plan-ceo-review.json",
+    "name": "创始人策略审查",
+    "steps": 11,
+    "desc": "从创始人视角审查功能：找到 10x 版本、砍掉 scope creep、聚焦用户价值"
+  },
+  "plan": {
+    "file": "plan.json",
+    "name": "Manus 风格持久规划",
+    "steps": 10,
+    "desc": "基于文件的持久化任务规划，支持会话恢复、SHA256认证、多阶段追踪"
+  },
+  "spec": {
+    "file": "spec.json",
+    "name": "Spec-Driven 开发",
+    "steps": 10,
+    "desc": "把需求变成可实施的规格：speckit-specify 建 feature → product-manager 补用户故事/验收标准 → ux-designer 补交互与状态 → （可选）clarify 澄清歧义 → 规格落地门禁。产出 specs/NNN-*/spec.md。"
+  },
+  "update": {
     "file": "update.json",
+    "name": "系统资源更新",
     "steps": 10,
     "desc": "全量扫描 MCP/Skill/CLI/npm 四类资源 → 检测冲突 → 自动更新无冲突 patch/minor → major 待确认 → 写日期日志"
+  },
+  "check": {
+    "file": "check.json",
+    "name": "引擎自检",
+    "steps": 8,
+    "desc": "引擎功能完整性检查：检测 dead actions / 场景声明但未实现的门禁 / 空转 handler（只报告，不改引擎源码也不改场景数据）"
   }
 }

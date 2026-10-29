@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * 统计所有 scene 的真实步骤数，写成 scripts/scenes-stats.json（fix-readme-en.cjs 读它）。
+ * 统计所有 scene 的真实步骤数，写成 scripts/scenes-stats.json（键 = 场景文件名 slug，
+ * 与 README 表格、命令名同一套标识；下游校验脚本 scripts/check-readme-stats.cjs 直接比对）。
  *
  * 用法：node scripts/scan-scenes.cjs [sceneDir] [outFile]
  *
@@ -55,8 +56,11 @@ function main() {
       broken.push(`${file}: 没有可统计的 flow（steps=${steps}）`);
       continue;
     }
-    const name = data.name || file.replace('.json', '');
-    result[name] = { file, steps, desc: data.description || '' };
+    // 键用文件名（slug），不用场景的中文 display name：下游（README 表格、命令名）
+    // 认的都是 slug；以前拿 data.name 当键，任何对齐工具都匹配不上，
+    // 于是脚本只能把数字硬编码 —— 那才是上一版 fix-readme-en.cjs 的成因。
+    const slug = file.replace('.json', '');
+    result[slug] = { file, name: data.name || slug, steps, desc: data.description || '' };
   }
 
   const sorted = Object.entries(result).sort((a, b) => b[1].steps - a[1].steps);
@@ -80,7 +84,7 @@ function main() {
     process.exit(1);
   }
 
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
+  fs.writeFileSync(OUT, JSON.stringify(Object.fromEntries(sorted), null, 2));
   console.log(`已写入 ${path.basename(OUT)}：${sorted.length} 个场景 / ${totalSteps} 步`);
 }
 

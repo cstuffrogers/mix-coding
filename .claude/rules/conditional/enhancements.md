@@ -69,13 +69,13 @@
 - SBOM 生成 — CycloneDX 物料清单 + 许可证合规报告（GPL/AGPL 检测，始终可选）
 - mythos-agent CVE 可利用性分析 — 判断已知 CVE 是否真正到达受影响代码路径（检测到 mythos-agent 时可选）
 
-### `/monitor`
+### `/setup`（`--kind monitor`）
 
 - 日志配置 — 检测日志库，生成结构化日志配置 + ELK/Fluentd 采集（始终可选）
 - Incident Runbook — 生成 Runme 可执行 runbook（健康检查 + 升级路径，始终可选）
 - Stagehand 合成监控 — 定时跑关键路径浏览器验证，失败告警（检测到 Stagehand 时可选）
 
-### `/hunt`
+### `/review` 安全深度（旧名 `/hunt`）
 
 - LLM 代理审计 — 三层防线检测工具调用注入（LobsterTrap + AgentShield + egress-bench，默认启用）
 - mythos-agent 假设驱动扫描 — AI 推理未知漏洞 + 变量分析 + PoC 生成，与三层防线组成四层（检测到 mythos-agent 时默认启用）
@@ -89,7 +89,7 @@
 
 - GEPA 自进化模式 — 每轮自动评估 → GEPA 优化 prompt → 下一轮跑优化后 prompt，循环至收敛（检测到 GEPA 时默认启用，需配置评估指标）
 
-### `/e2e`
+### `/setup`（`--kind e2e`）
 
 - 负载测试 — Artillery smoke/load/stress 三级测试作为 CI 门禁（始终可选）
 - Stagehand 功能性测试 — act/extract/observe 验证用户关键路径（检测到 Stagehand 时默认启用）

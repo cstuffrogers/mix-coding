@@ -20,9 +20,9 @@ description: 查看所有可用工具（场景工作流 + 辅助工具），弹�
 4.  /review       — 代码审查（5层+CE+安全审计）
 5.  /optimize     — 性能优化（基线→反模式→before/after）
 6.  /simplify     — 代码简化（嵌套/长函数/重复逻辑）
-7.  /hunt         — 安全扫描（漏洞+依赖+自动修复）
+7.  /review       — 安全深度（旧名 /hunt，已并入 /review 默认开启）
 8.  /design       — AI设计（多风格生成+资产导出）
-9.  /analyze      — 竞品分析（OpenDigger数据）
+9.  /review       — 仅分析模式（旧名 /analyze，已并入 /review）
 10. /loop         — 自动迭代（审查→修复→验证循环）
 11. /new-project  — 新项目创建（全流程脚手架）
 12. /ui-polish    — 前端美化（DaisyUI/Animal Island）
@@ -71,9 +71,9 @@ description: 查看所有可用工具（场景工作流 + 辅助工具），弹�
 | 4 | /review | 场景 |
 | 5 | /optimize | 场景 |
 | 6 | /simplify | 场景 |
-| 7 | /hunt | 场景 |
+| 7 | /review | 场景 |
 | 8 | /design | 场景 |
-| 9 | /analyze | 场景 |
+| 9 | /review | 场景 |
 | 10 | /loop | 场景 |
 | 11 | /new-project | 场景 |
 | 12 | /ui-polish | 场景 |

@@ -10,12 +10,19 @@ import { fileURLToPath } from 'url';
  * 下没有 spec.json —— 它是 Claude Code 的 slash command（`.claude/commands/spec.md`），
  * 不是引擎场景。引擎自检跑再多次也不会红，因为没有任何一处把文档当输入。
  *
- * 断言两条：
+ * 断言四条：
  *   1. 文档承诺的每个 `/命令` 都有落地入口（slash command 文件 ∪ 引擎场景 ∪ 文档
  *      明确写了「已融入」的合并项 ∪ 宿主内置）
  *   2. 每个引擎场景都有命令入口 —— 否则用户根本调不到它
+ *   3. **菜单里标成「场景」的只许是真场景** —— `/hunt`、`/analyze` 这类旧名可以出现
+ *      在「已合并」表里，但 ./commands/others.md 的「类型=场景」和 scene-runner 的
+ *      「Command | Scene」表里写它们，就是许诺一个跑不起来的入口
+ *   4. 名单不变烂
  *
- * 两张名单都必须「活」：修掉的东西要删掉，否则测试失败（台账不变烂）。
+ * 扫描面对齐现实：不只看 AGENTS/CLAUDE，还看两份 README、`.claude/commands/*.md`、
+ * `.claude/rules/conditional/*.md`、两份 scene-runner SKILL —— 这些才是 agent 与
+ * 用户真正读到的入口清单。README 曾长期写着 `/hunt` `/e2e` `/monitor` 三个不存在的
+ * 场景，正因为没有任何一处把 README 当输入。
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -38,10 +45,37 @@ const MERGED_INTO = new Set([
   'loadtest',              // → setup
   'migration',             // → review
   'llm-proxy-audit',       // → review
+  'hunt',                  // → review 的 security_deep 模式（默认开启）
+  'analyze',               // → review 的 analyze-only 模式
+  'e2e',                   // → setup --kind e2e（默认）
+  'monitor',               // → setup --kind monitor
+  'property',              // → setup --kind property
 ]);
 
 /** 宿主（Claude Code / shell）内置，不是本仓库的入口。 */
-const HOST_BUILTINS = new Set(['clear', 'init', 'help', 'compact', 'config']);
+const HOST_BUILTINS = new Set([
+  'clear', 'init', 'help', 'compact', 'config', // 会话控制
+  'rewind',                                     // Claude Code 自带 checkpoint 回滚
+]);
+
+/** 入口清单类文档：用户/agent 照着它敲命令，所以必须逐条核对。 */
+const DOC_FILES = ['AGENTS.md', 'CLAUDE.md', 'README.md', 'README_EN.md'];
+
+/** scene-runner 的场景表：skill 目录里同名文件可能不止一份，全都算入口清单。 */
+const SCENE_RUNNER_DOCS = [
+  join(REPO_ROOT, '.agents', 'skills', 'scene-runner', 'SKILL.md'),
+  join(REPO_ROOT, '.pi', 'skills', 'scene-runner', 'SKILL.md'),
+];
+
+function docFiles() {
+  const files = DOC_FILES.map((f) => join(REPO_ROOT, f));
+  for (const dir of [join(REPO_ROOT, '.claude', 'commands'), join(REPO_ROOT, '.claude', 'rules', 'conditional')]) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.md'))) files.push(join(dir, f));
+  }
+  files.push(...SCENE_RUNNER_DOCS);
+  return files.filter((f) => existsSync(f));
+}
 
 function commandsDir() {
   const dir = join(REPO_ROOT, '.claude', 'commands');
@@ -83,26 +117,54 @@ function sceneNames() {
 
 function documentedCommands() {
   const commands = new Set();
-  for (const doc of ['AGENTS.md', 'CLAUDE.md']) {
-    const path = join(REPO_ROOT, doc);
-    if (!existsSync(path)) continue;
-    for (const m of readFileSync(path, 'utf8').matchAll(/`(\/[a-z][a-z-]*)`/g)) {
+  for (const path of docFiles()) {
+    for (const m of readFileSync(path, 'utf8').matchAll(/`(\/[a-z][a-z0-9-]*)`/g)) {
       commands.add(m[1].slice(1));
     }
   }
   return commands;
 }
 
+/**
+ * 菜单里「标成场景」的行：
+ *   scene-runner SKILL   `| /review | review | … |`   ← 第二列是场景名
+ *   others.md 类型表     `| 4 | /review | 场景 |`     ← 第三列写「场景」
+ * 返回 [{ file, cmd, scene }]，scene 为 null 表示只声明了「这是场景」没给场景名。
+ */
+function sceneMenuRows() {
+  const rows = [];
+  const sceneCell = /^\|\s*\/?([a-z][\w-]*)\s*\|\s*([a-z][\w-]*)\s*\|/;
+  const roleCell = /^\|\s*\d+\s*\|\s*\/?([a-z][\w-]*)\s*\|\s*场景\s*\|/;
+  for (const path of docFiles()) {
+    const isSceneRunner = SCENE_RUNNER_DOCS.includes(path);
+    for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
+      const byRole = roleCell.exec(line);
+      if (byRole) {
+        rows.push({ file: path, cmd: byRole[1], scene: null });
+        continue;
+      }
+      // 「| /cmd | 名字 |」这种形状只有 scene-runner 的场景表在用；README 里同形状的
+      // 是「命令 → 工具」表，第二列不是场景名，硬套会造出一堆假的「列了旧名」。
+      if (!isSceneRunner) continue;
+      const byScene = sceneCell.exec(line);
+      if (byScene) rows.push({ file: path, cmd: byScene[1], scene: byScene[2] });
+    }
+  }
+  return rows;
+}
+
 const commands = commandsDir();
 const scenes = sceneNames();
 const documented = documentedCommands();
 const skills = skillNames();
+const menuRows = sceneMenuRows();
 
 describe('文档 ↔ 入口 ↔ 场景 对齐', () => {
   it('扫到了文档、命令、场景（防空跑）', () => {
     expect(documented.size).toBeGreaterThanOrEqual(15);
     expect(commands.size).toBeGreaterThanOrEqual(20);
     expect(scenes.size).toBeGreaterThanOrEqual(20);
+    expect(menuRows.length, '菜单行一个都没认出来，下面的场景菜单校验就是空跑').toBeGreaterThanOrEqual(20);
   });
 
   it('文档承诺的每个命令都有落地入口', () => {
@@ -122,6 +184,17 @@ describe('文档 ↔ 入口 ↔ 场景 对齐', () => {
   it('每个引擎场景都有命令入口（否则用户调不到）', () => {
     const unreachable = [...scenes].filter((scene) => !commands.has(scene));
     expect(unreachable, `场景没有对应的 .claude/commands/<自己>.md：${unreachable.join(', ')}`).toEqual([]);
+  });
+
+  it('菜单里标成「场景」的必须真能跑（不许列旧名）', () => {
+    const resolvesToScene = (cmd) => scenes.has(ALIASES[cmd] ?? cmd);
+    const liars = menuRows.filter((row) => (row.scene === null
+      ? !resolvesToScene(row.cmd)
+      : !scenes.has(row.scene) || !resolvesToScene(row.cmd)));
+    expect(
+      liars.map((r) => `${r.file}: /${r.cmd}${r.scene ? ` → ${r.scene}` : ''}`),
+      '这些行把不存在的东西标成了场景（旧名请写进「已合并命令」表）',
+    ).toEqual([]);
   });
 
   it('名单不变烂：已融入项必须仍被文档提及', () => {

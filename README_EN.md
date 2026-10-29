@@ -74,32 +74,31 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ---
 
-## 📋 29 Workflow Scenes
+## 📋 26 Workflow Scenes (583 Steps Total)
 
-> 9 features merged as enhancements: backup/docker→cicd, sbom→deps, loadtest→e2e, log/incident→monitor, changelog→release, migration→review, llm-proxy-audit→hunt. Triggered on-demand in parent workflows.
+> 9 features merged as enhancements: backup/docker→cicd, sbom→deps, loadtest→setup, log/incident→setup, changelog→release, migration→review, llm-proxy-audit→review. Triggered on-demand in parent workflows.
 
 | Scene | Steps | Description | Command |
 |-------|-------|-------------|---------|
-| **ui-polish** | 69 | Frontend polish (full conversation mode, Open Design 152 brands → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
-| **feature** | 26 | New feature development (CE plan + TDD + multi-Agent review) | `/feature` |
-| **bugfix** | 30 | Bug fix (repro → root cause → fix → PR → regression test) | `/bugfix` |
-| **review** | 33 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic) + migration/QA/i18n/a11y enhancements | `/review` |
-| **refactor** | 23 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
+| **ui-polish** | 72 | Frontend polish (full conversation mode, Open Design 152 brands → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
+| **feature** | 31 | New feature development (CE plan + TDD + multi-Agent review) | `/feature` |
+| **bugfix** | 34 | Bug fix (repro → root cause → fix → PR → regression test) | `/bugfix` |
+| **review** | 43 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic) + migration/QA/i18n/a11y enhancements | `/review` |
+| **refactor** | 30 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
 | **optimize** | 17 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
-| **hunt** | 24 | Security vulnerability scan & fix (12 external tools + CE) + LLM proxy audit enhancement | `/hunt` |
-| **loop** | 13 | Auto iteration loop (unattended: review → fix → verify) | `/loop` |
-| **new-project** | 66 | Project from scratch (full conversation mode, Pre-flight design baseline → shape design brief → context gathering → CE plan → Open Design 152 brands + Impeccable full-suite polish (dual-round QC + 3 precision fixes) + AI-Friendly a11y + review + retention) | `/new-project` |
+| **loop** | 18 | Auto iteration loop (unattended: review → fix → verify) | `/loop` |
+| **new-project** | 70 | Project from scratch (full conversation mode, Pre-flight design baseline → shape design brief → context gathering → CE plan → Open Design 152 brands + Impeccable full-suite polish (dual-round QC + 3 precision fixes) + AI-Friendly a11y + review + retention) | `/new-project` |
 | **release** | 24 | Release deployment (quality gates + version bump + build + leak check + tag + health check + monitoring) + CHANGELOG enhancement | `/release` |
 | **deps** | 17 | Safe dependency updates (scan outdated → update one-by-one → breaking changes check → test) + SBOM enhancement | `/deps` |
 | **rollback** | 16 | Emergency rollback (version selection → rollback → build → health check → monitor restoration) | `/rollback` |
 | **onboard** | 16 | Dev environment setup (detect language → install deps → configure .env → start dev server) | `/onboard` |
 | **cicd** | 12 | CI/CD config (Act + Taskfile local pipeline + GitHub Actions validation) + Docker/backup enhancements | `/cicd` |
-| **e2e** | 9 | E2E test config (MSW + Supertest + Schemathesis API fuzz) + loadtest enhancement | `/e2e` |
-| **monitor** | 9 | Website monitoring (Upptime + GitHub Actions + status page) + log/incident enhancements | `/monitor` |
-| **qa** | 12 | Browser QA verification (git diff → browser test → bug report), also /review enhancement | `/qa` |
+| **qa** | 13 | Browser QA verification (git diff → browser test → bug report), also /review enhancement | `/qa` |
 | **plan-ceo-review** | 11 | Founder-mode product review (10x analysis + simplify + user value), also /feature enhancement | `/plan-ceo-review` |
-| **check** | 7 | Engine self-check: dead actions / unimplemented gates / stubbed handlers (never rewrites engine source) | `/check` |
+| **check** | 8 | Engine self-check: dead actions / unimplemented gates / stubbed handlers (never rewrites engine source) | `/check` |
 | **plan** | 10 | Manus-style persistent planning (session recovery + SHA256 attestation + multi-stage tracking) | `/plan` |
+| **spec** | 10 | Spec-Driven development (requirement → create feature → user stories/acceptance criteria → interaction & states → optional clarify → spec landing gate; output `specs/NNN-*/spec.md`) | `/spec` |
+| **setup** | 14 | Test/monitoring infra setup (interactive: E2E with MSW + Supertest + Schemathesis / site monitoring with Upptime + GitHub Actions) | `/setup` |
 | **update** | 10 | System resource update (scan MCP/Skill/CLI/npm → conflict detection → patch/minor auto-update → major pending confirmation → date-stamped log) | `/update` |
 | **mobile-audit** | 24 | App security audit (MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5-layer gates) | `/mobile-audit` |
 | **mobile-review** | 17 | Mobile code review (ESLint → mobsfscan SAST → UI screenshots → mobile-ui-review → AI semantic + a11y → aggregate report) | `/mobile-review` |
@@ -112,7 +111,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ## 🔧 Action Handler Completeness
 
-The system registers **126 actions** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), backed by 222 handler functions across 41 handler modules, covering all steps across 27 workflows.
+The system registers **126 actions** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), backed by 222 handler functions across 41 handler modules, covering all steps across 26 workflows.
 
 | Action | Purpose | Status |
 |--------|---------|--------|
@@ -145,7 +144,7 @@ The system registers **126 actions** (see `claude-scene/src/actions.js` `ACTION_
 # CLI command
 node src/index.js start ui-polish --auto --theme animal-island --target "E:\your\project"
 
-# Execution steps (69-step full conversation mode workflow)
+# Execution steps (72-step full conversation mode workflow)
 # Phase 0: Pre-flight Design Intelligence
 0. web-design-engineer → Declare design system baseline (Palette/Typography/Spacing/Motion/Radius/Shadows)
 0.05. review-checklist → Load 23-item review checklist
@@ -330,7 +329,8 @@ mix-coding/
 │       └── lib/              # Utility library (including huashu design integration)
 │
 ├── scripts/                  # Project scripts (Node.js .cjs)
-│   ├── scan-scenes.cjs       # Scene step counts → scripts/scenes-stats.json
+│   ├── scan-scenes.cjs       # Scene step counts → scripts/scenes-stats.json (keyed by scene slug)
+│   ├── check-readme-stats.cjs # README scene/step counts vs scene JSONs (exit 1 mismatch / 2 collapsed)
 │   ├── check-dead-actions.cjs # Scene actions must have implementations (exit 1 if not)
 │   ├── audit-scenes.mjs      # Static audit of scene logic (exit 1 on errors)
 │   └── find-deadcode-full.cjs # Dead code scanner (gate: exit 1 on dead code)

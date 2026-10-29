@@ -3219,3 +3219,105 @@ npm run scan:deadcode 2>/dev/null || true   # ← 最后一条命令永远成功
 - **会写盘的工具要先自检再写**：数据坏了宁可拒绝写，也不许用坏数据覆盖好文件。
 - **脚本与测试判据重复时不删脚本，而是加「漂移守卫」**：两边结论不一致时测试变红，
   比「谁也别写第二份」更可靠。
+
+---
+
+## 第二十四轮：README 的场景数/步骤数不许是假的（2026-07-01）
+
+> 起手不是「改文档」，是查一份脚本：`scripts/fix-readme-en.cjs`。
+
+### 改前取证
+
+- `scripts/fix-readme-en.cjs`（114 行，已删）：头注释写「基于 `scripts/scenes-stats.json` 真实数据」，
+  实际把 `stats` 读进来**一次都没用**；正文全是 `34 → 35`、`60 → 69` 这种历史替换，
+  `renames` 表里每个场景的步数硬编码在正则里。锚点早被它自己改没了 → 重跑等于空转，
+  跑完还打印「All step counts verified」（只验证自己的硬编码）。**这就是假绿的标准形态**。
+- 真值：`claude-scene/scenes/*.json` → **26 个场景 / 583 步**。两份 README 都没对上：
+  - `README.md`：标题写 27；10 个步骤数错（`review 35→43`、`bugfix 30→34`、`ui-polish 69→72`、
+    `new-project 67→70`、`feature 26→31`、`refactor 23→30`、`loop 13→18`、`qa 12→13`、`check 7→8`、
+    `setup 9→14`）；幽灵行 `enhance-prompt`（无场景/无命令文件）；**漏列 `spec`**。
+  - `README_EN.md`：标题写 29；9 个步骤数错；**幽灵行 `hunt` / `e2e` / `monitor`**；
+    漏列 `setup` + `spec`；「已融入」注释还把 `loadtest→e2e`、`log/incident→monitor`、
+    `llm-proxy-audit→hunt` 指向三个不存在的入口（真值都是 `setup` / `review`）。
+- 根因不止「没人改」：`scripts/scenes-stats.json` 的键是场景的**中文 display name**（`Bug修复`），
+  而 README 表格、命令、文件名认的都是 slug（`bugfix`）—— 下游任何对齐工具都匹配不上，
+  于是只能硬编码数字。**键选错，校验就永远写不出来**。
+
+### 维度①：stats 的键换成 slug（可对齐）
+
+`scripts/scan-scenes.cjs`：`result[data.name || file]` → `result[file.replace('.json','')]`，
+另存 `name` 字段保留展示名；写盘改为按步数排序（键顺序稳定，diff 干净）。
+
+### 维度②：`scripts/check-readme-stats.cjs`（新增，替代被删的 fix 脚本）
+
+- 真值直接读 `claude-scene/scenes/*.json` 的 `flow` 键数（引擎实际遍历的步骤；review 真跑 43 步与 `review.json` 43 键一致）。
+- 逐份 README 校验：**标题数字**（中文 `## 📋 N 个工作流场景` / 英文 `## 📋 N Workflow Scenes (N Steps Total)`）、
+  **幽灵行**、**漏列**、**步骤数**、**写了「—」没写数字**。
+- 退出码三态：**0 一致 / 1 不一致（逐条点名）/ 2 扫描面塌了**（场景 < 20，或表格行数 < `min(20, 真值×0.8)`）。
+  下限与真值挂钩是必须的：否则真值本身 20 个场景时，「漏列 2 行」会被误报成「格式变了」——
+  **文档错了是 exit 1，脚本认不出行才是 exit 2**，两种病不许混为一谈。
+
+### 维度③：两份 README 改回真值
+
+26 个场景 / 583 步；删幽灵行、补 `spec`(10) + `setup`(14)；`ui-polish` 段内的「69-step」→ 72-step；
+`all steps across 27 workflows` → 26；「已融入」注释改为真实父流程（`loadtest/log/incident→setup`、
+`llm-proxy-audit→review`）；工具链表里的 `/e2e` → `/setup`（e2e 模式）；`spec` 行描述直接对齐场景文件的
+`description`（不自己编）。`README_EN.md` 脚本清单加 `check-readme-stats.cjs`。
+
+### 维度④：文档里「标成场景」的只许是真场景
+
+`/hunt` `/e2e` `/monitor` `/analyze` 到处被当成入口清单的一部分（scene-runner 场景表、`/others` 菜单、
+`.claude/rules/conditional/enhancements.md` 的分节标题、`security-toolchain.md` 的触发命令、`sec-bug-hunt`）；
+`.agents/skills/scene-runner/SKILL.md`（英文孪生版）更离谱：`/spec` 映射到 `analyze`。
+全部改真：旧名只留在「已合并命令」表里（并加反引号，让台账测试认得出它们仍被文档提及）。
+
+### 维度⑤：`docs-scene-alignment.test.js` 扩面 + 新增断言
+
+- 扫描面从「AGENTS.md + CLAUDE.md」扩到 **两份 README + `.claude/commands/*.md` + `.claude/rules/conditional/*.md`
+  + 两份 scene-runner SKILL**（共 52 个文件）。以前 README 一直写着 3 个不存在的场景，
+  根本原因就是**没有任何一处把 README 当输入**。
+- 新增断言「**菜单里标成场景的必须真能跑**」：`| /review | review |` 这种场景表 + `| 4 | /review | 场景 |` 这种类型表，
+  逐行核对（第二列/第三列不许是旧名）。为避免误伤，场景表只在 scene-runner 文件里解析
+  （README 里同形状的是「命令 → 工具」表，硬套会造出 12 条假警报）。
+- `HOST_BUILTINS` 补 `rewind`；`documentedCommands` 的正则 `[a-z-]*` → `[a-z0-9-]*`（原来 `e2e` 这种带数字的名字根本扫不到）。
+
+### 验收三元组
+
+1. **变更**：新增 `scripts/check-readme-stats.cjs`、`claude-scene/src/commands/readme-stats.test.js`(10)；
+   改 `scripts/scan-scenes.cjs`、`scripts/scenes-stats.json`、`scripts/scan-scenes` 头注释、
+   `claude-scene/src/lib/docs-scene-alignment.test.js`、`README.md`、`README_EN.md`、
+   `.pi/skills/scene-runner/SKILL.md`、`.claude/commands/others.md`、
+   `.claude/rules/conditional/enhancements.md`、`.claude/rules/conditional/security-toolchain.md`、
+   `.claude/skills/sec-bug-hunt/SKILL.md`（`.agents/` 下三份同名孪生文件同步改，但该目录被 `.gitignore` 忽略）；
+   删 `scripts/fix-readme-en.cjs`(114 行)。
+2. **验证命令**：`npx vitest run`、`npx eslint .`、`cd claude-scene && npx eslint . --max-warnings 0`、
+   `npm run scan:deadcode`、`node scripts/check-readme-stats.cjs`、`node scripts/check-dead-actions.cjs`、
+   `node scripts/audit-scenes.mjs`、26 场景 `start <scene> --dry-run --auto`、
+   `node claude-scene/src/index.js start review --auto --skip-sweep`、`python .probe24.py`。
+3. **验证结果**：vitest **106 files / 1350 tests 全绿**；双 eslint **0/0**；`scan:deadcode` **0 dead**；
+   `check-readme-stats` **EXIT=0**（两份 README 各 26 行全部对得上）；`check-dead-actions` **0**；
+   `audit-scenes` **0**；dry-run **26/26 无失败**；review 真跑 **EXIT=0**，
+   `pass 17 / fail 0 / warn 3 / skip 19 / noop 4`（与基线一致）；自探针 **7/7**。
+
+### 坑
+
+- **python heredoc 会把 `\r?\n` 里的反斜杠吃掉**（第 8 次踩）→ 探针/补丁脚本一律用 `write` 工具落盘再跑；
+  只用 heredoc 时**别写含反斜杠的 JS 正则**，改用 `count=None` 之类的参数绕开。
+- **`row < MIN_ROWS` 这种绝对下限会误报**：fixture 20 个场景漏 2 行 → 18 行 < 20 → 报「格式变了」（exit 2），
+  于是「漏列」case 拿到的是 exit 2。下限必须和真值挂钩（`min(20, ⌊真值×0.8⌋)`）。
+- **塌面探针不能只改一行**：把 1/26 行改成列表 → 还剩 25 行，够过下限，只会报「漏列」；
+  要整张表拆掉才触发 exit 2。
+- **正则放宽要配「认不出」的兜底**：中文表原先是 `(\d+\s*步|—)\s*\|`，遇到 `| **qa** | — 步 |` 匹配失败，
+  `qa` 被算成「漏列」—— 报错方向都是错的。去掉结尾 `|`、把 `步` 变成可选后，才报出真正的原因。
+- **排序不在报告里 = 探针不稳定**：`漏列 2 个场景：setup, spec` 与真值插入顺序有关，改成 `sort()` 后才可断言。
+- **`.agents/` 被 `.gitignore` 忽略**：改 `.agents/skills/*` 不会进提交，必须同时改 `.claude/skills/*` 或 `.pi/skills/*` 才算真修。
+
+### 决策
+
+- **README 里的数字也是产物，必须由真值生成/校验，不许手写**（手写的数字过期后没有任何东西会红）。
+- **被删除的假脚本要留「不许复活」断言**：`readme-stats.test.js` 断言 `scripts/fix-readme-en.cjs` 不存在、
+  且 `package.json` 不再引用它 —— 否则下一轮有人「帮忙」把它加回来，屏幕上又绿了。
+- **一个文档项目（entry）声明了三个东西：名字、类型、指向**；「类型=场景」就是一诺千金，
+  要能被测试验证 —— 这比逐个肉眼看 52 个文件可靠。
+- **旧名不是错误，伪装成入口才是**：`/hunt` 继续留在「已合并命令」表里（带反引号、写明去哪），
+  用户照敲旧名仍能找到路，但没有任何一处再说它是场景。

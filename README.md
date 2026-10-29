@@ -85,7 +85,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ---
 
-## 📋 27 个工作流场景
+## 📋 26 个工作流场景
 
 > 另有 9 个功能已融入增强菜单（backup/docker→cicd、sbom→deps、loadtest→setup、log/incident→setup、changelog→release、migration→review、llm-proxy-audit→review），对应父工作流中按需弹出。
 >
@@ -93,13 +93,13 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 | 场景 | 步骤数 | 描述 | 命令 |
 |------|--------|------|------|
-| **ui-polish** | 69 步 | 前端美化 + 设计（交互式模式：UI美化/仅设计/品牌系统/Impeccable） | `/ui-polish` |
-| **new-project** | 67 步 | 从零开始新项目（设计基准 → shape 简报 → Open Design + Impeccable） | `/new-project` |
-| **review** | 35 步 | 代码审查 + 安全审计（交互式模式：代码审查/全量审计/仅分析/安全深度/质量工具链/AI设计）。安全深度模式含响应头/SkillSpector/ReDoS/CORS/日志脱敏/密钥/敏感文件 | `/review` |
-| **bugfix** | 30 步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
-| **feature** | 26 步 | 新功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
+| **ui-polish** | 72 步 | 前端美化 + 设计（交互式模式：UI美化/仅设计/品牌系统/Impeccable） | `/ui-polish` |
+| **new-project** | 70 步 | 从零开始新项目（设计基准 → shape 简报 → Open Design + Impeccable） | `/new-project` |
+| **review** | 43 步 | 代码审查 + 安全审计（交互式模式：代码审查/全量审计/仅分析/安全深度/质量工具链/AI设计）。安全深度模式含响应头/SkillSpector/ReDoS/CORS/日志脱敏/密钥/敏感文件 | `/review` |
+| **bugfix** | 34 步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
+| **feature** | 31 步 | 新功能开发（CE 规划 + 测试驱动 + 多 Agent 审查） | `/feature` |
 | **mobile-audit** | 24 步 | App 安全审计（MobSF + mobsfscan + Bearer + OWASP MASVS） | `/mobile-audit` |
-| **refactor** | 23 步 | 代码重构 + 简化（交互式模式：代码重构/代码简化/架构优化） | `/refactor` |
+| **refactor** | 30 步 | 代码重构 + 简化（交互式模式：代码重构/代码简化/架构优化） | `/refactor` |
 | **release** | 24 步 | 发布部署（质量门禁 + 版本号 + 构建 + 泄露检测 + Tag + 监控） | `/release` |
 | **mobile-optimize** | 19 步 | App 性能优化（Bundle 分析 + 启动优化 + 网络分析 + 反模式检测） | `/mobile-optimize` |
 | **mobile-release** | 18 步 | App 发布部署（证书检查 → 质量门禁 → TestFlight/Play Store） | `/mobile-release` |
@@ -109,16 +109,16 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **mobile-onboard** | 16 步 | App 开发环境搭建（RN Doctor + .env 模板 + 模拟器配置） | `/mobile-onboard` |
 | **onboard** | 16 步 | 开发环境搭建（检测语言 + 安装依赖 + 配置 .env） | `/onboard` |
 | **rollback** | 16 步 | 紧急回滚（版本选择 + 回滚 + 健康检查 + 监控复原） | `/rollback` |
-| **loop** | 13 步 | 自动迭代循环（无人值守，持续审查→修复→验证） | `/loop` |
+| **loop** | 18 步 | 自动迭代循环（无人值守，持续审查→修复→验证） | `/loop` |
 | **mobile-e2e** | 13 步 | 移动端 E2E 测试（Detox/Patrol + CI 集成） | `/mobile-e2e` |
 | **cicd** | 12 步 | CI/CD 配置（Act + Taskfile + Docker化/备份可选增强） | `/cicd` |
-| **qa** | 12 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级） | `/qa` |
+| **qa** | 13 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级） | `/qa` |
 | **plan-ceo-review** | 11 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值） | `/plan-ceo-review` |
-| **check** | 7 步 | 引擎自检（dead action / 未实现门禁 / 空转 handler；不自动改源码） | `/check` |
-| **enhance-prompt** | — | UI prompt 精炼（模糊 UI 想法 → 结构化 prompt，含关键词参考 + 形容词调色板） | `/enhance-prompt` |
+| **check** | 8 步 | 引擎自检（dead action / 未实现门禁 / 空转 handler；不自动改源码） | `/check` |
 | **plan** | 10 步 | Manus 持久规划（会话恢复 + SHA256认证 + 多阶段追踪） | `/plan` |
+| **spec** | 10 步 | Spec-Driven 开发（需求 → 建 feature → 用户故事/验收标准 → 交互与状态 → 可选澄清 → 规格落地门禁，产出 `specs/NNN-*/spec.md`） | `/spec` |
 | **update** | 10 步 | 系统资源更新（扫描 MCP/Skill/CLI/npm → 冲突检测 → patch/minor 自动更新 → major 待确认 → 写日期日志） | `/update` |
-| **setup** | 9 步 | 测试/监控设施搭建（交互选择：E2E 测试 MSW+Supertest+Schemathesis / 网站监控 Upptime+GitHub Actions） | `/setup` |
+| **setup** | 14 步 | 测试/监控设施搭建（交互选择：E2E 测试 MSW+Supertest+Schemathesis / 网站监控 Upptime+GitHub Actions） | `/setup` |
 
 ---
 
@@ -471,13 +471,13 @@ node src/index.js start hunt --auto --target "./your-project"
 | **trivy** | Go 二进制 | `/review`, `/audit` | 容器镜像/文件系统/IaC 全量安全扫描：CVE + 密钥 + 配置错误（Aqua Security, 25k+ stars） | — |
 | **shellcheck** | Haskell 二进制 | `/audit`, `/cicd` | Shell 脚本静态分析：语法错误/不良实践/安全风险（37k+ stars） | — |
 | **sqlfluff** | Python CLI | `/review`, `/audit` | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言（8k+ stars, MIT） | — |
-| **bruno** | npm CLI | `/e2e`, `/review` | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本（31k+ stars, MIT） | — |
+| **bruno** | npm CLI | `/setup`（e2e 模式）, `/review` | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本（31k+ stars, MIT） | — |
 | **gitleaks** | Go 二进制 | `/review`, `/audit` | Git 历史密钥泄露检测：120+ 内置规则，detect/describe/git 子命令（18k+ stars, MIT） | — |
 | **semgrep** | Python CLI | `/review`, `/audit` | 多语言 AST 级 SAST：2,500+ 社区规则，支持自定义规则，跨语言模式匹配（11k+ stars, LGPL） | — |
 | **commitlint** | npm CLI | `/review`, `/cicd` | Conventional Commits 格式校验：`@commitlint/config-conventional` + 可扩展规则（18k+ stars, MIT） | — |
 | **biome** | npm CLI | `/review`, `/audit`, `/refactor` | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier，零配置高性能（50k+ stars, MIT/Apache-2.0） | — |
 | **ruff** | Python CLI | `/review`, `/audit`, `/refactor` | Rust 编写 Python linter + formatter，替代 Flake8+isort+black，10-100x 更快（35k+ stars, MIT） | — |
-| **hurl** | Rust 二进制 | `/e2e`, `/review`, `/cicd` | 纯文本 API 测试 CLI，Git 友好，CI/CD 原生支持（13k+ stars, Apache-2.0） | — |
+| **hurl** | Rust 二进制 | `/setup`（e2e 模式）, `/review`, `/cicd` | 纯文本 API 测试 CLI，Git 友好，CI/CD 原生支持（13k+ stars, Apache-2.0） | — |
 
 ### 工具安装
 

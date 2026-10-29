@@ -10,7 +10,7 @@ A security-focused review skill for finding common vulnerabilities in frontend a
 ## Trigger Conditions
 
 - User mentions: "安全审查", "漏洞扫描", "security review", "security scan", "XSS", "SQL injection"
-- User invokes `/hunt` or requests a security-focused code review
+- User invokes `/audit`（旧名 `/hunt`）or requests a security-focused code review
 - Before merging code that handles user input, authentication, or file operations
 
 ## Capabilities
