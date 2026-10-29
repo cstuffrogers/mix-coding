@@ -2153,3 +2153,88 @@ C) 谓词读了 `ctx.obj.field` 而 `obj` 从没被填过。手工复核 A 段�
    引擎从来没实现，这类「描述假绿」还没有守卫。
 3. **`metrics` 全仓口径**：`analyze` 读 `metric`、场景曾写 `metrics`，说明命名口径
    存在多处单复数漂移，可做一次键名同义词普查（只报不改，先看规模）。
+
+---
+
+## 2026-10-29 · 第十四轮：handler 结论串 / description 假绿 / 键名漂移（三路并行）
+
+三个维度一起做，来源是上一轮结尾的三个候选。核心发现：**上一轮修的都是「检测器看不懂
+合法输入」，这一轮修的是「引擎其实没有一个统一的结论口径」**。
+
+### 维度 1 — handler 结论串 vs 状态旗标（假绿的真正源头）
+
+`deriveStepStatus` 的顺序是「显式 `{status}` → `lastStepFailed` → **文案正则**」。
+最后一环靠 `detectHandlerFailure`（`/失败|阻断|abort|FAIL/` 且不含
+`/部分|跳过|继续|非致命|fallback|降级|通知已发送|已保存|已记录|已?通知/`）+ `NOOP_RES`
+猜状态，于是**排除词会把失败救回来**。审计（392 个动作 / 379 处裸字符串 return）后
+把「失败」和「没测成」两类词从裸字符串里全部清掉，改成显式 status：
+
+- 真·假绿（失败被排除词救回）：`autoUpdateSafe` 的
+  `'npm 包名含非法字符,跳过自动更新(安全阻断)'`（含「跳过」→ pass）、
+  `stryker` 的 `'Stryker 跳过: 执行失败'`（含「跳过」→ noop）、
+  `handleRunCI` 的 `'CI 完成: 0/1 通过'`（「完成」→ pass，但一个检查都没过）、
+  `git` 的 `'提交跳过: push 被拒'`（push 失败 → noop）、
+  `lighthouse` 的 `'Lighthouse CI 完成（不可用）'`（工具没装 → pass）。
+- **没测量就写门禁旗标**：`spectral` / `markdownlint` / `size-limit` 三条在 catch 之后
+  计数变量仍停在初始值，于是 `*Passed = true` 写进 context，门禁报「通过」。
+  改成三分：无对象 = `noop`（不写旗标）、工具缺失/无输出 = `skip`（**不写旗标**）、
+  测到了才写 `*Passed`。
+- `gitDiffNameOnly` 在非 git 目录里顺手 `context.lastStepFailed = false`
+  ——**替上一个步骤擦了失败**，下游再用 `has_frontend_changes = false` 静默跳过 QA。
+  改 `skip` + 不再改别人的 `lastStepFailed`。
+- 其余 ~50 处「跳过 / 未找到 / 不可用 / 未安装」逐个改成 `skip`（带「不是通过」）
+  或 `noop`（真无事可做）或 `fail`（真做坏了）：`update`、`testing`、`review`、`qa`、
+  `mobile/audit`、`api-consistency`、`changelog`、`ceo-review`、`deep-review-tools`、
+  `design`（16 处 od-* 资产查找）、`docs`（裸 catch 把 EPERM 说成「生成跳过」）、
+  `flow-control`、`logic-testing`、`memory`、`threat-scan`、`ui-tools`、
+  `open-redirect`、`security/config-check`、`security/insecure-defaults`、`codeguardian`。
+
+守卫 `src/commands/step-status-contract.test.js`：扫 `ACTION_REGISTRY` 可达的 handler 体，
+断言里面**不存在**含「失败 / 阻断 / 跳过 / 未安装 / 未执行 / 未产生 …」的裸字符串
+return（内部三态判词 `'pass'|'fail'|'skip'|'ok'` 豁免）。自探针：往
+`handleAutoRemember` 插 `return 'zz 自动记忆跳过: 写入失败';` → 测试点名
+`autoRemember → handleAutoRemember (handlers/memory.js): zz …`，回滚后全绿。
+
+### 维度 2 — scene `description` 假绿（承诺了引擎没有的能力）
+
+上一轮删掉 `report.include` 后，8 个场景的 report 步骤 still 写着「成本报告」，
+`service` 还叫 `CostService`，而 `handleReport` 只把 `stepResults` 拼成 markdown ——
+**全仓没有任何 token/API 调用/MCP 使用计量**。修：8 处 description 改成「步骤结论 +
+门禁汇总报告」，`CostService` → `ReportService`；`feature#7.5` 的「并检查覆盖率」
+改成「按退出码判定（覆盖率由 8.5 门禁的 coverage 项判定）」，因为 `runSuite` 从不测覆盖率
+（`checkGate` 的 coverage 项才是真实现，有 `coveragePassed` 旗标）。
+
+守卫 `src/commands/scene-description-claims.test.js` 一半是**能力探针**：
+先证明全仓没有成本计量实现（`total_tokens|tokenUsage|costUsd|apiCallCount|…` 零命中），
+再断言没有 description/service 声称这类指标。自探针：往 `check.json #10` 插
+「Token 用量与成本」→ 点名 `check.json #10 notify`。
+
+### 维度 3 — 键名单复数漂移（结论：已被上一轮的守卫覆盖）
+
+扫 667 个场景参数行，对每个 handler 读取范围内的属性名做「去下划线/小写 + 单复数」
+近似匹配，**漂移 0 处**。原因是上一轮的 dead-param 守卫已经强制了「声明的键必须被读到」，
+拼错的键根本活不下来。自探针验证：给 `optimize#9.6 codeguardian_optimize` 加
+`"maxLine": 100`（handler 读 `maxLines`）→ `params-contract.test.js` 立刻点名
+`optimize#9.6 codeguardian_optimize: maxLine`，回滚后全绿。**这一维度不新增代码**，
+只记录「已有守卫覆盖」。
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1188 passed / 96 files**（本轮前 1166/93） |
+| lint | `npx eslint .` | 0 |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 |
+| 死码 | `npm run scan:deadcode` | Total dead 0（Handlers 0/70、Scenes 0/26） |
+| 26 场景 | 逐个 `start <scene> --dry-run --auto` | 全部 exit 0、bad 0 |
+| review 真跑 | `start review --auto --skip-sweep` | pass 17 / fail 0 / warn 3 / skip 19 / noop 4（与上轮一致）；git status 前后同为 54 行 |
+
+### 决策
+- **结论由 handler 给，不由文案猜**：失败/未测量两种语义必须写成 `{status}`；
+  裸字符串只允许表示「真的成功了」。
+- **没测量 ≠ 不通过 ≠ 通过**：`undefined` 旗标（门禁记 skipped）才是正确表达；
+  写 `false` 是假红，写 `true` 是假绿。
+- **一个步骤不许替别的步骤擦掉失败**（`lastStepFailed = false` 是越权）。
+- **描述里承诺的能力要么有实现，要么先从描述里删掉**；守卫用「能力探针 + 文案扫描」
+  两段式，探针必须能命中才有资格断言文案。
+- **重复的维度不必硬造守卫**：键名漂移已被 dead-param 契约覆盖，自证之后只记录不新增。
