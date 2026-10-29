@@ -2538,3 +2538,121 @@ determinable:false}` —— 左边已经确定假，结果就是假，与 b 无�
 - **中途退出必须留下两样东西**：已完成的步骤（可复用）+ 日志终点事件（可核对）。
 - **失败原因也要能被验证**：本轮我最初的「qa/update 是假红」结论是错的，查日志才推翻 —— 
   「改之前先把现象和状态对上」比「看着像 bug 就改」便宜得多。
+
+---
+
+## 第十八轮 · 三个维度：pass 不再靠猜、重试的账、门禁豁免要出声
+
+**日期**：2026-10-29  
+**性质**：引擎语义审计（用户回「全部」→ 三个维度一起做）  
+**基线**：本仓库 `start review --auto --skip-sweep` → pass 17 / fail 0 / warn 3 / skip 19 / noop 4，EXIT=0  
+**终态**：vitest **1237 passed / 98 files**；ROOT_ESLINT=0；CS_ESLINT=0；deadcode **Total 0**；26 场景 dry-run **bad=0**；工作区 clean
+
+### 审计怎么取证的
+三个维度各写一个临时审计脚本（用完即删，规则见「坑」）：
+- 维度 1：把 **284 个注册处理器**里的 **170 个裸字符串 return** 逐个喂给**真实的 `deriveStepStatus`**，
+  只信引擎自己的分类结果，不信正则直觉 → 命中 4 个真假绿 + 6 个「什么都没做却算通过」。
+- 维度 2：读 `retryFailedStep` 全路径（重试/耗尽/awaiting）与 `recordStepResult` 对照 → 找到 2 处账目问题。
+- 维度 3：扫 26 个场景的 `classifyAction` 结果（ok=17 / noEdit=8 / RISKY=0）+ 检查 `allow_no_verify` 的实际效果。
+
+### 修了什么
+
+**维度 1 —— 把结论写进返回值（9 处）**
+
+| 文件 | 分支 | 以前 | 现在 |
+|---|---|---|---|
+| `external-tool-checks.js` | `handleBuildLeakCheck` 有泄露 | pass | **warn** |
+| `external-tool-checks.js` | `handleDeadLinkCheck` 有死链 | pass | **warn** |
+| `external-tool-checks.js` | `handleRecheckCli` 命中可疑正则 | fail（靠 `lastStepFailed` 侧信道） | **fail（写在返回值里）** |
+| `external-tool-checks.js` | `handlePa11yCi` 无违规 | pass（猜出来的） | pass（显式） |
+| `testing.js` | `handleGenerateTest` 有缺口 | pass | **warn** |
+| `ui-polish.js` | `handleApplyComponents` 无可替换 | pass | **noop** |
+| `memory.js` | `handleAutoRemember` 一家都没写 | pass | **noop** |
+| `mobile-onboard.js` | `handleSetupEnv` .env 已存在 | pass | **noop** |
+| `design.js` | `handleOdTemplatePreview` 无可预览 | pass | **noop** |
+| `flow-control.js` | `handleCheckEnvFile` .env 存在 | pass（猜） | pass（显式） |
+| `review.js` | `handleReviewFull` 0 处可疑 | pass（猜） | pass（显式） |
+| `security/config-check.js` | `handleEnvVarLeak` 安全 | pass（猜） | pass（显式） |
+
+**维度 2 —— 重试的账**
+- 重试日志条目补 `iteration`（普通步骤记录一直有，重试漏了 → 多轮跑时无法归因）；
+  抽 `buildRetryLogEntry()` 纯函数，让单测能钉住「必须带轮次」。
+- `重试成功` 只留给 `pass`：`skip` 说「不再失败，但也没有跑成」，`warn` 同理走黄字。
+
+**维度 3 —— 豁免必须出声**
+- `checkAcceptance` 新增 `waivedNoVerify`；`enforceAcceptanceGate` 打印
+  「验收门禁被场景声明豁免（allow_no_verify）… —— <理由>」。
+- `allow_no_verify` **只认布尔 `true`**：以前字符串 `"true"` 同样能关掉门禁
+  （`!allowNoVerify` 对非空字符串为 false），且 `Boolean('false')` 也是 true。
+- `plan-ceo-review.json` 补 `allow_no_verify_reason`（两份场景文件逐字节同步）。
+- `scene-integrity.test.js` 加三条场景侧断言：有变更必须有验证 / 豁免必须带理由 /
+  豁免只认布尔 true 且必须有东西可豁免（空豁免 = 永远不生效的开关）。
+
+### 新增守卫
+`claude-scene/src/handlers/status-evidence.test.js`：扫所有注册处理器的裸字符串 return，
+若文案里已经写着「有发现」（死链|泄露|违规|未测试|覆盖率不足|可疑|漏洞|超限|不一致|缺口）
+却会被判 `pass`，或者写着「什么都没做」（未新增|未覆盖|无需|没有可|未变化|未改动|没有可替换）
+却会被判 `pass`，直接红；另有「巡检不能空跑」的自检断言（>200 处理器 / >50 文件 / >50 裸字符串）。
+
+### 自探针（4 次，均注入 → 点名失败 → 字节级回滚 → 复绿）
+
+| # | 注入 | 期望 | 实际 |
+|---|---|---|---|
+| 1 | `testing.js` 缺口分支退回裸字符串 | `status-evidence` 红并点名 | `testing.js:20 [handleGenerateTest] … 未测试` ✅ |
+| 2 | `if (stepStatus === 'pass')` → `if (stepStatus !== '__never__')` | 重试用例红 | `expected true to be false`（`重试成功` 断言） ✅ |
+| 3 | `typeof allowNoVerify === 'boolean' &&` 去掉 | 类型用例红 | `allow_no_verify 只认布尔 true` 红 ✅ |
+| 4 | `plan-ceo-review.json`：`allow_no_verify: false`；再删 `allow_no_verify_reason` | 场景断言红并点名 | 分别命中「也没声明 allow_no_verify」「allow_no_verify_reason 缺失」 ✅ |
+
+### 湿跑实证
+
+| 场景（临时项目） | 结果 |
+|---|---|
+| `zz-waive`（writeUpdateLog + allow_no_verify + 理由） | **EXIT=0**，屏幕出现「⚠ 验收门禁被场景声明豁免（allow_no_verify）… —— 探针场景：只写日志文件…」 |
+| `zz-waive-noreason`（同上但无理由） | **EXIT=0** + 「（场景没写 allow_no_verify_reason —— 豁免理由缺失）」 |
+| `zz-block`（有变更、无验证、未豁免） | **EXIT=1** + 「✖ 验收阻断：…未执行任何验证类步骤」+ 中止摘要（门禁没被削弱） |
+
+### 回归基线比对
+用 `git archive HEAD` 把改前代码解到 `.base-scene/`（junction 链 `node_modules`），同一仓库跑同一场景：
+
+| | pass | fail | warn | skip | noop | 逐 step 差异 |
+|---|---|---|---|---|---|---|
+| 改前（HEAD） | 17 | 0 | 3 | 19 | 4 | — |
+| 改后（工作区） | 17 | 0 | 3 | 19 | 4 | **0 处**（43 步逐个比对一致） |
+
+### 验证
+
+| 项目 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1237 passed / 98 files**（改前 1225/97） |
+| 根 lint | `npx eslint .` | ROOT_ESLINT=0 |
+| 严格 lint | `cd claude-scene && npx eslint . --max-warnings 0` | CS_ESLINT=0 |
+| 死代码 | `npm run scan:deadcode` | Total dead **0**（Handlers 0/70、Scenes 0/26、Commands 0/33、Skills 0/29、MCP 0/3） |
+| 场景自检 | 26 场景 `--dry-run --auto` | 全 exit 0（bad=0） |
+| 工作区 | `git status --porcelain` | clean |
+
+### 契约变更（改断言的地方，均带理由注释）
+- `grep-scan-handlers.test.js`：`String(result)).toContain('安全')` → `result.status === 'pass'` + `result.message`。
+- `testing.test.js`：两个 `handleGenerateTest` 用例改成「有缺口 → warn / 无缺口 → pass」，
+  并给 `scanDir` 加 mock（原来的 `/tmp` 会让测试吃宿主目录内容）。
+- `false-green.test.js`：`.env 已存在` 的断言从裸字符串改成 `status: 'noop'`。
+- `memory-store.test.js`：`未新增` 的断言从 `toContain` 改成 `status: 'noop'` + message。
+
+### 坑
+- **heredoc 会吃掉正则里的反斜杠**：写带 `\` 的脚本一律用 `write` 工具，别用 `bash <<'PY'` 转义。
+- **Windows 上 `join('/tmp','src')` 得到 `\tmp\src`**：在 Windows 上断言路径别用 `/` 分隔符的正则。
+- **`opts.filter(file)` 会被 `unicorn/no-array-callback-reference` 误判**：先把谓词取到局部变量再调用。
+- **`python` 里写单反斜杠 + n，落到 JS 源码里就是真换行**：要在 JS 里得到反斜杠 + n，python 字符串里得写四个反斜杠；
+  本轮就因此写出过一次 `bad.join('` + 换行 + `')` 的语法错误 —— 改成 `LF` 常量后一劳永逸。
+  本轮就因此写出过一次 `bad.join('` + 换行 + `')` 的语法错误 —— 改成 `LF` 常量后一劳永逸。
+  本轮就因此写出过一次 `bad.join('` + 换行 + `')` 的语法错误 —— 改成 `LF` 常量后一劳永逸。
+- **比对基线别靠记忆**：我记的十六轮基线（16/2/21/4）和当前环境（17/3/19/4）不同，
+  用 `git archive HEAD` + junction 跑真基线才确认「0 处差异」。
+
+### 决策
+- **状态要写在返回值里，文案只负责给人看**：正则猜状态永远有漏，漏的方式还都很安静。
+- **`pass` 的门槛是「做了并对了」**：扫出问题、什么都没找到可做的，都不是 pass。
+- **重试的语义是「再跑一次」不是「翻盘」**：`skip`/`noop` 不许被打成绿勾。
+- **豁免是开关，开关要有理由**：`allow_no_verify` 必须带 `allow_no_verify_reason`，
+  且运行时要把豁免说出来（「没拦」与「被关掉」必须可区分）。
+- **旗标只认布尔**：`"true"` / `"false"` 字符串既不生效也不报错，是最难查的一种静默。
+- **守卫测试必须有「不空跑」的自检**：否则文件搬走、正则写错都会让它永远绿。
