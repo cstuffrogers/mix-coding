@@ -129,5 +129,5 @@ export function handleEnvVarLeak(_action, _params, targetPath, context) {
     return { status: 'skip', message: `环境变量泄露扫描未完成：${reason}（不是通过）` };
   }
   if (context) context.envVarLeakPassed = true;
-  return '环境变量泄露扫描完成: 安全';
+  return { status: 'pass', message: '环境变量泄露扫描完成: 安全' };
 }

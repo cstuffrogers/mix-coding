@@ -69,6 +69,9 @@ function classifyCompletedStep(step, statusLookup, hasStepResults) {
 // When provided, a verify step counts only if its status is pass/warn (reviewed-passing).
 // When absent, any verify action in the flow counts (presence-only, for static scene checks).
 export function checkAcceptance(flow, completedStepNums, allowNoVerify = false, stepResults = null) {
+  // 豁免只认布尔 true：场景里写成字符串 "true" 以前同样能关掉门禁（Boolean('false')
+  // 也是 true）。旗标类型错了就不该生效，也不该静默 —— 场景侧有静态断言（只认布尔）。
+  const waived = typeof allowNoVerify === 'boolean' && allowNoVerify;
   const completed = new Set(completedStepNums);
   const statusLookup = buildStatusLookup(stepResults);
   const hasStepResults = Array.isArray(stepResults);
@@ -91,8 +94,11 @@ export function checkAcceptance(flow, completedStepNums, allowNoVerify = false, 
     hasVerify,
     hasPassingVerify,
     inertEditSteps,
-    missingVerify: !allowNoVerify && hasEdit && !hasVerify,
+    missingVerify: !waived && hasEdit && !hasVerify,
     // Hard gate: change-bearing run closed without any reviewed-passing verify step.
-    unreviewedChange: !allowNoVerify && hasEdit && !hasPassingVerify,
+    unreviewedChange: !waived && hasEdit && !hasPassingVerify,
+    // 门禁被场景声明豁免了。调用方必须把这件事说出来 —— 否则「没拦」和
+    // 「被关了」在输出上长得一样（和 inertEditSteps 同一个道理）。
+    waivedNoVerify: waived && hasEdit,
   };
 }

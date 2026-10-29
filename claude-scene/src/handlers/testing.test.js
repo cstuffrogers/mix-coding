@@ -1,5 +1,7 @@
 /* global Buffer */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   handleRunSuite, handleRunAffected, handleRunCI, handleGenerateTest,
 } from './testing.js';
@@ -15,6 +17,11 @@ vi.mock('../lib/safe-exec.js', () => ({
   safeExec: (...args) => mockSafeExec(...args),
   escapeArg: (s) => s,
 }));
+
+// scanDir 也只被「测试缺口分析」用：给它一个可控的 mock，
+// 免得这两个用例去读真实 /tmp 的内容（宿主上有什么文件决定状态 = 测试吃环境）。
+const mockScanDir = vi.fn(() => []);
+vi.mock('../lib/scan-dir.js', () => ({ scanDir: (...args) => mockScanDir(...args) }));
 
 // Mock fs
 const mockExistsSync = vi.fn(() => false);
@@ -211,16 +218,35 @@ describe('handleRunCI', () => {
 });
 
 describe('handleGenerateTest', () => {
-  it('sets tests_generated context flag', () => {
+  // 契约变更（第十八轮）：返回值从裸字符串改成 {status,message}。
+  // 裸字符串「测试缺口分析完成: 3 未测试」不含「问题/漏洞」这类词 → 引擎记 ✓ pass：
+  // 有缺口的报告看起来是通过。现在缺口存在即 warn，无缺口才 pass。
+  it('发现测试缺口 → warn（有发现，不是通过），并置上下文旗标', () => {
+    // 源码目录存在、同名 .test.js 不存在（endsWith 比带 $ 的正则直白）
+    mockExistsSync.mockImplementation((p) => String(p).endsWith('src'));
+    // 按调用方传的 filter 过滤（真实 scanDir 也是这么做的），
+    // 否则同一个文件会被 4 种扩展名各数一次
+    mockScanDir.mockImplementation((dirPath, opts) => {
+      const file = join(tmpdir(), 'src', 'app.js');
+      // 先取出谓词再调用（直接写 opts.filter(file) 会被 lint 误认成数组回调引用）
+      const predicate = typeof opts?.filter === 'function' ? opts.filter : null;
+      const allowed = predicate ? predicate(file) : true;
+      return allowed ? [file] : [];
+    });
     const ctx = {};
     const result = handleGenerateTest('generate-test', { mode: 'unit' }, '/tmp', ctx);
     expect(ctx.testGenPrepared).toBe(true);
-    expect(result).toContain('测试缺口分析');
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('测试缺口分析');
+    expect(result.message).toContain('1 未测试');
   });
 
-  it('returns clean result when no test gaps found', () => {
+  it('无缺口 → pass', () => {
+    mockExistsSync.mockReturnValue(false);
+    mockScanDir.mockReturnValue([]);
     const ctx = {};
     const result = handleGenerateTest('generate-test', {}, '/tmp', ctx);
-    expect(result).toContain('测试缺口分析');
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('测试缺口分析完成（无缺口）');
   });
 });

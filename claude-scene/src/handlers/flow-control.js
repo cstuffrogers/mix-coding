@@ -85,7 +85,8 @@ export function handleCheckEnvFile(_action, _params, targetPath, context) {
   const envPath = join(targetPath, '.env');
   const envExample = join(targetPath, '.env.example');
   if (existsSync(envPath)) {
-    return '.env 文件已存在';
+    // 检查到 .env 存在 = 这一步真的检查过了（结论跟「缺失」相反，但不是「没跑」）。
+    return { status: 'pass', message: '.env 文件已存在' };
   }
   if (context) context.missing_env_vars_detected = true;
   // 这是「检查」步骤：检查结果就是发现了缺口。以前返回裸字符串，引擎把它判 ✓ pass ——

@@ -125,7 +125,8 @@ export function handleSetupEnv(_action, _params, targetPath, context) {
     return { status: 'warn', message: `.env 模板未生成：写入 .env.example 失败（${writeError || '文件未落盘'}）` };
   }
   if (existed) {
-    return '.env 模板已存在（未覆盖，env_template_generated 不置位）';
+    // 文件已在 = 本次没生成任何东西，不能记 ✓ pass（消息自己都写着「未覆盖」）。
+    return { status: 'noop', message: '.env 模板已存在（未覆盖，env_template_generated 不置位）' };
   }
   return '.env 模板生成完成';
 }

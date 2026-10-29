@@ -344,9 +344,11 @@ export function handleGenerateTest(_action, _params, targetPath, context) {
   }
 
   if (findings.untested.length === 0 && findings.lowCoverage.length === 0) {
-    return '测试缺口分析完成（无缺口）';
+    return { status: 'pass', message: '测试缺口分析完成（无缺口）' };
   }
-  return `测试缺口分析完成: ${findings.untested.length} 未测试, ${findings.lowCoverage.length} 覆盖率不足`;
+  // 「N 未测试, M 覆盖率不足」是发现，不是通过。裸字符串里没有「问题/漏洞」
+  // 这类词，WARN_RES 也不会命中 → 以前记 pass：有缺口的报告看起来是通过。
+  return { status: 'warn', message: `测试缺口分析完成: ${findings.untested.length} 未测试, ${findings.lowCoverage.length} 覆盖率不足` };
 }
 
 // ── Load Testing (Artillery) ──

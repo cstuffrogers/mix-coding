@@ -683,7 +683,8 @@ export function handleOdTemplatePreview(_action, params, targetPath, context) {
 
   const exampleHtml = join(templateDir, 'example.html');
   if (!existsSync(exampleHtml)) {
-    return `模板 "${templateId}" 没有可预览的示例`;
+    // 模板存在但没有可预览的内容 = 预览没发生，不是「预览完了」。
+    return { status: 'noop', message: `模板 "${templateId}" 没有可预览的示例` };
   }
 
   const htmlContent = readFileSync(exampleHtml, 'utf-8');

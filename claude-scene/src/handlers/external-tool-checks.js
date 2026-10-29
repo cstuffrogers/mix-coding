@@ -171,7 +171,12 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
     return { status: 'warn', message: '构建泄露检查未完成：noleak 执行异常，没拿到结论' };
   }
   if (context) context.buildLeakPassed = isPassed;
-  return `构建泄露检查完成: ${findings.length ? findings.join('; ') : '无泄露'}`;
+  // 以前返回裸字符串，「构建泄露检查完成: <泄露清单>」里没有「失败」二字 →
+  // 引擎记 ✓ pass：扫出泄露的那一步看起来是通过。有发现就显式 warn。
+  if (findings.length > 0) {
+    return { status: 'warn', message: `构建泄露检查完成: ${findings.join('; ')}` };
+  }
+  return { status: 'pass', message: '构建泄露检查完成: 无泄露' };
 }
 
 export function handleDeadLinkCheck(_action, _params, targetPath, context) {
@@ -211,7 +216,11 @@ export function handleDeadLinkCheck(_action, _params, targetPath, context) {
   }
 
   if (context) context.deadLinkPassed = brokenCount === 0;
-  return `死链接检测完成: ${brokenCount} 个死链接`;
+  // 同上：`3 个死链接` 不含任何「发现类」词，裸字符串会被判 pass。
+  if (brokenCount > 0) {
+    return { status: 'warn', message: `死链接检测完成: ${brokenCount} 个死链接` };
+  }
+  return { status: 'pass', message: '死链接检测完成: 0 个死链接' };
 }
 
 // [patched:sec-headers-langs] 把逐项头匹配抽成独立函数，控制 handleSecurityHeaders 认知复杂度。
@@ -340,10 +349,12 @@ export function handleRecheckCli(_action, _params, targetPath, context) {
     console.log(chalk.red(`  🔴 发现 ${hits.length} 处嵌套量词正则（潜在 ReDoS）`));
     hits.slice(0, 10).forEach((h) => console.log(chalk.dim(`    ${h}`)));
     if (context) context.lastStepFailed = true;
-    return `ReDoS 扫描完成: ${hits.length} 处可疑（扫描 ${files.length} 个文件）`;
+    // 以前靠 context.lastStepFailed 这条侧信道让它变成 fail，返回值本身是裸字符串。
+    // 侧信道一断（调用方忘了读 flag）就成 pass —— 结论要写在返回值里。
+    return { status: 'fail', message: `ReDoS 扫描完成: ${hits.length} 处可疑（扫描 ${files.length} 个文件）` };
   }
   console.log(chalk.green(`  ✅ 未发现嵌套量词正则（扫描 ${files.length} 个文件）`));
-  return `ReDoS 扫描完成: 未发现可疑正则（扫描 ${files.length} 个文件）`;
+  return { status: 'pass', message: `ReDoS 扫描完成: 未发现可疑正则（扫描 ${files.length} 个文件）` };
 }
 function buildScanTargets(targetPath) {
   const targets = [];
@@ -1096,7 +1107,7 @@ export function handlePa11yCi(_action, params, targetPath, context) {
     return { status: 'fail', message: `pa11y-ci 无障碍扫描未通过（${standard || '默认标准'}）：${firstLines(text) || '见 pa11y-ci 输出'}` };
   }
   if (context) context.pa11yPassed = true;
-  return `pa11y-ci 无障碍扫描完成（${standard || '默认标准'}）：无违规`;
+  return { status: 'pass', message: `pa11y-ci 无障碍扫描完成（${standard || '默认标准'}）：无违规` };
 }
 
 function firstLines(text) {

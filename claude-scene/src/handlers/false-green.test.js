@@ -448,7 +448,10 @@ describe('假绿回归：移动端环境检查', () => {
     const dir = project({ '.env.example': 'A=1\n' });
     const ctx = {};
     const r = handleSetupEnv('setupEnv', {}, dir, ctx);
-    expect(String(r)).toContain('已存在');
+    // 契约变更（第十八轮）：消息从裸字符串改成 {status,message}。
+    // 「已存在」= 这次没生成任何东西，状态是 noop 而不是 pass。
+    expect(r.status).toBe('noop');
+    expect(r.message).toContain('已存在');
     expect(ctx.env_template_generated).toBe(false);
     expect(ctx.envTemplatePassed).toBe(true);
   });

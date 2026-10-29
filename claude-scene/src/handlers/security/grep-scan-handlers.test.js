@@ -31,7 +31,10 @@ describe('handleEnvVarLeak：没查过 ≠ 安全', () => {
   it('两个 grep 都跑成、零发现 → 通过', () => {
     const context = {};
     const result = handleEnvVarLeak('env-var-leak', {}, root, context);
-    expect(String(result)).toContain('安全');
+    // 契约变更（第十八轮）：返回值从裸字符串改成 {status,message}。
+    // 「安全」这个结论写在返回值里，不再靠引擎猜。
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('安全');
     expect(context.envVarLeakPassed).toBe(true);
   });
 

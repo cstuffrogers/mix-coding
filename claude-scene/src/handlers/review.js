@@ -419,7 +419,9 @@ export function handleReviewFull(_action, _params, targetPath) {
     const tail = unmeasured.length ? `；未扫描: ${unmeasured.join(', ')}` : '';
     return { status: 'warn', message: `完整审查完成: CLI 模式发现 ${issues} 处可疑代码${tail}` };
   }
-  return `完整审查完成: CLI 模式发现 0 处可疑代码`;
+  // 「0 处可疑」是干净的结论，但结论要写在返回值里，而不是靠引擎拿词表猜
+  // （status-evidence 巡检：裸字符串里写着结论就不许判 pass）。
+  return { status: 'pass', message: '完整审查完成: CLI 模式发现 0 处可疑代码' };
 }
 
 export function handleVerifyVisual(_action, _params, targetPath) {

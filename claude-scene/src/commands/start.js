@@ -856,6 +856,25 @@ export function rewriteStepRecord(stepResults, stepNum, status, resultStr) {
  */
 export const DEFAULT_MAX_RETRIES = 3;
 
+/**
+ * 一次重试尝试的日志条目。
+ * 抽成纯函数是为了能让单测钉住「必须带 iteration」—— 普通步骤记录
+ * （recordStepResult）一直有这列，重试以前漏了：多轮跑时无法把重试记到哪一轮。
+ */
+export function buildRetryLogEntry({ step, status, attempt, durationMs, resultStr, context }) {
+  return {
+    step: step.step,
+    action: step.action,
+    status,
+    attempt,
+    reason: 'retry',
+    iteration: context?.iteration || 1,
+    duration_ms: durationMs,
+    result: String(resultStr ?? '').slice(0, 200),
+    time: new Date().toISOString(),
+  };
+}
+
 export function resolveMaxRetries(step) {
   const declared = step?.max_retries;
   if (declared === undefined) return DEFAULT_MAX_RETRIES;
@@ -879,16 +898,22 @@ export async function retryFailedStep(step, sceneId, resolvedParams, context, di
     if (context._awaitingAnswer) return 'awaiting';
     const { resultStr, stepStatus } = deriveStepStatus(result, context);
     console.log(paintByStatus(stepStatus, resultStr));
-    appendLog({
-      step: step.step, action: step.action, status: stepStatus, attempt, reason: 'retry',
-      duration_ms: Date.now() - started, result: resultStr.slice(0, 200), time: new Date().toISOString(),
-    });
+    appendLog(buildRetryLogEntry({
+      step, status: stepStatus, attempt, durationMs: Date.now() - started, resultStr, context,
+    }));
     if (stepStatus === 'fail' || context.lastStepFailed) continue;
     const previous = context.stepResults?.[context.stepResults.length - 1];
     shiftSummary(LOG_SUMMARY, previous?.status || 'fail', stepStatus);
     rewriteStepRecord(context.stepResults, step.step, stepStatus, resultStr);
     applyPostStepContext(step, context, sceneId);
-    console.log(chalk.green(`   ✔ Step ${step.step} 第 ${attempt} 次重试成功（判为 ${stepStatus}）`));
+    // 「重试成功」是句有内容的话：skip = 这次重试没跑成、noop = 没人可做、
+    // warn = 跑了但有发现。以前一律打绿✓「重试成功（判为 skip）」——
+    // 重试的全部意义就是「真的跑成了吗」，这句不能潦草地绿。
+    if (stepStatus === 'pass') {
+      console.log(chalk.green(`   ✔ Step ${step.step} 第 ${attempt} 次重试成功（判为 pass）`));
+    } else {
+      console.log(chalk.yellow(`   ⚠ Step ${step.step} 第 ${attempt} 次重试后不再失败，但也没有跑成（判为 ${stepStatus}）`));
+    }
     return 'recovered';
   }
   return 'exhausted';
@@ -1538,6 +1563,13 @@ function enforceAcceptanceGate(scene, context, sceneId) {
   if (!acceptance.hasEdit && acceptance.inertEditSteps.length > 0) {
     const list = [...new Set(acceptance.inertEditSteps)].join(', ');
     console.log(chalk.dim(`  变更类步骤未真正执行（${list}），本次没有实际改动 —— 验收门禁不要求验证`));
+  }
+  // 场景声明了 allow_no_verify：门禁被关了，而「被关了」必须写在屏幕上。
+  // 以前这条豁免完全静默 —— 讀者会以为「有变更 + 没验证」本来就合法。
+  if (acceptance.waivedNoVerify) {
+    const reason = typeof scene.allow_no_verify_reason === 'string' ? scene.allow_no_verify_reason.trim() : '';
+    const why = reason || '（场景没写 allow_no_verify_reason —— 豁免理由缺失）';
+    console.log(chalk.yellow(`  ⚠ 验收门禁被场景声明豁免（allow_no_verify）：本次有变更但没有要求验证 —— ${why}`));
   }
   if (acceptance.missingVerify) {
     console.log(chalk.red('  ✖ 验收阻断：本次工作流包含变更类步骤但未执行任何验证类步骤（lint/test/verify/build）。'));

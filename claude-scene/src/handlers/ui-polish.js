@@ -192,7 +192,9 @@ function handleApplyComponents(targetPath, theme, context) {
   }
 
   if (componentsUsed.size === 0) {
-    return '未发现可替换的组件（项目可能不包含 button/input/select 等标准元素）';
+    // 什么都没替换却 return 裸字符串 → 记 pass。「没找到可改的东西」是 noop，
+    // 不是「做完了」。
+    return { status: 'noop', message: '未发现可替换的组件（项目可能不包含 button/input/select 等标准元素）' };
   }
   return `组件替换完成：${modifiedFiles.length} 个文件被修改，使用了 ${[...componentsUsed].join(', ')} 组件`;
 }

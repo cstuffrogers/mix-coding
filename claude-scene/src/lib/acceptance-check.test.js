@@ -202,4 +202,28 @@ describe('checkAcceptance', () => {
     const r = checkAcceptance(flow, [1], true, results);
     expect(r.unreviewedChange).toBe(false);
   });
+
+  // 豁免必须能被看见：以前 allow_no_verify=true 完全静默，读者看不出
+  // 「没拦」是因为不需要验证，还是因为门禁被场景关掉了。
+  it('豁免生效时要告诉调用方（waivedNoVerify），不许静默放行', () => {
+    const waived = checkAcceptance(flow, [1], true, [{ action: 'autoFix', status: 'pass' }]);
+    expect(waived.waivedNoVerify).toBe(true);
+
+    const notWaived = checkAcceptance(flow, [1], false, [{ action: 'autoFix', status: 'pass' }]);
+    expect(notWaived.waivedNoVerify).toBe(false);
+  });
+
+  it('声明了 allow_no_verify 但这次没有变更动作 → 不算豁免过（避免打出误导的提示）', () => {
+    const r = checkAcceptance(flow, [2], true, [{ action: 'runLint', status: 'pass' }]);
+    expect(r.hasEdit).toBe(false);
+    expect(r.waivedNoVerify).toBe(false);
+  });
+
+  it('allow_no_verify 只认布尔 true（字符串 "true" 不能当豁免）', () => {
+    const r = checkAcceptance(flow, [1], 'true', [{ action: 'autoFix', status: 'pass' }]);
+    // 字符串 'true' 不是布尔 true：豁免不生效，门禁照常拦（missingVerify 照样成立），
+    // 也不许打出「已豁免」的提示。
+    expect(r.missingVerify).toBe(true);
+    expect(r.waivedNoVerify).toBe(false);
+  });
 });

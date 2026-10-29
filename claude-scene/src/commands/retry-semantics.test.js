@@ -16,7 +16,7 @@ vi.mock('../actions.js', async (importOriginal) => {
 });
 
 const { executeAction } = await import('../actions.js');
-const { retryFailedStep, shiftSummary, rewriteStepRecord, bucketOf, resolveMaxRetries, DEFAULT_MAX_RETRIES } = await import('./start.js');
+const { retryFailedStep, shiftSummary, rewriteStepRecord, bucketOf, resolveMaxRetries, buildRetryLogEntry, DEFAULT_MAX_RETRIES } = await import('./start.js');
 
 const STEP = { step: 7, action: 'runSuite', on_error: 'retry', description: '跑测试套件' };
 
@@ -158,15 +158,18 @@ describe('retryFailedStep', () => {
     const context = { stepResults: [] };
     executeAction.mockImplementation(failingResult());
     const logged = [];
+    // spy 必须在 finally 里收：断言一失败就泄漏，下一个用例会莫名「控制台被 mock 过」。
     const spy = vi.spyOn(console, 'log').mockImplementation((...args) => { logged.push(String(args[0])); });
-
-    await retryFailedStep({ ...STEP, max_retries: 2 }, 'rollback', { retry: 5 }, context);
+    try {
+      await retryFailedStep({ ...STEP, max_retries: 2 }, 'rollback', { retry: 5 }, context);
+    } finally {
+      spy.mockRestore();
+    }
 
     const note = logged.find((line) => line.includes('params.retry'));
     expect(note).toBeTruthy();
     expect(note).toContain('步级重试 2 次');
     expect(note).toContain('5');
-    spy.mockRestore();
   });
 
   it('重试的处理器要人回答问题 → awaiting（不许吞掉问题继续）', async () => {
@@ -183,5 +186,52 @@ describe('retryFailedStep', () => {
 
     expect(outcome).toBe('awaiting');
     expect(executeAction).toHaveBeenCalledTimes(1);
+  });
+});
+describe('重试的账：日志带轮次，「成功」只留给真的跑成', () => {
+  // 第十七轮补的洞：重试的日志条目少了 iteration（普通步骤记录一直有），
+  // 多轮跑时无法把一次重试归到某一轮。
+  it('buildRetryLogEntry 必须带 iteration', () => {
+    const entry = buildRetryLogEntry({
+      step: STEP, status: 'fail', attempt: 2, durationMs: 12, resultStr: 'x', context: { iteration: 3 },
+    });
+    expect(entry).toMatchObject({
+      step: 7, action: 'runSuite', status: 'fail', attempt: 2, iteration: 3, reason: 'retry', duration_ms: 12, result: 'x',
+    });
+    expect(typeof entry.time).toBe('string');
+  });
+
+  it('没有 iteration 时记第 1 轮（不写 undefined）', () => {
+    const entry = buildRetryLogEntry({ step: STEP, status: 'pass', attempt: 1, durationMs: 1, resultStr: 'ok', context: {} });
+    expect(entry.iteration).toBe(1);
+  });
+
+  it('重试回来的状态是 skip 时不许说「重试成功」（那只是不再失败）', async () => {
+    const context = { stepResults: [{ step: 7, action: 'runSuite', status: 'fail', detail: '执行失败' }] };
+    executeAction.mockReset();
+    executeAction
+      .mockImplementationOnce((sceneId, action, params, ctx) => {
+        ctx.lastStepFailed = true;
+        return { status: 'fail', message: '执行失败: 找不到测试命令' };
+      })
+      .mockImplementationOnce((sceneId, action, params, ctx) => {
+        ctx.lastStepFailed = false;
+        return { status: 'skip', message: '没有 package.json，跑不了测试（不是通过）' };
+      });
+
+    const logged = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((...args) => { logged.push(String(args[0])); });
+    let outcome;
+    try {
+      outcome = await retryFailedStep(STEP, 'bugfix', {}, context);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(outcome).toBe('recovered');
+    expect(logged.some((line) => line.includes('重试成功'))).toBe(false);
+    expect(logged.some((line) => line.includes('没有跑成') && line.includes('skip'))).toBe(true);
+    // 记录如实改成 skip：重试没有让它变成「通过」
+    expect(context.stepResults[0]).toMatchObject({ status: 'skip', retried: true });
   });
 });

@@ -137,5 +137,6 @@
     }
   ],
   "status": "active",
-  "allow_no_verify": true
+  "allow_no_verify": true,
+  "allow_no_verify_reason": "纯策略审查场景：产出是给人读的报告与取舍建议，不改目标仓库的代码，没有可验证的变更产物"
 }

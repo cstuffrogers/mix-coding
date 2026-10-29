@@ -708,7 +708,10 @@ describe('写入侧去重（内容指纹）', () => {
     const ctx = () => ({ prompt: 'same', completedSteps: ['x'], _sceneId: 'qa' });
     handleAutoRemember('a', {}, proj, ctx());
     const second = handleAutoRemember('a', {}, proj, ctx());
-    expect(second).toContain('未新增');
+    // 契约变更（第十八轮）：返回值从裸字符串改成 {status,message}。
+    // 一家后端都没写 = 没有真正发生的事，状态是 noop，不是「保存成功」的 pass。
+    expect(second.status).toBe('noop');
+    expect(second.message).toContain('未新增');
     const list = await handleListMemories('l', {}, proj);
     // 4 个后端各一行，没有因为连跑两轮翻倍
     expect(list).toMatch(/1 条（project-memory）/);

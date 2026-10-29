@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { ACTION_REGISTRY, hasActionHandler } from '../actions.js';
 import { UI_POLISH_ACTIONS } from '../handlers/ui-polish.js';
 import { handleInteractiveStep } from './start.js';
+import { classifyAction } from '../lib/acceptance-check.js';
 
+const LF = String.fromCodePoint(10);
 const SRC = dirname(fileURLToPath(import.meta.url));
 const SCENE_DIR = join(SRC, '..', '..', 'scenes');
 const files = readdirSync(SCENE_DIR).filter((f) => f.endsWith('.json')).sort();
@@ -88,5 +90,50 @@ describe('全场景 step：on_error 取值必须是引擎认识的', () => {
       }
     }
     expect(bad).toEqual([]);
+  });
+});
+
+/**
+ * 验收三元组的场景侧：有变更动作就必须有验证动作。
+ * 以前这条只写在文档和 CLAUDE.md 里 —— 「改了东西没验证」在场景层没人拦，
+ * 全靠写场景的人记得。现在逐场景机器断言：要么带 verify 步骤，
+ * 要么显式声明 allow_no_verify + 理由（豁免不许静默）。
+ */
+describe('全场景：变更类步骤必须有验证类步骤，豁免必须带理由', () => {
+  const scenes = files.map((file) => {
+    const scene = JSON.parse(readFileSync(join(SCENE_DIR, file), 'utf8'));
+    const kinds = (scene.flow || []).map((s) => classifyAction(s.action));
+    return {
+      file,
+      edits: kinds.filter((k) => k === 'edit').length,
+      verifies: kinds.filter((k) => k === 'verify').length,
+      allow: scene.allow_no_verify,
+      reason: scene.allow_no_verify_reason,
+    };
+  });
+
+  it('有变更类动作的场景都带验证类动作，或有明确豁免', () => {
+    const bad = scenes
+      .filter((s) => s.edits > 0 && s.verifies === 0 && s.allow !== true)
+      .map((s) => `${s.file}: ${s.edits} 个变更类步骤，0 个验证类步骤，也没声明 allow_no_verify`);
+    expect(bad, bad.join(LF)).toEqual([]);
+  });
+
+  it('声明了 allow_no_verify 就必须写理由（否则等于悄悄关掉门禁）', () => {
+    const bad = scenes
+      .filter((s) => s.allow === true && !(typeof s.reason === 'string' && s.reason.trim().length >= 8))
+      .map((s) => `${s.file}: allow_no_verify=true 但 allow_no_verify_reason 缺失或过短`);
+    expect(bad, bad.join(LF)).toEqual([]);
+  });
+
+  it('allow_no_verify 只认布尔 true，且豁免要有东西可豁免', () => {
+    const bad = [];
+    for (const s of scenes) {
+      if (s.allow !== undefined && s.allow !== true) bad.push(`${s.file}: allow_no_verify=${JSON.stringify(s.allow)}（只认布尔 true）`);
+      // 没有变更类步骤却声明豁免 = 一个永远不会生效的开关，读者会以为有门禁挡着
+      if (s.allow === true && s.edits === 0) bad.push(`${s.file}: allow_no_verify=true 但场景没有变更类步骤（豁免是空的）`);
+      if (s.allow !== true && s.reason !== undefined) bad.push(`${s.file}: 没声明 allow_no_verify 却写了 allow_no_verify_reason`);
+    }
+    expect(bad, bad.join(LF)).toEqual([]);
   });
 });
