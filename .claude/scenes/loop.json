@@ -108,8 +108,7 @@
       "service": "CodeGuardianMCP",
       "action": "codeguardian_optimize",
       "params": {
-        "mode": "validate",
-        "scope": "modified_files"
+        "mode": "validate"
       },
       "description": "CodeGuardian 变更边界验证：无人值守迭代中最关键防线。物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止自动修复跑偏",
       "condition": "codeguardian_mcp_available",
@@ -186,14 +185,7 @@
       "layer": "capability",
       "service": "CostService",
       "action": "report",
-      "params": {
-        "format": "summary",
-        "include": [
-          "tokens",
-          "api_calls",
-          "mcp_usage"
-        ]
-      },
+      "params": {},
       "description": "输出本轮迭代的Token/API调用/MCP使用成本汇总"
     },
     {

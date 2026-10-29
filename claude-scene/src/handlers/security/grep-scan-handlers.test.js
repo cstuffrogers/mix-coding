@@ -41,7 +41,9 @@ describe('handleEnvVarLeak：没查过 ≠ 安全', () => {
       .mockReturnValueOnce({ ok: true, raw: '' });
     const context = {};
     const result = handleEnvVarLeak('env-var-leak', {}, root, context);
-    expect(String(result)).toContain('1 处风险');
+    // 有泄露 = 安全类发现 → fail（不是「完成: 1 处风险」的 pass）
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('1 处风险');
     expect(context.envVarLeakPassed).toBe(false);
   });
 
@@ -61,7 +63,8 @@ describe('handleEnvVarLeak：没查过 ≠ 安全', () => {
       .mockReturnValueOnce({ ok: true, raw: 'src/a.jsx:9:process.env.SECRET_TOKEN' });
     const context = {};
     const result = handleEnvVarLeak('env-var-leak', {}, root, context);
-    expect(String(result)).toContain('1 处风险');
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('1 处风险');
     expect(context.envVarLeakPassed).toBe(false);
   });
 });
@@ -78,7 +81,9 @@ describe('handleSensitiveFileCheck：git 不可用不是「没有敏感文件」
     mockGrepScan.mockReturnValue({ ok: true, raw: '.env' });
     const context = {};
     const result = handleSensitiveFileCheck('sensitive-file', {}, root, context);
-    expect(String(result)).toContain('处风险');
+    // 敏感文件被 Git 追踪 = 安全类发现 → fail
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('处风险');
     expect(context.sensitiveFilePassed).toBe(false);
   });
 

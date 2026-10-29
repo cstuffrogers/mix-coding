@@ -55,8 +55,7 @@
       "service": "PlanService",
       "action": "createPlan",
       "params": {
-        "template": "plan.md",
-        "sections": ["goal", "phases", "key_questions", "decisions_made", "errors_encountered"]
+        "template": "plan.md"
       },
       "description": "生成阶段规划文件 plan.md"
     },

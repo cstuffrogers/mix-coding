@@ -123,9 +123,7 @@
       "layer": "capability",
       "service": "MobileService",
       "action": "mobileGenerateChangelog",
-      "params": {
-        "format": "conventional_commits"
-      },
+      "params": {},
       "consumes": "new_version",
       "produces": "changelog_content",
       "description": "从 Conventional Commits 自动生成 CHANGELOG（基于 new_version，构建前生成，随 release 一起发布）→ 输出 changelog_content 供 GitHub Release 使用"
@@ -197,10 +195,7 @@
       "layer": "capability",
       "service": "CostService",
       "action": "report",
-      "params": {
-        "format": "summary",
-        "include": ["tokens", "api_calls"]
-      },
+      "params": {},
       "description": "发布流程成本报告"
     },
     {

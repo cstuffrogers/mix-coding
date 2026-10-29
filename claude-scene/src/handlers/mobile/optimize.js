@@ -18,7 +18,10 @@ export function handleMeasureBaseline(_action, params, _targetPath, context) {
 export function handleAnalyzeBundle(_action, params, targetPath, context) {
 
   if (context) context.bundle_analyzed = true;
-  return { status: 'noop', message: 'Bundle 未分析（CLI 不执行，需在对话模式由 agent 完成）' };
+  // 场景声明了 `tool: "auto"`（mobile-optimize#3）：引擎不执行它，但结论里必须
+  // 说清「该用什么工具去做」，否则这个声明就永远不会被人看到。
+  const tool = typeof params?.tool === 'string' && params.tool ? params.tool : '（未声明）';
+  return { status: 'noop', message: `Bundle 未分析（CLI 不执行，需在对话模式由 agent 完成，工具: ${tool}）` };
 }
 
 export function handleAnalyzeAssets(_action, _params, targetPath, context) {

@@ -76,8 +76,7 @@
       "service": "ReviewEngine",
       "action": "runReview",
       "params": {
-        "mode": "security",
-        "tool": "mobsfscan"
+        "mode": "security"
       },
       "description": "L2: mobsfscan 源码安全扫描 — 硬编码密钥/不安全存储/弱加密/无SSL Pinning",
       "condition": "mobsfscan_available",
@@ -186,10 +185,7 @@
       "layer": "capability",
       "service": "CostService",
       "action": "report",
-      "params": {
-        "format": "summary",
-        "include": ["tokens", "api_calls"]
-      },
+      "params": {},
       "description": "代码审查流程成本报告"
     },
     {

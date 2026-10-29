@@ -324,9 +324,7 @@
       "layer": "capability",
       "service": "DesignMDService",
       "action": "design-md-lint",
-      "params": {
-        "command": "npx @google/design.md lint"
-      },
+      "params": {},
       "description": "Google DESIGN.md CLI: 校验品牌注入后的 DESIGN.md 格式正确性 + WCAG 对比度，",
       "condition": "conversation_mode"
     },
@@ -665,25 +663,7 @@
       "layer": "capability",
       "service": "DesignService",
       "action": "impeccable-critique",
-      "params": {
-        "rules": [
-          "anti-patterns",
-          "llm-critique"
-        ],
-        "checks": [
-          "no-indigo-default",
-          "no-purple-blue-gradient",
-          "no-pure-black-white",
-          "no-cards-nested-in-cards",
-          "spacing-consistency",
-          "typography-scale",
-          "color-contrast",
-          "motion-preference",
-          "no-side-stripe-borders",
-          "no-gradient-text",
-          "no-glassmorphism-default"
-        ]
-      },
+      "params": {},
       "description": "Impeccable 设计打磨（CLI）: 12 条反AI模式规则 — 纯黑→neutral-900 / 纯白→neutral-50 / 侧边描边 / 渐变文字",
       "condition": "!conversation_mode"
     },

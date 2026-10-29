@@ -44,7 +44,11 @@ describe('handleSetupSBOM', () => {
     });
     const ctx = {};
     const result = handleSetupSBOM('sbom', {}, '/test/project', ctx);
-    expect(result).toContain('SBOM');
+    // sampleLicenses 里有 GPL-3.0 → 限制性许可证 = 真实发现，状态不能是 pass
+    // （以前「已生成」一律算完成，旗标 licenseIssuesFound = true 却没人当信号）
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('SBOM');
+    expect(result.message).toContain('限制性许可证');
     expect(ctx.sbomGenerated).toBe(true);
     expect(ctx.licenseIssuesFound).toBe(true);
     expect(mockWriteFileSync.mock.calls.some(([p]) => p.includes('license-report.md'))).toBe(true);
@@ -65,9 +69,11 @@ describe('handleSetupSBOM', () => {
   it('returns early for non-npm project', () => {
     const ctx = {};
     const result = handleSetupSBOM('sbom', {}, '/test/project', ctx);
-    expect(result).toContain('非 npm 项目');
-    expect(ctx.sbomGenerated).toBe(false);
-    expect(ctx.sbomSkipped).toBe(true);
+    // 非 npm ≠ 生成失败：skip，且两个旗标都不写（sbomSkipped 本来就没有读者）
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('非 npm 项目');
+    expect(ctx.sbomGenerated).toBeUndefined();
+    expect(ctx.sbomSkipped).toBeUndefined();
   });
 
   it('generates manual SBOM when cyclonedx fails', () => {

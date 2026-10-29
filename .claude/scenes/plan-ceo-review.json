@@ -29,14 +29,7 @@
       "layer": "capability",
       "service": "FileReader",
       "action": "readSpec",
-      "params": {
-        "paths": [
-          "spec.md",
-          "plan.md",
-          "tasks.md",
-          "README.md"
-        ]
-      },
+      "params": {},
       "description": "读取功能规格/PRD/任务文档，理解当前方案"
     },
     {
@@ -105,7 +98,6 @@
       "service": "ReportGenerator",
       "action": "generateCEOReport",
       "params": {
-        "format": "markdown",
         "output": ".claude/ceo-review-{timestamp}.md"
       },
       "description": "生成结构化审查报告：每条建议含是什么/为什么/用户影响/建议行动",

@@ -298,8 +298,7 @@
       "service": "CodeGuardianMCP",
       "action": "codeguardian_optimize",
       "params": {
-        "mode": "validate",
-        "scope": "refactored_files"
+        "mode": "validate"
       },
       "description": "CodeGuardian 重构边界验证：物理边界(max_lines≤±50/max_deps=0/max_complexity≤130%)+自动验证(test/bench/quality)+失败回滚。防止重构引入新依赖或过度膨胀",
       "condition": "codeguardian_mcp_available",
@@ -359,9 +358,7 @@
       "layer": "capability",
       "service": "ContractChecker",
       "action": "checkAPIConsistency",
-      "params": {
-        "scope": "refactored_modules"
-      },
+      "params": {},
       "description": "API 契约一致性检查：确认重构未改变公开API签名和行为"
     },
     {

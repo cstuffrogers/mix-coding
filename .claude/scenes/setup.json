@@ -63,15 +63,7 @@
       "layer": "capability",
       "service": "MemoryService",
       "action": "recall",
-      "params": {
-        "keywords": [
-          "e2e",
-          "test",
-          "monitor",
-          "uptime",
-          "mock"
-        ]
-      },
+      "params": {},
       "description": "注入测试/监控相关记忆"
     },
     {

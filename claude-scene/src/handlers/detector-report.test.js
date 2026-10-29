@@ -125,6 +125,27 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
     expect(result.status).toBe('warn');
     expect(result.message).toContain('未提交改动');
   });
+
+  // 第十一轮：新鲜度不可证明时不许当通过。以前 `head && data.gitSha &&` 两个条件
+  // 任一为空就整段跳过校验 —— git 不可用 / 记录里没 gitSha 都默默算 pass。
+  it('git 不可用（查不到 HEAD）→ warn，不拿「查不了」当「对得上」', () => {
+    writeReport(clean);
+    vi.mocked(safeExec).mockImplementation(() => {
+      throw new Error('git not installed');
+    });
+    const result = handleDetectorReport('detectorReport', {}, root, {});
+
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('git 不可用');
+  });
+
+  it('记录里没有 gitSha → warn，不当成「同版本」', () => {
+    writeReport({ ...clean, gitSha: null });
+    const result = handleDetectorReport('detectorReport', {}, root, {});
+
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('没有 gitSha');
+  });
 });
 
 describe('detectorReport —— --with-sweep 现场自检（跑在审查之前，审查本体仍只读）', () => {
@@ -153,5 +174,30 @@ describe('detectorReport —— --with-sweep 现场自检（跑在审查之前�
     handleDetectorReport('detectorReport', {}, root, {});
 
     expect(execFileSync).not.toHaveBeenCalled();
+  });
+
+  it('现场跑了却没产出记录 → warn，且不再叫人「跑 npm run detector:sweep」（他刚跑过）', () => {
+    const result = handleDetectorReport('detectorReport', {}, root, { withSweep: true });
+
+    expect(execFileSync).toHaveBeenCalledOnce();
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('本轮现场自检没有产出可用记录');
+    expect(result.message).not.toContain('跑 npm run detector:sweep');
+  });
+
+  it('--skip-sweep 且没有记录 → skip 并把用户这个表态说出来', () => {
+    const result = handleDetectorReport('detectorReport', {}, root, { sweepDecision: 'skip' });
+
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('--skip-sweep');
+  });
+
+  it('--skip-sweep 但产物新鲜有效 → pass，且不跑 sweep', () => {
+    writeReport(clean);
+    const result = handleDetectorReport('detectorReport', {}, root, { sweepDecision: 'skip' });
+
+    expect(execFileSync).not.toHaveBeenCalled();
+    expect(result.status).toBe('pass');
+    expect(result.message).not.toContain('本轮现场自检');
   });
 });

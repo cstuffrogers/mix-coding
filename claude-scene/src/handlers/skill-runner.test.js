@@ -103,6 +103,22 @@ describe('vendored Trail of Bits skills', () => {
     expect(ctx[`skill_${name}_name`]).toBeTruthy();
   });
 
+  // 第十三轮：ui-polish 的 18 个步骤用 `command: "critique|layout|polish|…"` 表达模式，
+  // 而 handler 只认 `subcommand` —— 声明被静默丢弃。两个键名都认，且结论里要看得见。
+  it('command 当 subcommand 的别名用，写进 context 和结论（不再被静默丢弃）', () => {
+    const ctx = {};
+    const result = handleInvokeSkill('invokeSkill', { skill: 'sharp-edges', command: 'layout' }, ENGINE_DIR, ctx);
+    expect(ctx['skill_sharp-edges_subcommand']).toBe('layout');
+    expect(result.message).toContain('模式 layout');
+  });
+
+  it('subcommand 优先于 command（显式 keys 赢）', () => {
+    const ctx = {};
+    handleInvokeSkill('invokeSkill', { skill: 'sharp-edges', subcommand: 'polish', command: 'layout' }, ENGINE_DIR, ctx);
+    expect(ctx['skill_sharp-edges_subcommand']).toBe('polish');
+    expect(ctx['skill_sharp-edges_dimensions']).toBeUndefined();
+  });
+
   it.each(TOB)('%s has no dangling relative markdown links', (name) => {
     const dir = join(REPO_ROOT, '.claude', 'skills', name);
     const dangling = [];

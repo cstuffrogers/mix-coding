@@ -73,7 +73,7 @@ export function handleLobsterTrapInstall(_action, _params, targetPath, context) 
     return 'Lobster Trap: 安装完成';
   }
   if (context) context.lobsterTrapInstalled = false;
-  return 'Lobster Trap: 安装失败，请手动安装';
+  return { status: 'fail', message: 'Lobster Trap: 安装失败，请手动安装' };
 }
 
 /**
@@ -251,9 +251,14 @@ export async function handleDiffTest(_action, _params, targetPath, context) {
 
   if (!directUrl || !directKey || !proxyUrl || !proxyKey) {
     printCredentialHelp();
-    if (context) context.diffTestConfigured = false;
-    return '差分测试: 未配置 API 凭证，跳过';
+    // 没配凭证 = 没测。以前写 diffTestConfigured = false（门禁 flag），
+    // 却返回「跳过」，步骤记 pass —— 门禁说 failed、步骤说 pass，两处矛盾。
+    // 现在只发 skip，不写 verdict 旗标，门禁如实记 skipped。
+    return { status: 'skip', message: '差分测试跳过：未配置 API 凭证（没测，不是通过）' };
   }
+  // 凭证齐了 = 「配置完成」，这是个真测量（四个变量都拿到了）；
+  // 测没测由 diffTestCompleted 管，两件事不混。
+  if (context) context.diffTestConfigured = true;
 
   const { detectProxyTampering } = await import('../lib/llm-proxy-detector.js');
 
@@ -278,7 +283,7 @@ export async function handleDiffTest(_action, _params, targetPath, context) {
   } catch (err) {
     console.error(chalk.red(`  ❌ 差分测试失败: ${err.message}`));
     if (context) context.diffTestCompleted = false;
-    return `差分测试: 失败 — ${err.message}`;
+    return { status: 'fail', message: `差分测试失败: ${err.message}` };
   }
 }
 

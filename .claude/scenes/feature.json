@@ -207,7 +207,6 @@
       "service": "TestEngine",
       "action": "generateTest",
       "params": {
-        "coverage": "90+%",
         "mode": "unit"
       },
       "description": "生成组件单元测试用例（覆盖率90%以上）",

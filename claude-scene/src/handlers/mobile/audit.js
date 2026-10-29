@@ -145,14 +145,20 @@ export function handleBuildApp(_action, params, _targetPath, context) {
 
 export function handleScanSource(_action, params, _targetPath, _context) {
   const rules = params?.rules || 'default';
-  const installed = hasTool('mobsfscan');
-  if (!installed) return 'mobsfscan 未安装，源代码 SAST 未执行（不计为通过）';
-  return { status: 'skip', message: `mobsfscan 已安装，源码扫描需手动/对话执行（规则集: ${rules}），本轮未测量` };
+  // 场景声明了 `tool: "mobsfscan"`（mobile-audit#5）。以前工具名写死在 hasTool() 里，
+  // 声明没人读 —— 现在声明的工具就是真去查的那个。
+  const tool = typeof params?.tool === 'string' && params.tool ? params.tool : 'mobsfscan';
+  const installed = hasTool(tool);
+  if (!installed) return `${tool} 未安装，源代码 SAST 未执行（不计为通过）`;
+  return { status: 'skip', message: `${tool} 已安装，源码扫描需手动/对话执行（规则集: ${rules}），本轮未测量` };
 }
 
 export function handleScanDependencies(_action, params, _targetPath, _context) {
   const source = params?.source || 'npm';
-  return { status: 'skip', message: `依赖扫描需外部工具（来源: ${source}），本轮未执行（不计为通过）` };
+  // 场景声明了 `tool: "dependencycheck"`：引擎不执行它，但必须把它写进结论，
+  // 否则「要跑哪个工具」就只存在于场景文件里，屏幕上只有一个泛泛的「外部工具」。
+  const tool = typeof params?.tool === 'string' && params.tool ? params.tool : '（未声明）';
+  return { status: 'skip', message: `依赖扫描需外部工具 ${tool}（来源: ${source}），本轮未执行（不计为通过）` };
 }
 
 export function handleMasvsCheck(_action, params, _targetPath, context) {

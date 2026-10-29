@@ -191,8 +191,7 @@
       "service": "MobileService",
       "action": "mobileGenerateReport",
       "params": {
-        "format": "plain_language",
-        "sections": ["security", "privacy", "dependencies", "performance", "store_compliance"]
+        "format": "plain_language"
       },
       "description": "生成通俗审计报告：emoji 指标 + 自然语言 + 一键修复清单"
     },
@@ -234,10 +233,7 @@
       "layer": "capability",
       "service": "CostService",
       "action": "report",
-      "params": {
-        "format": "summary",
-        "include": ["tokens", "api_calls"]
-      },
+      "params": {},
       "description": "审计流程成本报告"
     },
     {

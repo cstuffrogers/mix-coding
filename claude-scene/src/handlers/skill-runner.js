@@ -131,7 +131,11 @@ export function handleInvokeSkill(_action, params, targetPath, context) {
   // 场景里同一个 skill 反复调用时，用 subcommand（shape/critique/polish/layout…）
   // 或 dimensions 区分不同模式。以前这两个键没人读 —— 十几个步骤在引擎眼里
   // 完全一样，模式信息白白丢掉。这里至少要把它们带进结论和 context。
-  const subcommand = params?.subcommand;
+  //
+  // 第十三轮：ui-polish 的 18 个步骤写的是 `command: "critique" / "layout" / …`，
+  // 意图和 subcommand 完全一样，只是键名不同 —— 以前一个字节都没人读。
+  // 两个键都认（subcommand 优先），谁也不许再当装饰品。
+  const subcommand = params?.subcommand ?? params?.command;
   const dimensions = Array.isArray(params?.dimensions) ? params.dimensions : [];
   const modeNote = [
     subcommand ? `模式 ${subcommand}` : '',

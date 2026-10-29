@@ -98,6 +98,14 @@ describe('没跑成的移动端步骤必须自报 skip', () => {
     expect(result.status).toBe('skip');
     expect(result.message).toContain('npm');
   });
+
+  // 第十三轮：场景写的 `tool: "mobsfscan" / "dependencycheck"` 以前没人读 ——
+  // 引擎不执行外部工具，但至少要把「该跑哪个工具」写到屏幕上。
+  it('scanSource / scanDependencies 把声明的 tool 透传到结论', () => {
+    expect(String(handleScanSource('scanSource', { tool: 'semgrep' }, PROJ, {}))).toContain('semgrep');
+    expect(handleScanDependencies('scanDependencies', { tool: 'dependencycheck' }, PROJ, {}).message)
+      .toContain('dependencycheck');
+  });
 });
 
 // 这一组守「报告里写的话必须真的发生了」：

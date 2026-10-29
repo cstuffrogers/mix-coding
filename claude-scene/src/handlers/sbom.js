@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
+import { statusForFindings } from '../lib/finding-verdict.js';
 
 const RESTRICTIVE_LICENSES = ['GPL', 'AGPL', 'LGPL', 'SSPL', 'BUSL', 'Elastic', 'CC BY-NC'];
 
@@ -84,11 +85,9 @@ export function handleSetupSBOM(_action, _params, targetPath, context) {
 
   const pkgPath = join(targetPath, 'package.json');
   if (!existsSync(pkgPath)) {
-    if (context) {
-      context.sbomGenerated = false;
-      context.sbomSkipped = true;
-    }
-    return 'SBOM 跳过（非 npm 项目）';
+    // 非 npm 项目 = 没生成过，不是「生成失败」。以前写 sbomGenerated = false
+    // （门禁 sbom 读出差失败，假红）外加一个没人读的 sbomSkipped（负债）。
+    return { status: 'skip', message: 'SBOM 跳过：非 npm 项目（没有 package.json，不是失败）' };
   }
 
   let dependencies = [];
@@ -138,5 +137,10 @@ export function handleSetupSBOM(_action, _params, targetPath, context) {
     context.restrictiveLicenses = restrictive.map((d) => `${d.name}:${d.licenses}`);
   }
 
-  return `SBOM 和许可证报告已生成${restrictive.length > 0 ? '（发现限制性许可证）' : ''}`;
+  return restrictive.length > 0
+    ? {
+        status: statusForFindings(restrictive.length),
+        message: `SBOM 和许可证报告已生成: ${restrictive.length} 个限制性许可证（${restrictive.map((d) => d.licenses).join(', ')}）需人工确认`,
+      }
+    : 'SBOM 和许可证报告已生成';
 }

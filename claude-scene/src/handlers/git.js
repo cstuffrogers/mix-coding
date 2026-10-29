@@ -201,9 +201,12 @@ export function handleCreateRelease(_action, params, targetPath, context) {
   }
 }
 
-export function handleListReleases(_action, _params, targetPath) {
+export function handleListReleases(_action, params, targetPath) {
+  // 场景声明了 `limit: 10`（rollback#2）。以前命令里写死 --limit 10，参数没人读。
+  const declared = Number(params?.limit);
+  const limit = Number.isSafeInteger(declared) && declared > 0 ? declared : 10;
   try {
-    const result = safeExec('gh release list --limit 10 2>&1', targetPath, { stdio: 'pipe' }).toString().trim();
+    const result = safeExec(`gh release list --limit ${limit} 2>&1`, targetPath, { stdio: 'pipe' }).toString().trim();
     if (result) {
       return `Release 列表已获取`;
     }

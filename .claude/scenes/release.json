@@ -73,7 +73,6 @@
       "service": "DocsService",
       "action": "generateChangelog",
       "params": {
-        "format": "conventional_commits",
         "since": "last_release"
       },
       "description": "从Conventional Commits自动生成CHANGELOG"
@@ -180,7 +179,6 @@
       "service": "DocsService",
       "action": "createTag",
       "params": {
-        "format": "v{version}",
         "annotated": true
       },
       "description": "创建带注释的Git版本标签",
@@ -252,10 +250,7 @@
       "layer": "capability",
       "service": "CostService",
       "action": "report",
-      "params": {
-        "format": "summary",
-        "include": ["tokens", "api_calls"]
-      },
+      "params": {},
       "description": "发布流程成本报告"
     },
     {

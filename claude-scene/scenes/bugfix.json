@@ -120,8 +120,7 @@
       "service": "MemoryService",
       "action": "issueQuery",
       "params": {
-        "type": "bug",
-        "limit": 1
+        "type": "bug"
       },
       "description": "查询最近1个未完成的bug issue（Jira/issue/PR）",
       "on_error": "abort"
@@ -132,8 +131,7 @@
       "service": "IssueProcessor",
       "action": "issueQuery",
       "params": {
-        "type": "bug",
-        "limit": 1
+        "type": "bug"
       },
       "description": "分析issue类型、严重程度、重现步骤、影响范围",
       "on_error": "abort"
@@ -198,9 +196,7 @@
       "layer": "capability",
       "service": "CodeEngine",
       "action": "locate",
-      "params": {
-        "scope": "affected_files"
-      },
+      "params": {},
       "description": "定位受影响文件，进行现场调试",
       "on_error": "abort"
     },
@@ -221,9 +217,7 @@
       "layer": "capability",
       "service": "ContractChecker",
       "action": "checkAPIConsistency",
-      "params": {
-        "scope": "affected_endpoints"
-      },
+      "params": {},
       "description": "API 契约一致性检查：确保修复不会破坏现有API契约"
     },
     {
@@ -361,8 +355,7 @@
       "service": "TestEngine",
       "action": "regression",
       "params": {
-        "mode": "pr_check",
-        "cleanup": true
+        "mode": "pr_check"
       },
       "description": "PR创建后自动运行回归测试（CI/CD 流水线集成）"
     },

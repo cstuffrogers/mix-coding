@@ -42,10 +42,7 @@
       "layer": "capability",
       "service": "CIService",
       "action": "actionlint",
-      "params": {
-        "config": ".github/workflows",
-        "format": "json"
-      },
+      "params": {},
       "description": "actionlint: GitHub Actions 工作流语法检查（3k+ stars）"
     },
     {
@@ -86,9 +83,7 @@
       "layer": "capability",
       "service": "CIService",
       "action": "autoFix",
-      "params": {
-        "source": "cicd"
-      },
+      "params": {},
       "description": "自动修复 CI/CD 配置问题",
       "condition": "ciConfigured == false"
     },

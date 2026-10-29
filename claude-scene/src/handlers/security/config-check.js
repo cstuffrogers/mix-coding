@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { relative } from 'path';
 import chalk from 'chalk';
 import { grepScan } from '../../lib/grep-scan.js';
+import { statusForFindings } from '../../lib/finding-verdict.js';
 import { assertSources, listProjectCodeFiles } from '../../lib/project-sources.js';
 
 export function handleCorsCheck(_action, _params, targetPath, context) {
@@ -112,9 +113,14 @@ export function handleEnvVarLeak(_action, _params, targetPath, context) {
   if (findings.length > 0) {
     console.log(chalk.yellow(`  ⚠ 发现 ${findings.length} 处环境变量泄露风险`));
     findings.slice(0, 5).forEach(f => console.log(chalk.dim(`    ${f}`)));
-    // 有发现就是有发现，不管另一侧跑没跑成
+    // 有发现就是有发现，不管另一侧跑没跑成。泄露 = 安全类，按 error 级处理：
+    // 以前这里返回「完成: N 处风险」，步骤记 pass、旗标写 false —— 汇总里
+    // 一行绿一行 failed，泄露就被那条绿字抹平了。
     if (context) context.envVarLeakPassed = false;
-    return `环境变量泄露扫描完成: ${findings.length} 处风险`;
+    return {
+      status: statusForFindings(findings.length, { severity: 'error' }),
+      message: `环境变量泄露扫描完成: ${findings.length} 处风险`,
+    };
   }
   console.log(chalk.green('  ✅ 未发现前端环境变量泄露'));
   if (failed.length > 0) {

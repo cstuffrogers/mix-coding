@@ -137,10 +137,7 @@
       "layer": "capability",
       "service": "CostService",
       "action": "report",
-      "params": {
-        "format": "summary",
-        "include": ["tokens", "api_calls"]
-      },
+      "params": {},
       "description": "环境搭建流程成本报告"
     },
     {

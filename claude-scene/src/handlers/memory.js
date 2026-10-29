@@ -563,7 +563,7 @@ export function handleMemoryPrune(_action, params, targetPath) {
   return `记忆保留策略执行完成: 归档 ${result.total} 条${detail}${gzNote}`;
 }
 
-export function handleListMemories(_action, _params, targetPath) {
+export function handleListMemories(_action, params, targetPath) {
   const scope = projectScope(targetPath);
   const memories = loadAllProjectMemories(targetPath);
   const cmAll = claudeMemItems();
@@ -577,8 +577,11 @@ export function handleListMemories(_action, _params, targetPath) {
   const amStats = getAgentmemoryStats();
   const cg = queryCodeGraph(20, targetPath);
 
+  // 场景声明了 `limit: 10`（ui-polish#2）。以前 details 写死 slice(0,10)，参数没人读。
+  const declared = Number(params?.limit);
+  const limit = Number.isSafeInteger(declared) && declared > 0 ? declared : 10;
   if (memories.length) {
-    memories.slice(0, 10).forEach((m, i) => {
+    memories.slice(0, limit).forEach((m, i) => {
       console.log(chalk.dim(`  ${i + 1}. [${m.type}] ${m.id} — ${m.timestamp}`));
     });
   } else {

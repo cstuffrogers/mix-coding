@@ -86,7 +86,6 @@
       "service": "ProjectService",
       "action": "checkEnvFile",
       "params": {
-        "template": ".env.example",
         "target": ".env"
       },
       "description": "检查.env配置，从.env.example模板提示缺失的环境变量"
@@ -112,9 +111,7 @@
       "layer": "capability",
       "service": "ProjectService",
       "action": "generateEnv",
-      "params": {
-        "template": ".env.example"
-      },
+      "params": {},
       "description": "根据模板和用户输入生成.env文件",
       "condition": "missing_env_vars_detected"
     },

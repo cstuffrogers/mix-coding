@@ -332,7 +332,6 @@
       "service": "SecuritySkill",
       "action": "sec-bug-hunt",
       "params": {
-        "scope": "current_diffs",
         "block_merge_on_critical": true
       },
       "description": "代码安全深度审计",
@@ -418,11 +417,7 @@
       "service": "SkillSecurityService",
       "action": "skillspector-scan",
       "params": {
-        "targets": [
-          ".claude/skills/",
-          ".claude/commands/"
-        ],
-        "format": "json"
+        "targets": [".claude/skills/",".claude/commands/"]
       },
       "description": "AI 技能安全扫描：扫描 .claude/skills/ .claude/commands/ 中的提示注入、数据外泄、权限提升、恶意代理等 64 种漏洞模式（NVIDIA SkillSpector）",
       "condition": "selected_modes.includes('security_deep') || selected_modes.includes('full_audit')"
@@ -509,13 +504,7 @@
       "layer": "capability",
       "service": "CodeMetricsService",
       "action": "analyze",
-      "params": {
-        "metrics": [
-          "complexity",
-          "maintainability",
-          "coupling"
-        ]
-      },
+      "params": {},
       "description": "代码质量指标分析",
       "condition": "selected_modes.includes('analyze_only')"
     },

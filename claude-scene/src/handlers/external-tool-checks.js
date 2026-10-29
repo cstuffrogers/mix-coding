@@ -3,6 +3,7 @@ import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec, escapeArg } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
+import { statusForFindings } from '../lib/finding-verdict.js';
 import { assertSources, listProjectCodeFiles } from '../lib/project-sources.js';
 
 function _resolvePythonTool(toolName, moduleName) {
@@ -22,45 +23,66 @@ function _resolvePythonTool(toolName, moduleName) {
   return toolName;
 }
 
+/**
+ * 「工具根本没装」和「工具没装但 npx 把报错写在 stdout」都会走到这里：
+ * 以前这类输出被当成工具的正常输出，`findings > 0` 的分支永远不成立 → 写 passed = true。
+ */
+function isToolMissing(raw) {
+  return /not recognized|command not found|ENOENT|npm ERR! 404|could not determine executable/i.test(String(raw));
+}
+
+function countKnipIssues(parsed) {
+  const counts = { fileCount: 0, depCount: 0, exportCount: 0 };
+  const buckets = [['files', 'fileCount'], ['dependencies', 'depCount'], ['devDependencies', 'depCount'], ['exports', 'exportCount']];
+  for (const issue of parsed.issues || []) {
+    for (const [key, bucket] of buckets) counts[bucket] += issue[key]?.length || 0;
+  }
+  return { ...counts, total: counts.fileCount + counts.depCount + counts.exportCount };
+}
+
+/** knip 有发现时退出码非 0，然而 JSON 还在 stdout —— 抛错不代表没结果 */
+function readKnipOutput(targetPath, strictFlag) {
+  try {
+    return safeExec(`npx knip --reporter json${strictFlag} 2>&1`, targetPath, { stdio: 'pipe', maxBuffer: 1024 * 1024 }).toString();
+  } catch (e) {
+    return e.stdout?.toString?.() || e.stderr?.toString?.() || e.message || '';
+  }
+}
+
 export function handleKnipCheck(_action, params, targetPath, context) {
   // strict: true → knip --strict（未使用的导出/类型也算问题）。场景 review#2.6
   // 声明了它，以前没人读 —— 严格档和默认档跑出来一模一样。
   const strictFlag = params?.strict === true ? ' --strict' : '';
+  const raw = readKnipOutput(targetPath, strictFlag);
+
+  // 工具没装 = 这一步什么都没做（以前 `|| true` 把报错文本当输出，
+  // 解析失败后靠 NOOP 正则碰巧记成 noop；显式 skip 不依赖文案巧合）。
+  if (isToolMissing(raw)) {
+    return { status: 'skip', message: '死代码检测跳过：knip 未安装（npm i -D knip 后可启用）' };
+  }
+
+  let parsed;
   try {
-    const result = safeExec(`npx knip --reporter json${strictFlag} 2>&1 || true`, targetPath, { stdio: 'pipe' }).toString();
-    try {
-      const parsed = JSON.parse(result);
-      const issues = parsed.issues || [];
-      let fileCount = 0;
-      let depCount = 0;
-      let exportCount = 0;
-      for (const issue of issues) {
-        fileCount += issue.files?.length || 0;
-        depCount += (issue.dependencies?.length || 0) + (issue.devDependencies?.length || 0);
-        exportCount += issue.exports?.length || 0;
-      }
-      const total = fileCount + depCount + exportCount;
-      if (total > 0) {
-        if (context) context.deadCodePassed = false;
-        return `死代码检测完成: ${total} 项`;
-      }
+    parsed = JSON.parse(raw);
+  } catch {
+    if (/✂️|excellent|congratulations/i.test(raw)) {
       if (context) context.deadCodePassed = true;
       return '死代码检测完成: 无死代码';
-    } catch {
-      if (result.includes('✂️') || result.includes('excellent') || result.includes('congratulations')) {
-        if (context) context.deadCodePassed = true;
-        return '死代码检测完成: 无死代码';
-      }
-      // 解析不出结果 = 没拿到结论。以前返回「完成（结果解析失败）」，
-      // 消息里有「完成」二字，报告里就是这个 gate ✓ pass。
-      return { status: 'warn', message: `死代码检测未完成：knip 输出无法解析（${String(result).trim().slice(0, 80) || '空输出'}）` };
     }
-  } catch (e) {
-    console.log(chalk.dim(`  ⚠ knip 不可用: ${e.message?.slice(0, 100) || '未安装'}`));
+    // 解析不出结果 = 没拿到结论。以前返回「完成（结果解析失败）」，
+    // 消息里有「完成」二字，报告里就是这个 gate ✓ pass。
+    return { status: 'warn', message: `死代码检测未完成：knip 输出无法解析（${String(raw).trim().slice(0, 80) || '空输出'}）` };
   }
-  // 工具没装 = 这一步什么都没做。以前同样写成「完成（knip 不可用）」，靠 NOOP 正则
-  // 碰巧记成 noop；显式 skip 才不依赖文案巧合。
-  return { status: 'skip', message: '死代码检测跳过：knip 未安装（npm i -D knip 后可启用）' };
+
+  const counts = countKnipIssues(parsed);
+  // 状态与门禁旗标同源：以前找到 27 项死代码仍返回「完成」，步骤记 pass、
+  // 旗标写 false —— 汇总里一行 pass 一行 failed，看报告的人只能猜哪个算数。
+  if (context) context.deadCodePassed = counts.total === 0;
+  if (counts.total === 0) return '死代码检测完成: 无死代码';
+  return {
+    status: statusForFindings(counts.total),
+    message: `死代码检测: ${counts.total} 项（未使用文件 ${counts.fileCount} / 依赖 ${counts.depCount} / 导出 ${counts.exportCount}）`,
+  };
 }
 
 export function _parseNoleakOutput(raw) {
@@ -403,7 +425,7 @@ function scanSingleTarget(cmd, targetPath, allFindings) {
   }
 }
 
-function reportSkillspectorFindings(allFindings, context) {
+function reportSkillspectorFindings(allFindings) {
   const critical = allFindings.filter(f => f.severity === 'CRITICAL' || f.severity === 'critical');
   const high = allFindings.filter(f => f.severity === 'HIGH' || f.severity === 'high');
   const total = allFindings.length;
@@ -415,15 +437,16 @@ function reportSkillspectorFindings(allFindings, context) {
     for (const f of high.slice(0, 3)) {
       console.log(chalk.yellow(`    🟡 ${f.pattern || f.rule || f.type}: ${f.location?.file || f.file || f.path}`));
     }
-    if (context) context.skillspectorPassed = critical.length === 0;
-    // 显式状态：「N 个问题」靠 WARN_RES 猜太脆，而且这里本来就该让人看见。
+    // 不写 skillspectorPassed：扫的是文档（技能/命令的 markdown），
+    // 里面的反例代码会被 YARA 命中 —— 本仓库的 CRITICAL 就是
+    // sharp-edges/references/lang-php.md 里那句 preg_replace('/.*/e') 反例。
+    // 这种发现只能人工复核：判 fail 是假红，写「通过」的旗标是假绿。
     return {
-      status: 'warn',
-      message: `SkillSpector 扫描完成: ${total} 个问题（CRITICAL ${critical.length} / HIGH ${high.length}）`,
+      status: statusForFindings(total),
+      message: `SkillSpector 扫描完成: ${total} 个问题（CRITICAL ${critical.length} / HIGH ${high.length}）—— 扫描对象是文档，示例代码会被当成漏洞，需人工复核`,
     };
   }
 
-  if (context) context.skillspectorPassed = true;
   return { status: 'pass', message: 'SkillSpector 扫描完成: 无问题' };
 }
 
@@ -443,7 +466,8 @@ function classifyScanError(e) {
   return { missing: false, reason };
 }
 
-export function handleSkillspectorScan(_action, params, targetPath, context) {
+// context 不再写任何旗标：扫文档的发现只能人工复核（见 reportSkillspectorFindings）
+export function handleSkillspectorScan(_action, params, targetPath) {
   // targets: ["..."] 覆盖默认扫描范围。review#4.57 显式声明了要扫的目录，
   // 以前没人读 —— 声明被静默忽略。
   const declaredTargets = Array.isArray(params?.targets) ? params.targets.filter((t) => typeof t === 'string' && t) : [];
@@ -470,7 +494,7 @@ export function handleSkillspectorScan(_action, params, targetPath, context) {
     };
   }
 
-  return reportSkillspectorFindings(sweep.findings, context);
+  return reportSkillspectorFindings(sweep.findings);
 }
 
 /**
@@ -499,6 +523,19 @@ function sweepSkillTargets(targets, skillspectorCmd, llmFlag, targetPath) {
 
 // ── actionlint — GitHub Actions workflow syntax checker (3k+ stars) ──
 
+function readActionlintOutput(targetPath) {
+  try {
+    return safeExec(
+      'npx actionlint -format "{{range .}}::error file={{.Filepath}},line={{.Lineno}},col={{.Col}}::{{.Message}}{{end}}" .github/workflows/ 2>&1',
+      targetPath,
+      { stdio: 'pipe', maxBuffer: 1024 * 1024, timeout: 30000 }
+    ).toString();
+  } catch (e) {
+    // actionlint 发现语法错误时退出码非 0，报告仍在 stdout
+    return e.stdout?.toString?.() || e.stderr?.toString?.() || e.message || '';
+  }
+}
+
 export function handleActionlint(_action, _params, targetPath, context) {
   const workflowsDir = join(targetPath, '.github', 'workflows');
 
@@ -507,41 +544,44 @@ export function handleActionlint(_action, _params, targetPath, context) {
     return 'actionlint 检查完成: 无 GitHub Actions 工作流目录';
   }
 
-  let issueCount = 0;
-
-  try {
-    const raw = safeExec(
-      'npx actionlint -format "{{range .}}::error file={{.Filepath}},line={{.Lineno}},col={{.Col}}::{{.Message}}{{end}}" .github/workflows/ 2>&1 || true',
-      targetPath,
-      { stdio: 'pipe', maxBuffer: 1024 * 1024, timeout: 30000 }
-    ).toString();
-
-    const lines = raw.split('\n').filter(Boolean);
-    issueCount = lines.filter(l => /^::error\b/.test(l)).length;
-
-    if (issueCount > 0) {
-      lines.filter(l => /^::error\b/.test(l)).slice(0, 15).forEach(l => {
-        console.log(chalk.yellow(`    ${l.replace(/^::error\s+/, '').slice(0, 200)}`));
-      });
-    } else if (raw.includes('no lint errors') || raw.trim() === '') {
-      console.log(chalk.green('  ✅ actionlint: 工作流语法无问题'));
-    }
-  } catch {
-    console.log(chalk.dim('  ℹ actionlint 不可用，跳过工作流语法检查'));
+  const raw = readActionlintOutput(targetPath);
+  // 以前 `|| true` 把 npx 的「没装」报错吞成空输出 → issueCount = 0 →
+  // actionlintPassed = true。工具没装却记「工作流语法无问题」。
+  if (isToolMissing(raw)) {
+    return { status: 'skip', message: 'actionlint 检查跳过：本机没有 actionlint（npx actionlint 未安装）' };
   }
 
-  if (context) context.actionlintPassed = issueCount === 0;
-  return `actionlint 检查完成: ${issueCount > 0 ? `${issueCount} 个问题` : '无问题'}`;
+  const errorLines = raw.split('\n').filter((l) => /^::error\b/.test(l));
+  if (errorLines.length > 0) {
+    errorLines.slice(0, 15).forEach((l) => {
+      console.log(chalk.yellow(`    ${l.replace(/^::error\s+/, '').slice(0, 200)}`));
+    });
+    if (context) context.actionlintPassed = false;
+    // 工作流语法错误 = 工具自己的 error 级：CI 会直接挂，不该只记一句黄字
+    return {
+      status: statusForFindings(errorLines.length, { severity: 'error' }),
+      message: `actionlint 检查完成: ${errorLines.length} 个工作流语法错误`,
+    };
+  }
+
+  if (raw.trim() && !/no lint errors/i.test(raw)) {
+    // 既没有 ::error 行又不是干净的输出格式 = 没解析出结论，不许当通过
+    return { status: 'warn', message: `actionlint 检查未完成：输出无法解析（${raw.trim().slice(0, 80)}）` };
+  }
+  if (context) context.actionlintPassed = true;
+  return 'actionlint 检查完成: 无问题';
 }
 
 // ── zizmor — GitHub Actions security auditor (2.5k+ stars) ──
+
+const ZIZMOR_HARD = /^(?:error|critical|high)$/i;
 
 function parseZizmorJson(raw) {
   try {
     const results = JSON.parse(raw);
     const allFindings = Array.isArray(results) ? results : (results.findings || []);
     if (allFindings.length === 0) {
-      return { findingCount: 0 };
+      return { findingCount: 0, errorCount: 0 };
     }
     const bySeverity = {};
     for (const f of allFindings) {
@@ -549,7 +589,8 @@ function parseZizmorJson(raw) {
       bySeverity[sev] = (bySeverity[sev] || 0) + 1;
     }
     console.log(chalk.dim(`  ℹ 发现 ${allFindings.length} 项 (${Object.entries(bySeverity).map(([k, v]) => `${k}: ${v}`).join(', ')})`));
-    return { findingCount: allFindings.length };
+    const errorCount = allFindings.filter(f => ZIZMOR_HARD.test(String(f.severity || ''))).length;
+    return { findingCount: allFindings.length, errorCount };
   } catch {
     return null;
   }
@@ -557,12 +598,17 @@ function parseZizmorJson(raw) {
 
 function parseZizmorText(raw) {
   if (raw.toLowerCase().includes('vulnerability') || raw.toLowerCase().includes('error')) {
-    return { findingCount: (raw.match(/\b(ERROR|WARN|FAIL)\b/g) || []).length };
+    // 纯文本兜底只能数出「有几条」，分不出严重级别 —— errorCount 记 0，
+    // 于是结论最多是 warn。不许把数不出的级别当成 error（那是假红）。
+    return { findingCount: (raw.match(/\b(ERROR|WARN|FAIL)\b/g) || []).length, errorCount: 0 };
   }
   if (raw.includes('no issues') || raw.includes('clean') || raw.trim() === '') {
     console.log(chalk.green('  ✅ zizmor: 工作流安全无问题'));
+    return { findingCount: 0, errorCount: 0 };
   }
-  return { findingCount: 0 };
+  // 既没说有问题也没说干净 = 解析不出结论，返回 null 让调用方记 warn。
+  // 以前这里默认 findingCount = 0 → 「无问题」，于是任何输出变样都是 ✓ pass。
+  return null;
 }
 
 export function handleZizmor(_action, params, targetPath, context) {
@@ -579,10 +625,16 @@ export function handleZizmor(_action, params, targetPath, context) {
   let result;
   try {
     const raw = safeExec(
-      `npx zizmor --format json${personaFlag} .github/workflows/ 2>&1 || true`,
+      `npx zizmor --format json${personaFlag} .github/workflows/ 2>&1`,
       targetPath,
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
     ).toString();
+
+    // npx 把「没装」的报错写在 stdout 时也不会抛 —— 先认这一种，
+    // 否则会被当成「输出无法解析」的 warn（或是更糟的 pass）。
+    if (isToolMissing(raw)) {
+      return { status: 'skip', message: 'zizmor 检查跳过：本机没有 zizmor（npx zizmor 未安装）' };
+    }
 
     const jsonResult = parseZizmorJson(raw);
     result = jsonResult || parseZizmorText(raw);
@@ -591,13 +643,20 @@ export function handleZizmor(_action, params, targetPath, context) {
       // zizmorPassed = true，于是工具没装 / 输出变样都成了 ✓ pass。
       return { status: 'warn', message: `zizmor 检查未完成：输出无法解析（${String(raw).trim().slice(0, 80) || '空输出'}）` };
     }
-  } catch {
-    return { status: 'skip', message: 'zizmor 检查跳过：本机没有 zizmor（npx zizmor 未安装）' };
+  } catch (e) {
+    const raw = e.stdout?.toString?.() || e.stderr?.toString?.() || e.message || '';
+    // 工具没装（npx 报错）与真正的执行失败要分开：前者是 skip，后者是 warn
+    if (isToolMissing(raw)) return { status: 'skip', message: 'zizmor 检查跳过：本机没有 zizmor（npx zizmor 未安装）' };
+    return { status: 'warn', message: `zizmor 检查未完成：${String(raw).trim().slice(0, 80) || '无输出'}` };
   }
 
-  const findingCount = result.findingCount;
+  const { findingCount, errorCount } = result;
   if (context) context.zizmorPassed = findingCount === 0;
-  return `zizmor 检查完成: ${findingCount > 0 ? `${findingCount} 个问题` : '无问题'}`;
+  if (findingCount === 0) return 'zizmor 检查完成: 无问题';
+  return {
+    status: statusForFindings(findingCount, { severity: errorCount > 0 ? 'error' : 'warning' }),
+    message: `zizmor 检查完成: ${findingCount} 个问题（其中 error/critical 级 ${errorCount} 个）`,
+  };
 }
 
 // ── jscpd — code duplication detector (4.7k+ stars) ──
@@ -623,13 +682,31 @@ function parseJscpdResult(raw) {
   return { clones, pct };
 }
 
-function reportJscpdFound(clones, pct, context) {
-  if (pct > 5) {
-    if (context) context.jscpdPassed = false;
-  } else {
-    if (context) context.jscpdPassed = true;
-  }
-  return `代码重复检测完成: ${clones} 处重复，重复率 ${pct.toFixed(1)}%`;
+const JSCPD_DEFAULT_THRESHOLD_PCT = 5;
+
+/**
+ * 场景声明的是 `threshold: 0.05`（比例）或 `5`（百分数），两种写法都认。
+ * 以前阈值写死在常量里，场景里那个 0.05 没人读 —— 改阈值等于没改。
+ * 认不出来的值不猜：直接用默认值并在结论里写明「声明值不可用」。
+ */
+function resolveThresholdPct(raw) {
+  if (raw === undefined || raw === null || raw === '') return { pct: JSCPD_DEFAULT_THRESHOLD_PCT, declared: null };
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num <= 0) return { pct: JSCPD_DEFAULT_THRESHOLD_PCT, declared: String(raw) };
+  // ≤1 视为比例（0.05 → 5%），>1 视为百分数（5 → 5%）
+  return { pct: num <= 1 ? Math.round(num * 1000) / 10 : num, declared: String(raw) };
+}
+
+function jscpdVerdict(clones, pct, context, thresholdPct, declaredNote = '') {
+  // 5% 是阈值，不是工具的严重级别：越线记「有问题」（warn），没超线才是通过。
+  // 以前两条分支都返回「完成」→ 重复率 40% 也是一行 pass，旗标写 false。
+  const overThreshold = pct > thresholdPct;
+  if (context) context.jscpdPassed = !overThreshold;
+  if (!overThreshold) return `代码重复检测完成: ${clones} 处重复，重复率 ${pct.toFixed(1)}%（阈值 ${thresholdPct}%${declaredNote}）`;
+  return {
+    status: statusForFindings(Math.max(clones, 1)),
+    message: `代码重复检测: ${clones} 处重复，重复率 ${pct.toFixed(1)}% 超过 ${thresholdPct}% 阈值${declaredNote}`,
+  };
 }
 
 export function handleJscpd(_action, params, targetPath, context) {
@@ -637,6 +714,8 @@ export function handleJscpd(_action, params, targetPath, context) {
   // 参数是装饰品。
   const minTokens = Number.parseInt(params?.minTokens, 10);
   const raw = runJscpd(targetPath, Number.isFinite(minTokens) && minTokens > 0 ? minTokens : 50);
+  const { pct: thresholdPct, declared } = resolveThresholdPct(params?.threshold);
+  const declaredNote = declared === null ? '' : Number.isFinite(Number(declared)) ? `，场景声明 ${declared}` : `，场景声明的 ${declared} 不是数字 → 用默认阈值`;
   if (!raw) {
     // jscpd 没输出 = 没拿到结论（不可用/崩了）。以前这句带「完成」二字，引擎判 pass。
     return { status: 'warn', message: '代码重复检测未完成: jscpd 无输出（未安装或执行失败）' };
@@ -644,7 +723,7 @@ export function handleJscpd(_action, params, targetPath, context) {
 
   const parsed = parseJscpdResult(raw);
   if (parsed && (parsed.clones > 0 || parsed.pct > 0)) {
-    return reportJscpdFound(parsed.clones, parsed.pct, context);
+    return jscpdVerdict(parsed.clones, parsed.pct, context, thresholdPct, declaredNote);
   }
 
   if (/no clones|no duplicates|0 clones/i.test(raw)) {

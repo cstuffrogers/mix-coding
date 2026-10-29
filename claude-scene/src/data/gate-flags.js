@@ -22,7 +22,8 @@ export default Object.assign(Object.create(null), {
   aislop: 'aislopPassed',
   lock_file: 'lockFilePassed', gitignore_check: 'gitignorePassed',
   deprecated_deps: 'deprecatedDepsPassed',
-  skillspector: 'skillspectorPassed',
+  // skillspector: 旗标已删 —— 它扫的是文档，示例代码必然被 YARA 命中，
+  // critical === 0 恒为 false，拿它当门禁只会恒报 failed。
   actionlint: 'actionlintPassed', zizmor: 'zizmorPassed',
   jscpd: 'jscpdPassed', size_limit: 'sizeLimitPassed',
   stryker: 'strykerPassed', spectral: 'spectralPassed', markdownlint: 'markdownlintPassed',

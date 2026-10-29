@@ -378,7 +378,6 @@
       "service": "DesignMDService",
       "action": "design-md-export",
       "params": {
-        "command": "npx @google/design.md export --format tailwind",
         "output": "tailwind.config.js theme.extend"
       },
       "description": "Google DESIGN.md CLI: 品牌导入完成后，将 DESIGN.md token 导出为 Tailwind 配置，",

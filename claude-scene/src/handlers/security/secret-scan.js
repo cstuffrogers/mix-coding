@@ -3,6 +3,7 @@ import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec, escapeArg } from '../../lib/safe-exec.js';
 import { grepScan } from '../../lib/grep-scan.js';
+import { statusForFindings } from '../../lib/finding-verdict.js';
 
 const SAFE_FILES = new Set([
   '.env.example',
@@ -231,8 +232,12 @@ export function handleSensitiveFileCheck(_action, _params, targetPath, context) 
   }
 
   if (findings.length > 0) {
+    // 状态与旗标同源：以前返回「完成: N 处风险」，步骤 pass、旗标 false。
     if (context) context.sensitiveFilePassed = false;
-    return `敏感文件检查完成: ${findings.length} 处风险`;
+    return {
+      status: statusForFindings(findings.length, { severity: 'error' }),
+      message: `敏感文件检查完成: ${findings.length} 处风险`,
+    };
   }
   if (!gitScanned) {
     // 文件系统那侧（.gitignore / 未忽略的 .env）照跑，但「有没有被 Git 追踪」没查过 —— 不发通过结论

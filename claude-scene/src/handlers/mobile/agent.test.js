@@ -31,6 +31,13 @@ describe('对话中才执行的步骤：CLI 一律 skip，不冒充 pass', () =>
     expect(result.message).not.toContain('undefined');
   });
 
+  // 第十三轮：场景写了 `focus: ["masvs_mapping", …]`，以前一个字都没人读 ——
+  // 子代理在对话里根本不知道要重点看什么。现在必须在结论里透传。
+  it('runAgent 把场景声明的 focus 透传给对话（不执行 ≠ 可以不说）', () => {
+    const result = handleRunAgent('runAgent', { agent: 'mobile-security', focus: ['masvs_mapping', 'secret_leak'] }, PROJ, {});
+    expect(result.message).toContain('重点: masvs_mapping/secret_leak');
+  });
+
   it('没装 detox → UI 测试 skip 并点名工具', () => {
     const result = handleRunUITest('runUITest', { tool: 'maestro' }, PROJ, {});
     expect(result.status).toBe('skip');

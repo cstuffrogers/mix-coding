@@ -73,7 +73,9 @@ describe('handleIncidentRunbook', () => {
     mockWriteFileSync.mockImplementation(() => { throw new Error('disk full'); });
     const ctx = {};
     const result = handleIncidentRunbook('incidentRunbook', {}, '/test/project', ctx);
-    expect(result).toContain('失败');
+    // 第十二轮：显式 fail 状态（不再靠「失败」二字让引擎启发式猜）
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('失败');
     expect(ctx.incidentRunbookCreated).toBe(false);
     expect(ctx.lastStepFailed).toBe(true);
   });

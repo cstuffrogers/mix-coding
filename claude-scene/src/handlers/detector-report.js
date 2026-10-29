@@ -69,6 +69,17 @@ function reportBase(targetPath) {
 
 const shortSha = (sha) => (typeof sha === 'string' && sha.length >= 7 ? sha.slice(0, 7) : '未知');
 
+/**
+ * 记录新鲜度：能证明「这份记录就是当前代码跑出来的」才算数。
+ * 证明不了（git 不可用 / 记录里没 gitSha）= 没查过，不许当通过。
+ */
+function freshnessOf(data, head) {
+  if (!head) return '无法确认自检记录是否对应当前代码（git 不可用）';
+  if (!data.gitSha) return '自检记录里没有 gitSha，无法确认是否对应当前代码';
+  if (head !== data.gitSha) return `自检记录来自 ${shortSha(data.gitSha)}，当前 HEAD 是 ${shortSha(head)} —— 记录已过期`;
+  return null;
+}
+
 /** 按「严重 → 轻微」返回第一条该报的问题；没有则 null */
 function verdictOf(data, { head, dirty }) {
   if (data.stale.length > 0) {
@@ -83,10 +94,8 @@ function verdictOf(data, { head, dirty }) {
   if (dirty) {
     return { status: 'warn', message: `自检是在有未提交改动的工作区跑的（${data.passed}/${data.total} 有效），结论未必对应当前代码` };
   }
-  if (head && data.gitSha && head !== data.gitSha) {
-    return { status: 'warn', message: `自检记录来自 ${shortSha(data.gitSha)}，当前 HEAD 是 ${shortSha(head)} —— 记录已过期` };
-  }
-  return null;
+  const stale = freshnessOf(data, head);
+  return stale ? { status: 'warn', message: stale } : null;
 }
 
 function workingTreeDirty(targetPath) {
@@ -132,7 +141,15 @@ export function handleDetectorReport(_action, _params, targetPath, context) {
   if (!data) {
     // 第十一轮：以前还写了 detectorSweepReported / detectorSweepProblem，两个键无人读
     // （与第十轮删掉的那批 verdict 旗标同一类负债），彻底删除。问题本身已经写进 message。
-    return { status: 'skip', message: `${problem} —— 守卫是否真的会红，本轮未验（${HINT}）` };
+    //
+    // 第十一轮补：本轮现场自检刚跑过却读不到产物 ≠ 从来没跑过。以前一律提示
+    // 「跑 npm run detector:sweep 生成」—— 读者刚刚才让它跑过，等于把人绕回原地。
+    if (sweep === 'ran') {
+      return { status: 'warn', message: `本轮现场自检没有产出可用记录：${problem} —— 看 detector-sweep 自己的输出` };
+    }
+    // --skip-sweep 是用户的明确表态：别再劝他跑一次，把表态说出来
+    const skippedByUser = context?.sweepDecision === 'skip' ? '（本轮按 --skip-sweep 未跑自检）' : '';
+    return { status: 'skip', message: `${problem} —— 守卫是否真的会红，本轮未验（${HINT}）${skippedByUser}` };
   }
 
   const issue = verdictOf(data, {

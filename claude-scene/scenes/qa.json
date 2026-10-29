@@ -92,14 +92,7 @@
       "layer": "capability",
       "service": "AIFriendlyReview",
       "action": "a11y-scan",
-      "params": {
-        "checks": [
-          "img-alt",
-          "input-label",
-          "contrast-risk",
-          "clickable-div"
-        ]
-      },
+      "params": {},
       "description": "无障碍快速扫描：图片 alt/输入框 label/对比度/可点击 div",
       "condition": "has_frontend_changes"
     },
@@ -131,7 +124,6 @@
       "service": "ReportGenerator",
       "action": "generateQAReport",
       "params": {
-        "format": "markdown",
         "output": ".claude/qa/qa-report-{timestamp}.md"
       },
       "description": "生成结构化 QA 报告，含严重度/截图路径/复现步骤/建议修复方案"

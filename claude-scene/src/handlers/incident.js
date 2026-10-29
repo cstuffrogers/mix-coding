@@ -187,7 +187,7 @@ export function handleIncidentRunbook(_action, _params, targetPath, context) {
       context.incidentRunbookCreated = false;
       context.lastStepFailed = true;
     }
-    return 'Incident Runbook 生成失败';
+    return { status: 'fail', message: 'Incident Runbook 生成失败' };
   }
 
   if (context) {

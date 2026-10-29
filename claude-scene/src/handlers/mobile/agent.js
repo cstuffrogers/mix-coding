@@ -35,9 +35,13 @@ export function handleAggregateReport(_action, params, _targetPath, context) {
 export function handleRunAgent(_action, params, _targetPath, context) {
   const agent = params?.agent || 'mobile-security';
   if (context) context[`agent_${agent.replace(/-/g, '_')}_run`] = true;
+  // 场景声明了 `focus: ["masvs_mapping", ...]`（mobile-audit#11.5 等）：CLI 不跑子代理，
+  // 但「该让 agent 重点关注什么」必须出现在屏幕上，否则子代理无从得知。
+  const focus = Array.isArray(params?.focus) ? params.focus.filter((f) => typeof f === 'string' && f) : [];
+  const focusNote = focus.length ? `，重点: ${focus.join('/')}` : '';
   // 子代理真的在对话里跑；CLI 只负责登记。以前这里返回字符串 → 引擎按「没命中
   // 跳过/告警词」判 pass，屏幕上出现绿色的「已分析」而实际一行分析都没有。
-  return { status: 'skip', message: `Agent ${agent} 需在对话中执行分析（CLI 下未运行）` };
+  return { status: 'skip', message: `Agent ${agent} 需在对话中执行分析（CLI 下未运行）${focusNote}` };
 }
 
 export function handleMobsfUpload(_action, _params, _targetPath) {
