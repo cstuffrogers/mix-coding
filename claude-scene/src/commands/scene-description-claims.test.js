@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectSources } from '../lib/param-contract.js';
+import { classifyAction, checkAcceptance } from '../lib/acceptance-check.js';
 
 // 维度：**description 假绿** —— 场景写着「这一步会产出 X」，引擎从没实现过 X。
 //
@@ -82,6 +83,90 @@ describe('场景 description / service 不许声称引擎没实现的成本计�
       }
     }
     expect(offenders, `引擎没有这些服务，场景只是在给读者演戏：\n${offenders.join('\n')}`).toEqual([]);
+  });
+});
+
+// ── 第二半：能力漂移（第二次踩同一个坑） ──
+//
+// 之前这里只查「成本计量」一类措辞。真实案例又出现一次：`check` 的场景名写着
+// 「引擎自检 + **自愈**」，description 写着「**自动修复** gate-flags 数据文件」，
+// 而那两个自愈步骤早在「猜出来的映射没人验证、还每次把工作区弄脏」时就被删了。
+// 用户跑 /check 会以为源码被修好了 —— 实际上什么也没改，报告里还留着「修复数」。
+//
+// 所以判据不是「文案好听不好听」，而是**能不能兑现**：
+// 场景声称会动手（自动修复/写入/重构/提交/推送…），flow 里就必须有能动手的步骤 ——
+// 引擎直改（edit）或者交给 AI 代做（invokeSkill / runAgent）。
+// 顾问式措辞（修复建议 / 修复方案 / 待修复）不算声称，否则满屏假红。
+const ADVISORY_PHRASE = /(修复建议|建议修复|修复方案|修复清单|一键修复清单|修复项|修复数|待修复|修复上下文|可修复|需要修改|需修改|修改建议|建议修改)/g;
+const MUTATION_CLAIM = /(自动修复|一键修复|自动改|自动写入|自动落盘|写入文件|落盘|修改代码|重构代码|自动提交|自动推送|自动修改)/;
+
+function mutationClaims(scene) {
+  const claims = [];
+  const scan = (text, where) => {
+    const cleaned = String(text || '').replace(ADVISORY_PHRASE, ' ');
+    if (MUTATION_CLAIM.test(cleaned)) claims.push(`${where}: ${text}`);
+  };
+  scan(scene.description, 'scene');
+  for (const step of scene.flow || []) scan(step.description, `#${step.step}.${step.action}`);
+  return claims;
+}
+
+/** 能动手的步骤数：引擎直改 + AI 代做 */
+function mutatingSteps(scene) {
+  const kinds = (scene.flow || []).map((step) => classifyAction(step.action));
+  return { edit: kinds.filter((k) => k === 'edit').length, ai: kinds.filter((k) => k === 'ai').length };
+}
+
+describe('声称会动手的场景必须有能动手的步骤', () => {
+  const scenes = loadScenes();
+
+  it('扫描真的读了全部场景（不是空跑）', () => {
+    expect(scenes.length).toBeGreaterThanOrEqual(20);
+    // 至少有一批场景确实声称会动手 —— 否则这条守卫永远绿，等于没写
+    expect(scenes.filter(({ scene }) => mutationClaims(scene).length > 0).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('没有「只说不做」的场景', () => {
+    const offenders = [];
+    for (const { name, scene } of scenes) {
+      const claims = mutationClaims(scene);
+      if (claims.length === 0) continue;
+      const { edit, ai } = mutatingSteps(scene);
+      if (edit + ai === 0) offenders.push(`${name}（edit=${edit} ai=${ai}）：${claims.join(' / ')}`);
+    }
+    const message = `这些场景声称会改代码，但 flow 里没有任何能动手的步骤：${JSON.stringify(offenders)}`;
+    expect(offenders, message).toEqual([]);
+  });
+
+  it('AI 代做也算动手（否则 invokeSkill 型场景全是假红）', () => {
+    const invokeSkillScenes = scenes.filter(({ scene }) => mutatingSteps(scene).ai > 0);
+    expect(invokeSkillScenes.length).toBeGreaterThan(0);
+    for (const { scene } of invokeSkillScenes) {
+      expect(classifyAction(scene.flow.find((s) => mutatingSteps(scene).ai > 0 && /^(invokeSkill|runAgent)/i.test(s.action)).action)).toBe('ai');
+    }
+  });
+});
+
+describe('动作分类器：edit / verify / ai / other', () => {
+  it('AI 代做与引擎直改分开，verify 优先', () => {
+    expect(classifyAction('invokeSkill')).toBe('ai');
+    expect(classifyAction('runAgent')).toBe('ai');
+    expect(classifyAction('mp-review')).toBe('verify');
+    expect(classifyAction('applyDaisyUI')).toBe('other');
+    expect(classifyAction('autoUpdate')).toBe('other');
+    expect(classifyAction('writeFile')).toBe('edit');
+    expect(classifyAction('')).toBe('other');
+    expect(classifyAction(null)).toBe('other');
+  });
+
+  it('验收判定里 aiSteps 只是陈述，不参与门禁', () => {
+    const flow = [{ step: 1, action: 'invokeSkill' }];
+    const r = checkAcceptance(flow, [1]);
+    expect(r.aiSteps).toBe(1);
+    expect(r.mutating).toBe(true);
+    // 交给 AI ≠ 验过：门禁该拦还是拦（这里没有变更类动作，所以本来就不拦）
+    expect(r.hasEdit).toBe(false);
+    expect(r.unreviewedChange).toBe(false);
   });
 });
 

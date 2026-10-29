@@ -11,10 +11,21 @@ const EDIT_RE = /edit|write|generate|create|modify|patch|refactor|implement|fix/
 // 守卫在 commands/step-status-contract.test.js。
 const PASSING_RE = /^(pass|warn)$/i;
 
+// 「AI 代做」的动作：引擎自己不动手，把动手交给 agent/skill。
+// 以前它们全落进 other，于是「这个场景能不能改代码」被答成「不能」——
+// 26 个场景里有 8 个被判 noEdit，而其中每一个都在 invokeSkill 后面改文件。
+// 这是引擎自己的统计在漂移，不是场景在撒谎；先修统计，再谈声明。
+const AI_RE = /^(?:invokeSkill|runAgent|mp-|skill-)/i;
+
+/**
+ * 动作分类：edit（引擎直改）/ verify（验证）/ ai（交给 AI 代做）/ other。
+ * 注意 verify 优先于 ai：`mp-review` 是审查动作，不是「代做变更」。
+ */
 export function classifyAction(action) {
   if (!action || typeof action !== 'string') return 'other';
   if (VERIFY_RE.test(action)) return 'verify';
   if (EDIT_RE.test(action)) return 'edit';
+  if (AI_RE.test(action)) return 'ai';
   return 'other';
 }
 
@@ -62,7 +73,23 @@ function classifyCompletedStep(step, statusLookup, hasStepResults) {
   if (kind === 'verify') {
     return { verify: true, passingVerify: isPassingVerify(step.action, statusLookup, hasStepResults) };
   }
-  return {};
+  return kind === 'ai' ? { ai: true } : {};
+}
+
+/**
+ * 把单个步骤的结论并进累加器。
+ * aiSteps 只用于「这个场景有没有动手能力」的陈述与守卫，不参与 missingVerify /
+ * unreviewedChange —— 那些门禁只认引擎自己能证的信号。
+ * inertEditSteps 是有变更类动作、但一步都没真改动过的那些：调用方要把这个事实说出来，
+ * 否则「门禁没拦」和「门禁被关了」在输出上长得一样。
+ */
+function tallyStep(step, statusLookup, hasStepResults, tally) {
+  const verdict = classifyCompletedStep(step, statusLookup, hasStepResults);
+  if (verdict.ai) tally.aiSteps += 1;
+  if (verdict.edit) tally.hasEdit = true;
+  if (verdict.inert) tally.inertEditSteps.push(step.action);
+  if (verdict.verify) tally.hasVerify = true;
+  if (verdict.passingVerify) tally.hasPassingVerify = true;
 }
 
 // stepResults: optional array of { action, status } for the completed steps.
@@ -75,24 +102,20 @@ export function checkAcceptance(flow, completedStepNums, allowNoVerify = false, 
   const completed = new Set(completedStepNums);
   const statusLookup = buildStatusLookup(stepResults);
   const hasStepResults = Array.isArray(stepResults);
-  let hasEdit = false;
-  let hasVerify = false;
-  let hasPassingVerify = false;
-  // 有变更类动作、但一步都没真改动过：调用方要把这个事实说出来，否则
-  // 「门禁没拦」和「门禁被关了」在输出上长得一样。
-  const inertEditSteps = [];
+  // 累加器：把「读一个步骤的结论」摊成一行一个开关，主循环才不用跟着长。
+  const tally = { hasEdit: false, hasVerify: false, hasPassingVerify: false, aiSteps: 0, inertEditSteps: [] };
   for (const step of flow || []) {
-    if (!completed.has(step.step)) continue;
-    const c = classifyCompletedStep(step, statusLookup, hasStepResults);
-    if (c.edit) hasEdit = true;
-    if (c.inert) inertEditSteps.push(step.action);
-    if (c.verify) hasVerify = true;
-    if (c.passingVerify) hasPassingVerify = true;
+    if (completed.has(step.step)) tallyStep(step, statusLookup, hasStepResults, tally);
   }
+  const { hasEdit, hasVerify, hasPassingVerify, aiSteps, inertEditSteps } = tally;
   return {
     hasEdit,
     hasVerify,
     hasPassingVerify,
+    aiSteps,
+    // 「本次运行具备动手能力」= 引擎直改过，或者把动手交给了 AI。
+    // 报告里说「没有任何变更」之前，得先看这一位 —— 否则对着 invokeSkill 场景说空话。
+    mutating: hasEdit || aiSteps > 0,
     inertEditSteps,
     missingVerify: !waived && hasEdit && !hasVerify,
     // Hard gate: change-bearing run closed without any reviewed-passing verify step.

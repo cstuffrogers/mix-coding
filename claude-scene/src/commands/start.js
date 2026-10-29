@@ -13,6 +13,8 @@ import { applyEnhancements } from '../lib/enhancements.js';
 import { PROJECT_ROOT, resolveScenePath, describePaths } from '../lib/paths.js';
 import { detectHandlerFailure } from '../lib/failure-detection.js';
 import { snapshotFlags, stampFlagWrites } from '../lib/flag-stamp.js';
+import { warnKindLabel, skipReasonLabel, skipReasonFrom } from '../data/step-reasons.js';
+import { autoDecisionLabel, autoDecisionOverride, isAutoDecisionId } from '../data/auto-decisions.js';
 import { checkAcceptance } from '../lib/acceptance-check.js';
 import { countMeasuredFindings } from '../lib/finding-count.js';
 import { captureBoundaryBaseline } from '../handlers/codeguardian.js';
@@ -78,8 +80,9 @@ function initLog(sceneId) {
 }
 
 function appendLog(entry) {
-  if (!LOG_PATH) return;
+  if (!LOG_PATH) return false;
   appendFileSync(LOG_PATH, JSON.stringify({ run_id: LOG_RUN_ID, ...entry }) + '\n');
+  return true;
 }
 
 const LF = String.fromCodePoint(10);
@@ -203,6 +206,8 @@ function applyContextFlag(step, context, options, answer) {
   const autoDefault = step.params?.auto_default ?? true;
   const answered = answer !== undefined;
   context[flag] = answered ? answer : (options.auto ? autoDefault : false);
+  // 没人回答、又是 auto 给的值 —— 这就是一次替用户做的决定，必须留痕。
+  if (!answered && options.auto) noteAutoDecision(context, step, 'context-flag', `${flag}=${context[flag]}`);
   // 打印裸 flag 名（withSweep）等于没说人话，优先用 flag_label。
   const label = step.params?.flag_label || flag;
   const suffix = answered ? '' : '（未询问，取默认值）';
@@ -231,6 +236,8 @@ function setContextFlag(step, context, options, answer) {
   const fallback = Boolean(options.auto);
   const enabled = answered ? Boolean(resolved) : fallback;
   if (answered) noteDecision(context, 'confirm-answer');
+  // 这条防御路径也在替用户决定：真走到就得留痕，不能因为「按理走不到」就静默。
+  else if (options.auto) noteAutoDecision(context, step, 'context-flag', `${step.action}=${enabled}`);
   return applyDescriptionFlag(stepDesc, enabled, context);
 }
 
@@ -357,6 +364,7 @@ export async function handleConfirmDialog(step, options, context) {
 
   // 3) 场景显式声明了 auto 模式下的取值（auto_default）——这是被人写进场景的决定，不是引擎猜的。
   if (step.params?.auto_default !== undefined) {
+    noteAutoDecision(context, step, 'confirm-answer', `${step.params.prompt ?? step.description ?? step.action} → ${step.params.auto_default}`);
     setContextFlag(step, context, options, step.params.auto_default);
     return true;
   }
@@ -432,6 +440,7 @@ export async function handleOptionSelection(step, options, context, sceneId) {
 
   // 3) 场景显式声明的安全默认
   if (step.params?.auto_default !== undefined) {
+    noteAutoDecision(context, step, 'option', `${step.description || step.action} → ${step.params.auto_default}`);
     applyDeclaredDefault(step, choices, apply);
     return true;
   }
@@ -535,6 +544,7 @@ async function handleModeSelection(step, options, context) {
       : withDefaults.filter(o => o.default).map(o => o.id);
     context.selected_modes = picked;
     const source = override.valid.length > 0 ? '--mode' : '场景声明的默认值';
+    if (override.valid.length === 0) noteAutoDecision(context, step, 'modes', picked.join(',') || '（无）');
     console.log(chalk.gray(`\n⚙ ${step.description || '模式'}：按${source} → ${picked.join(', ') || '（无）'}`));
     noteDecision(context, `modes=${picked.join(',')}`);
     return true;
@@ -609,6 +619,7 @@ async function handleSingleChoice(step, options, context) {
     if (fallback) {
       context[contextKey] = fallback.id;
       noteDecision(context, `${contextKey}=${fallback.id}`);
+      noteAutoDecision(context, step, 'kind', fallback.id);
       console.log(chalk.gray(`\n⏭ ${step.description || step.action}：按场景声明的默认值 ${fallback.id}`));
       return true;
     }
@@ -674,9 +685,17 @@ export function describeNotPassSteps(stepResults, limit = 12, plannedIterations 
     .filter((r) => r && typeof r.status === 'string' && r.status !== 'pass');
   // 多轮时同一个 action 会重复出现：不带轮次的话，两行「Step 3 test → fail」
   // 看起来像重复记录，实际是第 1、2 轮各失败一次。
+  // 只写「→ warn」等于只说了程度，没说原因：有发现 / 没说结论 / 正则猜的
+  // 三种 warn 要人做的事完全不同。原因写在行尾，扫一眼就知道该去看什么。
+  const reasonOf = (r) => {
+    if (r.status === 'warn') return warnKindLabel(r.warnKind);
+    if (r.status === 'skip') return skipReasonLabel(r.skipReason);
+    return '';
+  };
   const render = (r) => {
     const round = plannedIterations > 1 && r.iteration ? `（第 ${r.iteration} 轮）` : '';
-    return `Step ${r.step ?? '?'} ${r.action} → ${r.status}${round}`;
+    const why = reasonOf(r);
+    return `Step ${r.step ?? '?'} ${r.action} → ${r.status}${round}${why ? `（${why}）` : ''}`;
   };
   const problem = rows.filter((r) => r.status !== 'noop');
   const idle = rows.filter((r) => r.status === 'noop');
@@ -702,6 +721,31 @@ export function summaryMismatch(summary) {
 }
 
 /**
+ * 「为什么不是 pass」的分布，按 stepResults 的**最终**状态现算。
+ * 不用全局计数器：重试会把一条 fail 改写成 pass，计数器减不回来，
+ * 分布就会和上面的计数打架 —— 那种不一致比不给细分更糟。
+ */
+export function describeStatusBreakdown(stepResults) {
+  const rows = Array.isArray(stepResults) ? stepResults.filter(Boolean) : [];
+  const warnCounts = new Map();
+  const skipCounts = new Map();
+  for (const row of rows) {
+    if (row.status === 'warn') {
+      const key = row.warnKind || '';
+      warnCounts.set(key, (warnCounts.get(key) || 0) + 1);
+    } else if (row.status === 'skip') {
+      const key = row.skipReason || '';
+      skipCounts.set(key, (skipCounts.get(key) || 0) + 1);
+    }
+  }
+  const render = (counts, label) => [...counts.entries()].map(([key, n]) => `${label(key) || '未分类'} ${n}`);
+  return {
+    warn: render(warnCounts, warnKindLabel),
+    skip: render(skipCounts, skipReasonLabel),
+  };
+}
+
+/**
  * 退出码：失败步骤数 > 0 就是 1。
  * 以前 `startScene` 收尾只有 printSummary，从不设退出码 —— 一个 fail: 3 的工作流
  * 退出码是 0，CI 与 agent 都读「成功」。我们自己的规矩是「退出码是权威，文案不是」，
@@ -709,6 +753,23 @@ export function summaryMismatch(summary) {
  */
 export function exitCodeForSummary(summary) {
   return summary && summary.fail > 0 ? 1 : 0;
+}
+
+/**
+ * --auto 替我做的决定：一行一条，写清「做了什么」和「怎么改」。
+ * 不打印等于这些选择没发生过 —— 用户会以为该问的都问过了。
+ */
+export function printAutoDecisions(context) {
+  const rows = Array.isArray(context?._autoDecisions) ? context._autoDecisions : [];
+  if (rows.length === 0) return;
+  console.log(chalk.cyan(`  ⚙ --auto 替你做的决定（共 ${rows.length} 项，不带 --auto 会逐项问你）：`));
+  for (const row of rows) {
+    const where = row.step === null ? '' : `Step ${row.step} ${row.action}: `;
+    const unregistered = row.registered ? '' : '（未登记的类别，请补进 data/auto-decisions.js）';
+    console.log(chalk.cyan(`     ${where}${row.label} → ${row.decided}${unregistered}`));
+    const how = autoDecisionOverride(row.id);
+    if (how) console.log(chalk.gray(`       ${how}`));
+  }
 }
 
 /** 多轮时先说清 total 的口径：它数的是记录次数，不是场景步数。 */
@@ -789,6 +850,12 @@ function printSummary(sceneId, context = null, { aborted = null } = {}) {
     console.log(chalk.red('     上面的计数只是中止前的部分结果 —— 这次运行没有跑完，不要当成通过。'));
     printCompletedSteps(context);
   }
+  // 计数行只说了「几个」，下面三行说「为什么」—— 细分和计数分开打，
+  // 老的计数行格式不动（有测试和用户习惯都读它）。
+  printAutoDecisions(context);
+  const breakdown = describeStatusBreakdown(context?.stepResults);
+  if (breakdown.warn.length > 0) console.log(chalk.yellow(`  ⚡ warn 细分: ${breakdown.warn.join(' / ')}`));
+  if (breakdown.skip.length > 0) console.log(chalk.gray(`  ⏭ skip 细分: ${breakdown.skip.join(' / ')}`));
   const mismatch = summaryMismatch(LOG_SUMMARY);
   if (mismatch) {
     console.log(chalk.yellow(`  ⚠ 汇总不自洽: total=${mismatch.total} 但分项合计=${mismatch.sum}（差 ${mismatch.diff}，有步骤被记了两次或漏记）`));
@@ -851,11 +918,20 @@ function clipDetail(text) {
 }
 
 /** 把某步骤最新的一条记录改写成重试后的真实状态；找不到返回 null。 */
-export function rewriteStepRecord(stepResults, stepNum, status, resultStr) {
+export function rewriteStepRecord(stepResults, stepNum, status, resultStr, meta = {}) {
   if (!Array.isArray(stepResults)) return null;
   for (let i = stepResults.length - 1; i >= 0; i--) {
     if (stepResults[i]?.step === stepNum) {
-      stepResults[i] = { ...stepResults[i], status, detail: clipDetail(resultStr), retried: true };
+      // 状态变了，「为什么」也得跟着变：重试后判成 warn 却还挂着上一轮的
+      // skipReason，那行字就是在说一件没发生过的事。
+      stepResults[i] = {
+        ...stepResults[i],
+        status,
+        detail: clipDetail(resultStr),
+        retried: true,
+        warnKind: (status === 'warn' && meta.warnKind) || undefined,
+        skipReason: (status === 'skip' && meta.skipReason) || undefined,
+      };
       return stepResults[i];
     }
   }
@@ -928,7 +1004,7 @@ export async function retryFailedStep(step, sceneId, resolvedParams, context, di
     const retrySnapshot = snapshotFlags(context);
     const result = await dispatch(sceneId, step.action, resolvedParams, context);
     if (context._awaitingAnswer) return 'awaiting';
-    const { resultStr, stepStatus } = deriveStepStatus(result, context);
+    const { resultStr, stepStatus, warnKind, skipReason } = deriveStepStatus(result, context);
     console.log(paintByStatus(stepStatus, resultStr));
     appendLog(buildRetryLogEntry({
       step, status: stepStatus, attempt, durationMs: Date.now() - started, resultStr, context,
@@ -936,7 +1012,7 @@ export async function retryFailedStep(step, sceneId, resolvedParams, context, di
     if (stepStatus === 'fail' || context.lastStepFailed) continue;
     const previous = context.stepResults?.[context.stepResults.length - 1];
     shiftSummary(LOG_SUMMARY, previous?.status || 'fail', stepStatus);
-    rewriteStepRecord(context.stepResults, step.step, stepStatus, resultStr);
+    rewriteStepRecord(context.stepResults, step.step, stepStatus, resultStr, { warnKind, skipReason });
     applyPostStepContext(step, context, sceneId);
     // 重试写下的旗标同样要记轮次：否则下一轮会把「重试时才写上的值」当成上轮遗物。
     stampFlagWrites(context, retrySnapshot, { step: step.step, iteration: context.iteration });
@@ -1013,6 +1089,8 @@ async function resolveTargetPath(options, context) {
   if (options.target || options.auto) {
     context.targetPath = defaultTargetPath(options);
     console.log(chalk.cyan(`\n📁 目标项目：${context.targetPath}\n`));
+    // 没带 --target 时这个路径是引擎自己挑的：挑错了会跑错项目，事后要能看见。
+    if (!options.target) noteAutoDecision(context, null, 'target-path', context.targetPath);
     return;
   }
 
@@ -1259,29 +1337,36 @@ export function deriveStepStatus(result, context) {
   const resultStr = typeof result === 'string' ? result : formatResultForDisplay(result);
   if (context.lastStepFailed) return { resultStr, stepStatus: 'fail' };
   // 处理器可直接布状态（三态检查/跳过不再靠正则猜），正则启发式仅作兵底。
-  const explicit = getExplicitStatus(result);
-  if (explicit === 'fail') {
+  const declared = declaredStepStatus(result, resultStr);
+  if (declared) {
     // 显式报 fail 就是失败。以前只认 context.lastStepFailed（或文案正则），
     // 于是「显式 {status:'fail'} 但没顺手置 flag」的步骤会被 handleStepError
     // 的 `if (!context.lastStepFailed) return` 放过 —— on_error=abort 白写了。
-    context.lastStepFailed = true;
-    return { resultStr, stepStatus: 'fail' };
+    if (declared.stepStatus === 'fail') context.lastStepFailed = true;
+    return declared;
   }
-  if (explicit) return { resultStr, stepStatus: explicit };
   // 处理器返回了对象却没布 status：以前落到下面的正则猜，最后几乎都判 pass。
   // 对象里的字段（ok/found/count…）都是处理器自己的词汇，引擎没有资格替它下结论；
   // 「说了话但没说结论」和「什么都没说」一样，都不足以证明这一步做成了。
   if (result !== null && typeof result === 'object') {
-    return { resultStr: resultStr ? `${resultStr} ${STATUSLESS_OBJECT_NOTE}` : STATUSLESS_OBJECT_NOTE, stepStatus: 'warn' };
+    return {
+      resultStr: resultStr ? `${resultStr} ${STATUSLESS_OBJECT_NOTE}` : STATUSLESS_OBJECT_NOTE,
+      stepStatus: 'warn',
+      warnKind: 'contract',
+    };
   }
   // 处理器什么都没返回（忘了 return / 走了空分支）时，以前落到默认那行记成 pass ——
   // 「步骤 ✓ 但一行输出都没有」是典型的静默失败。空结果一律先当 warn 让人看见。
   if (!String(resultStr ?? '').trim()) {
-    return { resultStr: '（处理器没有返回任何结果，检查该动作是否真的执行了）', stepStatus: 'warn' };
+    return { resultStr: '（处理器没有返回任何结果，检查该动作是否真的执行了）', stepStatus: 'warn', warnKind: 'silent' };
   }
   const isNoop = NOOP_RES.some(re => re.test(resultStr)) || saysNothingToCheck(resultStr);
   const isWarn = !isNoop && hasWarnResult(resultStr);
-  return { resultStr, stepStatus: isNoop ? 'noop' : (isWarn ? 'warn' : 'pass') };
+  if (isNoop) return { resultStr, stepStatus: 'noop' };
+  // 这一条是正则猜的：处理器没布 status，引擎只能看文案。类目标成 heuristic，
+  // 读者才知道「该去让处理器布 status」，而不是「报告里有发现」。
+  if (isWarn) return { resultStr, stepStatus: 'warn', warnKind: 'heuristic' };
+  return { resultStr, stepStatus: 'pass' };
 }
 
 const EXPLICIT_STATUSES = new Set(['pass', 'fail', 'skip', 'noop', 'warn']);
@@ -1325,6 +1410,13 @@ export function normalizeStepStatus(status) {
   return STATUS_ALIASES.get(key) ?? 'warn';
 }
 
+/** 处理器显式给了 warn：是「真说有发现」，还是「status 词我们不认识」？ */
+const FINDINGS_STATUSES = new Set(['warn', 'warning', 'partial', 'issues']);
+function explicitWarnKind(result) {
+  const raw = typeof result?.status === 'string' ? result.status.trim().toLowerCase() : '';
+  return FINDINGS_STATUSES.has(raw) ? 'findings' : 'unknown-status';
+}
+
 /** 处理器返回 { status, message } 时以 status 为准（不再被正则误判为 pass）。 */
 function getExplicitStatus(result) {
   if (!result || typeof result !== 'object') return null;
@@ -1334,7 +1426,24 @@ function getExplicitStatus(result) {
   return normalizeStepStatus(result.status);
 }
 
-function recordStepResult(step, stepNum, status, duration, resultStr, context) {
+/** 处理器自己布了状态时，把状态和「原因类别」一起解出来；没布就返回 null。 */
+function declaredStepStatus(result, resultStr) {
+  const explicit = getExplicitStatus(result);
+  if (!explicit) return null;
+  if (explicit === 'fail') return { resultStr, stepStatus: 'fail' };
+  if (explicit === 'warn') {
+    // 「有发现」和「status 词我们不认识」都要人看，但看的地方不一样：
+    // 前者读报告，后者读处理器源码。合成一个 warn 数字等于把线索抹掉。
+    return { resultStr, stepStatus: 'warn', warnKind: explicitWarnKind(result) };
+  }
+  if (explicit === 'skip') {
+    // 处理器说「跳过」但没说是哪类 —— 记成「没说原因」，不按文案猜类别。
+    return { resultStr, stepStatus: 'skip', skipReason: skipReasonFrom(result).reason };
+  }
+  return { resultStr, stepStatus: explicit };
+}
+
+function recordStepResult(step, stepNum, status, duration, resultStr, context, meta = {}) {
   LOG_SUMMARY.total++;
   switch (status) {
     case 'fail': LOG_SUMMARY.fail++; break;
@@ -1345,12 +1454,23 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context) {
     case 'skip': LOG_SUMMARY.skip++; break;
     default: LOG_SUMMARY.pass++; break;
   }
-  appendLog({ step: stepNum, action: step.action, status, iteration: context.iteration || 1, duration_ms: duration, result: resultStr.slice(0, 200), time: new Date().toISOString() });
+  appendLog({
+    step: stepNum, action: step.action, status, iteration: context.iteration || 1,
+    duration_ms: duration, result: resultStr.slice(0, 200),
+    // 「为什么不是 pass」必须落在日志里：屏幕上的 warn: 3 只说了几个，没说是哪种。
+    warn_kind: (status === 'warn' && meta.warnKind) || null,
+    reason: (status === 'skip' && meta.skipReason) || null,
+    time: new Date().toISOString(),
+  });
   // Track per-step { action, status } for the acceptance reviewed-check gate.
   // step/detail 是给收尾摘要和报告看的：只有 action+status 时，事后看到
   // 「report → warn」也无法知道 warn 的是什么。
   if (!Array.isArray(context.stepResults)) context.stepResults = [];
-  context.stepResults.push({ step: stepNum, action: step.action, status, detail: clipDetail(resultStr), iteration: context.iteration || 1 });
+  context.stepResults.push({
+    step: stepNum, action: step.action, status, detail: clipDetail(resultStr), iteration: context.iteration || 1,
+    warnKind: (status === 'warn' && meta.warnKind) || undefined,
+    skipReason: (status === 'skip' && meta.skipReason) || undefined,
+  });
 }
 
 /**
@@ -1374,6 +1494,57 @@ function abortForAwaitingAnswer(sceneId, step, context, { counted = false } = {}
 /** 交互步骤「真拿到了决定」的标记；runStep 消费后清掉。没打标记 = 这步什么都没定 */
 function noteDecision(context, detail) {
   context._stepDecision = detail || true;
+}
+
+/**
+ * 记一条「--auto 替我做的决定」。
+ * 只记不说不算披露：收尾 printAutoDecisions 统一打印，appendLog 逐条落盘
+ * （event: 'auto-decision'），事后能 grep「这次 auto 到底替我了什么」。
+ * id 必须在 data/auto-decisions.js 里登记过 —— 未登记的 id 也要进表（可见），
+ * 但会带着「未登记的自主决定」这几个字，守卫测试会当场拦下。
+ */
+export function noteAutoDecision(context, step, id, decided) {
+  if (!context) return;
+  if (!Array.isArray(context._autoDecisions)) context._autoDecisions = [];
+  context._autoDecisions.push({
+    id,
+    label: autoDecisionLabel(id),
+    decided: String(decided ?? ''),
+    step: step?.step ?? null,
+    action: step?.action || '',
+    registered: isAutoDecisionId(id),
+  });
+  const logged = appendLog({
+    event: 'auto-decision',
+    id,
+    step: step?.step ?? null,
+    action: step?.action || '',
+    decided: String(decided ?? ''),
+    iteration: context.iteration || 1,
+    time: new Date().toISOString(),
+  });
+  if (logged) context._autoDecisions[context._autoDecisions.length - 1].logged = true;
+}
+
+/**
+ * initLog 之前记下的自主决定当时无日志可写（LOG_PATH 还是 null）。
+ * 启动时补写一次 —— 否则「--auto 挑的目标路径」只在屏幕上出现过一次，
+ * 日志里查不到就等于没有。
+ */
+export function flushAutoDecisionLog(context) {
+  for (const row of context?._autoDecisions || []) {
+    if (row.logged) continue;
+    const logged = appendLog({
+      event: 'auto-decision',
+      id: row.id,
+      step: row.step,
+      action: row.action,
+      decided: row.decided,
+      iteration: context.iteration || 1,
+      time: new Date().toISOString(),
+    });
+    if (logged) row.logged = true;
+  }
 }
 
 /**
@@ -1490,8 +1661,8 @@ async function runStep(sceneId, step, context, options) {
   // 谁都能把问题写进 context._awaitingAnswer，这里统一中止去问，不替用户挑一个。
   if (context._awaitingAnswer) abortForAwaitingAnswer(sceneId, step, context);
 
-  const { resultStr, stepStatus } = deriveStepStatus(result, context);
-  recordStepResult(step, stepNum, stepStatus, duration, resultStr, context);
+  const { resultStr, stepStatus, warnKind, skipReason } = deriveStepStatus(result, context);
+  recordStepResult(step, stepNum, stepStatus, duration, resultStr, context, { warnKind, skipReason });
 
   // 以前无论状态如何都走 spinner.succeed + chalk.green —— 失败的步骤也打绿色 ✔，
   // 只有最后的汇总行才露出 ✗ fail，逐步输出全是假绿。
@@ -1640,7 +1811,12 @@ function enforceAcceptanceGate(scene, context, sceneId) {
   // 「没拦」和「被关了」在输出上必须能区分，否则下次有人把 status 写错就没人发现。
   if (!acceptance.hasEdit && acceptance.inertEditSteps.length > 0) {
     const list = [...new Set(acceptance.inertEditSteps)].join(', ');
-    console.log(chalk.dim(`  变更类步骤未真正执行（${list}），本次没有实际改动 —— 验收门禁不要求验证`));
+    // 以前这里无条件写「本次没有实际改动」。invokeSkill / runAgent 型场景里引擎自己
+    // 一行代码没改，AI 却可能改了一堆文件 —— 那句话是引擎替别人打的包票。
+    const aiNote = acceptance.aiSteps > 0
+      ? `；另有 ${acceptance.aiSteps} 步把改动交给了 AI（引擎看不见它们改了什么，别把这条读成「什么都没动」）`
+      : '';
+    console.log(chalk.dim(`  变更类步骤未真正执行（${list}），引擎自己没改任何文件${aiNote} —— 验收门禁不要求验证`));
   }
   // 场景声明了 allow_no_verify：门禁被关了，而「被关了」必须写在屏幕上。
   // 以前这条豁免完全静默 —— 讀者会以为「有变更 + 没验证」本来就合法。
@@ -1746,6 +1922,10 @@ function reportRoundFindings(findings, iterations) {
 
 async function runIterations(sceneId, scene, context, options) {
   const iterations = options.dryRun ? 1 : resolveIterations(options, scene);
+  // --auto 不会自己多跑几轮：没人指定轮数时它取 1，这同样是替用户做的决定。
+  if (options.auto && !options.dryRun && options.iterations === undefined && scene?.iterations === undefined) {
+    noteAutoDecision(context, null, 'iterations', 1);
+  }
   const force = Boolean(options.forceIterations);
   if (!options.dryRun) warnCappedIterations(requestedIterations(options, scene), iterations);
   context.iterationsPlanned = iterations;
@@ -1789,6 +1969,7 @@ export async function startScene(sceneId, options) {
     context.codeguardianBaseline = captureBoundaryBaseline(context.targetPath);
   }
   initLog(sceneId);
+  flushAutoDecisionLog(context);
   await applyEnhancements(sceneId, context, options);
 
   if (options.theme) {

@@ -1,9 +1,9 @@
 {
   "scene_id": "check",
   "workflow": "check",
-  "name": "引擎自检 + 自愈",
-  "description": "引擎功能完整性检查：检测 dead actions / 场景声明但未实现的门禁 / 空转 handler，自动修复 gate-flags 数据文件",
-  "trigger_keywords": ["自检", "check", "完整性检查", "引擎检查", "自愈"],
+  "name": "引擎自检",
+  "description": "引擎功能完整性检查：检测 dead actions / 场景声明但未实现的门禁 / 空转 handler（只报告，不改引擎源码也不改场景数据）",
+  "trigger_keywords": ["自检", "check", "完整性检查", "引擎检查", "引擎自检"],
   "flow": [
     {
       "step": 0.5,
@@ -48,7 +48,7 @@
       "service": "SelfCheckService",
       "action": "self-check-report",
       "params": {},
-      "description": "生成结构化自检报告（发现数 + 修复数 + 遗留问题）"
+      "description": "生成结构化自检报告（发现数 + 未实现门禁 + 遗留问题）"
     },
     {
       "step": 8,
@@ -61,7 +61,7 @@
           "source": "check_workflow"
         }
       },
-      "description": "保存自检结果到记忆（缺失项/修复项/遗留问题）"
+      "description": "保存自检结果到记忆（缺失项/未实现门禁/遗留问题）"
     },
     {
       "step": 9,
@@ -80,7 +80,7 @@
         "type": "info",
         "message": "引擎自检完成"
       },
-      "description": "通知自检结果（含修复统计与遗留问题）"
+      "description": "通知自检结果（含发现统计与遗留问题）"
     }
   ],
   "status": "active"
