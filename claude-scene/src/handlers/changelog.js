@@ -139,10 +139,8 @@ export function handleGenerateChangeLog(_action, _params, targetPath, context) {
     } catch { /* not a Git repo */ }
   }
   if (!isGit) {
-    if (context) {
-      context.changelogGenerated = false;
-      context.changelogSkipped = true;
-    }
+    // 「非 Git 仓库」是没查，不是查了不通过 —— 以前把 changelogGenerated 写成 false，
+    // changelog 门禁于是报 fail（假红）。不写这个键，门禁会如实记成 skipped。
     return '变更日志跳过（非 Git 仓库）';
   }
 

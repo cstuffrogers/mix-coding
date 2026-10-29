@@ -730,7 +730,6 @@ function readStrykerReport(targetPath) {
 export function handleStryker(_action, _params, targetPath, context) {
   if (!hasStrykerConfig(targetPath)) {
     // 没配置就没跑。置 passed 等于「没验证却算通过」——这正是本引擎要杜绝的。
-    if (context) context.strykerSkipped = true;
     return 'Stryker 跳过: 无 stryker 配置（npm i -D @stryker-mutator/core 后可启用变异测试）';
   }
 
@@ -743,7 +742,6 @@ export function handleStryker(_action, _params, targetPath, context) {
 
     const report = readStrykerReport(targetPath) || parseStrykerText(raw);
     if (!report || !report.score) {
-      if (context) context.strykerSkipped = true;
       return 'Stryker 跳过: 未产生变异测试报告（检查 stryker 配置与测试命令）';
     }
 
@@ -759,7 +757,6 @@ export function handleStryker(_action, _params, targetPath, context) {
       ? `Stryker 变异测试完成: 分数 ${score.toFixed(1)}%，${survived} 处发现（存活变异体，测试未覆盖）`
       : `Stryker 变异测试完成: 分数 ${score.toFixed(1)}%，变异体全部被杀死`;
   } catch {
-    if (context) context.strykerSkipped = true;
     return 'Stryker 跳过: 执行失败';
   }
 }

@@ -106,7 +106,6 @@ export function handlePropertyTestScout(_action, _params, targetPath, context) {
   const detected = _detectJs(targetPath) || _detectPy(targetPath);
 
   if (!detected) {
-    if (context) context.propertyTestSkipped = true;
     console.log(chalk.dim('  ℹ 未检测到属性测试库。属性测试能抓静态分析永远抓不到的逻辑错（边界/不变量）：'));
     console.log(chalk.dim('    JS: npm i -D fast-check     Python: pip install hypothesis'));
     return '属性测试跳过: 未安装 fast-check / hypothesis（属性测试可发现 off-by-one、不变量违反等逻辑错）';
@@ -114,13 +113,11 @@ export function handlePropertyTestScout(_action, _params, targetPath, context) {
 
   const { lib, runner } = detected;
   if (!runner) {
-    if (context) context.propertyTestSkipped = true;
     return `属性测试跳过: 已装 ${lib} 但未找到测试运行器（vitest/jest/pytest）`;
   }
 
   const files = _propertyTestFiles(targetPath, lib);
   if (!files.length) {
-    if (context) context.propertyTestSkipped = true;
     console.log(chalk.dim(`  ℹ 已装 ${lib}，但没有任何测试文件引用它`));
     console.log(chalk.dim('    写一个 property 测试即可启用：对函数的输入不变量做随机采样，失败时自动收缩到最小反例'));
     return `属性测试跳过: 已装 ${lib}，未找到属性测试用例`;
@@ -131,12 +128,11 @@ export function handlePropertyTestScout(_action, _params, targetPath, context) {
 
   if (!ok && NO_TESTS.test(out)) {
     // 没写用例 ≠ 用例失败：前者什么都没验证过，不能计成「跑过了」。
-    if (context) context.propertyTestSkipped = true;
     return `属性测试跳过: ${files.length} 个文件引用了 ${lib}，但没有可执行的 it()/test() 用例`;
   }
 
   if (context) {
-    context.propertyTestRan = true;
+    // propertyTestRan 没有任何读者，删掉；propertyTestPassed 才是 fuzz_test 门禁看的。
     context.propertyTestPassed = ok;
     context.propertyTestFiles = files.length;
   }

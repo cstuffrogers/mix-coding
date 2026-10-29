@@ -68,8 +68,9 @@ describe('handleGenerateChangeLog', () => {
     const ctx = {};
     const result = handleGenerateChangeLog('genChangelog', {}, '/test/project', ctx);
     expect(result).toContain('非 Git 仓库');
-    expect(ctx.changelogGenerated).toBe(false);
-    expect(ctx.changelogSkipped).toBe(true);
+    // 「非 Git 仓库」是没查，不是查了不通过。以前写 changelogGenerated = false，
+    // changelog 门禁于是报 fail（假红）。现在不写这个键，门禁如实记 skipped。
+    expect(ctx.changelogGenerated).toBeUndefined();
   });
 
   it('prepends to existing CHANGELOG.md', () => {

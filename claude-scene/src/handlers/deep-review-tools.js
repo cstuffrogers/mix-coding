@@ -240,7 +240,6 @@ export function handleSemgrepScan(_action, params, targetPath, context) {
   const semgrep = resolveSemgrep();
   if (!semgrep) {
     console.log(chalk.dim('  ℹ semgrep 不可用（pip install semgrep），跳过逻辑/IO 缺陷扫描'));
-    if (context) context.semgrepSkipped = true;
     return 'Semgrep 跳过: 未安装（pip install semgrep 后可启用逻辑/IO 缺陷扫描）';
   }
 
@@ -266,7 +265,6 @@ function _summarizeSemgrepScan({ files, chunks, findings, ruleErrors, parseError
   // 一批都没成 = 什么也没查，不能当「无发现」。
   if (parsed === 0) {
     console.log(chalk.dim(`  ⚠ semgrep 执行失败: ${failures[0] || '无输出'}`));
-    if (context) context.semgrepSkipped = true;
     return { status: 'warn', message: `Semgrep 未完成：执行失败（${failures[0] || '无输出'}）` };
   }
 

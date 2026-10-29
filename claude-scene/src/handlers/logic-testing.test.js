@@ -25,6 +25,10 @@ const testFile = (rel, body) => {
   writeFileSync(full, body);
 };
 
+// 第十轮：handlePropertyTestScout 以前还会写 propertyTestSkipped / propertyTestRan，
+// 两个键没有任何读者（gate-flags.js 只看 propertyTestPassed）。断言改成看**真正
+// 传导到门禁的那个值**：跳过时 propertyTestPassed 必须保持 undefined（门禁会如实记
+// skipped），而不应该先把它置成 false 造成「没跑 = 不通过」。
 describe('handlePropertyTestScout', () => {
   it('skips when no property library is installed', () => {
     pkg({ vitest: '^4.0.0' });
@@ -32,8 +36,7 @@ describe('handlePropertyTestScout', () => {
     const result = handlePropertyTestScout(null, null, dir, ctx);
     expect(result).toContain('跳过');
     expect(result).toContain('fast-check');
-    expect(ctx.propertyTestSkipped).toBe(true);
-    expect(ctx.propertyTestRan).toBeUndefined();
+    expect(ctx.propertyTestPassed).toBeUndefined();
   });
 
   it('skips when the library is installed but nothing references it', () => {
@@ -42,7 +45,7 @@ describe('handlePropertyTestScout', () => {
     const result = handlePropertyTestScout(null, null, dir, ctx);
     expect(result).toContain('跳过');
     expect(result).toContain('未找到属性测试用例');
-    expect(ctx.propertyTestSkipped).toBe(true);
+    expect(ctx.propertyTestPassed).toBeUndefined();
   });
 
   it('skips when a file imports the library but declares no test case', () => {
@@ -54,8 +57,7 @@ describe('handlePropertyTestScout', () => {
     const result = handlePropertyTestScout(null, null, dir, ctx);
     expect(result).toContain('跳过');
     expect(result).toContain('没有可执行的');
-    expect(ctx.propertyTestSkipped).toBe(true);
-    expect(ctx.propertyTestRan).toBeUndefined();
+    expect(ctx.propertyTestPassed).toBeUndefined();
     // Spawns a real runner in a temp project; give it room to boot.
   }, 60000);
 
@@ -65,7 +67,7 @@ describe('handlePropertyTestScout', () => {
     const ctx = {};
     const result = handlePropertyTestScout(null, null, dir, ctx);
     expect(result).toContain('未找到测试运行器');
-    expect(ctx.propertyTestSkipped).toBe(true);
+    expect(ctx.propertyTestPassed).toBeUndefined();
   });
 
   it('detects hypothesis in a python project', () => {
@@ -75,14 +77,13 @@ describe('handlePropertyTestScout', () => {
     // Detected, but no property test file exists yet.
     expect(result).toContain('跳过');
     expect(result).toContain('hypothesis');
-    expect(ctx.propertyTestSkipped).toBe(true);
+    expect(ctx.propertyTestPassed).toBeUndefined();
   });
 
   it('never reports pass without having actually run something', () => {
     pkg({ vitest: '^4.0.0' });
     const ctx = {};
     handlePropertyTestScout(null, null, dir, ctx);
-    expect(ctx.propertyTestRan).toBeUndefined();
-    expect(ctx.propertyTestSkipped).toBe(true);
+    expect(ctx.propertyTestPassed).toBeUndefined();
   });
 });

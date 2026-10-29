@@ -75,16 +75,18 @@ describe('handleVerify：mode 与退出码', () => {
     const result = await handleVerify('verify', { mode: 'health_check', scope: 'deployment', retry: 3 }, projectWithPackageJson(), ctx);
     expect(result.status).toBe('warn');
     expect(result.message).toContain('没有服务地址');
-    expect(ctx.healthCheckPassed).toBeUndefined();
+    // 没有服务地址 = 没测，结论只能是 warn；返回值本身就说明了
     expect(mockSafeExec).not.toHaveBeenCalled();
   });
 
-  it('health_check 敲通了 → 记 healthCheckPassed', async () => {
+  // 第十轮：handleVerify 不再写 context.healthCheckPassed（没有任何门禁/条件读它）。
+  // 结论就是返回值里的 status —— 断言改成看返回值，而不是看一个无人消费的 flag。
+  it('health_check 敲通了 → 返回 pass 结论', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200 })));
     const ctx = { dev_server_url: 'http://127.0.0.1:3000/health' };
     const result = await handleVerify('verify', { mode: 'health_check' }, projectWithPackageJson(), ctx);
     expect(String(result)).toContain('HTTP 200');
-    expect(ctx.healthCheckPassed).toBe(true);
+    expect(String(result)).toContain('健康检查通过');
   });
 
   it('health_check 打不通 → fail，并按 retry 次数重试', async () => {
@@ -96,7 +98,8 @@ describe('handleVerify：mode 与退出码', () => {
     const result = await handleVerify('verify', { mode: 'health_check', retry: 3 }, projectWithPackageJson(), ctx);
     expect(result.status).toBe('fail');
     expect(spy).toHaveBeenCalledTimes(3);
-    expect(ctx.healthCheckPassed).toBe(false);
+    // 不写无人读的 flag，但「失败」必须让上游看见
+    expect(ctx.lastStepFailed).toBe(true);
   });
 });
 

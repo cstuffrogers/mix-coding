@@ -180,13 +180,12 @@ export async function handleVerify(_action, params, targetPath, context) {
 async function verifyHealthCheck(params, context) {
   const result = await checkHealth(params, context);
   const label = params?.scope ? `${params.scope} 健康检查` : '健康检查';
+  // 这里以前写 context.healthCheckPassed = true/false。没有任何门禁/条件读它，
+  // 本步自己的 status 已经是结论 —— 多写一个无人读的 flag 只会让下一个审计
+  // 把它当成「有测量」的证据（第九轮就因此误判过）。
+  if (result.status === 'fail' && context) context.lastStepFailed = true;
   if (result.status === 'pass') {
-    if (context) context.healthCheckPassed = true;
     return `${label}通过: ${result.message.replace('健康检查通过: ', '')}`;
-  }
-  if (context) {
-    context.healthCheckPassed = result.status === 'fail' ? false : undefined;
-    if (result.status === 'fail') context.lastStepFailed = true;
   }
   return result;
 }
