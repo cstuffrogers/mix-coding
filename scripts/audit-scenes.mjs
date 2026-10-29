@@ -6,13 +6,17 @@ import { fileURLToPath } from 'url';
 // 变更/验证分类必须与引擎门禁同源：以前这里自己写了一份窄正则，
 // 引擎认的 runLint / smoke / verifyHandlers 它都不认，于是 15 个场景被误报。
 import { classifyAction } from '../claude-scene/src/lib/acceptance-check.js';
+import { PSEUDO_ACTIONS } from '../claude-scene/src/data/pseudo-actions.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const sceneDir = process.argv[2] || join(root, 'claude-scene', 'scenes');
 
-// 引擎在 start.js 里特判、不需要注册到 ACTION_REGISTRY 的动作
-const SPECIAL_ACTIONS = new Set(['selectModes', 'selectSetupKind', 'selectOption']);
+// 引擎在 start.js 里特判、不需要注册到 ACTION_REGISTRY 的动作。
+// 名单只认 src/data/pseudo-actions.js 那一份：这里以前自己重写了一遍，还多了个
+// 代码与场景里都不存在的 'selectOption' —— 幽灵豁免，真把动作写成 selectOption
+// 时会被当成「已知特判」放过。
+const SPECIAL_ACTIONS = PSEUDO_ACTIONS;
 
 // 条件表达式拆解：排除函数调用名（includes(...)、length 等）与 JS 关键字
 const JS_NOISE = new Set(['true', 'false', 'and', 'or', 'not', 'null', 'undefined',
@@ -78,6 +82,8 @@ const definedConds = new Set();
 for (const m of conditionsSrc.matchAll(/^ {2}(\w+)\s*:/gm)) definedConds.add(m[1]);
 // 已知的输入参数名（params 里合法键）
 const sceneFiles = readdirSync(sceneDir).filter((f) => f.endsWith('.json'));
+// 扫描面下限（当前实际 26 个）
+const MIN_SCENES = 20;
 
 const issues = [];
 const push = (severity, scene, step, kind, detail) => issues.push({ severity, scene, step, kind, detail });
@@ -195,6 +201,12 @@ function isContextKey(name) {
 // ── 输出 ──
 const errors = issues.filter((i) => i.severity === 'error');
 const warns = issues.filter((i) => i.severity === 'warn');
+// 空跑自检：「一个场景都没读到」会打印 0 错误 / 0 警告，和「全部通过」一模一样。
+// 场景目录配错时，这个 0 是最危险的一种绿。
+if (sceneFiles.length < MIN_SCENES) {
+  console.error(`❌ 只读到 ${sceneFiles.length} 个场景（下限 ${MIN_SCENES}）—— 这个 0 错误不可信，先查目录`);
+  process.exit(2);
+}
 console.log(`\n审计场景目录: ${sceneDir}`);
 console.log(`共 ${sceneFiles.length} 个场景，发现 ${errors.length} 个错误 / ${warns.length} 个警告\n`);
 if (errors.length) {

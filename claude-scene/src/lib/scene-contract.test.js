@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { ACTION_REGISTRY } from '../actions.js';
+import { PSEUDO_ACTIONS } from '../data/pseudo-actions.js';
 
 /**
  * 场景契约：场景里写的每个条件标识符、每个 action 名，都必须有人实现。
@@ -33,7 +34,10 @@ const CONDITION_KEYWORDS = new Set([
  *  在这里加一个显式白名单并写明理由 —— 不要靠放宽断言让它过去。 */
 
 /** start.js 里被单独特判、不进 ACTION_REGISTRY 的动作。 */
-const START_SPECIALS = new Set(['selectModes', 'selectSetupKind']);
+// 伪动作名单的唯一来源：src/data/pseudo-actions.js 的 PSEUDO_ACTIONS。
+// 以前这里、handler-verify.js、audit-scenes.mjs 各写一份字面量，其中 audit-scenes 那份
+// 还多了个代码里根本不存在的 'selectOption'（幽灵豁免：真写成 selectOption 的笔误会静默通过）。
+
 
 /** 自带 action 表、不经 executeAction 分发的场景。 */
 const SCENE_OWNED_ACTIONS = new Set(['ui-polish']);
@@ -130,7 +134,7 @@ function walkScenes(node, scene, out) {
 function isKnownAction(action, where) {
   if (Object.hasOwn(ACTION_REGISTRY, action)) return true;
   if (action.startsWith('ce-')) return true;
-  if (START_SPECIALS.has(action)) return true;
+  if (PSEUDO_ACTIONS.has(action)) return true;
   // 以前这里还有 `if (hasActionMessage(action)) return true` —— 那是一张
   // 650 行的文案表，只凭「表里有条文案」就把一个没有处理器的 action 当成已知。
   // 文案不是实现，已经从引擎里删了（data/action-messages.js）。

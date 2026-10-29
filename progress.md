@@ -3115,3 +3115,107 @@ npm run scan:deadcode 2>/dev/null || true   # ← 最后一条命令永远成功
 - **扫描器要有空跑自检**：`0 / 0` 和「全绿」在屏幕上长得一样，必须靠下限把它拆开。
 - **门禁脚本纳入 `.gitattributes` 的 LF 约束**：Windows 上换行符能把门禁弄坏，且报错看不懂。
 - **假红也要修**：超时预算按「真的起子进程」的用例来定，但绝不动断言。
+
+---
+
+## 第二十三轮 · 校验脚本的诚实性：4 个「已验证」的脚本里 3 个永远不会红
+
+延续第二十二轮的判据（**门禁的退出码就是结论**），这一轮把 `scripts/` 下被
+审计报告与 README 当成「✅ 验证脚本」的那批逐个真跑了一遍。改前取证（都是实数）：
+
+| 脚本 | 报告怎么说 | 实际行为 |
+|------|-----------|---------|
+| `check-dead-actions.cjs` | 扫出 4 条死引用 | 打印完 **`EXIT=0`**；而且那 4 条是伪动作（`selectModes` / `selectSetupKind`）—— **假红 + 假绿同时存在** |
+| `check-params.cjs` | 「Issues found: 0」 | `HANDLER_PARAMS` 每条都标了 `optional: true`，唯一会报错的 `!spec.optional` 分支**结构上永远进不去** → 0 是恒等式，不是结论 |
+| `find-deadcode.cjs` | 死代码扫描器 | `find-deadcode-full.cjs` 的严格子集（只扫 handlers），且无退出码；两套判据必然漂移 |
+| `scan-scenes.cjs` | 「扫描所有场景步骤数」 | 只认 `data.flow.length`，而 `flow` 早已是对象 → 每个场景 `steps` 都是 `undefined`，`JSON.stringify` 直接丢字段；屏幕一片正常 |
+
+连带发现三处「同一张名单写了三份」和一个**幽灵豁免**：
+
+- 伪动作名单散在 `handler-verify.js`、`scene-contract.test.js`（`START_SPECIALS`）、
+  `scripts/audit-scenes.mjs`（`SPECIAL_ACTIONS`）三处；
+- 其中 `audit-scenes.mjs` 那份多了个 **`'selectOption'`** —— 代码与 26 个场景里都不存在。
+  它不报错，只是让「把动作写成 `selectOption`」这种笔误**静默通过**（豁免表比实现长，只会越活越久）。
+- `scripts/scenes-stats.json` 是 28 个场景 / 665 步（真值 26 个 / 583 步）—— 因为上面 ①，它一旦重跑
+  就会被写成「每场景没有 steps 字段」，而 `fix-readme-en.cjs` 正要读这个字段。
+
+### 维度①：伪动作名单收敛成一份 `src/data/pseudo-actions.js`
+
+`PSEUDO_ACTIONS = new Set(['selectModes', 'selectSetupKind'])` + 注释说明为什么必须是数据而不是三份字面量。
+`handler-verify.js`、`scene-contract.test.js`、`audit-scenes.mjs` 全部改成 import 这一份，
+**删掉 `'selectOption'` 幽灵**（删完 `audit-scenes.mjs` 仍是 0 错误 / 0 警告 → 反证它确实没人用）。
+
+### 维度②：`check-dead-actions.cjs` 退出码 + 空跑自检 + 假红修复
+
+- `root` 可选参数（`process.argv[2]`），默认仓库根；
+- 判据 = `actions.js` 注册表 + `handlers/ui-polish.js` 场景自有动作 + **`PSEUDO_ACTIONS`** + 含空格（shell）；
+- 退出码：**0** 干净 / **1** 有死引用 / **2** 扫描面塌了（场景 < 20 或动作引用 < 400，或伪动作表读不到）。
+
+改后实测：`Scenes: 26   Action references: 583 / Dead references: 0 / OK / EXIT=0` —— 4 条假红消失，退出码是真的。
+
+### 维度③：删掉两个「不可能红的检查」，修好一个「会写坏数据」的
+
+- **删 `scripts/check-params.cjs`**：结构恒真的检查比没有检查更糟（它给报告提供了「已验证」的假证据）。
+  真契约在 `claude-scene/src/commands/params-contract.test.js` + `lib/param-contract.js`（已硬化 13 轮，且进 `npm test` 门禁）。
+- **删 `scripts/find-deadcode.cjs`**：`find-deadcode-full.cjs` 的子集，两套判据放着就会漂移；
+  保留接入门禁的那一个（`npm run scan:deadcode`），README 的脚本清单一并更新。
+- **`scan-scenes.cjs` 重写**：`flow` 数组/对象都认（不认识就 `null`，不猜）；
+  **写盘前自检**：场景 < 20 → `exit 2`，有场景算不出步骤 → `exit 1`，两种情况**都不覆盖**已有 stats
+  （「不许用坏数据覆盖好文件」）；可选 out 路径参数（测试用）。
+  跑真仓库 → **26 个场景 / 583 步**，`scenes-stats.json` 从 28/665 的陈旧数据变成真值。
+- **`audit-scenes.mjs` 加空跑自检**：读到 < 20 个场景 → `exit 2` + 「这个 0 错误不可信」（它本来就有 `exit 1`，只是空跑也报干净）。
+
+### 新测试 `claude-scene/src/commands/scripts-honesty.test.js`（12 条）
+
+- `check-dead-actions.cjs`：真仓库 `0 dead / EXIT=0`（**与 `scene-contract.test.js` 的漂移守卫**）；
+  fixture 里伪动作不算死；注入 `totallyMissingAction` → `EXIT=1` 并点名；空目录 → `EXIT=2` + 「扫描面塌了」。
+- `scan-scenes.cjs`：flow 对象 → 每场景 `steps=5`（不是 `undefined`）；flow 数组 → `steps=3`；
+  有坏场景 → `EXIT=1` 且**旧 stats 文件一字节没动**；场景太少 → `EXIT=2` 且不产出文件。
+- `audit-scenes.mjs`：真仓库 0 错误 / `EXIT=0`；空目录 `EXIT=2`。
+- **假检查不许复活**：`check-params.cjs` / `find-deadcode.cjs` 必须不存在，`package.json` 也不许引用。
+- **幽灵豁免守卫**：`PSEUDO_ACTIONS` 里每个名字都必须在 `start.js` 里有实现痕迹
+  （`step.action === 'x'` / `!== 'x'` / `actionMap` 的键，抽取方式与 `smoke.test.js` 同构）。
+
+### 验收三元组
+
+1. **变更**：新增 `claude-scene/src/data/pseudo-actions.js`、`claude-scene/src/commands/scripts-honesty.test.js`；
+   改 `handler-verify.js`、`scene-contract.test.js`、`scripts/check-dead-actions.cjs`、`scripts/scan-scenes.cjs`、
+   `scripts/audit-scenes.mjs`、`scripts/scenes-stats.json`、`README_EN.md`；删 `scripts/check-params.cjs`、`scripts/find-deadcode.cjs`。
+2. **验证命令**：`python .probe23.py` / `npx vitest run` / `npx eslint .` /
+   `cd claude-scene && npx eslint . --max-warnings 0` / `npm run scan:deadcode` /
+   `node scripts/check-dead-actions.cjs` / `node scripts/audit-scenes.mjs` / `node scripts/scan-scenes.cjs` /
+   26 场景 `--dry-run --auto` / `start review --auto --skip-sweep`。
+3. **验证结果**：
+   - `check-dead-actions.cjs`：改前 `Dead references: 4`（全是伪动作）+ `EXIT=0` →
+     改后 `Dead references: 0` + `EXIT=0`；注入笔误 → `EXIT=1` 点名；空目录 → `EXIT=2`；
+   - `scan-scenes.cjs`：改前每场景 `steps` 是 `undefined` → 改后 26 个场景 / 583 步；
+     坏场景 → `EXIT=1` 且旧文件不变；场景 < 20 → `EXIT=2`；
+   - `audit-scenes.mjs`：空目录从 `EXIT=0`（「0 错误」）→ `EXIT=2`；
+   - vitest **105 files / 1339 tests 全绿**；双 eslint **0/0**；`scan:deadcode` **EXIT=0 / Total dead: 0**；
+     dry-run **26/26**；review 真跑 **EXIT=0**，`pass 17 / fail 0 / warn 3 / skip 19 / noop 4`（与基线一致）；
+   - 自探针 **7/7**（去掉 `exit 1` / 忽略伪动作表 / 加幽灵 `selectOption` / 退回 `flow.length` /
+     允许坏数据覆盖 / 去掉 audit 空跑自检 / 复活 `check-params.cjs` → 各自变红并点名，还原回绿）。
+
+### 坑
+
+- **Windows 上 CJS 里动态 `import()` 必须走 `pathToFileURL`**：直接给 `E:\...` 会报
+  `Only URLs with a scheme in: file, data, and node are supported` / `unsupported protocol 'e:'`。
+- **伪动作表读不到 = 扫描面塌了**：`check-dead-actions.cjs` 一开始直接 `import` 崩掉 → 退出码虽是 2，
+  但报的是「扫描失败」而不是「扫描面塌了」，测试按文案断言会红 —— 改成 try/catch 返回 `null`，
+  再把它列进 `collapsed` 里，报告才诚实地指向「缺的是那张名单」。
+- **测试里的断言文案决定探针能不能点名**：`expect(ghosts).toEqual([])` 把理由写在注释里，
+  失败输出只显示数组差异 → 探针找不到「幽灵豁免」。改成 `expect(ghosts, '幽灵豁免：…')`，
+  失败信息自己就把话说清楚（这本身就比注释可靠）。
+- **`unicorn/max-nested-calls`（max 3）最爱打这种一行 fixture**：`join(mkdtempSync(join(tmpdir(), …)), 'x')`
+  与 `JSON.parse(readFileSync(join(…)))` 都是 4 层 → 拆成两条语句（顺手更好读）。
+- **`process.execPath` 上加 `eslint-disable sonarjs/no-os-command-from-path` 会变成 unused directive** 警告
+  → `--max-warnings 0` 下当场红（第二十二轮踩过，这轮又踩一次：位置对了但规则不触发）。
+
+### 决策
+
+- **一个检查如果结构上不可能失败，它就是「假证据」，删掉比留着更诚实**（`check-params.cjs`）。
+- **同一个判据只允许有一份名单**；名单比实现「长」出来的一律算幽灵，必须能被测试当场抓出来。
+- **校验脚本必须能报 3 种结论**：干净 / 有问题 / **扫不到东西**（第三条最容易被写成「干净」）。
+- **会写盘的工具要先自检再写**：数据坏了宁可拒绝写，也不许用坏数据覆盖好文件。
+- **脚本与测试判据重复时不删脚本，而是加「漂移守卫」**：两边结论不一致时测试变红，
+  比「谁也别写第二份」更可靠。

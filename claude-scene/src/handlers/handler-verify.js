@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
 import { PACKAGE_ROOT, PROJECT_ROOT } from '../lib/paths.js';
 import { mcpConfigCandidates, loadMcpServers } from '../lib/mcp-config.js';
+import { PSEUDO_ACTIONS } from '../data/pseudo-actions.js';
 
 // 兼容：既有测试从本模块导入 mcpConfigCandidates
 export { mcpConfigCandidates };
@@ -443,7 +444,7 @@ function parseRegistryKeys(src) {
 const SCENE_LOCAL_TABLES = [
   { file: 'handlers/ui-polish.js', table: 'UI_POLISH_ACTIONS' },
 ];
-const PSEUDO_ACTIONS = new Set(['selectModes', 'selectSetupKind']);
+// 伪动作名单的唯一来源在 data/pseudo-actions.js（死动作扫描器也读它）
 
 function parseSceneLocalActionKeys() {
   const keys = new Set(PSEUDO_ACTIONS);

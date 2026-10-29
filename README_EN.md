@@ -330,9 +330,10 @@ mix-coding/
 │       └── lib/              # Utility library (including huashu design integration)
 │
 ├── scripts/                  # Project scripts (Node.js .cjs)
-│   ├── scan-scenes.cjs       # Scan all scene step counts
-│   ├── find-deadcode.cjs     # Dead code scanner
-│   └── find-deadcode-full.cjs # Dead code scanner
+│   ├── scan-scenes.cjs       # Scene step counts → scripts/scenes-stats.json
+│   ├── check-dead-actions.cjs # Scene actions must have implementations (exit 1 if not)
+│   ├── audit-scenes.mjs      # Static audit of scene logic (exit 1 on errors)
+│   └── find-deadcode-full.cjs # Dead code scanner (gate: exit 1 on dead code)
 ├── constitution.md           # Project constitution (enforced by constitutional-validator Agent)
 ├── CLAUDE.md                 # Main project instructions
 ├── ARCHITECTURE.md           # Full architecture documentation
