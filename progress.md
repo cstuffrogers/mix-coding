@@ -1990,3 +1990,87 @@ C) 谓词读了 `ctx.obj.field` 而 `obj` 从没被填过。手工复核 A 段�
    `handleStepError` 用的是哪一份。
 3. **`condition` 引用的 context 键是否在**任何**上游被写过**（当前只查「有没有人读」，
    没查「写的人是否一定先跑」）——即条件对**步骤顺序**的隐式依赖。
+
+---
+
+## Session 2026-10-29（第十一轮）：门禁旗标写入契约 + 重试次数来源 + 条件↔上游顺序
+
+### 维度① 门禁旗标只认布尔（`f8bdd53`）
+
+上一轮把「无人读的旗标」删干净了，这一轮查另一半：**写进去的值本身是假的**。
+
+- `security/npm-scan`：`detectNpmVulnerabilities` 改三态 `number>0 | 0 | null`
+  （`null` = audit 接口不可用 = 不知道）；`readNpmAudit` / `countSeverities` /
+  `collectDeprecated` 抽纯函数（认知复杂度 28 → ≤15）。新建 `npm-scan.test.js`（13 tests）。
+- `dependency-cruiser`（**此前零覆盖**）：
+  - `RAN_MARKERS` 删掉 `/dependency-cruiser/i` —— npx 失败时 stderr 里带工具名，
+    于是「没跑起来」被判成「跑过了」；
+  - `VIOLATION_LINE` 改成行首锚定的 `^[ \t]*(?:error|warn)\b` ——
+    以前裸扫 `/error|violation/i`，`✔ no violations found` 里的 violations 被数成 1 个违规（假红）；
+  - 没跑起来 → `{status:'warn'}` 且**不写** `depCruiserPassed` / `depcruise_violations`；
+  - `params.rules` 接线（场景声明了却没人读）。
+- `migration`：**内置确定性规则为准，guardian 只当额外信号**。
+  `guardian.output.match(/CRITICAL|HIGH/i)` 双向都错：`No critical issues` 数成 1 个发现（假红），
+  guardian 真报错（非零退出）时一个都不数（假绿）。读不出来的迁移文件 → warn，不写 pass 旗标。
+- `monitor`：非 Git 仓库 → `{status:'skip'}`，不再写 `monitorConfigured = false`（假红）。
+- `testing`：删两处 `loadTestPassed = null` —— **`null !== false`，门禁把它当通过**，
+  这是本轮最危险的一类假绿。
+- `config-check` / `secret-scan`：去掉 `grep ... || true`（`|| true` 把 grep 的 2/127 抹平成 0），
+  统一走新 `lib/grep-scan.js`（退出码 0/1/≥2 三分）。没跑通 → warn，不写 pass 旗标。
+- `flow-control.evalStandardGate`：只认 `=== true` / `=== false`，其余一律 skipped 并把实际值打出来。
+- `ui-tools.handleVisualRegression`（维度①收尾）：四条「压根没跑」的路径
+  （没有 package.json / 读不出来 / 没装 Playwright / 没有视觉测试文件）以前全写
+  `visualRegressionPassed = false` —— 它是注册过的门禁旗标，于是「没装 Playwright」
+  在门禁眼里等于「视觉回归失败」；「没有视觉测试文件」那条还返回「完成」文案（假绿）。
+  现在只承认真跑过 playwright 的两次结论。
+
+### 维度② `on_error: retry` 的次数来源
+
+查明的两套 retry 互不相干：
+- 步级：`start.js retryFailedStep` 的 `MAX_RETRIES = 3` **硬编码**，与场景声明无关；
+- 处理器内部：`flow-control.checkHealth` 读 `params.retry`（release#12 / rollback#8 / onboard#11
+  都写着 `retry: 3|5`）。
+
+两个都叫 retry，只有一个数字生效 —— 读者只能猜。修法：`resolveMaxRetries(step)`
+（默认 3，`step.max_retries` 覆盖，垃圾值回落并出声），中止文案用真实次数，
+两者同时存在时把两个数字都打出来。
+
+### 维度③ 条件读的键是否在「上游一定被写过」
+
+`condition` 只认 context 键。运行时已会把「从头到尾没人写」的键记进 `_unjudgedSteps`
+并点名，但**「只有后面的步骤才写」在运行时看起来跟「真的不满足」一模一样**：静默跳过。
+新增 `commands/condition-order.test.js`：键集全部从实现源码推导（处理器 `context.x =`、
+引擎在流程外写的键、`actionMap` 映射表），不手写白名单；两类违例
+（只有后面才写 / 唯一上游写者自己也是条件步骤）各配自探针。
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1115 passed / 88 files**（第十轮 1057 → 1095 → 1115） |
+| lint | `npx eslint .` | 0 |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 |
+| 死码 | `npm run scan:deadcode` | Total dead 0 |
+| 26 场景 | 逐个 `--dry-run --auto` | 全部 exit 0 |
+| review 真跑 | `start review --auto --skip-sweep` | pass 17 / **fail 0** / warn 3 / skip 19 / noop 4 |
+
+3 个 warn 都带具体原因（自检记录过期 / npm audit 接口不可用 / skillspector 105 问题）。
+
+### 决策
+- **门禁旗标只认布尔**：`null` 是最危险的假绿（`null !== false` → 门禁 ✓ 通过）。
+  `*Passed` 只能被赋 `true | false | undefined`，且只赋值给**真的测过**的那次结论。
+- **退出码是权威，文案不是**：`grep ... || true` 是本轮最大的一类假绿来源 ——
+  它把「grep 根本不存在」和「没有匹配」变成同一件事。
+- **正则启发式数「词」必然双向错**：外部工具只当额外信号，内置确定性规则为准。
+- **「没跑起来」的证据不能是工具的自我介绍**：`/dependency-cruiser/i` 会命中 npx 的报错文本。
+- **重试是「重做这件事」**：次数要么接场景声明，要么明说默认值；两个数字并存时必须都出声。
+- **条件对步骤顺序有隐式依赖**：只有「无条件上游」「流程外注入」这两种键才算一定有值。
+
+### 下一轮候选维度
+1. **外部工具的严重级别 → 状态映射**：skillspector 报 `CRITICAL 1 / HIGH 66` 仍是 `warn`，
+   非 `full_audit` 模式下没有任何门禁读它 —— 这类「有 CRITICAL 却整体 fail 0」是否算假绿，
+   需要先定「外部启发式工具的严重级别能不能直接判 fail」的契约。
+2. **`params-contract.test.js` 的全局泛读漏洞**：属性读取判定还停留在「全仓库有人读过」，
+   收窄到 handler + 一跳调用链才能抓到「同名键在别处被读，本 handler 其实没读」。
+3. **报告/汇总与实际状态的第三遍核对**：`detectorReport` 的「记录已过期」判定
+   是否覆盖 `--skip-sweep` 场景（现在只能靠 warn 提示）。
