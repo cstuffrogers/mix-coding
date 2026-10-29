@@ -2,13 +2,26 @@
 /**
  * 全面死代码扫描器
  * 扫描：handlers / scenes / commands / skills / mcp / rules
- * 用法：node scripts/find-deadcode-full.cjs
+ * 用法：node scripts/find-deadcode-full.cjs [root]
+ *
+ * 退出码（以前恒为 0，「扫描器跑完了」被当成「扫干净了」）：
+ *   0 = 没扫到死代码
+ *   1 = 扫到死代码（清单已打印）
+ *   2 = 扫描面塌了（某类目录几乎没扫到东西，结论不可信）
+ *
+ * 这样它才能当门禁用：`.husky/pre-commit` 直接 `npm run scan:deadcode`，
+ * 不再需要 `|| true` 兜底（兜底的后果是永远不红）。
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+// 可选 root 参数：既方便在别处复用，也让测试能在临时目录里验证「真有死代码会红」。
+const ROOT = path.resolve(process.argv[2] || path.join(__dirname, '..'));
+
+// 扫描面塌了的判定下限（当前实际：handlers 70 / scenes 26 / commands 33 / skills 29）。
+// 留足余量，只拦「路径配错、目录被挪走、内容读不到」这种结论完全不可信的情况。
+const MIN_SCANNED = { handlers: 40, scenes: 15, commands: 15, skills: 10 };
 const results = {};
 
 // 收集所有 .js / .json / .md 内容作为引用源
@@ -197,3 +210,26 @@ console.log(`  Scenes:   ${deadScenes.length} / ${scenes.length}`);
 console.log(`  Commands: ${deadCommands.length} / ${commands.length}`);
 console.log(`  Skills:   ${deadSkills.length} / ${skills.length}`);
 console.log(`  MCP:      ${deadMcp.length} / ${mcpServers.length}`);
+
+// 空跑自检：一个都没扫到 = 「路径配错了」，不是「干净」。0 / 0 看着和满分一样。
+const scannedCount = {
+  handlers: handlers.length,
+  scenes: scenes.length,
+  commands: commands.length,
+  skills: skills.length,
+};
+const collapsed = Object.entries(MIN_SCANNED)
+  .filter(([kind, min]) => scannedCount[kind] < min)
+  .map(([kind, min]) => `${kind}=${scannedCount[kind]}（下限 ${min}）`);
+
+if (collapsed.length > 0) {
+  console.error('');
+  console.error(`❌ 扫描面塌了：${collapsed.join(' / ')} —— 这个 0 dead 不可信，先查扫描路径`);
+  process.exit(2);
+}
+
+if (totalDead > 0) {
+  console.log('');
+  console.log(`❌ 扫到 ${totalDead} 处死代码 —— 删掉或补引用后重跑`);
+  process.exit(1);
+}

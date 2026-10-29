@@ -3008,3 +3008,110 @@ skip 同理 11 类：`condition` / `unjudged` / `user` / `interactive` / `not-ap
 - **细分与计数对不上必须在屏幕上说出来**，否则「没列出来的」会被当成不存在。
 - **noop 的原因也要处理器声明**，但只做「文案已明说」的那些；猜不准就留 `undeclared`。
 - **判定权归处理器**：处理器能布 `warnKind` 就照抄（词表内），词表外记 `unknown-declared` 并保留原词。
+
+---
+
+## 第二十二轮 · 门禁自己也要能红：pre-commit 恒 0、死代码扫描器没有退出码、CRLF 会让 hook 静默坏掉
+
+起点：第二十一轮那次提交，`npm test` 里有 3 个用例超时失败，提交照样落地、`COMMIT=0`。
+查下去发现不是偶然 —— **提交门禁本身就是假绿**。
+
+### 维度①：`.husky/pre-commit` 的退出码恒为 0
+
+老内容 4 行，没有 `set -e`，收尾是 `npm run scan:deadcode 2>/dev/null || true`：
+
+```sh
+(cd claude-scene && npx eslint . --max-warnings 0)
+npm test
+npm run scan:deadcode 2>/dev/null || true   # ← 最后一条命令永远成功
+```
+
+脚本退出码 = 最后一条命令的退出码 → **恒为 0**。实测取证：把 `npx` / `npm` 都用替身脚本
+换成 `exit 1`，老 hook 依然 `EXIT=0`，还顺手把扫描器的 stderr 吞了。
+
+修法（不是加 `set -e` 就完事 —— 还得让失败**可见**）：
+- `set -e` 打头；
+- 去掉 `|| true` 与 `2>/dev/null`（吞错的兜底 = 永不红）；
+- 每一步先 `echo '[pre-commit] 1/3 eslint（claude-scene 严格档，--max-warnings 0）'` ——
+  事后能从输出核出「到底验过什么」，而不是一串无从对应的日志；
+- 收尾 `echo '[pre-commit] 全部通过'`：只有真跑到最后才有这句。
+
+### 维度②：`scripts/find-deadcode-full.cjs` 算出 `totalDead` 却从不设退出码
+
+`const totalDead = …` 然后只 `console.log` —— 「扫描器跑完了」被当成「扫干净了」。
+于是 hook 里那句 `|| true` 其实多余：就算不吞，这脚本也永远 `exit 0`。
+
+- `totalDead > 0` → `process.exit(1)`，并打印「❌ 扫到 N 处死代码 —— 删掉或补引用后重跑」。
+- **空跑自检**：`MIN_SCANNED = { handlers: 40, scenes: 15, commands: 15, skills: 10 }`
+  （当前实际 70 / 26 / 33 / 29），任一类低于下限 → `process.exit(2)`
+  「❌ 扫描面塌了：handlers=0（下限 40）… —— 这个 0 dead 不可信，先查扫描路径」。
+  `0 / 0` 与「全绿」在屏幕上是同一个样子，这正是要拦的。
+- 支持可选 root 参数 `node scripts/find-deadcode-full.cjs [root]`：既方便复用，
+  也让测试能在临时目录里验证「真有死代码会红」，不必往本仓库里塞假死文件。
+
+### 维度③：`.gitattributes` —— 门禁脚本必须是 LF
+
+本仓库 `core.autocrlf=true`。老 hook 在工作区是 LF（历史原因），但**换台机器 clone 下来
+就是 CRLF** —— CRLF 的 sh 脚本会让 `set -e` 变成非法选项（Git-Bash 报
+`set: invalid option`），门禁当场坏掉，而报错完全看不出是换行符问题。
+新增 `.gitattributes`：`.husky/** text eol=lf` + `*.sh text eol=lf`。
+
+### 维度④：假红也要修 —— 5s 默认超时对「真去起子进程」的用例偏紧
+
+门禁现在会真的拦住提交了，于是「偶发超时」的代价从「无感」变成「随机拦你」。
+实测最慢几条：`handlePropertyTestScout` 8.5s、全量 handler 冒烟 6.1s、`handleGitLeaks` 3.9s
+（都在 spawn 真的 git / node / npm）。`vitest.config.ts` 设 `testTimeout: 15_000` ——
+**只调时间预算，一条断言都没动**；假红和假绿一样糟。
+
+### 新测试 `claude-scene/src/commands/gate-honesty.test.js`（10 条）
+
+静态契约（只看会执行的命令行，注释里写「以前是 `|| true`」不算违规）：
+`set -e` 存在 / 没有 `|| true`·`set +e`·`2>/dev/null` / 三道门禁命令都在 /
+每步有 `[pre-commit]` 标签且最后一行是「全部通过」/ hook 是 LF 且 `.gitattributes` 声明了它。
+
+动态（注入 `PATH` 替身真的跑一遍 hook，用 `sh`；无 sh 时 `skipIf` 并保留真实原因）：
+- eslint 失败 → 非零退出且**没有**打 `2/3`（后面真的没跑）；
+- 测试失败 → 非零退出且**没有**打 `3/3`；
+- 三道全过 → 0 且打印「全部通过」。
+
+扫描器动态（临时目录 fixture：40 handler / 15 scene / 15 command / 10 skill，
+内容里不写自己的文件名，否则 `isReferenced` 自己命中自己）：
+有死代码 → `exit 1` 且点名 `dead-one`；干净 → `exit 0` + `Total dead: 0`；
+空目录 → `exit 2` + 「扫描面塌了」。
+
+### 验收三元组
+
+1. **变更**：`.husky/pre-commit`（重写）、`.gitattributes`（新增）、
+   `scripts/find-deadcode-full.cjs`（退出码 + 空跑自检 + root 参数）、
+   `vitest.config.ts`（`testTimeout`）、新增 `claude-scene/src/commands/gate-honesty.test.js`（10 条）。
+2. **验证命令**：`python .probe22.py` / `npx vitest run` / `npx eslint .` /
+   `cd claude-scene && npx eslint . --max-warnings 0` / `npm run scan:deadcode` /
+   26 场景 `--dry-run --auto` / `start review --auto --skip-sweep` /
+   临时 git 仓库里 `git commit`（honor 门禁退出码）。
+3. **验证结果**：
+   - 改前取证：三个门禁命令全部 `exit 1` → **老 hook `EXIT=0`**；
+   - 改后：eslint 失败 `EXIT=1`（没进第 2 步）、测试失败 `EXIT=1`（没进第 3 步）、全过 `EXIT=0`；
+   - 临时仓库实测 `PATH=<stub> git commit` → **`COMMIT_EXIT=1`，`git log` 无提交**（门禁真的拦住了，git 认退出码）；
+   - vitest **104 files / 1327 tests 全绿**；双 eslint **0**；`scan:deadcode` **EXIT=0 / Total dead: 0**；
+     dry-run **26/26**；review 真跑 **EXIT=0**，`pass 17 / fail 0 / warn 3 / skip 19 / noop 4`（与基线一致）；
+   - 自探针 **5/5**（hook 退回 `|| true` / `set +e` / CRLF；scanner 不设退出码 / 去掉空跑自检 → 各自变红并点名，还原回绿）。
+
+### 坑
+
+- **断言 `not.toContain('|| true')` 会打到注释里**：hook 头部注释解释「以前是 `|| true`」→
+  必须只对**会执行的命令行**断言（`hookLines()` 已滤掉注释与空行）。
+- **`'\n'` 在 python heredoc 里会被折成真换行**（第 6 次踩）→ 用 edit 改成
+  `String.fromCodePoint(10)`；**别再用 heredoc 生成含反斜杠的 JS**。
+- **`PATH` 里注入替身目录会被 `sonarjs/no-os-command-from-path` 点名** →
+  逐处 `eslint-disable-next-line` 并写理由；`process.execPath` 不需要（绝对路径）→
+  加了会变成 unused directive 警告。
+- **node 在 Windows 上不认 `/tmp/xxx`**（vitest `--outputFile=/tmp/x.json` 写不出）→
+  用 `$TEMP/…`。
+
+### 决策
+
+- **门禁的退出码就是结论**：脚本「跑完了」不等于「通过」，`|| true` 这种兜底一律不许出现在门禁里。
+- **每一步门禁要自报名字**：没有标签的日志无法事后核对「到底验过什么」。
+- **扫描器要有空跑自检**：`0 / 0` 和「全绿」在屏幕上长得一样，必须靠下限把它拆开。
+- **门禁脚本纳入 `.gitattributes` 的 LF 约束**：Windows 上换行符能把门禁弄坏，且报错看不懂。
+- **假红也要修**：超时预算按「真的起子进程」的用例来定，但绝不动断言。

@@ -1,0 +1,6 @@
+# 门禁脚本必须是 LF。
+# 本仓库 core.autocrlf=true，检出时默认会把文本换成 CRLF；而 CRLF 的 sh 脚本
+# 会让 `set -e` 变成非法选项（Git-Bash 报 "set: invalid option"）——
+# 提交门禁当场坏掉，而且报错完全看不出是换行符问题。
+.husky/** text eol=lf
+*.sh text eol=lf
