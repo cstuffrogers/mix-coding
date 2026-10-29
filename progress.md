@@ -3671,3 +3671,104 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
   这比「已集成」诚实，也比整行删掉有用（它暴露了真实的死接线）。
 - **增强项登记表按 scene id 索引 → 退役场景的登记表就是死配置**，删；文档必须照着 `REGISTRY` 生成，
   并由测试锁住「文档 == 代码」。
+
+## 第二十八轮：场景真值有两份，校验器各读一份（2026-07-01）
+
+> 第二十七轮候选清单里的第 ② 条「`scenes-stats.json` 没有门禁重跑」和第 ④ 条
+> 「外部工具清单有两份」讲的是同一件事的两个变体：**同一份数据住着两个地方**。
+> 顺着这条线往上摸，最要命的不是工具清单，而是**场景本身**。
+
+### 改前取证（全部实测）
+
+- `diff -rq .claude/scenes claude-scene/scenes` → 26 个 JSON 逐字节相同
+  （只有 `.claude/scenes/README.md` 是单独产物）。
+- 引擎读哪份：`paths.js` 的 `getSceneDirs()` 是「`.claude/scenes` → `~/.mix-coding/scenes`
+  → 包内 `scenes`」，`resolveScenePath('review')` 实测返回
+  `E:\auto-coding\.claude\scenes\review.json` —— **跑起来的是覆盖层那份**。
+- 校验器读哪份（`grep -n scenes scripts/*.cjs`）：
+  - `check-readme-stats` / `check-action-stats` / `check-doc-counts` / `check-tool-steps`
+    → `claude-scene/scenes`（**永远不会被执行的那份**）
+  - `check-dead-actions` / `find-deadcode-full` / `scan-scenes` → `.claude/scenes`
+- 假绿实证：往 `.claude/scenes/review.json` 的 `flow` 里 append 一步（43 → 44），
+  `check-readme-stats` 仍然 EXIT=0 并打印「26 个场景 / 583 步…全部对得上」；
+  同一时刻 `check-dead-actions` 报 `Action references: 584`（它读的是覆盖层，反而是对的）。
+  探针用完 `git checkout --` 复原，`git status` 0 行。
+
+### 维度①：场景层的唯一定义
+
+- 新增 `scripts/lib/scene-dir.cjs`：`sceneTiers(root)`（层顺序与引擎一致）+ `resolveScenes(root)`
+  （**合并视图**，同名场景只取高优先级那份，返回值带 `tier`/`source` 便于打印）。
+- 为什么是合并、不是「只读覆盖层」：真实项目的 `.claude/scenes` 只放**要覆盖**的那几个，
+  只读覆盖层会把真值缩成「覆盖了几个场景」，`MIN_SCENES` 立刻误报「扫描面塌了」。
+- 七个脚本全部改成从这里取：`check-readme-stats`（真值行打印「读的是哪几层」）、
+  `check-action-stats`（`sceneCount()` = 合并后的 key 数）、`check-doc-counts`、
+  `check-tool-steps`、`check-dead-actions`（同名只数一次，`file` 打印相对路径）、
+  `scan-scenes`（默认按运行时视图统计）、`find-deadcode-full`（`searchDirs` 的层从
+  `dirs` 生成，不再写死 `.claude/scenes`；报告标题改成「运行时视图：覆盖层优先合并」）。
+
+### 维度②：陈旧产物必须有门禁
+
+- `.husky/pre-commit` 从 3 道变 4 道：第 4 道重跑 `node scripts/scan-scenes.cjs`，
+  再用 `git diff --quiet -- scripts/scenes-stats.json` 判定；不一致就打印
+  「不是最新（上面已按场景文件重写），请 git add 后重新提交」并退出 1。
+- `gate-honesty.test.js` 的 `x/3` 标签同步改成 `x/4`（契约变更，附理由注释），
+  并新增断言：hook 里必须出现 `node scripts/scan-scenes.cjs` 与
+  `git diff --quiet -- scripts/scenes-stats.json`。
+- 自探针：给 `check.json` 加一步 → `scan-scenes` 写 584 → hook 判定「会拦住」；
+  复原后 `git status` 干净（`git update-index --refresh` + 重新 `git add` 清掉
+  内容相同但 stat 脏的假改动）。
+
+### 维度③：守卫测试
+
+- 新增 `claude-scene/src/commands/scene-dir.test.js`（**13 例**）：
+  ①层顺序四态：只有内置 / 只有覆盖层 / 两层都有（同名覆盖层赢且只算一次）/
+    两层皆空（`source` 明说「两层都没有」）+ `MIX_CODING_SCENES_DIR` 显式覆盖（用完 `finally` 还原环境）；
+  ②真仓库守卫：两份副本文件名集合相同 + **逐字节相同**，不同就点名到文件；
+  ③「校验器读的目录 == 引擎 `resolveScenePath('review')` 返回的目录」（子进程问引擎，避免导入期求值坑）；
+  ④回归：覆盖层写 4 步 / 内置 3 步 → 文档写 4 步 EXIT=0、写 3 步 EXIT=1 且报「实际 4」；
+    覆盖层只放 1 个场景时真值仍是 20（不许误报扫描面塌）。
+  ⑤静态守卫：凡剥注释后仍提到 scenes 的 `scripts/*.cjs` 必须 require `scene-dir.cjs`；
+    再加一条「至少认出 6 个读者」防这条守卫空转。
+- 守卫自探针：给 `.claude/scenes/qa.json` 加一个空格 → 逐字节守卫立刻红并点名
+  `qa.json`；复原后 `git status` 干净。
+
+### 验收三元组
+
+| 改动 | 验证命令 | 结果 |
+|------|----------|------|
+| 七个脚本改用 `resolveScenes` | `node scripts/check-{readme-stats,action-stats,doc-counts,tool-steps,dead-actions}.cjs` | 全 EXIT=0；readme-stats 真值行显示「读的是 .claude/scenes（项目覆盖层） + claude-scene/scenes（随包内置）」 |
+| 新增解析器 + 13 例测试 | `npx vitest run claude-scene/src/commands/scene-dir.test.js` | 13 passed |
+| 全量测试 | `npx vitest run` | **112 files / 1416 tests 全绿**（+13） |
+| 双 eslint | `npx eslint .` + `(cd claude-scene && npx eslint . --max-warnings 0)` | 0 error / 0 warning |
+| 死代码 | `npm run scan:deadcode` | `Total dead: 0`，`Scenes: 0 / 26` |
+| 新门禁 | `node scripts/scan-scenes.cjs && git diff --quiet -- scripts/scenes-stats.json` | 同步时 exit 0；探针改场景后能拦住 |
+
+### 坑
+
+- **heredoc 吃反斜杠（第 11 次）**：Python heredoc 里写 `\n` / `\b` 会被折成真换行/退格，
+  连续三次把 `split('\n')` 写成跨行字符串、把 `/\bscenes\b/` 写成控制字符。
+  最终用原始字符串（r 前缀的 triple quote）+ `split(/\r?\n/u)` 这种不依赖转义的写法收口。
+- **`replaceAll('\', '/')` 在 JS 里写不对就是语法错误**：改成 `split(path.sep).join('/')`。
+- **探针复原用 `git checkout -- <file>` 会被 core.autocrlf 二次转换坑到**：仓库里 blob 本身
+  含 CRLF，checkout 再按 autocrlf 加一遍 → 工作区变成 CRCRLF（`check.json` 从 2635 变 2722 字节），
+  而「两份副本逐字节相同」的守卫当场红。正确复原法是 `git cat-file -p HEAD:<path> > <path>`，
+  直接落 blob 字节。修完再 `git add` 一次清掉 stat 脏标记（`git diff` 本来就是空的）。
+- **`git status` 说 M 但 `git diff` 空**：`scenes-stats.json` 重新生成后行尾归一化让 stat 脏；
+  `git add` 一次即可清（内容与 HEAD 相同）。
+- **静态守卫别拿正则找字面量**：字符类里塞 `\.claude|claude-scene` 被
+  `sonarjs/super-linear-regex` 点名，而且 `check-tool-steps` 的报错文案里就写着
+  `.claude/scenes`（那是给人看的，不是另一套实现）→ 这条守卫改成「必须 require 解析器」，
+  不搞「字面量黑名单」。
+- **`filter((f) => /re/.test(stripComments(readFileSync(join(...)))))` 五层嵌套** →
+  `unicorn/max-nested-calls`，抽 `code(f)` 子函数。
+
+### 决策
+
+- **同一份数据住两个地方时，先确认「跑起来的是哪一份」，再统一读的那一侧**：
+  这一轮的价值不在于「把 7 个脚本改一行」，而在于发现「校验器核的是一份不执行的副本」。
+- **合并视图 > 单层视图**：覆盖层只放 diff 是常规做法，任何「只读一层」的实现都会在
+  真实项目里误报。校验器必须复刻运行时语义，包括优先级。
+- **副本一致性由守卫断言，而不是约定**：两份副本现在还相同，这份「相同」是**事实**，
+  所以可以断言；将来若要分叉，应该删副本或显式豁免，而不是放宽守卫。
+- **中间产物也要有门禁**：`scenes-stats.json` 以前「有人记得才重跑」，现在提交前必跑，
+  不一致就拦 —— 与第二十六轮「陈旧产物要么删、要么接上生成器」同一条原则。

@@ -19,8 +19,13 @@
 const fs = require('fs');
 const path = require('path');
 
+const { resolveScenes } = require('./lib/scene-dir.cjs');
+
 const MIN_SCENES = 20;
-const SCENES_DIR = process.argv[2] ? path.resolve(process.argv[2]) : path.join(__dirname, '..', '.claude', 'scenes');
+const ROOT = path.join(__dirname, '..');
+const SCENES = process.argv[2]
+  ? { dir: path.resolve(process.argv[2]) }
+  : resolveScenes(ROOT);
 const OUT = process.argv[3] ? path.resolve(process.argv[3]) : path.join(__dirname, 'scenes-stats.json');
 
 /** flow 可能是数组（老格式）也可能是对象（现格式）；不认识的形状返回 null，不猜。 */
@@ -30,37 +35,44 @@ function countSteps(flow) {
   return null;
 }
 
+/** 要统计的场景清单：默认 = 运行时视图（覆盖层优先合并）；显式传目录时只扫那一层。 */
+function sceneEntries() {
+  if (SCENES.scenes) return [...SCENES.scenes.entries()].map(([slug, v]) => ({ slug, file: v.file }));
+  if (!fs.existsSync(SCENES.dir)) return [];
+  return fs.readdirSync(SCENES.dir)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => ({ slug: f.replace(/\.json$/u, ''), file: path.join(SCENES.dir, f) }));
+}
+
 function readScene(file) {
-  const raw = fs.readFileSync(path.join(SCENES_DIR, file), 'utf-8');
-  const data = JSON.parse(raw);
+  const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
   return { data, steps: countSteps(data.flow) };
 }
 
 function main() {
-  const files = fs.existsSync(SCENES_DIR)
-    ? fs.readdirSync(SCENES_DIR).filter((f) => f.endsWith('.json')).sort()
-    : [];
+  const entries = sceneEntries().sort((a, b) => (a.slug < b.slug ? -1 : 1));
+  const files = entries;
   const result = {};
   const broken = [];
 
-  for (const file of files) {
+  for (const { slug, file } of entries) {
+    const label = path.relative(ROOT, file).replaceAll('\\', '/');
     let scene;
     try {
       scene = readScene(file);
     } catch (error) {
-      broken.push(`${file}: ${error && error.message ? error.message : error}`);
+      broken.push(`${label}: ${error && error.message ? error.message : error}`);
       continue;
     }
     const { data, steps } = scene;
     if (steps === null || steps === 0) {
-      broken.push(`${file}: 没有可统计的 flow（steps=${steps}）`);
+      broken.push(`${label}: 没有可统计的 flow（steps=${steps}）`);
       continue;
     }
     // 键用文件名（slug），不用场景的中文 display name：下游（README 表格、命令名）
     // 认的都是 slug；以前拿 data.name 当键，任何对齐工具都匹配不上，
     // 于是脚本只能把数字硬编码 —— 那才是上一版 fix-readme-en.cjs 的成因。
-    const slug = file.replace('.json', '');
-    result[slug] = { file, name: data.name || slug, steps, desc: data.description || '' };
+    result[slug] = { file: path.basename(file), name: data.name || slug, steps, desc: data.description || '' };
   }
 
   const sorted = Object.entries(result).sort((a, b) => b[1].steps - a[1].steps);

@@ -16,6 +16,8 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
+const { resolveScenes } = require('./lib/scene-dir.cjs');
+
 const ROOT = path.resolve(process.argv[2] || path.join(__dirname, '..'));
 
 // 扫描面塌了的判定下限（当前实际：场景 26 个、动作引用 583 条）。
@@ -50,18 +52,16 @@ async function loadPseudoActions() {
   }
 }
 
-function sceneSteps(scenesDir, file) {
-  const scene = JSON.parse(fs.readFileSync(path.join(scenesDir, file), 'utf-8'));
+function sceneSteps(file) {
+  const scene = JSON.parse(fs.readFileSync(file, 'utf-8'));
   const flow = scene.flow;
   if (!flow || typeof flow !== 'object') return [];
   return Object.values(flow).filter((step) => step && step.action);
 }
 
 async function main() {
-  const scenesDir = path.join(ROOT, '.claude/scenes');
-  const sceneFiles = fs.existsSync(scenesDir)
-    ? fs.readdirSync(scenesDir).filter((f) => f.endsWith('.json') && !f.startsWith('_'))
-    : [];
+  // 同名场景只算一次（覆盖层优先）—— 否则同一份 flow 被数两遍，引用总数会翻倍
+  const sceneFiles = [...resolveScenes(ROOT).scenes.values()].map((s) => s.file);
   const actionsSrc = readOrNull(path.join(ROOT, 'claude-scene/src/actions.js'));
   const uiPolishSrc = readOrNull(path.join(ROOT, 'claude-scene/src/handlers/ui-polish.js'));
   const pseudoActions = await loadPseudoActions();
@@ -77,11 +77,11 @@ async function main() {
   const deadActions = [];
   let totalRefs = 0;
   for (const file of sceneFiles) {
-    for (const step of sceneSteps(scenesDir, file)) {
+    for (const step of sceneSteps(file)) {
       totalRefs += 1;
       if (!actionExists(step.action)) {
         const desc = (step.description || '').slice(0, 60);
-        deadActions.push({ file, action: step.action, desc });
+        deadActions.push({ file: path.relative(ROOT, file), action: step.action, desc });
       }
     }
   }

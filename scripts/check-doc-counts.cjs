@@ -29,6 +29,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const { resolveScenes } = require('./lib/scene-dir.cjs');
+
 const ROOT = path.resolve(process.argv[2] || path.join(__dirname, '..'));
 
 // 扫不到东西时的下限（当前实际：33 命令 / 26 场景 / 29 skills / 25~30 项目 / 23 npm 包）。
@@ -66,7 +68,7 @@ function listDir(dir, filter) {
 /** 仓库真值：一次读完；读不到的由 main 当成「扫描面塌了」。 */
 function truth() {
   const commands = listDir(path.join(ROOT, '.claude/commands'), (f) => f.endsWith('.md'));
-  const scenes = listDir(path.join(ROOT, 'claude-scene/scenes'), (f) => f.endsWith('.json'));
+  const scenes = [...resolveScenes(ROOT).scenes.keys()];
   const skills = listDir(path.join(ROOT, '.claude/skills'), () => true);
   const pkg = readJson(path.join(ROOT, 'claude-scene/package.json')) || {};
   const active = readJson(path.join(ROOT, '.mcp.json'));

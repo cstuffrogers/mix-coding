@@ -338,6 +338,7 @@ mix-coding/
 │   ├── check-doc-counts.cjs  # README/CLAUDE.md command/skill/MCP/npm/tool counts (exit 1 / 2)
 │   ├── check-tool-steps.cjs  # every `/scene (step N)` in tool tables exists in scene JSON (1 / 2)
 │   ├── check-dead-actions.cjs # Scene actions must have implementations (exit 1 if not)
+│   ├── lib/scene-dir.cjs     # Single source of scene-layer order (overlay first, same as engine)
 │   ├── audit-scenes.mjs      # Static audit of scene logic (exit 1 on errors)
 │   └── find-deadcode-full.cjs # Dead code scanner (gate: exit 1 on dead code)
 ├── constitution.md           # Project constitution (enforced by constitutional-validator Agent)

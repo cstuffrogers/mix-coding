@@ -21,6 +21,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { resolveScenes } = require('./lib/scene-dir.cjs');
+
 const RETIRED = new Set(['hunt', 'audit', 'e2e', 'monitor', 'analyze']);
 const MIN_ROWS = 15; // 外链工具表至少这么多行，否则就是认错表了
 const MIN_REFS = 20; // 全表至少这么多可核引用，否则视为结构漂移
@@ -38,17 +40,16 @@ const die = (msg) => {
   process.exit(2);
 };
 
-if (!fs.existsSync(path.join(root, 'claude-scene', 'scenes'))) die(`没有 claude-scene/scenes：${root}`);
+const SCENES = resolveScenes(root);
+if (SCENES.scenes.size === 0) die(`找不到场景 JSON（试过 .claude/scenes 与 claude-scene/scenes）：${root}`);
 
 /** 场景 → 该场景 flow 里所有 step 值（字符串形态，便于精确比较） */
 function loadSceneSteps() {
-  const dir = path.join(root, 'claude-scene', 'scenes');
   const map = new Map();
-  for (const name of fs.readdirSync(dir)) {
-    if (!name.endsWith('.json')) continue;
-    const parsed = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf-8'));
+  for (const [slug, { file }] of SCENES.scenes) {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const flow = parsed.flow || {};
-    map.set(name.replace(/\.json$/u, ''), new Set(Object.values(flow).map((s) => String(s.step))));
+    map.set(slug, new Set(Object.values(flow).map((s) => String(s.step))));
   }
   return map;
 }

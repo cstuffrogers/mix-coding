@@ -2,6 +2,17 @@
 
 ## 2026-07-01
 
+### Fixed
+
+- **场景真值曾经有两份，校验器各读一份**：`.claude/scenes/*.json`（项目覆盖层）与 `claude-scene/scenes/*.json`（随包内置）26 个文件相同，引擎跑的是覆盖层，而 `check-readme-stats` / `check-action-stats` / `check-doc-counts` / `check-tool-steps` 读的却是内置那份。实测往覆盖层加一步（运行时 43→44 步），`check-readme-stats` 仍报「583 步…全部对得上」。现新增 `scripts/lib/scene-dir.cjs`（`sceneTiers()` / `resolveScenes()`，层顺序与引擎 `getSceneDirs()` 一致、同名覆盖层优先），七个脚本全部改用它；README 校验器的「真值」行会打印这次读的是哪几层。
+- **`scan-scenes.cjs` 的输入也换成同一视图**：默认从运行时视图统计（覆盖层优先），两份副本分叉时不会再数错「哪一份才是真在跑的」。
+- **pre-commit 新增第四道门禁**：提交前重跑 `scan-scenes.cjs`，若 `scripts/scenes-stats.json` 与场景文件不同步则拦截（陈旧产物不许落地）。此前没有任何环节重跑它。
+
+### Added
+
+- **`claude-scene/src/commands/scene-dir.test.js`（13 例）**：层顺序四态（只有内置 / 只有覆盖层 / 两层 / 两层皆空 + `MIX_CODING_SCENES_DIR` 显式覆盖）、真仓库两份副本逐字节相同守卫（自探针：改一个字节即红）、「校验器读的目录 == 引擎 `resolveScenePath()` 返回的目录」、「覆盖层写 4 步 / 内置 3 步时文档必须按 4 步校验」的回归用例、以及「凡读场景的脚本必须 require `scene-dir.cjs`」的静态守卫。
+- `DECISIONS.md` 新增 ADR-022（场景真值的唯一定义 + 为什么是合并而不是只读覆盖层）。
+
 ### Removed
 
 - **opencode 支持退役**：删除 `.opencode/`（`deploy-global.cjs` / `opencode.jsonc` / `AGENTS.md`）、`scripts/generate-opencode-config.cjs`、`scripts/setup-opencode-global.sh`、`scripts/check-opencode-config.cjs` 及其测试。此前这套「全局配置生成器 + 部署脚本 + 校验器」是纯维护负担：模板里的文件名与步骤数反复与仓库真值漂移，而该平台已不再使用。`platform.js` 保留 `OPENCODE=1` 识别（仅为行为可预期），不再提供任何 opencode 专属配置。

@@ -16,6 +16,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const { resolveScenes } = require('./lib/scene-dir.cjs');
+
 // 可选 root 参数：既方便在别处复用，也让测试能在临时目录里验证「真有死代码会红」。
 const ROOT = path.resolve(process.argv[2] || path.join(__dirname, '..'));
 
@@ -46,7 +48,8 @@ function walkSrc(dir, results) {
 
 const searchDirs = [
   'claude-scene/src',
-  '.claude/scenes',
+  // 场景层也参与「被谁引用」的文本搜索：层从运行时视图里取，别写死目录名
+  ...resolveScenes(ROOT).dirs.map(d => path.relative(ROOT, d).split(path.sep).join('/')),
   '.claude/commands',
   '.claude/skills',
   '.claude/hooks',
@@ -87,11 +90,7 @@ function scanHandlers() {
 
 // === 扫描 scenes ===
 function scanScenes() {
-  const dir = path.join(ROOT, '.claude/scenes');
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir)
-    .filter(f => f.endsWith('.json'))
-    .map(f => path.join(dir, f));
+  return [...resolveScenes(ROOT).scenes.values()].map(s => s.file);
 }
 
 // === 扫描 commands ===
@@ -183,7 +182,7 @@ reportSection('Handlers (claude-scene/src/handlers)', deadHandlers, h => {
   return `${(size / 1024).toFixed(1).padStart(6)} KB  ${relPath(h)}`;
 });
 
-reportSection('Scenes (.claude/scenes)', deadScenes, s => {
+reportSection('Scenes (运行时视图：覆盖层优先合并)', deadScenes, s => {
   const size = fs.statSync(s).size;
   return `${(size / 1024).toFixed(1).padStart(6)} KB  ${relPath(s)}`;
 });

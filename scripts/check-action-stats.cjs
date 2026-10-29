@@ -20,6 +20,8 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
+const { resolveScenes } = require('./lib/scene-dir.cjs');
+
 const ROOT = path.resolve(process.argv[2] || path.join(__dirname, '..'));
 
 // 扫描面塌了的判定下限（当前实际：428 个动作名 / 70 个模块 / 每份文档点名 40+ 个动作）。
@@ -121,9 +123,7 @@ function wildcardClaims(section) {
 }
 
 function sceneCount() {
-  const dir = path.join(ROOT, 'claude-scene/scenes');
-  if (!fs.existsSync(dir)) return 0;
-  return fs.readdirSync(dir).filter((f) => f.endsWith('.json')).length;
+  return resolveScenes(ROOT).scenes.size;
 }
 
 function compare(label, claimed, actual, problems) {

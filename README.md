@@ -583,13 +583,15 @@ mix-coding/
 │   └── scheduled_tasks.json  # 定时任务配置
 │
 ├── .github/workflows/        # CI 流水线（lint → test）
-├── .husky/pre-commit         # Git 钩子（eslint + test + 死代码扫描）
+├── .husky/pre-commit         # Git 钩子（eslint + test + 死代码扫描 + 场景统计同步）
 ├── .specify/                 # Spec-Kit 配置
 ├── claude-scene/             # CLI 工具（Scene 引擎）
 ├── scripts/                  # 项目脚本（Node.js .cjs）
 │   ├── check-readme-stats.cjs        # README 场景数/步骤数校验
 │   ├── check-doc-counts.cjs          # README/CLAUDE.md 类目计数校验
 │   ├── check-tool-steps.cjs          # 工具表「场景 + step」引用是否真实存在
+│   ├── scan-scenes.cjs               # 场景步骤数 → scripts/scenes-stats.json
+│   ├── lib/scene-dir.cjs             # 场景层顺序的唯一定义（覆盖层优先，同引擎）
 │   └── ...其他脚本
 ├── feature_list.json         # WIP 特性跟踪（wip_limit: 1）
 ├── progress.md               # 会话状态日志

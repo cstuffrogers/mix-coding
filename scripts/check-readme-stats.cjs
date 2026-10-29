@@ -22,8 +22,12 @@
 const fs = require('fs');
 const path = require('path');
 
+const { resolveScenes } = require('./lib/scene-dir.cjs');
+
 const ROOT = process.argv[2] ? path.resolve(process.argv[2]) : path.join(__dirname, '..');
-const SCENES_DIR = path.join(ROOT, 'claude-scene', 'scenes');
+// 场景只有一个来源（第 28 轮）：引擎是「两层合并、项目覆盖层优先」，校验器必须读同一套，
+// 否则核的是永远不会被执行的那个副本 —— 数字对得上，但对的不是跑起来的东西。
+const SCENES = resolveScenes(ROOT);
 const MIN_SCENES = 20;
 const MIN_ROWS = 20;
 
@@ -41,13 +45,12 @@ function rowFloor(truthSize) {
 
 /** 真值：slug → flow 键数。键用文件名，和 README 表格、命令名同一套标识。 */
 function readTruth() {
-  if (!fs.existsSync(SCENES_DIR)) return new Map();
   const truth = new Map();
-  for (const file of fs.readdirSync(SCENES_DIR).filter((f) => f.endsWith('.json'))) {
-    const scene = JSON.parse(fs.readFileSync(path.join(SCENES_DIR, file), 'utf-8'));
+  for (const [slug, { file }] of SCENES.scenes) {
+    const scene = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const flow = scene.flow;
     if (!flow || typeof flow !== 'object') continue;
-    truth.set(file.replace('.json', ''), Array.isArray(flow) ? flow.length : Object.keys(flow).length);
+    truth.set(slug, Array.isArray(flow) ? flow.length : Object.keys(flow).length);
   }
   return truth;
 }
@@ -128,7 +131,7 @@ function main() {
   }
 
   const total = [...truth.values()].reduce((sum, n) => sum + n, 0);
-  console.log(`真值：${truth.size} 个场景 / ${total} 步（claude-scene/scenes/*.json 的 flow 键数）`);
+  console.log(`真值：${truth.size} 个场景 / ${total} 步 —— 读的是 ${SCENES.source}；步骤数 = flow 键数`);
 
   for (const doc of DOCS) {
     const { problems, rows } = checkDoc(doc, truth);

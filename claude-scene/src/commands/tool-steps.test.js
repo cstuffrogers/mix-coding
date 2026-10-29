@@ -105,7 +105,7 @@ describe('check-tool-steps：工具表的卡片引用必须是真的', () => {
     const dir = scaffold();
     const res = spawnSync(process.execPath, [SCRIPT, join(dir, 'nope')], { cwd: ROOT, encoding: 'utf8' });
     expect(res.status).toBe(2);
-    expect(`${res.stdout}${res.stderr}`).toContain('没有 claude-scene/scenes');
+    expect(`${res.stdout}${res.stderr}`).toContain('找不到场景 JSON');
   });
 
   it('真仓库自己必须干净（本文件不是只在 fixture 里过）', () => {

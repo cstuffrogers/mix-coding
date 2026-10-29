@@ -670,3 +670,41 @@ characterization test 锁定现状。这在本仓库不成立：
 
 `setContextFlag` 为此新增 `params.auto_default`（默认 `true`，其它场景语义不变），
 所以「auto 下默认不跑」必须显式写在场景 JSON 里，不能靠猜。
+
+## ADR-022: 场景真值只有一个来源（层合并 + 覆盖层优先），校验器必须复用同一解析器
+
+**Status**: ACCEPTED
+**Date**: 2026-07-01
+**Decided By**: System Architect
+
+### Context
+
+仓库里有两份同名场景 JSON：`.claude/scenes/*.json`（项目覆盖层）与
+`claude-scene/scenes/*.json`（随包内置），26 个文件逐字节相同。引擎按
+`claude-scene/src/lib/paths.js` 的 `getSceneDirs()` / `listSceneIds()` 取「两层合并、
+覆盖层优先」，所以真正会跑的是覆盖层那份。但校验脚本分成两派：
+
+- `check-readme-stats` / `check-action-stats` / `check-doc-counts` / `check-tool-steps` → 读内置
+- `check-dead-actions` / `find-deadcode-full` / `scan-scenes` → 读覆盖层
+
+实测：往 `.claude/scenes/review.json` 里加一步（运行时立刻变成 44 步），
+`check-readme-stats` 仍打印「583 步…全部对得上」——它核的是永远不会被执行的副本。
+数字对得上，但它对的不是跑起来的东西。
+
+### Decision
+
+1. 新增 `scripts/lib/scene-dir.cjs`：`sceneTiers()`（层顺序与引擎一致）+ `resolveScenes()`
+   （合并视图，同名只取高优先级那份）。所有读场景的脚本必须用它，不许自己拼目录名。
+2. **合并**而不是「只读覆盖层」：真实项目的 `.claude/scenes` 只放要覆盖的那几个场景，
+   只读覆盖层会把真值缩成「覆盖了几个场景」，校验器会误报「扫描面塌了」。
+3. `scripts/scenes-stats.json` 由 `scan-scenes.cjs` 按同一视图生成，并接进 pre-commit
+   第四道门禁：重跑后与工作区不一致就拦住提交（陈旧产物不许落地）。
+4. 本仓库两份副本必须逐字节相同（`scene-dir.test.js` 守卫）——这是「覆盖层是完整副本」
+   这一现状的断言；将来若真要分叉，应当删掉副本或显式豁免，而不是把测试放宽。
+
+### Consequences
+
+- 正向：文档数字与运行时行为锁在一起，覆盖层被改而文档没改会立刻红
+- 正向：`scene-dir.test.js` 13 例覆盖「只有一层 / 两层 / 显式覆盖 / 两层都空」四态
+- 负向：`MIX_CODING_SCENES_DIR` 成了脚本也认的开关（测试要用），多一个环境变量入口
+- 负向：两份副本的同步仍需手工（守卫只负责发现不同步，不负责合并）

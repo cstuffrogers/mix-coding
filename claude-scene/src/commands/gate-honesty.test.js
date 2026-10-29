@@ -103,12 +103,15 @@ describe('pre-commit 门禁：失败必须拦住提交', () => {
     expect(code).not.toContain('2>/dev/null');
   });
 
-  it('三道门禁都在：claude-scene eslint / vitest / 死代码扫描', () => {
+  // 第 28 轮加了第四道（scenes-stats.json 同步），所以这里的 x/3 全部改成 x/4。
+  it('四道门禁都在：claude-scene eslint / vitest / 死代码扫描 / 场景统计同步', () => {
     const lines = hookLines();
     const joined = lines.join('\n');
     expect(joined).toContain('npx eslint . --max-warnings 0');
     expect(joined).toContain('npm test');
     expect(joined).toContain('npm run scan:deadcode');
+    expect(joined, 'stats 必须由门禁重跑，不能指望提交者记得').toContain('node scripts/scan-scenes.cjs');
+    expect(joined).toContain('git diff --quiet -- scripts/scenes-stats.json');
   });
 
   it('每一步都自报名字（事后能核出到底验过什么）', () => {
@@ -130,21 +133,21 @@ describe('pre-commit 门禁：失败必须拦住提交', () => {
   it.skipIf(!hasSh)('eslint 失败：非零退出，且不再往下跑测试', () => {
     const { status, out } = runHook(['npx']);
     expect(status).not.toBe(0);
-    expect(out).toContain('1/3');
-    expect(out).not.toContain('2/3');
+    expect(out).toContain('1/4');
+    expect(out).not.toContain('2/4');
   });
 
   it.skipIf(!hasSh)('测试失败：非零退出，且不再往下跑死代码扫描', () => {
     const { status, out } = runHook(['npm']);
     expect(status).not.toBe(0);
-    expect(out).toContain('2/3');
-    expect(out).not.toContain('3/3');
+    expect(out).toContain('2/4');
+    expect(out).not.toContain('3/4');
   });
 
-  it.skipIf(!hasSh)('三道全过才 0，并明确说「全部通过」', () => {
+  it.skipIf(!hasSh)('四道全过才 0，并明确说「全部通过」', () => {
     const { status, out } = runHook([]);
     expect(status).toBe(0);
-    expect(out).toContain('3/3');
+    expect(out).toContain('4/4');
     expect(out).toContain('全部通过');
   });
 });
