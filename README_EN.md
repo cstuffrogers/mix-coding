@@ -111,7 +111,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ## 🔧 Action Handler Completeness
 
-The system registers **126 actions** (see `claude-scene/src/actions.js` `ACTION_REGISTRY`), backed by 222 handler functions across 41 handler modules, covering all steps across 26 workflows.
+The system registers **428 action names** (the keys of `ACTION_REGISTRY` in `claude-scene/src/actions.js`; one handler is often registered under both a camelCase and a kebab-case name, so names outnumber functions), backed by **284 distinct handler functions** across **70 handler modules** (`claude-scene/src/handlers/**/*.js`, tests excluded), covering all steps across 26 workflows.
 
 | Action | Purpose | Status |
 |--------|---------|--------|
@@ -122,17 +122,20 @@ The system registers **126 actions** (see `claude-scene/src/actions.js` `ACTION_
 | `generateDesign` / `analyze` | Design & competitive analysis | ✅ |
 | `analyzeUI` / `checkConsistency` / `applyDaisyUI` / `applyComponents` / `addAnimations` / `visualRegression` | Frontend polish toolchain | ✅ |
 | `check-api-consistency` | OpenAPI standard pipeline (Redocly lint + cross-validation + openapi-typescript) | ✅ |
-| `sec-bug-hunt` / `gitLeaks` / `npm-audit` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `state-audit` / `i18n-audit` | Security + Performance + Architecture + i18n | ✅ |
+| `sec-bug-hunt` / `gitLeaks` / `securityScan` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `depcruise-architecture` / `i18n-audit` | Security + Performance + Architecture + i18n | ✅ |
+
 | `verify-handlers` | Handler verification: 10-pass stub detection | ✅ |
 | `check-smoke` / `check-gate-flags` | Engine self-check: smoke test / every declared gate is implemented | ✅ |
 | `migration-review` / `load-test` | Migration review / Load testing | ✅ |
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | One-click infrastructure config | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | Incident/Changelog/SBOM automation | ✅ |
-| `huashu-*` (7) | Huashu brand design system integration | ✅ |
+| `huashu-*` (6) | Huashu brand design system integration | ✅ |
 | `awm-brand-*` (2) | Open Design brand import (list + import) | ✅ |
-| `mp-*` (10) | Matt Pocock TypeScript skill bridge | ✅ |
-| `ce-*` | Compound Engineering Plugin integration | ✅ |
+| `mp-*` (14) | Matt Pocock TypeScript skill bridge | ✅ |
+| `ce-*` (6) | Compound Engineering Plugin integration | ✅ |
 | `notify` / `send` | Notifications & alerts | ✅ |
+
+`npm-audit` is a *review rule* passed to `runReview`, not an action: npm audit runs inside `securityScan` / `runReview(security, npm-audit)`. It is listed here because the old table advertised it as an action with a ✅ — which nothing verified.
 
 ---
 
@@ -316,9 +319,9 @@ mix-coding/
 │   │   ├── plan.json
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
-│   ├── commands/             # Slash commands (37 .md files: 27 workflows + jvn /spec /design /build /report etc.)
+│   ├── commands/             # Slash commands (33 .md files: 26 workflows + 7 non-scene entries: /build /docs /loop-start /loop-status /others /report /report-fix)
 │   ├── rules/                # Project rules (conditional/ on-demand: core-rules / workflows / enhancements / 9 files)
-│   ├── skills/               # Claude Skills (24: 13 core + 11 speckit)
+│   ├── skills/               # Claude Skills (29: 18 core + 11 speckit)
 │   └── agents/               # 8 Agents (PM/Architect/UX/Reviewer/Constitutional-validator + mobile-reviewer/mobile-security/mobile-perf)
 │
 ├── .specify/                 # Spec-Kit config (templates / scripts / memory)
@@ -331,6 +334,8 @@ mix-coding/
 ├── scripts/                  # Project scripts (Node.js .cjs)
 │   ├── scan-scenes.cjs       # Scene step counts → scripts/scenes-stats.json (keyed by scene slug)
 │   ├── check-readme-stats.cjs # README scene/step counts vs scene JSONs (exit 1 mismatch / 2 collapsed)
+│   ├── check-action-stats.cjs # README action/handler counts + every ✅ action in the table (1 / 2)
+│   ├── check-doc-counts.cjs  # README/CLAUDE.md command/skill/MCP/npm/tool counts (exit 1 / 2)
 │   ├── check-dead-actions.cjs # Scene actions must have implementations (exit 1 if not)
 │   ├── audit-scenes.mjs      # Static audit of scene logic (exit 1 on errors)
 │   └── find-deadcode-full.cjs # Dead code scanner (gate: exit 1 on dead code)
@@ -412,9 +417,9 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 Integration Overview
 
-> **92+ external components**: 24 Skills + 16 MCP servers + 23 npm packages + 28 external tools
+> **81 external components, each counted in this repo**: 29 local skills + 3 active MCP servers + 23 npm packages + 26 external tools
 
-### Local Skills (24, `.claude/skills/`)
+### Local Skills (29, `.claude/skills/`)
 
 | Skill | Source | Purpose |
 |-------|--------|---------|
@@ -433,7 +438,7 @@ claude plugins install compound-engineering@anthropic
 
 **Recommended extras** (`npx skills install`): `anthropics/skills`, `obra/superpowers`, `frontend-design`, `security-guidance`, `claude-seo`, `plannotator`, `deep-trilogy`
 
-### MCP Servers (16, `.mcp.json`)
+### MCP Servers (3 active in `.mcp.json`, 14 in `.mcp.json.full`, 15 listed below)
 
 | Server | Purpose | Server | Purpose |
 |--------|---------|--------|---------|
@@ -445,6 +450,8 @@ claude plugins install compound-engineering@anthropic
 | `resend` | Email service | `sentry` | Error monitoring |
 | `bearer` | PII/GDPR compliance |
 | `detox` | RN E2E testing | `mobsfscan` | Mobile SAST |
+
+Only `context7` / `github` / `sentry` are switched on (`.mcp.json`); `npm run mcp:switch -- full` copies `.mcp.json.full` (14 servers). `tavily-search` / `filesystem` / `sequential-thinking` are listed for reference and are in neither profile.
 
 ### npm Packages (23, `claude-scene/package.json`)
 

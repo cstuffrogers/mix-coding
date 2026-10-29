@@ -32,7 +32,7 @@
 
 ## 引擎
 
-Scene 引擎在对话内执行工作流。25 个场景。`node src/index.js start <场景ID> --auto [参数]`
+Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js start <场景ID> --auto [参数]`
 
 ## 工作流速查
 

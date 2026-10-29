@@ -3321,3 +3321,107 @@ npm run scan:deadcode 2>/dev/null || true   # ← 最后一条命令永远成功
   要能被测试验证 —— 这比逐个肉眼看 52 个文件可靠。
 - **旧名不是错误，伪装成入口才是**：`/hunt` 继续留在「已合并命令」表里（带反引号、写明去哪），
   用户照敲旧名仍能找到路，但没有任何一处再说它是场景。
+
+## 第二十五轮：README 的动作数/组件数/命令数也不许是假的（2026-07-01）
+
+> 起手不是「再改文档」，是上一轮留下的问题：**上一轮只把「场景数/步骤数」接上了真值，
+> 剩下所有数字仍然没人核对**。于是这一轮把「数得出来的东西」全部接了校验器，一个维度一个脚本。
+
+### 改前取证（全都实测过，不是猜）
+
+- **动作/handler 计数**：`README_EN.md` 的「126 actions / 222 handler functions / 41 handler modules」
+  实为 **428 / 284 / 70**；中文 README 同段落谎报 126/41/222/27。
+  表格 45 个 ✅ 里躺着 **2 个幽灵动作**：`npm-audit`（它是 `runReview` 的**规则名**，不是 action；
+  npm audit 实际在 `securityScan` / `runReview(security, npm-audit)` 里跑）、
+  `state-audit`（源码里根本没有，只存在于 `claude-scene/.express-sec-audit-cache.json` 的陈旧缓存）。
+  通配声明也错：`huashu-*（7 个）`实为 6、`mp-*（10 个）`实为 14。
+- **其它计数**（同一批陈年假数字）：`CLAUDE.md:35`「25 个场景」→ 26；
+  README「37 个 .md」→ **33**；「Claude Skills（24: 13 core + 11 speckit）」→ **29（18+11）**；
+  「MCP 服务器（16 个，`.mcp.json`）」→ `.mcp.json` 只有 **3**，`.mcp.json.full` **14**，表里列 **15**；
+  「92+ external components: 24 + 16 + 23 + 28」→ 四项和是 91，且每项都不对；
+  中文「85+ 个外部组件：24 + 16 + 24 + 28」→ 和是 92；「集成 GitHub 项目（27 个）」→ 名单里 **30** 个。
+- **`scripts/switch-mcp.cjs`**：硬编码「4 个 MCP」/「light mode (4 active servers)」/「full mode (14 active)」，
+  而 `.mcp.json` 实为 3 个；`light` 分支**一个文件都不读**就打印「已经是 light 模式（4 个启用）」——
+  这条永远是假话，且不会有人发现。
+
+### 维度①：`scripts/check-action-stats.cjs`（新增）
+
+- 真值 = `Object.keys(ACTION_REGISTRY)`（**428**，camelCase 与 kebab-case 别名各算一个）、
+  `new Set(Object.values(...).filter(v => typeof v === 'function'))`（**284**）、
+  递归 `handlers/**/*.js` 排除 `*.test.js`（**70**）、`scenes/*.json`（**26**）。
+- 校验面 = **两份 README 各自的段落**（`## 🔧 Action Handler Completeness` / `## 🔧 Action 处理器完整性`）：
+  四个计数 + **每一个 ✅ 表格行里点名的动作都必须在注册表里**（幽灵检查）+ 通配声明 `前缀-*（N 个）` 的 N。
+- 关键取舍：**✅ 只活在表格行里**（`line.startsWith('| \`')`）。正文提到 `npm-audit` 是说明「这是规则名」，
+  不是承诺它是一个 action —— 判定面收窄到表格，既保住「✅ 必须可复核」，又不用为了躲正则去模糊措辞。
+- 塌面下限 `MIN_ACTIONS=200` / `MIN_MODULES=40` / `MIN_NAMED=20`；退出码 0 一致 / 1 不一致 / 2 扫不到东西。
+
+### 维度②：两份 README 的 action 段改回真值
+
+prose 改成「registers **428 action names**（`ACTION_REGISTRY` 的键；同一个函数常登记成 camelCase +
+kebab-case 两个名字，所以名字数多于函数数），backed by **284 distinct handler functions** across
+**70 handler modules**（`handlers/**/*.js`，不含测试），covering all steps across 26 workflows」；
+`npm-audit` / `state-audit` 两行换成 `securityScan` / `depcruise-architecture`；
+通配改 6 / 14 / 6；**表后加 note** 说明「`npm-audit` 是审查规则名」——
+注意 note **不能写在表格中间**（会把表切成两半，后半截没有表头就不渲染了）。
+
+### 维度③：`scripts/check-doc-counts.cjs`（新增）+ 两份 README/CLAUDE.md 改回真值
+
+真值全部数得出来：命令 **33**（26 场景命令 + 7 非场景）/ 工作流 **26** / skills **29**（18 + 11 speckit）/
+`.mcp.json` **3** + `.mcp.json.full` **14** / npm 包 **23**（4 deps + 19 dev）/ 工具矩阵 **29**(中) **26**(英) /
+GitHub 项目 **30**(中) **25**(英) / 组件总数 中文 **84** = 29 + 3 + 23 + 29、英文 **81** = 29 + 3 + 23 + 26。
+
+逐条校验（中英格式差异**逐句编码**，不用宽正则糊过去）：命令数/工作流数、Skills 总数/通用/speckit、
+`### 本地 Skills（N,` 标题、MCP 启用数/完整档数/表内条目数 + **表里点名的服务器必须是「启用的 / 完整档的 /
+明说只是参考的」三选一**（参考条目只有 `tavily-search` / `filesystem` / `sequential-thinking`）、
+npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数」**、GitHub 项目数 == 名单里 `owner/repo` 数、
+工具链清单个数、**组件总数 == 四项之和且四项各自等于真值**。
+
+### 维度④：`scripts/switch-mcp.cjs` 不再写死个数
+
+`serverNames()` 现读 `.mcp.json` / `.mcp.json.full`：`light` 分支打印**真实条数与名字**
+（`MCP is already in light mode (3 active servers: context7, github, sentry)`），`full` 分支打印复制后
+的真实条数；读不到文件就 `exit 1` 并说清原因，不再假装成功。
+
+### 验收三元组
+
+1. **变更**：新增 `scripts/check-action-stats.cjs`、`scripts/check-doc-counts.cjs`、
+   `claude-scene/src/commands/action-stats.test.js`(8)、`claude-scene/src/commands/doc-counts.test.js`(14)；
+   改 `README.md`、`README_EN.md`、`CLAUDE.md`、`scripts/switch-mcp.cjs`。
+2. **验证命令**：`npx vitest run`、`npx eslint .`、`cd claude-scene && npx eslint . --max-warnings 0`、
+   `npm run scan:deadcode`、`node scripts/check-readme-stats.cjs`、`node scripts/check-action-stats.cjs`、
+   `node scripts/check-doc-counts.cjs`、`node scripts/check-dead-actions.cjs`、`node scripts/audit-scenes.mjs`、
+   26 场景 `start <scene> --dry-run --auto`、`node claude-scene/src/index.js start review --auto --skip-sweep`。
+3. **验证结果**：vitest **108 files / 1372 tests 全绿**；双 eslint **0/0**；`scan:deadcode` **0 dead**
+   （它自己也算出 33 命令 / 29 skills / 3 MCP，与本轮 checker 的真值一致）；三个 checker
+   （readme-stats / action-stats / doc-counts）**全 EXIT=0**；`check-dead-actions` **0**；`audit-scenes` **0**；
+   dry-run **26/26 无失败**；review 真跑 **EXIT=0**，`pass 17 / fail 0 / warn 3 / skip 19 / noop 4`（与基线一致）。
+
+### 坑
+
+- **`pathToFileURL` 是硬需求**：`import()` 一个 `E:\...\actions.js` 会当成 URL 协议解析直接抛
+  `ERR_UNSUPPORTED_ESM_URL_SCHEME`，Windows 盘符路径必须先生成 `file://`。
+- **同一段文字里「正文」和「表格」不是一回事**：先扫整段时，note 里那句「`npm-audit` 是规则名」
+  反而被当成幽灵动作报错 —— 判定面必须精确到表格行，否则「解释清楚」和「通过校验」互相打架。
+- **note 插进表格中间会毁掉渲染**：第一次修幽灵动作时把 note 写在最后一行的同一行里，
+  GitHub 上后半截表格没有表头。note 必须挪到表格之后。
+- **工具矩阵的「名字数」要只数第 3 个单元格**：`| **npm 全局** | 1 | \`bruno\`（\`@usebruno/cli\`） | ... |`
+  这种写法会把包名算成第二个工具（29 ≠ 28 就是这么来的）。去掉括号内容 + 只取工具列才对得上。
+- **fixture 里 `docs()` 把 en/zh 写反**（`{ en: o.zh ?? zh, zh: o.en ?? en }`）→ 14 个用例里 12 个红，
+  报错是「那句没认出来（格式变了？）」。**用例一起红的时候，先怀疑 fixture，别怀疑被测脚本**。
+- **测试里「历史注释」也会撞上「不许写死」断言**：`switch-mcp.cjs` 头注释写了「以前写死 4 个 MCP」，
+  于是 `src.includes('4 个 MCP')` 命中。静态断言的对象是**代码**，注释要换个说法。
+- **塌面用例必须真的把文件数变少**：只改文档里的数字（`scenes: 5`）不会触发下限 ——
+  要同时 `sceneFiles: 5` 才真少。
+
+### 决策
+
+- **数字分三类，各有各的定义并写进文档**：动作数 = 注册表的**键**（含别名）；函数数 = 注册表里**不同的函数对象**；
+  模块数 = `handlers/**/*.js` 排除测试。名字多于函数是**特征**，不是错 —— 所以文档必须解释它。
+- **「✅ 只活在表格里」**：✅ 是可复核的承诺，正文提到某个名字只是在**解释**它。
+- **通配声明也要可核对**：`前缀-*（N 个）` 的 N = 注册表里以该前缀开头的键数，否则括号里的数字永远是编的。
+- **旧数字要留反回归断言**：`action-stats.test.js` 直接禁止 `126 actions` / `222 handler functions` /
+  `41 handler modules` 回到文档 —— 下一轮有人「顺手」改回去必须红。
+- **同一个数字只允许一个真值来源**：三份文档的场景数都来自 `scenes/*.json`，命令数来自
+  `.claude/commands/*.md`，MCP 数来自 `.mcp.json` —— 任何一处再手写就必然漂移。
+- **打印出来的个数必须现算**：`switch-mcp.cjs` 以前那句「already in light mode (4 active servers)」
+  连文件都不读，属于「假话 + 假绿」的组合，比不打印更糟。

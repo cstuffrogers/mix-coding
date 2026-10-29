@@ -273,7 +273,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 ## 🔧 Action 处理器完整性
 
-系统注册了 **126 个 action**（详见 `claude-scene/src/actions.js` 中的 `ACTION_REGISTRY`），由 41 个 handler 模块共 222 个 handler 函数实现，覆盖 27 个工作流的全部步骤需求。常用 action 示例：
+系统注册了 **428 个 action 名**（`claude-scene/src/actions.js` 中 `ACTION_REGISTRY` 的键；同一个 handler 常同时登记成 camelCase 与 kebab-case 两个名字，所以名字数多于函数数），由 **70 个 handler 模块**共 **284 个不同的 handler 函数**实现，覆盖 26 个工作流的全部步骤需求。常用 action 示例：
 
 | Action | 用途 | 实现状态 |
 |--------|------|---------|
@@ -284,17 +284,19 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | `generateDesign` / `analyze` | 设计与竞品分析 | ✅ |
 | `analyzeUI` / `checkConsistency` / `applyDaisyUI` / `applyComponents` / `addAnimations` / `visualRegression` | 前端美化工具链 | ✅ |
 | `check-api-consistency` | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | ✅ |
-| `sec-bug-hunt` / `gitLeaks` / `npm-audit` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `state-audit` / `i18n-audit` | 安全扫描 + 性能 + 架构 + i18n | ✅ |
+| `sec-bug-hunt` / `gitLeaks` / `securityScan` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `depcruise-architecture` / `i18n-audit` | 安全扫描 + 性能 + 架构 + i18n | ✅ |
 | `verify-handlers` | Handler 功能验证：10 Pass 空转桩检测（内联桩/CE桩/逻辑密度/工具健康/依赖/导入链/场景交叉/静态安全/MCP配置） | ✅ |
 | `check-smoke` / `check-gate-flags` | 引擎自检：冒烟测试 / 场景声明的门禁是否都实现了 | ✅ |
 | `migration-review` / `load-test` | 迁移审查 / 负载测试 | ✅ |
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | 一键基础设施配置 | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | 事故/变更/SBOM 自动化 | ✅ |
-| `huashu-*`（7 个） | Huashu 品牌设计系统集成 | ✅ |
+| `huashu-*`（6 个） | Huashu 品牌设计系统集成 | ✅ |
 | `awm-brand-*`（2 个） | Open Design 品牌导入（list + import） | ✅ |
-| `mp-*`（10 个） | Matt Pocock TypeScript skill 桥接 | ✅ |
-| `ce-*` | Compound Engineering Plugin 集成 | ✅ |
+| `mp-*`（14 个） | Matt Pocock TypeScript skill 桥接 | ✅ |
+| `ce-*`（6 个） | Compound Engineering Plugin 集成 | ✅ |
 | `notify` / `send` | 通知与告警 | ✅ |
+
+> `npm-audit` 是传给 `runReview` 的**审查规则名**，不是 action：npm audit 在 `securityScan` / `runReview(security, npm-audit)` 内部跑。旧表格把它和已删除的 `state-audit` 一起标成 ✅ —— 而那张表没有任何东西验证过。
 
 ---
 
@@ -573,9 +575,9 @@ node src/index.js start hunt --auto
 mix-coding/
 ├── .claude/
 │   ├── scenes/               # 场景定义（27 个 JSON）
-│   ├── commands/             # Slash commands 工作流（37 个 .md）
+│   ├── commands/             # Slash commands（33 个 .md：26 个工作流 + 7 个非场景命令）
 │   ├── rules/                # 项目规则（conditional/ 按需加载，含 anti-slop 反套娃设计标准 + baton-loop 多页站点接力模式）
-│   ├── skills/               # Claude Skills（24 个）
+│   ├── skills/               # Claude Skills（29 个：18 个通用 + 11 个 speckit）
 │   ├── agents/               # 8 个 Agent
 │   ├── reports/              # 审计报告（含 harness-audit 12 维评分）
 │   ├── knowledge/            # 知识索引
@@ -726,9 +728,9 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **85+ 个外部组件**：Skills 24 个 + MCP 16 个（opencode 全局 17 个）+ npm 包 24 个 + 外部工具 28 个
+> 共集成 **84 个外部组件，每一类都在本仓库里数得出来**：本地 Skills 29 个 + 启用的 MCP 3 个 + npm 包 23 个 + 外部工具 29 个
 
-### 本地 Skills（24 个，`.claude/skills/`）
+### 本地 Skills（29 个，`.claude/skills/`）
 
 | Skill | 来源 | 功能 |
 |-------|------|------|
@@ -749,7 +751,7 @@ claude plugins install compound-engineering@anthropic
 
 **推荐额外安装**（`npx skills install`）：`anthropics/skills`、`obra/superpowers`、`frontend-design`、`security-guidance`、`claude-seo`、`plannotator`、`deep-trilogy`
 
-### MCP 服务器（16 个，`.mcp.json`）
+### MCP 服务器（`.mcp.json` 启用 3 个，`.mcp.json.full` 14 个，下表列 15 个）
 
 | 服务器 | 用途 | 服务器 | 用途 |
 |--------|------|--------|------|
@@ -761,6 +763,8 @@ claude plugins install compound-engineering@anthropic
 | `resend` | 邮件服务 | `sentry` | 错误监控 |
 | `bearer` | PII/GDPR 隐私合规 |
 | `detox` | RN E2E 测试 | `mobsfscan` | 移动端 SAST |
+
+真正启用的是 `context7` / `github` / `sentry`（`.mcp.json`）；`npm run mcp:switch -- full` 会把 `.mcp.json.full`（14 个）复制上去。`tavily-search` / `filesystem` / `sequential-thinking` 只是参考条目，两个 profile 里都没有。
 
 ### npm 包（23 个，`claude-scene/package.json`）
 
@@ -780,7 +784,7 @@ claude plugins install compound-engineering@anthropic
 | **npx 零安装** | 10 | `biome`、`aislop`、`dependency-cruiser`、`jscpd`、`size-limit`、`Stryker`、`Spectral`、`markdownlint`、`commitlint`、`knip` | 无需安装 |
 | **内置 grep** | 4 | `log-sanitizer`、`cors-checker`、`env-leak-scanner`、`sensitive-file-check` | 已内置 |
 
-### 集成 GitHub 项目（27 个）
+### 集成 GitHub 项目（30 个）
 
 `Nutlope/hallmark` · `gitleaks/gitleaks` · `semgrep/semgrep` · `conventional-changelog/commitlint` · `biomejs/biome` · `astral-sh/ruff` · `Orange-OpenSource/hurl` · `aquasecurity/trivy` · `koalaman/shellcheck` · `sqlfluff/sqlfluff` · `usebruno/bruno` · `seraphimhub/seraphim-audit` · `NVIDIA/skillspector` · `lycheeverse/lychee` · `nektos/act` · `restic/restic` · `nexu-io/open-design` · `VoltAgent/awesome-design-md` · `mattpocock/skills` · `scanaislop/aislop` · `sverweij/dependency-cruiser` · `anthropics/skills` · `modelcontextprotocol/*` · `X-lab2017/open-digger` · `referodesign/refero_skill` · `DietrichGebert/ponytail` · `multica-ai/andrej-karpathy-skills` · `thedotmack/claude-mem` · `github/spec-kit` · `ayghri/i-have-adhd`
 
