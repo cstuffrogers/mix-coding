@@ -1,5 +1,9 @@
 #!/usr/bin/env sh
-# setup-opencode-global.sh — 一键配置 opencode 全局命令(108) + MCP(17) + Provider(4)
+# setup-opencode-global.sh — 一键配置 opencode 全局命令 + MCP + Provider
+#
+# 数字一律由 .opencode/deploy-global.cjs 现场生成后统计（不再写死在注释和面板里：
+# 以前这里写「108 命令 + MCP(17) + Provider(4) + 38 工作流对齐」，四个数字里有三个是错的，
+# 而且面板里的「命令数」是用 `grep -c '"description"'` 数的 —— 数的是描述行不是命令）。
 #
 # 用法:
 #   chmod +x scripts/setup-opencode-global.sh
@@ -18,8 +22,9 @@
 #   BEARER_API_KEY        Bearer API Key
 #   PENCIL_PATH           Pencil MCP 可执行文件路径 (默认: 自动检测)
 #
-# 效果: 写入 ~/.config/opencode/opencode.json
-#       108 命令 · 17 MCP · 4 Provider · 38 工作流与 Claude Code 完全对齐
+# 效果: 写入 ~/.config/opencode/opencode.json（命令/MCP/Provider 数量以生成结果为准）
+#       命令由 .claude/commands/*.md 与 scripts/generate-opencode-config.cjs 的手写表合成，
+#       其中引用本地 .md 的命令条数也在生成后统计（--json 可自行核对）
 
 set -e
 
@@ -58,15 +63,23 @@ inject_key "MOBSF_API_KEY"                "${MOBSF_API_KEY}"
 inject_key "BEARER_API_KEY"               "${BEARER_API_KEY}"
 
 # ---------- 报告 ----------
-CMD_COUNT=$(grep -c '"description"' "$CONFIG_FILE" 2>/dev/null || node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf8'));console.log(Object.keys(c.command).length)}catch(e){console.log(0)}")
-MCP_COUNT=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf8'));console.log(Object.keys(c.mcp).length)}catch(e){console.log(0)}")
+# 直接从生成出来的配置里数：command / mcp / provider 的键数，以及「模板引用了本地 .md」的条数。
+# 以前这里用 `grep -c '"description"'` 数命令 —— 数到的是描述行，不是命令（110 ≠ 106）。
+read -r CMD_COUNT MCP_COUNT PROV_COUNT MD_REF_COUNT <<EOF
+$(node -e "
+const fs = require('fs');
+const c = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+const n = (o) => Object.keys(o || {}).length;
+const mdRefs = Object.values(c.command || {}).filter((v) => v.template && v.template.includes('.claude/commands')).length;
+console.log([n(c.command), n(c.mcp), n(c.provider), mdRefs].join(' '));
+" "$CONFIG_FILE")
+EOF
 
 echo ""
-echo "  ┌────────────────────────────────────────────┐"
-echo "  │  opencode 全局配置部署完成                  │"
-echo "  │  命令: ${CMD_COUNT}个 · MCP: ${MCP_COUNT}个 · 38 工作流对齐  │"
-echo "  │  重启 opencode 后生效                        │"
-echo "  └────────────────────────────────────────────┘"
+echo "  opencode 全局配置部署完成："
+echo "    命令: ${CMD_COUNT} 个（其中 ${MD_REF_COUNT} 个直接引用本仓库 .claude/commands/*.md）"
+echo "    MCP: ${MCP_COUNT} 个 · Provider: ${PROV_COUNT} 个"
+echo "    重启 opencode 后生效"
 echo ""
 echo "  提示: 未设置 API Key 的 MCP 服务器默认禁用"
 echo "  启用方式: 设置对应环境变量后重新运行本脚本"

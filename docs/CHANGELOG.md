@@ -20,7 +20,7 @@
 
 ### Features
 
-- **opencode 全平台适配**：108 命令 + 17 MCP + 4 providers 全局配置，与 Claude Code 工作流完全对齐
+- **opencode 全平台适配**：命令 + MCP + Provider 全局配置（数量由 `.opencode/deploy-global.cjs` 生成时统计，不在文档里写死），与 Claude Code 工作流对齐
 - **38/38 .md 工作流引用**：所有 `.claude/commands/*.md` 在 opencode 模板中均有对应引用
 - **Harness Engineering 合规**：完成 12 维度审计，评分从 64% 提升至 ~96%（Tier A）
 - **Harness 状态文件**：新增 `feature_list.json`、`progress.md`、`DECISIONS.md`

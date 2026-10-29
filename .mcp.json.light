@@ -1,0 +1,43 @@
+{
+  "_comment": "LIGHTWEIGHT mode: 只有 light 档的服务器。切回完整档：npm run mcp:switch -- full",
+  "_modes": {
+    "current": "light",
+    "active_servers": [
+      "context7",
+      "github",
+      "sentry"
+    ]
+  },
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ],
+      "description": "Context7 文档查询 (高频使用)"
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "description": "GitHub 仓库操作 - PR/Issue/Repo"
+    },
+    "sentry": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "sentry-mcp"
+      ],
+      "env": {
+        "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}"
+      },
+      "description": "Sentry 错误监控"
+    }
+  }
+}

@@ -51,7 +51,7 @@
 | 工具 | 文件 | 功能 | 平台 |
 |------|------|------|------|
 | **Claude Code 启动器** | [start-claude.bat](./start-claude.bat) / [start-claude.sh](./start-claude.sh) | 一键启动 Claude Code + 自动 init.sh 环境检查 | Windows / macOS / Linux |
-| **opencode 全局配置** | [scripts/setup-opencode-global.sh](./scripts/setup-opencode-global.sh) | 108 命令 + 17 MCP，38 工作流与 Claude Code 对齐 | Windows / macOS / Linux |
+| **opencode 全局配置** | [scripts/setup-opencode-global.sh](./scripts/setup-opencode-global.sh) | 106 命令（其中 38 个直接引用本仓库 `.claude/commands/*.md`）· 17 MCP · 1 Provider，由生成器现场统计、`scripts/check-opencode-config.cjs` 校验 | Windows / macOS / Linux |
 | **会话初始化** | [init.sh](./init.sh) | Node/Git/依赖/测试/Harness 文件完整性检查 | macOS / Linux |
 | **架构合规检查** | [zero-conflict-check.sh](./zero-conflict-check.sh) | 工具前缀验证 + 层纯度 + Harness 文件完整性 | macOS / Linux |
 | **会话结束清理** | [scripts/clean-session.cjs](./scripts/clean-session.cjs) | Git 状态/测试/lint 检查，`--fix` 自动提交 | Windows / macOS / Linux |
@@ -764,7 +764,7 @@ claude plugins install compound-engineering@anthropic
 | `bearer` | PII/GDPR 隐私合规 |
 | `detox` | RN E2E 测试 | `mobsfscan` | 移动端 SAST |
 
-真正启用的是 `context7` / `github` / `sentry`（`.mcp.json`）；`npm run mcp:switch -- full` 会把 `.mcp.json.full`（14 个）复制上去。`tavily-search` / `filesystem` / `sequential-thinking` 只是参考条目，两个 profile 里都没有。
+真正启用的是 `context7` / `github` / `sentry`（`.mcp.json`）；`npm run mcp:switch -- full` 会把 `.mcp.json.full`（14 个）复制上去，`-- light` 再从 `.mcp.json.light` 复制回来（双向可逆，`_modes` 元数据跟着真实内容改写）。`tavily-search` / `filesystem` / `sequential-thinking` 只是参考条目，两个 profile 里都没有。
 
 ### npm 包（23 个，`claude-scene/package.json`）
 

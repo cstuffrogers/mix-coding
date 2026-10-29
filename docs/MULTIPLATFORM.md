@@ -24,7 +24,7 @@
 ## 目录结构
 
 ```
-~/.config/opencode/opencode.json  ← opencode 全局配置 (命令对齐 35 工作流 · 17 MCP · 4 Provider)
+~/.config/opencode/opencode.json  ← opencode 全局配置 (命令/MCP/Provider 数量见 `node .opencode/deploy-global.cjs --dry-run`)
 
 auto-coding/
 ├── .claude/              ← 共享资源宿主 (各平台共用)
@@ -78,7 +78,7 @@ auto-coding/
 
 opencode 采用 **全局配置 + 项目配置** 双层架构：
 
-- **全局配置** (`~/.config/opencode/opencode.json`): 命令对齐 35 工作流 + 17 MCP + 4 Provider，所有项目共享
+- **全局配置** (`~/.config/opencode/opencode.json`): 命令/MCP/Provider 全部由生成器产出（数量不写死），所有项目共享
 - **项目配置** (`opencode.jsonc`): 仅 `instructions` 和 `skills.paths`，保持最小
 
 添加新命令的步骤：

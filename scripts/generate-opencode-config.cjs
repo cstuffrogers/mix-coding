@@ -13,28 +13,34 @@ const pencilPath = process.argv.includes('--pencil')
 
 // ======== 108 Commands ========
 const commands = {
-  // ---- 38 .md-referenced commands (Claude Code parity) ----
+  // ---- 手写的命令表 ----
+  // 注意：模板里凡是「先完整读取 .claude/commands/X.md」「（N 步）」这类声明，
+  // 都必须指向**真实存在的文件**并写**真实的步骤数**（= scenes/X.json 的 flow 键数）——
+  // 这份字符串会被写进 opencode 的全局配置，agent 真的会照着它去读文件、去数步骤。
+  // 谁改了场景或删了命令文件，scripts/check-opencode-config.cjs 会红。
   '/polish': { description: '美化前端项目 (DaisyUI / Animal Island UI)', template: '先完整读取 .claude/commands/ui-polish.md 获取详细工作流。然后按步骤执行前端美化：1) 确认目标路径 2) 弹出风格菜单 3) 安装依赖并应用主题 4) 添加动效 5) 测试验证 6) 生成报告。' },
-  '/review': { description: '五层代码审查：静态分析→运行时→视觉→AI语义→聚合报告', template: '先完整读取 .claude/commands/review.md（86行33步混合工作流），严格按 Phase 0-4 执行：Pre-flight Skill → CLI 8工具链(ESLint/npm audit/a11y/knip/depcruise/aislop/Huashu/security) → Post-flight 深度审查 → 安全扫描 → 质量门禁+报告。' },
+  '/review': { description: '五层代码审查：静态分析→运行时→视觉→AI语义→聚合报告', template: '先完整读取 .claude/commands/review.md，严格按场景声明的 43 步执行（claude-scene/scenes/review.json）：Pre-flight Skill → CLI 8工具链(ESLint/npm audit/a11y/knip/depcruise/aislop/Huashu/security) → Post-flight 深度审查 → 安全扫描 → 质量门禁+报告。' },
   '/feature': { description: '功能开发：理解需求→编写测试→实现→CI验证', template: '先完整读取 .claude/commands/feature.md 获取详细工作流。1) 理解需求并确认 2) 编写测试用例 (TDD) 3) 实现功能使测试通过 4) CI 验证。用法：/feature [功能描述]' },
   '/bugfix': { description: 'Bug 修复：复现→定位根因→修复→验证', template: '先完整读取 .claude/commands/bugfix.md 获取详细工作流。1) 复现问题 2) 定位根因 3) 制定修复方案 4) 修复并验证测试通过。用法：/bugfix [问题描述]' },
-  '/hunt': { description: '安全漏洞扫描：规则扫描 + 依赖检查 + 自动修复', template: '先完整读取 .claude/commands/hunt.md 获取详细工作流。1) 安全规则扫描 (XSS/SQL注入/CSRF/硬编码密钥) 2) 依赖漏洞扫描 (npm audit) 3) 自动修复 4) 生成报告。' },
+  '/hunt': { description: '已合并到 /review（security_deep 模式）', template: '此命令已合并到 /review：请使用 /review --mode security_deep（安全漏洞扫描 = sec-bug-hunt + npm audit + 密钥扫描）。先完整读取 .claude/commands/review.md。' },
   '/optimize': { description: '性能测量与优化', template: '先完整读取 .claude/commands/optimize.md 获取详细工作流。分析性能瓶颈，测量当前性能，实施优化，验证改进效果。' },
   '/refactor': { description: '重构指定模块', template: '先完整读取 .claude/commands/refactor.md 获取详细工作流。重构指定模块：分析代码结构，制定计划，执行重构，验证测试通过。' },
   '/new-project': { description: '创建新项目：理解需求→创建结构→初始化配置', template: '先完整读取 .claude/commands/new-project.md 获取详细工作流。创建新项目：理解需求，创建目录结构，初始化配置，安装依赖。' },
   '/plan': { description: 'Manus 持久规划：会话恢复 + SHA256认证 + 多阶段追踪', template: '先完整读取 .claude/commands/plan.md 获取详细工作流。Manus 风格持久化文件规划：1) session-catchup 检测未同步上下文 2) 初始化 plan.md/findings.md/progress.md 3) 读取 spec.md 需求 4) 可选 SHA256 认证防注入 5) 按阶段执行并更新状态 6) 记录错误到 plan.md 7) 追加进度到 progress.md 8) 验证完成。遵循 2-Action Rule 和 3-Strike Protocol。' },
   '/build-fix': { description: '检测构建系统并增量修复构建/类型错误', template: '先完整读取 .claude/commands/build.md 获取详细工作流。增量修复构建和类型错误。1) 检测项目构建工具 2) 运行构建命令捕获错误 3) 按文件分组并按依赖排序 4) 逐一修复 5) 报告修复结果。' },
-  '/loop': { description: '启动迭代优化循环：分析→计划→实现→验证→重复', template: '先完整读取 .claude/commands/loop.md 获取详细工作流（10步迭代）。Phase 1: 分析当前状态并评分。Phase 2: 制定本迭代计划。Phase 3: 实现更改。Phase 4: 运行测试和 linter 验证。Phase 5: 评分对比，不改进则停止。最大 10 次迭代。' },
+  '/loop': { description: '启动迭代优化循环：分析→计划→实现→验证→重复', template: '先完整读取 .claude/commands/loop.md 获取详细工作流（18 步迭代）。Phase 1: 分析当前状态并评分。Phase 2: 制定本迭代计划。Phase 3: 实现更改。Phase 4: 运行测试和 linter 验证。Phase 5: 评分对比，不改进则停止。最大 10 次迭代。' },
   '/loop-start': { description: '启动受管理的自主循环模式', template: '先完整读取 .claude/commands/loop-start.md 获取详细工作流。1) 设定目标和迭代次数上限 2) 安全防护 3) 监控进度 4) 满足条件时自动退出。' },
   '/loop-status': { description: '检查活跃循环和卡死状态', template: '先完整读取 .claude/commands/loop-status.md 获取详细工作流。1) 检查活跃循环进程 2) 检查 git 卡死状态 3) 报告资源使用情况 4) 建议下一步操作。' },
   '/audit': { description: '全量健康检查（已合并到 /review 全量审计模式）', template: '此命令已合并到 /review。请使用 /review 并勾选"全量审计"模式：安全扫描+依赖审计+性能基线+覆盖率+质量门禁汇总。先完整读取 .claude/commands/review.md 获取详细工作流。' },
   '/build': { description: '逐步构建：阶段开发+代码审查+人工门禁', template: '先完整读取 .claude/commands/build.md 获取详细工作流。然后按阶段逐步构建，每个阶段完成后进行代码审查并申请用户批准。' },
   '/check': { description: '引擎自检+自愈：检测死动作/孤儿门旗/缺失动作消息并自动修复', template: '先完整读取 .claude/commands/check.md 获取详细工作流。然后执行引擎自检，检测死动作、孤儿门旗、缺失动作消息，自动修复数据映射文件。' },
-  '/cicd': { description: '配置本地 CI/CD 流水线，验证 GitHub Actions + 生成 Taskfile', template: '先完整读取 .claude/commands/cicd.md 获取详细工作流（11步）。然后配置本地 CI/CD：验证 GitHub Actions 工作流 + 生成 Taskfile.yml。' },
-  '/deps': { description: '安全依赖更新：检查过期→逐个更新→测试→验证破坏性变更→更新锁文件', template: '先完整读取 .claude/commands/deps.md 获取详细工作流（16步）。然后按步骤安全更新依赖。' },
+  '/cicd': { description: '配置本地 CI/CD 流水线，验证 GitHub Actions + 生成 Taskfile', template: '先完整读取 .claude/commands/cicd.md 获取详细工作流（12 步）。然后配置本地 CI/CD：验证 GitHub Actions 工作流 + 生成 Taskfile.yml。' },
+  '/deps': { description: '安全依赖更新：检查过期→逐个更新→测试→验证破坏性变更→更新锁文件', template: '先完整读取 .claude/commands/deps.md 获取详细工作流（17 步）。然后按步骤安全更新依赖。' },
   '/docs': { description: '生成项目文档：API文档/架构图/变更日志', template: '先完整读取 .claude/commands/docs.md 获取详细工作流。然后生成指定类型的文档。' },
-  '/e2e': { description: '配置端到端测试：MSW mock + Supertest HTTP + Schemathesis API fuzz', template: '先完整读取 .claude/commands/e2e.md 获取详细工作流（9步）。然后配置 E2E 测试基础设施。' },
-  '/monitor': { description: '配置 GitHub Actions 网站监控：Upptime 自动生成配置和工作流', template: '先完整读取 .claude/commands/monitor.md 获取详细工作流（9步）。然后配置 Upptime 网站监控。' },
+  '/e2e': { description: '已合并到 /setup（e2e 模式）', template: '此命令已合并到 /setup：请使用 /setup --kind e2e（MSW mock + Supertest HTTP + Schemathesis API fuzz）。先完整读取 .claude/commands/setup.md。' },
+  '/monitor': { description: '已合并到 /setup（monitor 模式）', template: '此命令已合并到 /setup：请使用 /setup --kind monitor（GitHub Actions 网站监控 / Upptime）。先完整读取 .claude/commands/setup.md。' },
+  '/setup': { description: '测试/监控/属性测试设施搭建：e2e / monitor / property 三种模式', template: '先完整读取 .claude/commands/setup.md 获取详细工作流（14 步）。按 --kind 选择 e2e（MSW + Supertest + Schemathesis）/ monitor（Upptime + GitHub Actions）/ property（fast-check），最后验证设施能跑。' },
+  '/update': { description: '更新依赖与本仓库工具链，验证测试与 lint 仍绿', template: '先完整读取 .claude/commands/update.md 获取详细工作流。1) 检查过期依赖 2) 逐个升级并跑测试 3) 记录破坏性变更 4) 更新锁文件。' },
   '/mobile-audit': { description: '移动端全维度审计：MobSF安全+隐私扫描+依赖CVE+性能基线', template: '先完整读取 .claude/commands/mobile-audit.md 获取详细工作流。然后执行移动端安全+性能审计。' },
   '/mobile-e2e': { description: '移动端 E2E 测试配置：Detox/miniprogram-automator + CI集成', template: '先完整读取 .claude/commands/mobile-e2e.md 获取详细工作流。然后配置移动端 E2E 测试。' },
   '/mobile-onboard': { description: '移动端环境搭建：RN诊断+Android SDK/Xcode+模拟器配置', template: '先完整读取 .claude/commands/mobile-onboard.md 获取详细工作流。然后搭建移动端开发环境。' },

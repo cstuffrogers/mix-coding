@@ -336,6 +336,7 @@ mix-coding/
 │   ├── check-readme-stats.cjs # README scene/step counts vs scene JSONs (exit 1 mismatch / 2 collapsed)
 │   ├── check-action-stats.cjs # README action/handler counts + every ✅ action in the table (1 / 2)
 │   ├── check-doc-counts.cjs  # README/CLAUDE.md command/skill/MCP/npm/tool counts (exit 1 / 2)
+│   ├── check-opencode-config.cjs # opencode generator: .md refs exist, step counts, doc counts (1 / 2)
 │   ├── check-dead-actions.cjs # Scene actions must have implementations (exit 1 if not)
 │   ├── audit-scenes.mjs      # Static audit of scene logic (exit 1 on errors)
 │   └── find-deadcode-full.cjs # Dead code scanner (gate: exit 1 on dead code)
@@ -451,7 +452,7 @@ claude plugins install compound-engineering@anthropic
 | `bearer` | PII/GDPR compliance |
 | `detox` | RN E2E testing | `mobsfscan` | Mobile SAST |
 
-Only `context7` / `github` / `sentry` are switched on (`.mcp.json`); `npm run mcp:switch -- full` copies `.mcp.json.full` (14 servers). `tavily-search` / `filesystem` / `sequential-thinking` are listed for reference and are in neither profile.
+Only `context7` / `github` / `sentry` are switched on (`.mcp.json`); `npm run mcp:switch -- full` copies `.mcp.json.full` (14 servers) and `-- light` copies `.mcp.json.light` back — the switch is reversible, with `_modes` metadata rewritten to match reality. `tavily-search` / `filesystem` / `sequential-thinking` are listed for reference and are in neither profile.
 
 ### npm Packages (23, `claude-scene/package.json`)
 

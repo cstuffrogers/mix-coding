@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -217,5 +217,33 @@ describe('假检查不许复活 / 一份名单只能有一处', () => {
     const ghosts = [];
     for (const action of PSEUDO_ACTIONS) if (!implemented.has(action)) ghosts.push(action);
     expect(ghosts, '幽灵豁免：名单里有 start.js 根本不存在实现的动作').toEqual([]);
+  });
+
+  // 第二十六轮：陈旧产物不许复活
+  //   · scripts/scenes-stats-utf8.txt：键是中文显示名、含已删除场景（hunt/analyze）、
+  //     review 还是 33 步 —— 一份没人读的陈旧 dump，却能被当成「统计结果」引用；
+  //   · claude-scene/.express-sec-audit-cache.json：225KB 的审计缓存，幽灵动作 state-audit
+  //     就是从这里被喂进审计报告的唯一来源。
+  it('陈旧产物（scenes-stats-utf8.txt / express-sec-audit-cache.json）已删除且不许重新提交', () => {
+    expect(existsSync(join(SCRIPTS, 'scenes-stats-utf8.txt'))).toBe(false);
+    expect(existsSync(join(ROOT, 'claude-scene/.express-sec-audit-cache.json'))).toBe(false);
+    const ignore = readFileSync(join(ROOT, '.gitignore'), 'utf-8');
+    expect(ignore).toContain('scripts/scenes-stats-utf8.txt');
+    expect(ignore).toContain('claude-scene/.express-sec-audit-cache.json');
+    // 真值仍在：scenes-stats.json 必须与场景文件一致（旧文本转储不能顶替它）
+    const stats = JSON.parse(readFileSync(join(SCRIPTS, 'scenes-stats.json'), 'utf-8'));
+    const sceneDir = join(ROOT, 'claude-scene', 'scenes');
+    const slugs = readdirSync(sceneDir)
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => f.replace(/\.json$/, ''))
+      .sort();
+    expect(Object.keys(stats).sort()).toEqual(slugs);
+    let steps = 0;
+    for (const slug of slugs) {
+      const scene = JSON.parse(readFileSync(join(sceneDir, `${slug}.json`), 'utf-8'));
+      steps += Object.keys(scene.flow || {}).length;
+    }
+    const written = Object.values(stats).reduce((a, v) => a + (typeof v === 'object' && v ? v.steps : v), 0);
+    expect(written, 'scenes-stats.json 的步骤数必须等于场景 flow 键数之和').toBe(steps);
   });
 });

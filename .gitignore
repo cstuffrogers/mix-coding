@@ -38,6 +38,11 @@ reports/
 .ruff_cache/
 .pytest_cache/
 .understand-anything/
+# 审计脚本留下的陈旧缓存：曾经把幽灵动作 state-audit 喂进过审计报告
+claude-scene/.express-sec-audit-cache.json
+claude-scene/express-sec-audit-*.txt
+# 场景统计的旧文本转储：键是中文显示名，场景增删后必然漂移（真值走 scripts/scenes-stats.json）
+scripts/scenes-stats-utf8.txt
 
 # 敏感文件（密钥和凭证，禁止提交）
 *.pem

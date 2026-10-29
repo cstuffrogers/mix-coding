@@ -3425,3 +3425,122 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
   `.claude/commands/*.md`，MCP 数来自 `.mcp.json` —— 任何一处再手写就必然漂移。
 - **打印出来的个数必须现算**：`switch-mcp.cjs` 以前那句「already in light mode (4 active servers)」
   连文件都不读，属于「假话 + 假绿」的组合，比不打印更糟。
+
+## 第二十六轮：发给别的工具的说明书、开关和陈旧产物（2026-07-01）
+
+> 上一轮修的是「我们自己 README 里的数字」。这一轮顺着同一条线往下走，
+> 发现三类更隐蔽的假话：①**生成出去、真的会被执行的说明书**里的假数字（agent 会照着它去读文件）；
+> ②一个**不可逆**却自称可逆的开关；③两份**没人读但会被引用**的陈旧产物。
+
+### 改前取证（全部实测）
+
+- **opencode 全局配置的模板指向已删除的文件**：`scripts/generate-opencode-config.cjs` 里有
+  `/hunt` `/e2e` `/monitor` 三个条目，模板都是「先完整读取 `.claude/commands/xxx.md`」——
+  这三个文件在第二十四轮就删了（合并进 `/review`、`/setup`）。agent 在 opencode 里执行会去读空气。
+  反过来，两个真实命令文件 `setup.md` / `update.md` 一个都没被引用。
+- **模板里的步骤数是编的**：`/loop` 写「10步」实际 **18**、`/cicd` 11→**12**、`/deps` 16→**17**、
+  `/review` 写「86行33步」而 `review.md` 是 **80 行**、review 场景 **43 步**。表头注释还写死
+  「38 .md-referenced commands」。
+- **计数用的度量本身就是错的**：`scripts/setup-opencode-global.sh` 用
+  `CMD_COUNT=$(grep -c '"description"' ...)` 数命令 —— 数的是**描述行**（110），不是命令键（106）；
+  面板里「38 工作流对齐」写死；头注释「108 命令 + MCP(17) + Provider(4)」里只有 17 是对的。
+  真值（生成器实测）：**106 命令 / 17 MCP / 1 provider / 38 个引用 `.md` 的命令**。
+  同一批假数字还在 `README.md:54`、`.opencode/AGENTS.md`、`docs/MULTIPLATFORM.md`（写「35 工作流」）、
+  `docs/CHANGELOG.md`（写「4 providers」）里各来一遍。
+- **`npm run mcp:switch` 不可逆 + 谎报 + 假绿**：没有 `.mcp.json.light` 这个文件。
+  `full` 直接拿 `.mcp.json.full` 覆盖 `.mcp.json`，**light 档被永久覆盖**；之后再执行 `light`，
+  脚本一个文件都不读就打印「already in light mode (4 active servers)」（数字写死，当时实际 14 个）。
+  未知模式（`-- ful`）打印用法后 **exit 0**。
+- **陈旧产物**：`scripts/scenes-stats-utf8.txt`（40 行中文显示名键的旧 dump：`hunt` / `analyze`
+  这两个场景早没了、review 写 33 步实际 43）；`claude-scene/.express-sec-audit-cache.json`
+  （225KB / 6442 行审计缓存 —— 幽灵动作 `state-audit` 的唯一来源）。两者都被 git 跟踪、没人读。
+
+### 维度①：生成器改回真值（`scripts/generate-opencode-config.cjs`）
+
+- `/hunt` → 「已合并到 /review（security_deep 模式）」并指向真实存在的 `review.md`；
+  `/e2e` → `/setup --kind e2e`；`/monitor` → `/setup --kind monitor`（照抄 `/audit` 的「合并指引」写法）。
+- 补上 `/setup`（14 步）与 `/update` 两个真命令。
+- 步骤数按 `claude-scene/scenes/*.json` 的 `flow` 键数改：loop 18 / cicd 12 / deps 17；
+  `/review` 的「86行33步」改成「按场景声明的 43 步」。
+- 表头注释换成「凡是『先读取 X.md』『（N 步）』都必须指向真实文件、写真实步数」的规矩，不再写死条数。
+
+### 维度②：`setup-opencode-global.sh` 不再用 grep 数命令
+
+- `read -r CMD_COUNT MCP_COUNT PROV_COUNT MD_REF_COUNT <<EOF $(node -e ...) EOF`：
+  从生成出来的 `opencode.json` 里数 `command` / `mcp` / `provider` 的键数 + 「模板引用了本地 `.md`」的条数。
+- 面板改成三行真实数字（原来那圈 `┌──┐` 框在数字变化时必然错位，索性去掉）。
+- 头注释删掉「108 命令 · 17 MCP · 4 Provider · 38 工作流」，改成「数量以生成结果为准」。
+
+### 维度③：文档里的 opencode 数字
+
+- `README.md:54` → `106 命令（其中 38 个直接引用本仓库 .claude/commands/*.md）· 17 MCP · 1 Provider`，
+  并注明由 `scripts/check-opencode-config.cjs` 校验（**保留数字是因为有校验器**）。
+- `.opencode/AGENTS.md` / `docs/MULTIPLATFORM.md` / `docs/CHANGELOG.md`：**不再写死任何数字**，
+  改成「数量由 `.opencode/deploy-global.cjs` 生成时统计」——这几个地方没有校验器，写数字就必然漂移。
+
+### 维度④：`scripts/check-opencode-config.cjs`（新增）
+
+三类声明必须可核对：①模板里每个 `.claude/commands/X.md` 真存在，且每个真实命令文件都被引用；
+②「（N 步」= `scenes/X.json` 的 `flow` 键数；③README 里那行计数 = 生成器真值（整行结构一次性卡住：
+格式变了 exit 2，数字不对 exit 1）。外加 ④`setup-opencode-global.sh` 不许用 grep 数行、必须从配置 JSON 数键。
+塌面下限 `MIN_COMMANDS=50` / `MIN_COMMAND_FILES=20` / `MIN_MD_REFS=15` / `MIN_SCENES=20`；
+`--config <file>` 可喂现成配置（测试用），否则现场跑 `deploy-global.cjs --dry-run`。
+
+### 维度⑤：`switch-mcp` 真的可逆
+
+- 新增 `.mcp.json.light`（light 档文件）。`light` / `full` 都从档位文件复制 → **双向可逆**。
+- 复制后把 `_modes.current` / `_modes.active_servers` / `_comment` 按真实内容改写（元数据不许撒谎）。
+- 未知模式 / 缺参数 → 用法 + **exit 2**（不再「打印用法然后假装成功」）；
+  档位文件缺失 / 非法 JSON / 空 `mcpServers` → **exit 1** 且**一个字节都不写**。
+- `MCP_CONFIG_DIR` 让测试指向临时目录，不碰真实仓库。
+
+### 维度⑥：陈旧产物删除
+
+- 删 `scripts/scenes-stats-utf8.txt`、`claude-scene/.express-sec-audit-cache.json`；
+  `.gitignore` 加三条规则（含 `express-sec-audit-*.txt`）挡住复活。
+- 真值仍在：`scripts/scenes-stats.json` 由 `scan-scenes.cjs` 生成，测试里现算「键集合 == 场景 slug 集合、
+  步骤数之和 == 各场景 `flow` 键数之和」（26 / 583），旧文本 dump 不能顶替它。
+
+### 验收三元组
+
+1. **变更**：新增 `scripts/check-opencode-config.cjs`、`.mcp.json.light`、
+   `claude-scene/src/commands/opencode-config.test.js`(21)、`claude-scene/src/commands/mcp-switch.test.js`(10)；
+   改 `scripts/generate-opencode-config.cjs`、`scripts/setup-opencode-global.sh`、`scripts/switch-mcp.cjs`、
+   `README.md`、`README_EN.md`、`.opencode/AGENTS.md`、`docs/MULTIPLATFORM.md`、`docs/CHANGELOG.md`、
+   `.gitignore`、`.mcp.json`、`scripts-honesty.test.js`(+1)；删两个陈旧文件。
+2. **验证命令**：`npx vitest run`、`npx eslint .`、`cd claude-scene && npx eslint . --max-warnings 0`、
+   `npm run scan:deadcode`、`node scripts/check-{readme-stats,action-stats,doc-counts,opencode-config,dead-actions}.cjs`、
+   `node scripts/audit-scenes.mjs`、26 场景 `start <scene> --dry-run --auto`、
+   `node claude-scene/src/index.js start review --auto --skip-sweep`。
+3. **验证结果**：vitest **110 files / 1404 tests 全绿**（+2 files / +32 tests）；双 eslint **0 / 0**；
+   `scan:deadcode` **0 dead**（33 命令 / 29 skills / 3 MCP）；五个 checker **全 EXIT=0**；
+   `audit-scenes` **0**；dry-run **26/26 无失败**；review 真跑 **EXIT=0**，
+   `pass 17 / fail 0 / warn 3 / skip 19 / noop 4`（与基线一致）。
+
+### 坑
+
+- **注释也会被自己的断言抓到（第三次了）**：我在 `setup-opencode-global.sh` 里写了「以前这里用
+  `grep -c '"description"'` 数命令」这句解释，checker 的 `includes()` 立刻命中。
+  改成 `/^\s*CMD_COUNT=.*grep/m`（只认**赋值语句**，不认注释）才对。
+- **fixture 的「同一份 over」会让漂移测不出来**：`readme()` 和 `generatedConfig()` 都吃 `over`，
+  于是「把 108 写进文档」同时也把配置改成 108 个命令 —— 两边自洽，exit 0。
+  必须把「文档的数字」和「生成结果的数字」拆成两个口子（`over.doc`）。
+- **塌面检查的顺序决定报错内容**：`commandFiles()` 的下限检查原来写在 `sceneSteps()` 之后，
+  于是「命令文件太少」的用例报的是「场景太少」。下限要和它保护的那个「读」放在一起。
+- **`--config` + 真生成器两条路都要测**：只测 `--config` 就测不到「读不到生成器 → exit 2」，
+  只测真仓库就测不到各类漂移。
+- **「已经是 X 模式」要先归一化再断言**：fixture 里的 live 是紧凑 JSON，第一次跑必然算「内容不同」→
+  先跑一次让它落成脚本的输出格式，第二次才该打印 already（真仓库就是这么用的）。
+
+### 决策
+
+- **生成出去、会被执行的字符串也是「文档」**：模板里的文件名和步骤数必须和仓库一致，
+  因为它们不是给人看的说明，是**给 agent 的指令**。
+- **计数不许用 `grep -c` 数行**：行数不是条数。要么解析 JSON 数键，要么别报这个数。
+- **没有校验器的地方不写死数字**：`README.md` 那行保留数字，因为它有 checker；
+  `AGENTS.md` / `MULTIPLATFORM.md` / `CHANGELOG.md` 没有，就改成「以生成结果为准」。
+- **开关必须可逆，否则名字就是假的**：`light` / `full` 各有一个档位文件才对得起这两个名字。
+- **写盘之前先验数据**：档位文件缺失 / 坏 JSON / 空配置一律 exit 1 且不写 —— 「宁可拒绝，也不写坏数据」。
+- **元数据跟着真实内容走**：`_modes` 是给人和脚本读的，改完配置必须同步改写，否则它比没有更糟。
+- **陈旧产物要么删、要么接上生成器**：留在仓库里没人读、又会被当「统计结果」引用的文件，
+  比不存在更有害（`state-audit` 就是这么活下来的）。
