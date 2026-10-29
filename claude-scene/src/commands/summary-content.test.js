@@ -20,9 +20,32 @@ describe('describeNotPassSteps', () => {
   });
 
   it('没有 stepResults / 全部通过时保持安静', () => {
-    expect(describeNotPassSteps()).toEqual({ lines: [], total: 0 });
-    expect(describeNotPassSteps([])).toEqual({ lines: [], total: 0 });
+    // 契约变更（第十九轮）：返回值多了 idleLines / idleTotal ——
+    // noop 以前混在「未通过 / 未执行」里，看着像那一步出了问题。分开后调用方
+    // 才能把「真的没过」和「没什么可做」分开显示，所以这里断言完整结构。
+    const quiet = { lines: [], total: 0, idleLines: [], idleTotal: 0 };
+    expect(describeNotPassSteps()).toEqual(quiet);
+    expect(describeNotPassSteps([])).toEqual(quiet);
     expect(describeNotPassSteps([{ step: 1, action: 'verify', status: 'pass' }]).lines).toEqual([]);
+  });
+
+  it('noop 不算「未通过」：单独进 idleLines，不进 lines/total', () => {
+    const { lines, total, idleLines, idleTotal } = describeNotPassSteps([
+      { step: 2, action: 'recall', status: 'noop' },
+      { step: 4, action: 'checkGate', status: 'fail' },
+      { step: 6, action: 'invokeSkill', status: 'noop' },
+    ]);
+    expect(lines).toEqual(['Step 4 checkGate → fail']);
+    expect(total).toBe(1);
+    expect(idleLines).toEqual(['Step 2 recall → noop', 'Step 6 invokeSkill → noop']);
+    expect(idleTotal).toBe(2);
+  });
+
+  it('全是 noop 时 lines 为空（不会被当成「有步骤没过」）', () => {
+    const r = describeNotPassSteps([{ step: 1, action: 'recall', status: 'noop' }]);
+    expect(r.lines).toEqual([]);
+    expect(r.total).toBe(0);
+    expect(r.idleTotal).toBe(1);
   });
 
   it('缺 status 的脏数据不算步骤（不渲染、也不计数）', () => {

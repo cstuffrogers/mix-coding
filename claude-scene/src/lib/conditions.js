@@ -4,6 +4,7 @@ import { existsSync } from "fs";
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { PROJECT_ROOT, findResourceDir } from './paths.js';
+import { staleFlagDetail } from './flag-stamp.js';
 
 // 移动端平台事实的唯一出处：用户显式指定（ctx.platform，接受 ios/android/both）
 // 或 detectProject 的探测结果（ctx.platforms / ctx.project_type，expo 视为双端）。
@@ -334,7 +335,12 @@ export function conditionIdentifiers(condition) {
  */
 function runtimeDependentIdentifiers(condition, context) {
   const ctx = context || {};
+  const stale = new Set(staleFlagDetail(ctx).map((item) => item.key));
   return conditionIdentifiers(condition).filter((id) => {
+    // 值还在、但本轮没人重新测过（`--iterations N` 上一轮的遗物）—— 那不是「真答案」。
+    // 以前只看「键存不存在」：第 2 轮 test 那步没跑，却拿第 1 轮的 testPassed=false
+    // 当本轮结论，跳过的理由看上去很硬，实际是本轮没人测。
+    if (stale.has(id)) return true;
     // ctx 里已经有这个键（哪怕是 false）就是真答案，不再算「未判定」。
     // plan 8 的 attestation_enabled 吃过这个亏：plan 7 刚写了 false，
     // 却仍被报成「未判定」—— 明明该「跳过」，输出却说不知道。
@@ -352,15 +358,18 @@ function runtimeDependentIdentifiers(condition, context) {
  * 「引擎不知道」（黄字 ❓），把真正的未知扇区淹掉了。
  */
 export function explainCondition(condition, context) {
-  if (!condition) return { met: true, unknown: [], determinable: true };
-  const verdict = definiteVerdict(condition, context || {});
-  if (verdict !== null) return { met: verdict, unknown: [], determinable: true };
-  const unknown = runtimeDependentIdentifiers(condition, context);
+  if (!condition) return { met: true, unknown: [], stale: [], determinable: true };
+  const ctx = context || {};
+  const verdict = definiteVerdict(condition, ctx);
+  if (verdict !== null) return { met: verdict, unknown: [], stale: [], determinable: true };
+  const unknown = runtimeDependentIdentifiers(condition, ctx);
   // met 永远是「真跑起来会怎么做」；unknown 只用来解释「为什么这次没跑」。
   // 未判定的意义在于「跳过可能是冤枉的」，所以 met=true 时不必报未知。
-  const met = evaluateCondition(condition, context);
-  if (met || unknown.length === 0) return { met, unknown: [], determinable: true };
-  return { met, unknown, determinable: false };
+  const met = evaluateCondition(condition, ctx);
+  // 旧值另有账：即使 met=true（这一步照样会跑），也得让读者知道理由是上轮的。
+  const stale = staleFlagDetail(ctx).filter((item) => conditionIdentifiers(condition).includes(item.key));
+  if (met || unknown.length === 0) return { met, unknown: [], stale, determinable: true };
+  return { met, unknown, stale: stale.filter((item) => unknown.includes(item.key)), determinable: false };
 }
 
 /**

@@ -5,13 +5,14 @@ import { randomBytes } from 'crypto';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora from 'ora';
-import { evaluateCondition, explainCondition } from '../lib/conditions.js';
+import { explainCondition } from '../lib/conditions.js';
 import { resolveParams } from '../lib/template.js';
 import { executeAction, hasActionHandler } from '../actions.js';
 import { executeUIPolish, UI_POLISH_ACTIONS } from '../handlers/ui-polish.js';
 import { applyEnhancements } from '../lib/enhancements.js';
 import { PROJECT_ROOT, resolveScenePath, describePaths } from '../lib/paths.js';
 import { detectHandlerFailure } from '../lib/failure-detection.js';
+import { snapshotFlags, stampFlagWrites } from '../lib/flag-stamp.js';
 import { checkAcceptance } from '../lib/acceptance-check.js';
 import { countMeasuredFindings } from '../lib/finding-count.js';
 import { captureBoundaryBaseline } from '../handlers/codeguardian.js';
@@ -663,17 +664,29 @@ function applyPostStepContext(step, context, sceneId) {
 /**
  * 把非 pass 步骤渲染成可核对的行。计数（fail: 1）不告诉你哪步不行，
  * 收尾摘要与报告都靠这个列表说清楚「到底哪里没过」。
+ *
+ * noop（「没人可做之事」）不能和 fail/warn/skip 垛在一列：前者是缺陷，后者是一步无害空转。
+ * 以前它们混在「未通过 / 未执行的步骤」标题下面，一条 `Step 4 recall → noop` 看上去
+ * 像第 4 步出了问题，让人去查一个根本不用查的步骤。
  */
 export function describeNotPassSteps(stepResults, limit = 12, plannedIterations = 1) {
-  const list = (Array.isArray(stepResults) ? stepResults : [])
+  const rows = (Array.isArray(stepResults) ? stepResults : [])
     .filter((r) => r && typeof r.status === 'string' && r.status !== 'pass');
-  const lines = list.slice(0, limit).map((r) => {
-    // 多轮时同一个 action 会重复出现：不带轮次的话，两行「Step 3 test → fail」
-    // 看起来像重复记录，实际是第 1、2 轮各失败一次。
+  // 多轮时同一个 action 会重复出现：不带轮次的话，两行「Step 3 test → fail」
+  // 看起来像重复记录，实际是第 1、2 轮各失败一次。
+  const render = (r) => {
     const round = plannedIterations > 1 && r.iteration ? `（第 ${r.iteration} 轮）` : '';
     return `Step ${r.step ?? '?'} ${r.action} → ${r.status}${round}`;
-  });
-  return { lines, total: list.length };
+  };
+  const problem = rows.filter((r) => r.status !== 'noop');
+  const idle = rows.filter((r) => r.status === 'noop');
+  return {
+    lines: problem.slice(0, limit).map((r) => render(r)),
+    total: problem.length,
+    // 单独一组：不是问题，但也不能默默丢掉（否则「共 N 步」对不上账）。
+    idleLines: idle.slice(0, limit).map((r) => render(r)),
+    idleTotal: idle.length,
+  };
 }
 
 /**
@@ -708,14 +721,25 @@ function printRoundNote(context) {
 /** 「哪几步不行」—— 计数不等于内容，block 收尾时最需要看这个。 */
 function printNotPassSteps(context) {
   const planned = context?.iterationsPlanned || 1;
-  const { lines, total } = describeNotPassSteps(context?.stepResults, 12, planned);
-  if (lines.length === 0) return;
-  console.log(chalk.yellow('  未通过 / 未执行的步骤：'));
-  for (const line of lines) {
-    console.log(chalk.yellow(`     ${line}`));
+  const { lines, total, idleLines, idleTotal } = describeNotPassSteps(context?.stepResults, 12, planned);
+  if (lines.length > 0) {
+    console.log(chalk.yellow('  未通过 / 未执行的步骤：'));
+    for (const line of lines) {
+      console.log(chalk.yellow(`     ${line}`));
+    }
+    if (total > lines.length) {
+      console.log(chalk.dim(`     …共 ${total} 步，完整列表见报告/日志`));
+    }
   }
-  if (total > lines.length) {
-    console.log(chalk.dim(`     …共 ${total} 步，完整列表见报告/日志`));
+  if (idleLines.length > 0) {
+    // 灰字 + 独立标题：这些步骤没做错什么，只是本场景里它们没有可做之事。
+    console.log(chalk.gray('  没有可做之事的步骤（noop，不算问题）：'));
+    for (const line of idleLines) {
+      console.log(chalk.gray(`     ${line}`));
+    }
+    if (idleTotal > idleLines.length) {
+      console.log(chalk.dim(`     …共 ${idleTotal} 步，完整列表见报告/日志`));
+    }
   }
 }
 
@@ -775,7 +799,14 @@ function printSummary(sceneId, context = null, { aborted = null } = {}) {
   if (unjudged.length > 0) {
     console.log(chalk.yellow(`  ⚠ ${unjudged.length} 个步骤因运行时状态未判定被跳过（没跑，不等于不该跑）：`));
     for (const item of unjudged.slice(0, 10)) {
-      console.log(chalk.yellow(`     Step ${item.step} ${item.description}（缺 ${item.keys.join(', ')}）`));
+      // 「上一轮留下的旧值」和「压根没人写过」是两个不同原因，不能都写成「缺」。
+      const staleKeys = new Set((item.stale || []).map((s) => s.key));
+      const reasons = item.keys.map((key) => {
+        if (!staleKeys.has(key)) return `${key} 没人写过`;
+        const stale = item.stale.find((s) => s.key === key);
+        return `${key} 用的是第 ${stale.iteration} 轮的旧值`;
+      });
+      console.log(chalk.yellow(`     Step ${item.step} ${item.description} —— ${reasons.join('；')}`));
     }
   }
   if (fail > 0 || noop > 0 || warn > 0 || unjudged.length > 0 || aborted) {
@@ -894,6 +925,7 @@ export async function retryFailedStep(step, sceneId, resolvedParams, context, di
     context.lastStepFailed = false;
     console.log(chalk.yellow(`\n🔄 Step ${step.step} 失败，第 ${attempt}/${MAX_RETRIES} 次重试...`));
     const started = Date.now();
+    const retrySnapshot = snapshotFlags(context);
     const result = await dispatch(sceneId, step.action, resolvedParams, context);
     if (context._awaitingAnswer) return 'awaiting';
     const { resultStr, stepStatus } = deriveStepStatus(result, context);
@@ -906,6 +938,8 @@ export async function retryFailedStep(step, sceneId, resolvedParams, context, di
     shiftSummary(LOG_SUMMARY, previous?.status || 'fail', stepStatus);
     rewriteStepRecord(context.stepResults, step.step, stepStatus, resultStr);
     applyPostStepContext(step, context, sceneId);
+    // 重试写下的旗标同样要记轮次：否则下一轮会把「重试时才写上的值」当成上轮遗物。
+    stampFlagWrites(context, retrySnapshot, { step: step.step, iteration: context.iteration });
     // 「重试成功」是句有内容的话：skip = 这次重试没跑成、noop = 没人可做、
     // warn = 跑了但有发现。以前一律打绿✓「重试成功（判为 skip）」——
     // 重试的全部意义就是「真的跑成了吗」，这句不能潦草地绿。
@@ -1177,6 +1211,9 @@ function hasWarnResult(str) {
   return WARN_REPEAT_RE.test(str) && !NEGATED_REPEAT_RE.test(str);
 }
 
+// 「返回了对象但没布 status」的公开措辞：屏幕、日志、警告全用同一句，便于事后 grep。
+const STATUSLESS_OBJECT_NOTE = '（处理器返回了对象但没布 status —— 无法判断这一步是否真的做成了）';
+
 function formatResultForDisplay(result) {
   if (typeof result === 'string') return result;
   // undefined/null 以前走 String() → 屏幕上真的打印出「undefined」，然后记 pass
@@ -1188,7 +1225,12 @@ function formatResultForDisplay(result) {
     if (result.status === 'interactive') {
       return `需人工回答（未执行）：${result.prompt ?? '该步骤需交互输入'}`;
     }
-    return `步骤已完成（状态：${result.status ?? 'success'}）`;
+    if (typeof result.status === 'string' && result.status.trim()) {
+      return `步骤已完成（状态：${result.status}）`;
+    }
+    // 没布 status 的对象以前渲染成「步骤已完成（状态：success）」—— 那个 success
+    // 是引擎自己编的，处理器一个字都没说。屏幕上出现编造的结论比留空更糟。
+    return STATUSLESS_OBJECT_NOTE;
   }
   return String(result);
 }
@@ -1226,6 +1268,12 @@ export function deriveStepStatus(result, context) {
     return { resultStr, stepStatus: 'fail' };
   }
   if (explicit) return { resultStr, stepStatus: explicit };
+  // 处理器返回了对象却没布 status：以前落到下面的正则猜，最后几乎都判 pass。
+  // 对象里的字段（ok/found/count…）都是处理器自己的词汇，引擎没有资格替它下结论；
+  // 「说了话但没说结论」和「什么都没说」一样，都不足以证明这一步做成了。
+  if (result !== null && typeof result === 'object') {
+    return { resultStr: resultStr ? `${resultStr} ${STATUSLESS_OBJECT_NOTE}` : STATUSLESS_OBJECT_NOTE, stepStatus: 'warn' };
+  }
   // 处理器什么都没返回（忘了 return / 走了空分支）时，以前落到默认那行记成 pass ——
   // 「步骤 ✓ 但一行输出都没有」是典型的静默失败。空结果一律先当 warn 让人看见。
   if (!String(resultStr ?? '').trim()) {
@@ -1371,30 +1419,56 @@ function finishInteractiveStep(sceneId, step, context) {
  * 条件里的键从头到尾没人写过 → 这一步既不算「不满足」也不算跑过。
  * 单独抽出来，免得 runStep 的认知复杂度撞到 sonarjs 的 15 上限。
  */
-function noteUnjudgedStep(step, stepNum, unknown, context, options) {
-  const line = `  ❓ 未判定 Step ${stepNum}: ${step.description || step.action}（依赖运行时状态：${unknown.join(', ')}）`;
+function staleHint(stale) {
+  if (!Array.isArray(stale) || stale.length === 0) return '';
+  const parts = stale.map((item) => `${item.key} 是第 ${item.iteration} 轮留下的旧值`);
+  return `，其中 ${parts.join('、')}（本轮没重新测）`;
+}
+
+/** 条件成立，但字面上靠的是上一轮的旧值 —— 这一步会跑，但理由不能默认算本轮的。 */
+function noteStaleCondition(stepNum, stale, context) {
+  if (!Array.isArray(stale) || stale.length === 0) return;
+  const parts = stale.map((item) => `${item.key}（第 ${item.iteration} 轮）`);
+  console.log(chalk.yellow(`  ⚠ Step ${stepNum} 的条件依据是早前轮次留下的值：${parts.join('、')} —— 本轮没有任何步骤重新测量过它`));
+  context._staleFlagUses = (context._staleFlagUses || 0) + 1;
+}
+
+function noteUnjudgedStep(step, stepNum, unknown, context, options, stale = []) {
+  const line = `  ❓ 未判定 Step ${stepNum}: ${step.description || step.action}（依赖运行时状态：${unknown.join(', ')}）${staleHint(stale)}`;
   console.log(options.dryRun ? chalk.gray(line) : chalk.yellow(line));
   context._unjudgedConditions = (context._unjudgedConditions || 0) + 1;
   context._unjudgedSteps = context._unjudgedSteps || [];
-  context._unjudgedSteps.push({ step: stepNum, description: step.description || step.action, keys: unknown });
+  context._unjudgedSteps.push({ step: stepNum, description: step.description || step.action, keys: unknown, stale });
+}
+
+/**
+ * 条件门：返回 true = 这一步该跑。
+ * 抽成函数是为了让 runStep 的认知复杂度留在 sonarjs 的 15 以内。
+ */
+function passesConditionGate(step, stepNum, context, options) {
+  if (!step.condition) return true;
+  const judged = explainCondition(step.condition, context);
+  if (judged.met) {
+    // 条件虽然满足，但理由是上一轮的旧值 —— 不敲一声就等于默认它仍然成立。
+    noteStaleCondition(stepNum, judged.stale, context);
+    return true;
+  }
+  if (judged.unknown.length > 0) {
+    // 真实执行里同样会出现：条件依赖的键从头到尾没人写过 —— 那一步就不会跑。
+    // 以前一律灰色一行带过，汇总里只多一个 skip，看着像「条件不满足」。
+    noteUnjudgedStep(step, stepNum, judged.unknown, context, options, judged.stale);
+  } else {
+    console.log(chalk.gray(`  ⏭ 跳过 Step ${stepNum}: ${step.description || step.action}（条件不满足）`));
+  }
+  LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
+  appendLog({ step: stepNum, action: step.action, status: 'skip', reason: judged.unknown.length > 0 ? 'unjudged' : 'condition', time: new Date().toISOString() });
+  return false;
 }
 
 async function runStep(sceneId, step, context, options) {
   const stepNum = step.step;
 
-  if (step.condition && !evaluateCondition(step.condition, context)) {
-    const { unknown } = explainCondition(step.condition, context);
-    if (unknown.length > 0) {
-      // 真实执行里同样会出现：条件依赖的键从头到尾没人写过 —— 那一步就不会跑。
-      // 以前一律灰色一行带过，汇总里只多一个 skip，看着像「条件不满足」。
-      noteUnjudgedStep(step, stepNum, unknown, context, options);
-    } else {
-      console.log(chalk.gray(`  ⏭ 跳过 Step ${stepNum}: ${step.description || step.action}（条件不满足）`));
-    }
-    LOG_SUMMARY.total++; LOG_SUMMARY.skip++;
-    appendLog({ step: stepNum, action: step.action, status: 'skip', reason: unknown.length > 0 ? 'unjudged' : 'condition', time: new Date().toISOString() });
-    return;
-  }
+  if (!passesConditionGate(step, stepNum, context, options)) return;
 
   if (await handleInteractiveStep(sceneId, step, context, options)) {
     finishInteractiveStep(sceneId, step, context);
@@ -1406,6 +1480,9 @@ async function runStep(sceneId, step, context, options) {
   context.lastStepFailed = false;
 
   const stepStart = Date.now();
+  // 步骤前浅快照：执行后比对，给「这一步写过的 context 键」记上轮次。
+  // 不记的话，第 2 轮读到的 `testPassed` 分不出是这轮测的还是上轮的遗物。
+  const flagSnapshot = snapshotFlags(context);
   const result = await dispatchAction(sceneId, step.action, resolvedParams, context);
   const duration = Date.now() - stepStart;
 
@@ -1442,6 +1519,7 @@ async function runStep(sceneId, step, context, options) {
   }
 
   applyPostStepContext(step, context, sceneId);
+  stampFlagWrites(context, flagSnapshot, { step: stepNum, iteration: context.iteration });
 
   await handleStepError(step, context, sceneId, resolvedParams);
 
@@ -1523,11 +1601,11 @@ function hasStepHandler(sceneId, step) {
 
 function previewCondition(step, context) {
   if (!step.condition) return;
-  const { met, unknown } = explainCondition(step.condition, context);
+  const { met, unknown, stale } = explainCondition(step.condition, context);
   const verdict = met
     ? chalk.green('满足')
     : (unknown.length > 0
-      ? chalk.yellow(`未判定（运行时状态：${unknown.join(', ')}）`)
+      ? chalk.yellow(`未判定（运行时状态：${unknown.join(', ')}）${staleHint(stale)}`)
       : chalk.red('不满足'));
   console.log(chalk.gray(`     └─ 条件 [${step.condition}]: ${verdict}`));
   if (!met && unknown.length > 0) context._unjudgedConditions = (context._unjudgedConditions || 0) + 1;

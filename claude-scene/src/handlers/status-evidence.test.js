@@ -104,3 +104,143 @@ describe('处理器状态证据：被判 pass 的裸字符串里不许已经写�
     expect(bad, `这些分支会被记成 pass（什么都没做却算通过）：\n${bad.join(String.fromCodePoint(10))}`).toEqual([]);
   });
 });
+
+/**
+ * 字符串字面量抹成空格（长度与位置不变）：不抹掉的话，文案里的 `{` `}` 会把
+ * 下面的括号栈搅乱，守卫就会漏报或乱报。
+ */
+function stripLiterals(code) {
+  const out = [...code];
+  let i = 0;
+  while (i < code.length) {
+    const ch = code[i];
+    if (ch !== '\'' && ch !== '"' && ch !== '`') {
+      i += 1;
+    } else {
+      const quote = ch;
+      i += 1;
+      while (i < code.length && code[i] !== quote) {
+        if (code[i] === '\\') {
+          out[i] = ' ';
+          i += 1;
+        }
+        out[i] = ' ';
+        i += 1;
+      }
+      i += 1;
+    }
+  }
+  return out.join('');
+}
+
+const BLOCK_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'with']);
+
+/** `{` 前面那个 token 是不是「函数体」——`=> {` 与 `foo(...) {` 是，`if (...) {` 不是。 */
+/** 取末尾的标识符。手写反向扫描而不是 `/(\w+)$/`：那个正则有二次回溯，会被 lint 判 super-linear。 */
+function trailingIdentifier(text) {
+  let end = text.trimEnd().length;
+  let start = end;
+  while (start > 0 && /[\w$]/.test(text[start - 1])) start -= 1;
+  return text.slice(start, end);
+}
+
+function opensFunctionBody(code, openIndex) {
+  const head = code.slice(0, openIndex).trimEnd();
+  if (head.endsWith('=>')) return true;
+  if (!head.endsWith(')')) return false;
+  let depth = 0;
+  for (let i = head.length - 1; i >= 0; i -= 1) {
+    if (head[i] === ')') depth += 1;
+    else if (head[i] === '(') {
+      depth -= 1;
+      if (depth === 0) {
+        const word = trailingIdentifier(head.slice(0, i));
+        return word ? !BLOCK_KEYWORDS.has(word) : false;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * 取处理器自己这层返回的对象字面量（不含 .map/.forEach 等回调里的返回）。
+ * 回调里的 `return { ok: false }` 是内部数据，不属于「这一步的结论」。
+ */
+function handlerLevelObjectReturns(body) {
+  const code = stripLiterals(body);
+  const stack = [];
+  const out = [];
+  for (let i = 0; i < code.length; i += 1) {
+    const ch = code[i];
+    if (ch === '{') {
+      stack.push(opensFunctionBody(code, i) ? 'fn' : 'block');
+      continue;
+    }
+    if (ch === '}') {
+      stack.pop();
+      continue;
+    }
+    if (!code.startsWith('return', i) || /[\w$]/.test(code[i - 1] || '')) continue;
+    const rest = code.slice(i + 6).trimStart();
+    // 只认 `return {` 这种直接返回字面量。`return cond ? 'a' : 'b'` 之类不是对象返回，
+    // 以前把三元当对象返回，`indexOf('{')` 抓到的是后面语句的花括号 —— 报了一批假红。
+    if (!rest.startsWith('{')) continue;
+    // 当前处在回调/嵌套函数里 → 不是处理器自己的结论
+    if (stack.includes('fn')) continue;
+    out.push({ index: i, objectStart: code.indexOf('{', i + 6) });
+  }
+  return out;
+}
+
+function objectTextAt(code, start) {
+  let depth = 0;
+  for (let i = start; i < code.length; i += 1) {
+    if (code[i] === '{') depth += 1;
+    else if (code[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return code.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function collectObjectReturns() {
+  const rows = [];
+  for (const file of HANDLER_FILES) {
+    const text = readFileSync(file, 'utf8');
+    for (const name of NAMES) {
+      const hit = bodyOf(text, name);
+      if (!hit) continue;
+      const code = stripLiterals(hit.body);
+      const baseLine = text.slice(0, hit.offset).split('\n').length;
+      for (const ret of handlerLevelObjectReturns(hit.body)) {
+        const objectText = ret.objectStart === undefined ? null : objectTextAt(code, ret.objectStart);
+        rows.push({
+          file: file.slice(SRC.length + 1),
+          name,
+          line: baseLine + code.slice(0, ret.index).split('\n').length - 1,
+          hasStatus: Boolean(objectText && /\{\s*status\s*[:,}]/.test(objectText)),
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+describe('处理器返回契约：对象是「结论」的载体，必须自带 status', () => {
+  const rows = collectObjectReturns();
+
+  it('巡检本身不能空跑', () => {
+    // 实测：284 个处理器、约 348 处自己这层的对象返回。低于这个量级说明扫描器坏了，
+    // 否则下面两条断言会在「什么都没扫到」的情况下自动变绿。
+    expect(NAMES.size).toBeGreaterThan(200);
+    expect(rows.length).toBeGreaterThan(200);
+  });
+
+  it('处理器自己这层返回对象时，必须显式写 status', () => {
+    const bad = rows
+      .filter((r) => !r.hasStatus)
+      .map((r) => `${r.file}:${r.line} [${r.name}] return { … } 没写 status`);
+    expect(bad, `这些返回值里没写 status —— 引擎只能拿正则猜这一步成不成：\n${bad.join(String.fromCodePoint(10))}`).toEqual([]);
+  });
+});

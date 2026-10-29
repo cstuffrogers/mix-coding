@@ -189,6 +189,29 @@ describe('deriveStepStatus 显式状态', () => {
     expect(deriveStepStatus('代码审查完成（无问题）', { lastStepFailed: false }).stepStatus).toBe('pass');
     expect(deriveStepStatus('任务失败', { lastStepFailed: false }).stepStatus).toBe('fail');
   });
+
+  // 第十九轮：返回对象却没布 status 的路径以前会直接落到正则启发式，
+  // 只要文案里没有「失败/问题」这些词就记 ✓ pass（典型的「看着绿了」）。
+  // 对象里的字段是处理器自己的词汇，引擎没资格替它下结论。
+  it('返回对象但没布 status → warn，并点名原因', () => {
+    const ctx = { lastStepFailed: false };
+    const { stepStatus, resultStr } = deriveStepStatus({ ok: true, files: 3, summary: '已生成 3 个文件' }, ctx);
+    expect(stepStatus).toBe('warn');
+    expect(resultStr).toContain('没布 status');
+  });
+
+  it('数组等非字符串对象同样不会白得一个 pass', () => {
+    expect(deriveStepStatus([{ a: 1 }], { lastStepFailed: false }).stepStatus).toBe('warn');
+    expect(deriveStepStatus(new Date(0), { lastStepFailed: false }).stepStatus).toBe('warn');
+  });
+
+  // 以前 `formatResultForDisplay` 会给没布 status 的对象编一个 `success`：
+  // 屏幕上出现「步骤已完成（状态：success）」，处理器一个字都没说过这句。
+  it('没布 status 的对象不会在屏幕上被编一句「success」', () => {
+    const { resultStr } = deriveStepStatus({ count: 2 }, { lastStepFailed: false });
+    expect(resultStr).not.toContain('success');
+    expect(deriveStepStatus({ status: 'pass', message: '完成' }, { lastStepFailed: false }).resultStr).toBe('完成');
+  });
 });
 
 // 这两个文案曾经都被判成 warn，于是 /check 明明 0 问题却显示「⚡ warn: 2」。
