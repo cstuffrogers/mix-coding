@@ -129,7 +129,7 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
 
   if (!hasArtifacts) {
     // Don't set buildLeakPassed — 没有产物就没有可泄露的东西，不是「通过」。
-    return { status: 'noop', message: '构建泄露检查无需执行: 无构建产物' };
+    return { status: 'noop', reason: 'nothing-to-do', message: '构建泄露检查无需执行: 无构建产物' };
   }
 
   const findings = [];
@@ -897,7 +897,7 @@ export function handleSpectral(_action, _params, targetPath, context) {
 
   if (!hasSpectralConfig(targetPath) && specFiles.length === 0) {
     // 没有 spec 文件 = 没有可 lint 的对象，不是「lint 通过」。
-    return { status: 'noop', message: 'Spectral API lint 无需执行: 无 OpenAPI/Spec 文件' };
+    return { status: 'noop', reason: 'nothing-to-do', message: 'Spectral API lint 无需执行: 无 OpenAPI/Spec 文件' };
   }
 
   let issueCount = 0;
@@ -1045,7 +1045,7 @@ function logSizeLimitText(raw) {
 export function handleSizeLimit(_action, _params, targetPath, context) {
   if (!hasSizeLimitConfig(targetPath)) {
     // 没有预算配置 = 无事可做；以前顺手置 sizeLimitPassed = true 冒充「体积达标」。
-    return { status: 'noop', message: '包体积检查无需执行: 无 size-limit 配置' };
+    return { status: 'noop', reason: 'nothing-to-do', message: '包体积检查无需执行: 无 size-limit 配置' };
   }
 
   let isPassed = true;

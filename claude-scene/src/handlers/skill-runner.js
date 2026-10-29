@@ -146,12 +146,13 @@ export function handleInvokeSkill(_action, params, targetPath, context) {
   if (hasCliAlternative) {
     // 以前返回「已由对应 handler 执行」→ 引擎看到「已…执行」记 ✓ pass。
     // 但这里只是「有这个替代方案」，本步骤自己没执行任何东西 —— 那是另一个步骤的事。
-    return { status: 'noop', message: `Skill "${skillName}" 有 CLI 静态替代方案（由对应 handler 执行，本步骤不重复执行）` };
+    return { status: 'noop', reason: 'delegated', message: `Skill "${skillName}" 有 CLI 静态替代方案（由对应 handler 执行，本步骤不重复执行）` };
   }
 
   const skillPath = resolveSkillPath(skillName, targetPath);
   if (!skillPath || !existsSync(skillPath)) {
-    return { status: 'skip', message: `Skill "${skillName}" 跳过：本机没有它的 SKILL.md（对话模式下由 agent 直接调用）` };
+    // 原因照实写：本机没有这个 skill 的文件 = 缺依赖，不是「条件不满足」。
+    return { status: 'skip', reason: 'tool-missing', message: `Skill "${skillName}" 跳过：本机没有它的 SKILL.md（对话模式下由 agent 直接调用）` };
   }
 
   const content = readFileSync(skillPath, 'utf-8');
@@ -171,6 +172,9 @@ export function handleInvokeSkill(_action, params, targetPath, context) {
   // 实际没发生的「审查清单已加载并生效」。清单进了 context 供对话模式使用 = noop。
   return {
     status: 'noop',
+    // 判定权在处理器：这句本来就写着「具体执行需对话模式」，那就把原因也声明出来，
+    // 别让引擎只能记「处理器判为无事可做但没声明原因」。
+    reason: 'conversation-mode',
     message: `Skill "${displayName}" 参考内容已载入 context（${checklist.length} 项清单${modeNote ? `，${modeNote}` : ''}）— 具体执行需对话模式`,
   };
 }

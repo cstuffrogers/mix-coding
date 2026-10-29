@@ -684,7 +684,7 @@ export function handleOdTemplatePreview(_action, params, targetPath, context) {
   const exampleHtml = join(templateDir, 'example.html');
   if (!existsSync(exampleHtml)) {
     // 模板存在但没有可预览的内容 = 预览没发生，不是「预览完了」。
-    return { status: 'noop', message: `模板 "${templateId}" 没有可预览的示例` };
+    return { status: 'noop', reason: 'nothing-to-do', message: `模板 "${templateId}" 没有可预览的示例` };
   }
 
   const htmlContent = readFileSync(exampleHtml, 'utf-8');
@@ -913,7 +913,7 @@ export function handleOdDeckList(_action, _params, _targetPath, context) {
   }
   return decks.length > 0
     ? `open-design 演示文稿模板已展示（${decks.length} 个）`
-    : { status: 'noop', message: 'open-design 演示文稿模板目录为空（无可用模板）' };
+    : { status: 'noop', reason: 'nothing-to-do', message: 'open-design 演示文稿模板目录为空（无可用模板）' };
 }
 
 export function handleOdDeckLoad(_action, params, targetPath, context) {

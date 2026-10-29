@@ -13,7 +13,9 @@ import { applyEnhancements } from '../lib/enhancements.js';
 import { PROJECT_ROOT, resolveScenePath, describePaths } from '../lib/paths.js';
 import { detectHandlerFailure } from '../lib/failure-detection.js';
 import { snapshotFlags, stampFlagWrites } from '../lib/flag-stamp.js';
-import { warnKindLabel, skipReasonLabel, skipReasonFrom } from '../data/step-reasons.js';
+import {
+  warnKindLabel, skipReasonLabel, noopReasonLabel, skipReasonFrom, noopReasonFrom, warnKindFrom,
+} from '../data/step-reasons.js';
 import { autoDecisionLabel, autoDecisionOverride, isAutoDecisionId } from '../data/auto-decisions.js';
 import { checkAcceptance } from '../lib/acceptance-check.js';
 import { countMeasuredFindings } from '../lib/finding-count.js';
@@ -66,6 +68,50 @@ let STEP_OUTPUT_PATH = null;
 const FOLD_LINE_LIMIT = 6;
 let LOG_RUN_ID = null;
 let LOG_SUMMARY = { total: 0, pass: 0, fail: 0, skip: 0, noop: 0, warn: 0 };
+// 收尾分布统计的行来源：**从日志文件里读**，不在内存里另存一份。
+//
+// 为什么不用 context.stepResults：条件跳过 / 交互跳过 / 需求回答这三条路径走的是
+// appendLog 而不是 recordStepResult，它们从来不入 stepResults —— 于是「⏭ skip 细分」
+// 只覆盖 3 步，而计数行写着 skip: 19。同一个屏幕上两条线对不上账，比不给细分更糟
+// （读者会以为剩下的 16 步没有问题）。
+// 为什么也不在内存里另存一份 map：内存和日志会各自跑偏（漏写、重试改写），
+// 而屏幕上的事必须能从日志里核出来 —— 直接读日志就没这个第二真相。
+// 同一 step 多行（重试 / 条件重算）取最后一行：那就是它的终态。
+export function loggedStepRows(logPath = LOG_PATH) {
+  if (!logPath) return [];
+  let text;
+  try {
+    text = readFileSync(logPath, 'utf-8');
+  } catch {
+    // 读不到就当没有：调用方会回退到 context.stepResults，不编造分布。
+    return [];
+  }
+  const latest = new Map();
+  for (const line of text.split('\n')) {
+    if (!line) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue; // 半截行（写到一半崩了）不当作数据
+    }
+    // 终态事件没有 step；重试尝试行有 attempt，会和最终记录抢同一个 step。
+    if (entry?.event) continue;
+    if (entry?.attempt !== undefined) continue;
+    if (entry?.step === undefined || entry.step === null) continue;
+    if (typeof entry.status !== 'string') continue;
+    latest.set(String(entry.step), {
+      step: entry.step,
+      action: entry.action,
+      status: entry.status,
+      warnKind: entry.warn_kind || undefined,
+      skipReason: entry.reason || undefined,
+      noopReason: entry.noop_kind || undefined,
+      iteration: entry.iteration,
+    });
+  }
+  return [...latest.values()];
+}
 
 function initLog(sceneId) {
   const ts = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
@@ -680,6 +726,20 @@ function applyPostStepContext(step, context, sceneId) {
  * 以前它们混在「未通过 / 未执行的步骤」标题下面，一条 `Step 4 recall → noop` 看上去
  * 像第 4 步出了问题，让人去查一个根本不用查的步骤。
  */
+/**
+ * 分布行漏了步骤就得说出来。
+ *
+ * 计数行（warn/skip/noop）是权威，分布行是解释。两者对不上只有两种可能：
+ * 有步骤没带类别（或根本没被收集），或者收集逻辑漏了一条路径 —— 两种都得让
+ * 读者知道「你看到的分布不是全部」，否则「没列出来的」会被当成不存在。
+ */
+export function breakdownCoverageGap(breakdown, counts = {}) {
+  const categorized = (counts.warn || 0) + (counts.skip || 0) + (counts.noop || 0);
+  const counted = breakdown?.counted || 0;
+  if (categorized === 0 || counted >= categorized) return null;
+  return `⚠ warn/skip/noop 细分只覆盖 ${counted}/${categorized} 步 —— 其余没有类别记录，以计数行为准`;
+}
+
 export function describeNotPassSteps(stepResults, limit = 12, plannedIterations = 1) {
   const rows = (Array.isArray(stepResults) ? stepResults : [])
     .filter((r) => r && typeof r.status === 'string' && r.status !== 'pass');
@@ -690,6 +750,7 @@ export function describeNotPassSteps(stepResults, limit = 12, plannedIterations 
   const reasonOf = (r) => {
     if (r.status === 'warn') return warnKindLabel(r.warnKind);
     if (r.status === 'skip') return skipReasonLabel(r.skipReason);
+    if (r.status === 'noop') return noopReasonLabel(r.noopReason);
     return '';
   };
   const render = (r) => {
@@ -725,23 +786,26 @@ export function summaryMismatch(summary) {
  * 不用全局计数器：重试会把一条 fail 改写成 pass，计数器减不回来，
  * 分布就会和上面的计数打架 —— 那种不一致比不给细分更糟。
  */
-export function describeStatusBreakdown(stepResults) {
-  const rows = Array.isArray(stepResults) ? stepResults.filter(Boolean) : [];
-  const warnCounts = new Map();
-  const skipCounts = new Map();
+export function describeStatusBreakdown(stepResults) {  const rows = Array.isArray(stepResults) ? stepResults.filter(Boolean) : [];
+  const buckets = { warn: new Map(), skip: new Map(), noop: new Map() };
+  // 三个桶对应三个维度：warn 的来源 / 跳过的原因 / 无事可做的原因。
+  // 桶名只从 row 的类别字段读，不从文案猜。
+  const keys = { warn: 'warnKind', skip: 'skipReason', noop: 'noopReason' };
+  let counted = 0;
   for (const row of rows) {
-    if (row.status === 'warn') {
-      const key = row.warnKind || '';
-      warnCounts.set(key, (warnCounts.get(key) || 0) + 1);
-    } else if (row.status === 'skip') {
-      const key = row.skipReason || '';
-      skipCounts.set(key, (skipCounts.get(key) || 0) + 1);
-    }
+    const bucket = buckets[row.status];
+    if (!bucket) continue;
+    counted += 1;
+    const key = row[keys[row.status]] || '';
+    bucket.set(key, (bucket.get(key) || 0) + 1);
   }
   const render = (counts, label) => [...counts.entries()].map(([key, n]) => `${label(key) || '未分类'} ${n}`);
   return {
-    warn: render(warnCounts, warnKindLabel),
-    skip: render(skipCounts, skipReasonLabel),
+    warn: render(buckets.warn, warnKindLabel),
+    skip: render(buckets.skip, skipReasonLabel),
+    noop: render(buckets.noop, noopReasonLabel),
+    // 落进桶的行数：调用方拿它和计数行对账，才能发现「有步骤根本没收进来」。
+    counted,
   };
 }
 
@@ -827,7 +891,10 @@ export function buildEndLogEntry({ aborted = null, context = null } = {}) {
   return {
     event: 'end',
     status: aborted ? 'aborted' : 'completed',
-    reason: aborted || null,
+    // 第二十一轮：`reason` 只留给「这一步为什么不是 pass」（SKIP_REASONS 的词），
+    // 事件行的注解改走 event_reason —— 中止原因是中文散文，混进 reason 会让
+    // 「reason 的值必须出自词表」这条不变量失效。
+    event_reason: aborted || null,
     summary: { ...LOG_SUMMARY },
     completed_steps: (context?.completedSteps || []).length,
     iterations_planned: context?.iterationsPlanned || 1,
@@ -853,9 +920,15 @@ function printSummary(sceneId, context = null, { aborted = null } = {}) {
   // 计数行只说了「几个」，下面三行说「为什么」—— 细分和计数分开打，
   // 老的计数行格式不动（有测试和用户习惯都读它）。
   printAutoDecisions(context);
-  const breakdown = describeStatusBreakdown(context?.stepResults);
+  // 分布必须覆盖全部步骤行：以前只统计 context.stepResults，而条件跳过 /
+  // 交互跳过走的是 appendLog 不进 stepResults —— 细分只盖住 3 步，计数行却写 19。
+  const rows = loggedStepRows();
+  const breakdown = describeStatusBreakdown(rows.length > 0 ? rows : context?.stepResults);
   if (breakdown.warn.length > 0) console.log(chalk.yellow(`  ⚡ warn 细分: ${breakdown.warn.join(' / ')}`));
   if (breakdown.skip.length > 0) console.log(chalk.gray(`  ⏭ skip 细分: ${breakdown.skip.join(' / ')}`));
+  if (breakdown.noop.length > 0) console.log(chalk.gray(`  ○ noop 细分: ${breakdown.noop.join(' / ')}`));
+  const uncovered = breakdownCoverageGap(breakdown, LOG_SUMMARY);
+  if (uncovered) console.log(chalk.yellow(`  ${uncovered}`));
   const mismatch = summaryMismatch(LOG_SUMMARY);
   if (mismatch) {
     console.log(chalk.yellow(`  ⚠ 汇总不自洽: total=${mismatch.total} 但分项合计=${mismatch.sum}（差 ${mismatch.diff}，有步骤被记了两次或漏记）`));
@@ -974,7 +1047,9 @@ export function buildRetryLogEntry({ step, status, attempt, durationMs, resultSt
     action: step.action,
     status,
     attempt,
-    reason: 'retry',
+    // 重试行是事件注解，不是「跳过原因」：以前写 reason: 'retry'，而 'retry'
+    // 不在 SKIP_REASONS 里 —— 同一个字段一半是词表值一半是自由文本。
+    event_reason: 'retry',
     iteration: context?.iteration || 1,
     duration_ms: durationMs,
     result: String(resultStr ?? '').slice(0, 200),
@@ -1260,6 +1335,25 @@ export async function handleInteractiveStep(sceneId, step, context, options) {
 // eslint-disable-next-line sonarjs/super-linear-regex -- /no\s+.*?found/i 是原有兜底规则
 const NOOP_RES = [/不可用/i, /未安装/, /未找到/, /not found/i, /not available/i, /已?跳过/, /no\s+.*?found/i];
 
+/**
+ * 正则分支上的 noop 归类。**这只是猜**（处理器没布 status，引擎只能看文案），
+ * 所以猜不出具体哪一种就返回 'heuristic' 而不是编一个像模像样的类别。
+ * 顺序即优先级：先认「环境里没有这个工具」，再认「已经做过了」，最后才是「无对象」。
+ */
+const NOOP_HINTS = [
+  ['tool-missing', /未安装|not found|not available|不可用/i],
+  ['conversation-mode', /对话模式|需人工回答|需要人回答/],
+  ['already-done', /已存在|已是最新|无需|already/i],
+  ['nothing-to-do', /未找到/],
+];
+function guessNoopReason(resultStr) {
+  if (saysNothingToCheck(resultStr)) return 'nothing-to-do';
+  for (const [reason, re] of NOOP_HINTS) {
+    if (re.test(resultStr)) return reason;
+  }
+  return 'heuristic';
+}
+
 // 「无 X 目录 / 无配置文件」＝没事可做。以前写成 `/无[^]*?[目录配置]/`：能跨 200 多字，
 // 于是「无问题（扫描 215 个源码文件）」里只要有「无」+ 后面碰到目/录/配/置 任何一个字，
 // 扫了一天的活儿就被记成 noop。这里用有界扫描替代正则（也让 sonar 的回溯告警消失）。
@@ -1362,7 +1456,9 @@ export function deriveStepStatus(result, context) {
   }
   const isNoop = NOOP_RES.some(re => re.test(resultStr)) || saysNothingToCheck(resultStr);
   const isWarn = !isNoop && hasWarnResult(resultStr);
-  if (isNoop) return { resultStr, stepStatus: 'noop' };
+  // 这一整支都是正则猜的（处理器没布 status），所以类别也只敢标到「像什么」：
+  // 猜不出具体哪一种就诚实地写 heuristic，不硬塞一个看着可信的类别。
+  if (isNoop) return { resultStr, stepStatus: 'noop', noopReason: guessNoopReason(resultStr) };
   // 这一条是正则猜的：处理器没布 status，引擎只能看文案。类目标成 heuristic，
   // 读者才知道「该去让处理器布 status」，而不是「报告里有发现」。
   if (isWarn) return { resultStr, stepStatus: 'warn', warnKind: 'heuristic' };
@@ -1410,9 +1506,17 @@ export function normalizeStepStatus(status) {
   return STATUS_ALIASES.get(key) ?? 'warn';
 }
 
-/** 处理器显式给了 warn：是「真说有发现」，还是「status 词我们不认识」？ */
+/**
+ * 处理器显式给了 warn：是「真说有发现」、是「它自己声明的类别」，还是「status 词我们不认识」？
+ *
+ * 第二十一轮：判定权回到处理器 —— 它能布 `warnKind` 就说清「这是发现」还是
+ * 「我的证据过期了」，引擎不再拿 status 词反推。只认词表内的值，词表外的
+ * 记 unknown-declared 并保留原词（写错词 ≠ 没声明）。
+ */
 const FINDINGS_STATUSES = new Set(['warn', 'warning', 'partial', 'issues']);
 function explicitWarnKind(result) {
+  const declared = warnKindFrom(result);
+  if (declared.kind) return declared.kind;
   const raw = typeof result?.status === 'string' ? result.status.trim().toLowerCase() : '';
   return FINDINGS_STATUSES.has(raw) ? 'findings' : 'unknown-status';
 }
@@ -1440,6 +1544,11 @@ function declaredStepStatus(result, resultStr) {
     // 处理器说「跳过」但没说是哪类 —— 记成「没说原因」，不按文案猜类别。
     return { resultStr, stepStatus: 'skip', skipReason: skipReasonFrom(result).reason };
   }
+  if (explicit === 'noop') {
+    // noop 同样要说得出来为什么无事可做：以前只记个数字，读者分不清是
+    // 「东西已经是最新」还是「缺工具」。
+    return { resultStr, stepStatus: 'noop', noopReason: noopReasonFrom(result).reason };
+  }
   return { resultStr, stepStatus: explicit };
 }
 
@@ -1458,8 +1567,11 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context, m
     step: stepNum, action: step.action, status, iteration: context.iteration || 1,
     duration_ms: duration, result: resultStr.slice(0, 200),
     // 「为什么不是 pass」必须落在日志里：屏幕上的 warn: 3 只说了几个，没说是哪种。
+    // 三个字段对应三种维度：warn 的来源 / 跳过的原因 / 无事可做的原因。
+    // 都用同一列 reason 会把三种词汇搅在一起（retry、needs-answer 也挤进来过）。
     warn_kind: (status === 'warn' && meta.warnKind) || null,
     reason: (status === 'skip' && meta.skipReason) || null,
+    noop_kind: (status === 'noop' && meta.noopReason) || null,
     time: new Date().toISOString(),
   });
   // Track per-step { action, status } for the acceptance reviewed-check gate.
@@ -1470,6 +1582,7 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context, m
     step: stepNum, action: step.action, status, detail: clipDetail(resultStr), iteration: context.iteration || 1,
     warnKind: (status === 'warn' && meta.warnKind) || undefined,
     skipReason: (status === 'skip' && meta.skipReason) || undefined,
+    noopReason: (status === 'noop' && meta.noopReason) || undefined,
   });
 }
 
@@ -1485,7 +1598,7 @@ function abortForAwaitingAnswer(sceneId, step, context, { counted = false } = {}
   const awaiting = context._awaitingAnswer;
   delete context._awaitingAnswer;
   if (!counted) { LOG_SUMMARY.total++; LOG_SUMMARY.fail++; }
-  appendLog({ step: step.step, action: step.action, status: 'fail', reason: 'needs-answer', detail: awaiting.label, time: new Date().toISOString() });
+  appendLog({ step: step.step, action: step.action, status: 'fail', event_reason: 'needs-answer', detail: awaiting.label, time: new Date().toISOString() });
   reportAwaitingAnswer(awaiting, step.step);
   printSummary(sceneId, context, { aborted: `Step ${step.step} ${step.action} 需要用户回答，非交互环境下无人可问` });
   process.exit(2);
@@ -1568,7 +1681,9 @@ export function recordInteractiveStep(step, context) {
     step: step.step,
     action: step.action,
     status: answered ? 'pass' : 'skip',
-    reason: answered ? 'interactive-answered' : 'interactive',
+    // 答过了：那是「这步发生了什么」的注解（event_reason）；
+    // 没人答：这才是标准的跳过原因（reason，词表里的 'interactive'）。
+    ...(answered ? { event_reason: 'interactive-answered' } : { reason: 'interactive' }),
     detail,
     time: new Date().toISOString(),
   };
@@ -1661,8 +1776,8 @@ async function runStep(sceneId, step, context, options) {
   // 谁都能把问题写进 context._awaitingAnswer，这里统一中止去问，不替用户挑一个。
   if (context._awaitingAnswer) abortForAwaitingAnswer(sceneId, step, context);
 
-  const { resultStr, stepStatus, warnKind, skipReason } = deriveStepStatus(result, context);
-  recordStepResult(step, stepNum, stepStatus, duration, resultStr, context, { warnKind, skipReason });
+  const { resultStr, stepStatus, warnKind, skipReason, noopReason } = deriveStepStatus(result, context);
+  recordStepResult(step, stepNum, stepStatus, duration, resultStr, context, { warnKind, skipReason, noopReason });
 
   // 以前无论状态如何都走 spinner.succeed + chalk.green —— 失败的步骤也打绿色 ✔，
   // 只有最后的汇总行才露出 ✗ fail，逐步输出全是假绿。

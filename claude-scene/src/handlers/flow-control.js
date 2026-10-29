@@ -74,7 +74,7 @@ export function handleDocsUpdate(_action, _params, targetPath) {
   let readme = readFileSync(readmePath, 'utf-8');
   const date = new Date().toISOString().split('T', 1)[0];
   if (readme.includes('Last updated:')) {
-    return { status: 'noop', message: '文档无需更新（README 已有 Last updated 行）' };
+    return { status: 'noop', reason: 'already-done', message: '文档无需更新（README 已有 Last updated 行）' };
   }
   readme += `\n\n---\n\nLast updated: ${date}\n`;
   writeFileSync(readmePath, readme);
@@ -104,7 +104,7 @@ export function handleGenerateEnv(_action, _params, targetPath) {
     return { status: 'skip', message: '.env.example 缺失，未生成 .env（不是通过）' };
   }
   if (existsSync(envPath)) {
-    return { status: 'noop', message: '.env 已存在，无需生成（不覆盖已有文件）' };
+    return { status: 'noop', reason: 'already-done', message: '.env 已存在，无需生成（不覆盖已有文件）' };
   }
   const content = readFileSync(envExample, 'utf-8');
   writeFileSync(envPath, content, 'utf-8');
@@ -125,6 +125,7 @@ export function handleStartDevServer(_action, params, targetPath, context) {
   if (context) context.dev_server_command = `npm run dev${portArg}`;
   return {
     status: 'noop',
+    reason: 'conversation-mode',
     message: `开发服务器未由引擎启动（需在对话模式后台运行：npm run dev${portArg}）`,
   };
 }
@@ -285,7 +286,7 @@ const CE_HANDOFF = '—— 交接类步骤，引擎不执行（不计为通过�
 const CE_CANNOT_RUN = '—— 本环境跑不了，动作未执行（不是通过）';
 
 function ceOutcome(ceAvailable, executed) {
-  if (executed) return { status: 'noop', base: '交给对话模式的 agent 执行', tail: CE_HANDOFF };
+  if (executed) return { status: 'noop', reason: 'delegated', base: '交给对话模式的 agent 执行', tail: CE_HANDOFF };
   if (ceAvailable) return { status: 'skip', base: 'CE Plugin 已安装，但需对话模式才能跑', tail: CE_CANNOT_RUN };
   return { status: 'skip', base: 'CE Plugin 未安装', tail: CE_CANNOT_RUN };
 }

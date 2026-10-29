@@ -153,7 +153,7 @@ export function handleGenerateChangeLog(_action, _params, targetPath, context) {
       context.changelogGenerated = false;
       context.commitCount = 0;
     }
-    return { status: 'noop', message: '无提交记录，未生成变更日志（无需生成）' };
+    return { status: 'noop', reason: 'nothing-to-do', message: '无提交记录，未生成变更日志（无需生成）' };
   }
 
   const content = generateChangelog(commits, tag, targetPath);

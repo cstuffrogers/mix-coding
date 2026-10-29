@@ -88,6 +88,8 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
     const result = handleDetectorReport('detectorReport', {}, root, {});
 
     expect(result.status).toBe('warn');
+    // 空守卫是真发现：读者该去修守卫
+    expect(result.warnKind).toBe('findings');
     expect(result.message).toContain('守卫是空的');
     expect(result.message).toContain('围栏：零通过');
   });
@@ -97,14 +99,18 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
     const result = handleDetectorReport('detectorReport', {}, root, {});
 
     expect(result.status).toBe('warn');
+    expect(result.warnKind).toBe('findings');
     expect(result.message).toContain('注入点已过期');
   });
 
-  it('HEAD 变了 → warn「已过期」，不拿旧结论充数', () => {
+  it('HEAD 变了 → warn「已过期」，类别是证据过期（不是「有发现」）', () => {
     writeReport({ ...clean, gitSha: 'ffffffff00000000' });
     const result = handleDetectorReport('detectorReport', {}, root, {});
 
     expect(result.status).toBe('warn');
+    // 第二十一轮：这条不是发现，是要人重跑一次自检 —— 算成 findings
+    // 读者会跑去报告里找那 0 条。判定权在处理器，引擎不再按文案猜。
+    expect(result.warnKind).toBe('stale-evidence');
     expect(result.message).toContain('已过期');
     expect(result.message).toContain('fffffff');
   });
@@ -118,11 +124,12 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
     expect(result.message).toContain('12/12');
   });
 
-  it('产物是在有未提交改动时跑的 → warn', () => {
+  it('产物是在有未提交改动时跑的 → warn（证据过期，不是发现）', () => {
     writeReport({ ...clean, workingTreeDirty: true });
     const result = handleDetectorReport('detectorReport', {}, root, {});
 
     expect(result.status).toBe('warn');
+    expect(result.warnKind).toBe('stale-evidence');
     expect(result.message).toContain('未提交改动');
   });
 
@@ -144,7 +151,17 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
     const result = handleDetectorReport('detectorReport', {}, root, {});
 
     expect(result.status).toBe('warn');
+    expect(result.warnKind).toBe('stale-evidence');
     expect(result.message).toContain('没有 gitSha');
+  });
+
+  it('passed ≠ total → 证据自相矛盾（既不是发现也不是过期，是产物坏了）', () => {
+    writeReport({ ...clean, passed: 9 });
+    const result = handleDetectorReport('detectorReport', {}, root, {});
+
+    expect(result.status).toBe('warn');
+    expect(result.warnKind).toBe('inconsistent-evidence');
+    expect(result.message).toContain('自相矛盾');
   });
 });
 

@@ -94,6 +94,19 @@ describe('分布统计按最终状态现算', () => {
     const b = describeStatusBreakdown(rows);
     expect(b.warn).toEqual(['有发现 2', '返回对象没布 status 1']);
     expect(b.skip).toEqual(['条件不满足 1', '处理器判为跳过但没声明原因 2']);
+    // 第二十一轮新增 noop 桶：没布 noopReason 的老记录标「未分类」。
+    expect(b.noop).toEqual(['未分类 1']);
+    // counted = 落进桶的行数（warn 3 + skip 3 + noop 1），调用方拿它和计数行对账。
+    expect(b.counted).toBe(7);
+  });
+
+  it('noop 也要说得出为什么无事可做', () => {
+    const rows = [
+      { status: 'noop', noopReason: 'already-done' },
+      { status: 'noop', noopReason: 'tool-missing' },
+      { status: 'noop', noopReason: 'tool-missing' },
+    ];
+    expect(describeStatusBreakdown(rows).noop).toEqual(['已经是最新 / 已存在，不用再做 1', '缺工具或依赖 2']);
   });
 
   it('重试把 warn 改成 pass 后，分布跟着变（不用减不回来的计数器）', () => {
@@ -105,9 +118,9 @@ describe('分布统计按最终状态现算', () => {
     expect(describeStatusBreakdown([{ status: 'warn' }]).warn).toEqual(['未分类 1']);
   });
 
-  it('没有 warn / skip 时给空数组（调用方据此决定打不打这行）', () => {
-    expect(describeStatusBreakdown([{ status: 'pass' }])).toEqual({ warn: [], skip: [] });
-    expect(describeStatusBreakdown(null)).toEqual({ warn: [], skip: [] });
+  it('没有 warn / skip / noop 时给空数组（调用方据此决定打不打这行）', () => {
+    expect(describeStatusBreakdown([{ status: 'pass' }])).toEqual({ warn: [], skip: [], noop: [], counted: 0 });
+    expect(describeStatusBreakdown(null)).toEqual({ warn: [], skip: [], noop: [], counted: 0 });
   });
 });
 

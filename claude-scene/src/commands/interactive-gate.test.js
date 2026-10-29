@@ -387,7 +387,10 @@ describe('recordInteractiveStep：答过 ≠ 跳过', () => {
     const context = { withSweep: true, _stepDecision: 'run' };
     const entry = recordInteractiveStep({ step: 2.68, action: 'askUser', params: { context_flag: 'withSweep' } }, context);
     expect(entry.status).toBe('pass');
-    expect(entry.reason).toBe('interactive-answered');
+    // 第二十一轮：`reason` 只装 SKIP_REASONS 的词（「这步为什么不是 pass」）。
+    // 答过了不是跳过原因，是「这步发生了什么」的注解 —— 改落到 event_reason。
+    expect(entry.event_reason).toBe('interactive-answered');
+    expect(entry.reason).toBeUndefined();
     expect(entry.detail).toBe('withSweep=true');
     expect(context._stepDecision).toBeUndefined();
   });

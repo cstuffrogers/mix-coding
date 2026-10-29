@@ -196,8 +196,11 @@ describe('重试的账：日志带轮次，「成功」只留给真的跑成', (
       step: STEP, status: 'fail', attempt: 2, durationMs: 12, resultStr: 'x', context: { iteration: 3 },
     });
     expect(entry).toMatchObject({
-      step: 7, action: 'runSuite', status: 'fail', attempt: 2, iteration: 3, reason: 'retry', duration_ms: 12, result: 'x',
+      // 第二十一轮：重试是事件注解，不是「跳过原因」——以前写 reason:'retry'，
+      // 而 'retry' 不在 SKIP_REASONS 里，同一个字段一半词表值一半自由文本。
+      step: 7, action: 'runSuite', status: 'fail', attempt: 2, iteration: 3, event_reason: 'retry', duration_ms: 12, result: 'x',
     });
+    expect(entry.reason).toBeUndefined();
     expect(typeof entry.time).toBe('string');
   });
 

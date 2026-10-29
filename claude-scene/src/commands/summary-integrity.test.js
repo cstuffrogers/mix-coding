@@ -94,12 +94,15 @@ describe('中止的证据：日志有终点，屏幕有已完成的步骤', () =
     const aborted = buildEndLogEntry({ aborted: '验收阻断：变更未通过验证', context: { completedSteps: [1, 2, 3] } });
     expect(aborted.event).toBe('end');
     expect(aborted.status).toBe('aborted');
-    expect(aborted.reason).toContain('验收阻断');
+    // 第二十一轮：`reason` 只装 SKIP_REASONS 的词（「这步为什么不是 pass」）；
+    // 中止原因是中文散文，混进去会让「reason 必须出自词表」这条不变量失效。
+    expect(aborted.event_reason).toContain('验收阻断');
+    expect(aborted.reason).toBeUndefined();
     expect(aborted.completed_steps).toBe(3);
     expect(aborted.summary).toMatchObject({ total: expect.any(Number), pass: expect.any(Number) });
     const done = buildEndLogEntry({ context: null });
     expect(done.status).toBe('completed');
-    expect(done.reason).toBeNull();
+    expect(done.event_reason).toBeNull();
     expect(done.completed_steps).toBe(0);
     expect(done.iterations_planned).toBe(1);
   });

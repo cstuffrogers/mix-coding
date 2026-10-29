@@ -12,7 +12,7 @@ export function handleMeasureBaseline(_action, params, _targetPath, context) {
 
   if (context) context.performance_baseline = baseline;
   // 所有指标都是 device_required（真机才能测），以前却报「测量完成（5 项指标）」→ ✓ pass。
-  return { status: 'noop', message: `性能基线未测量：${metrics.length} 项指标都需要真机` };
+  return { status: 'noop', reason: 'tool-missing', message: `性能基线未测量：${metrics.length} 项指标都需要真机` };
 }
 
 export function handleAnalyzeBundle(_action, params, targetPath, context) {
@@ -21,7 +21,7 @@ export function handleAnalyzeBundle(_action, params, targetPath, context) {
   // 场景声明了 `tool: "auto"`（mobile-optimize#3）：引擎不执行它，但结论里必须
   // 说清「该用什么工具去做」，否则这个声明就永远不会被人看到。
   const tool = typeof params?.tool === 'string' && params.tool ? params.tool : '（未声明）';
-  return { status: 'noop', message: `Bundle 未分析（CLI 不执行，需在对话模式由 agent 完成，工具: ${tool}）` };
+  return { status: 'noop', reason: 'conversation-mode', message: `Bundle 未分析（CLI 不执行，需在对话模式由 agent 完成，工具: ${tool}）` };
 }
 
 export function handleAnalyzeAssets(_action, _params, targetPath, context) {
@@ -117,6 +117,7 @@ export function handleExecuteOptimize(_action, params, _targetPath, context) {
   const manualNote = needsDevice.length ? `；另有 ${needsDevice.length} 项需要人工确认（${needsDevice.join('、')}）` : '';
   return {
     status: 'noop',
+    reason: 'delegated',
     message: `优化未执行：本步只列出 ${candidates.length} 项待做建议（${candidates.join('、')}），没有修改任何代码${manualNote}`,
   };
 }
@@ -134,6 +135,7 @@ export function handleRemeasure(_action, _params, _targetPath, context) {
   const scope = unmeasured.length ? `（${unmeasured.join(', ')} 仍无实测值）` : '（本次没有性能基线可对比）';
   return {
     status: 'noop',
+    reason: 'tool-missing',
     message: `优化后指标未重新测量${scope}：真机/模拟器数据 CLI 拿不到，需要人工或对话模式重测后再填 performance_baseline`,
   };
 }

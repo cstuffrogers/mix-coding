@@ -596,7 +596,7 @@ export function handleListMemories(_action, params, targetPath) {
 
 export function handleAutoRemember(_action, _params, targetPath, context) {
   if (context?._memorySaved) {
-    return { status: 'noop', message: '自动记忆无需执行（显式保存已完成）' };
+    return { status: 'noop', reason: 'already-done', message: '自动记忆无需执行（显式保存已完成）' };
   }
 
   const scope = projectScope(targetPath);
@@ -641,7 +641,7 @@ export function handleAutoRemember(_action, _params, targetPath, context) {
   const skipNote = skipped > 0 ? `，${skipped} 个后端命中相同内容未重复写入` : '';
   if (count === 0 && skipped > 0) {
     // 一家后端都没写 = 没有真正发生的事，以前这一步记 ✓ pass。
-    return { status: 'noop', message: `自动记忆未新增（内容与最近记录相同${skipNote}，类型: ${workflowType}）${pruneNote}` };
+    return { status: 'noop', reason: 'already-done', message: `自动记忆未新增（内容与最近记录相同${skipNote}，类型: ${workflowType}）${pruneNote}` };
   }
   return `自动记忆已保存 (${count} 后端${skipNote}, 类型: ${workflowType})${pruneNote}`;
 }

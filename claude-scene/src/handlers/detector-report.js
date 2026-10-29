@@ -36,13 +36,15 @@ function checkShape(data) {
 
 function readReport(targetPath) {
   const file = latestReportFile(reportBase(targetPath));
-  if (!file) return { data: null, file: null, problem: `没有探测器自检记录（${REPORTS_DIR}/${PREFIX}<stamp>.json）` };
+  // 类别在这里就该定下来：下面三种情况上游看到的只是 problem 文案，
+  // 让上游按文案猜类别就是第四轮修掉的那种「靠正则猜结论」。
+  if (!file) return { data: null, file: null, problem: `没有探测器自检记录（${REPORTS_DIR}/${PREFIX}<stamp>.json）`, reason: 'input-missing' };
   try {
     const data = JSON.parse(readFileSync(file, 'utf-8'));
     const problem = checkShape(data);
-    return problem ? { data: null, file, problem } : { data, file, problem: null };
+    return problem ? { data: null, file, problem, reason: 'input-invalid' } : { data, file, problem: null };
   } catch {
-    return { data: null, file, problem: '自检记录不是合法 JSON' };
+    return { data: null, file, problem: '自检记录不是合法 JSON', reason: 'input-invalid' };
   }
 }
 
@@ -80,22 +82,27 @@ function freshnessOf(data, head) {
   return null;
 }
 
-/** 按「严重 → 轻微」返回第一条该报的问题；没有则 null */
+/** 按「严重 → 轻微」返回第一条该报的问题；没有则 null
+ *
+ * 第二十一轮：每条 warn 自己声明类别。以前它们全被打成「有发现」——「记录来自
+ * abc123，当前 HEAD 是 def456」不是发现，是要人重跑一次自检；算成发现，
+ * 读者会跑去报告里找那 0 条。判定权在处理器，不在引擎按文案猜。
+ */
 function verdictOf(data, { head, dirty }) {
   if (data.stale.length > 0) {
-    return { status: 'warn', message: `${data.stale.length} 条用例的注入点已过期（守卫可能和代码脱节）：${data.stale.join('；')}` };
+    return { status: 'warn', warnKind: 'findings', message: `${data.stale.length} 条用例的注入点已过期（守卫可能和代码脱节）：${data.stale.join('；')}` };
   }
   if (data.failed.length > 0) {
-    return { status: 'warn', message: `${data.failed.length} 个守卫是空的（注入违规后仍然绿）：${data.failed.join('；')}` };
+    return { status: 'warn', warnKind: 'findings', message: `${data.failed.length} 个守卫是空的（注入违规后仍然绿）：${data.failed.join('；')}` };
   }
   if (data.passed !== data.total) {
-    return { status: 'warn', message: `自检记录自相矛盾：passed=${data.passed} / total=${data.total}` };
+    return { status: 'warn', warnKind: 'inconsistent-evidence', message: `自检记录自相矛盾：passed=${data.passed} / total=${data.total}` };
   }
   if (dirty) {
-    return { status: 'warn', message: `自检是在有未提交改动的工作区跑的（${data.passed}/${data.total} 有效），结论未必对应当前代码` };
+    return { status: 'warn', warnKind: 'stale-evidence', message: `自检是在有未提交改动的工作区跑的（${data.passed}/${data.total} 有效），结论未必对应当前代码` };
   }
   const stale = freshnessOf(data, head);
-  return stale ? { status: 'warn', message: stale } : null;
+  return stale ? { status: 'warn', warnKind: 'stale-evidence', message: stale } : null;
 }
 
 function workingTreeDirty(targetPath) {
@@ -132,11 +139,12 @@ export function handleDetectorReport(_action, _params, targetPath, context) {
   if (sweep === 'skip-dirty') {
     return {
       status: 'warn',
+      warnKind: 'stale-evidence',
       message: '工作区有未提交改动，跳过现场自检（脏着跑出来的记录一样不可信）—— 提交或 git stash 后重跑',
     };
   }
 
-  const { data, problem } = readReport(root);
+  const { data, problem, reason } = readReport(root);
 
   if (!data) {
     // 第十一轮：以前还写了 detectorSweepReported / detectorSweepProblem，两个键无人读
@@ -145,11 +153,11 @@ export function handleDetectorReport(_action, _params, targetPath, context) {
     // 第十一轮补：本轮现场自检刚跑过却读不到产物 ≠ 从来没跑过。以前一律提示
     // 「跑 npm run detector:sweep 生成」—— 读者刚刚才让它跑过，等于把人绕回原地。
     if (sweep === 'ran') {
-      return { status: 'skip', message: `本轮现场自检没有产出可用记录：${problem} —— 看 detector-sweep 自己的输出；这不是通过` };
+      return { status: 'skip', reason, message: `本轮现场自检没有产出可用记录：${problem} —— 看 detector-sweep 自己的输出；这不是通过` };
     }
     // --skip-sweep 是用户的明确表态：别再劝他跑一次，把表态说出来
     const skippedByUser = context?.sweepDecision === 'skip' ? '（本轮按 --skip-sweep 未跑自检）' : '';
-    return { status: 'skip', message: `${problem} —— 守卫是否真的会红，本轮未验（${HINT}）${skippedByUser}` };
+    return { status: 'skip', reason, message: `${problem} —— 守卫是否真的会红，本轮未验（${HINT}）${skippedByUser}` };
   }
 
   const issue = verdictOf(data, {

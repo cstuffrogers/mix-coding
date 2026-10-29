@@ -2885,3 +2885,126 @@ skip 同理 11 类：`condition` / `unjudged` / `user` / `interactive` / `not-ap
 - **`fix-gate-flags` 当年的删除是对的**，所以修的是描述，不是把能力加回来。
 - **`--auto` 的自主决定必须「登记 + 打印 + 落日志」三件齐全**：只有打印没日志 = 事后查不到；
   只有日志没打印 = 用户当场不知道。
+
+---
+
+## 第二十一轮 · 四个维度：一列只装一种词汇、noop 也要说原因、分布必须能对上计数、warn 类别交给处理器
+
+起点：第二十轮把「为什么不是 pass」做成词表后，屏幕上仍有两处说不清：`noop: 4` 没有细分，
+`⏭ skip 细分: 条件不满足 16 / 处理器判为跳过但没声明原因 3` 里那 3 个是我自己写的 `skip`
+—— 词表建好了，布线没跟上；还有一处埋得更深：**细分只盖了 19 步里的 3 步**。
+
+### 维度①：`reason` 这一列只装跳过原因（`src/commands/start.js`）
+
+审计发现同一个 `reason` 键被三种东西共用：跳过原因（词表内）、事件注解（`'retry'`、
+`'needs-answer'`）、交互标注。后果是「词表外 = 处理器写错」的静态守卫会把引擎自己写的事件
+注解当成拼错，也让读者无法判断某行 `reason` 该不该出现在词表里。
+
+- `buildRetryLogEntry` → `event_reason: 'retry'`；`buildEndLogEntry` → `event_reason: aborted || null`；
+  `abortForAwaitingAnswer` → `event_reason: 'needs-answer'`；
+  `recordInteractiveStep` → 已答 `event_reason: 'interactive-answered'`，未答 `reason: 'interactive'`（真跳过）。
+- 循环停止原因显式成表 `STOP_REASONS`（6 项，**不进日志**）：它是控制流的判断，不是某一步的结局。
+- 守卫测试：`reason:` 字面量必须 ∈ `SKIP_REASONS`；`event_reason` 只允许三个已知值；
+  同一行不许同时出现两者。
+
+### 维度②：noop 也要说原因（`NOOP_REASONS` 7 类 + 处理器布线）
+
+`noop` 是「没人可做的事」，和 `skip`（判不了）本来是两件不同的事，第二十轮之前还混在一起。
+现在单列了，但屏幕上只有 `⚠ noop: 4` —— 读者不知道那 4 步是「已经做完了」还是「这事派给别人了」。
+
+- `NOOP_REASONS`：`already-done` / `nothing-to-do` / `conversation-mode` / `delegated` /
+  `tool-missing`（与 skip 同义同标签「缺工具或依赖」）/ `undeclared` / `heuristic`。
+- `recordStepResult` 写 `noop_kind` + `stepResults.noopReason`；收尾多一行
+  `○ noop 细分: …`；覆盖不全时由 `breakdownCoverageGap` 打黄字点名差额。
+- **处理器布线（本轮新增 ~45 处）**：只挑「文案已经明说类别」的那些逐行加 `reason:`，
+  猜不准的一律留 `undeclared`（错的类别比「没声明」更难查）。典型：
+  `ceo-review` 的「交给对话模式的 agent」→ `conversation-mode`；`issues` / `quality` 的
+  「已经做过」→ `already-done`；`qa` / `mobile/audit` 的「缺 gh / 缺 xcrun」→ `tool-missing`。
+- 新静态守卫（`log-schema.test.js`）：扫 `handlers/**/*.js`，`status: 'noop'` 起 4 行窗口里的
+  `reason:` 必须 ∈ `NOOP_REASONS` —— 词表外的值以前会在运行期被悄悄降级成 `undeclared`。
+
+### 维度③：细分必须覆盖全部日志行，不能只盖内存里的 `stepResults`
+
+关键取证：`describeStatusBreakdown(context?.stepResults)` 只拿到 3 步，计数行却写
+`skip: 19`。原因是**条件跳过走 `appendLog` 直写、交互跳过走 `recordInteractiveStep`，
+两者从不进 `stepResults`** —— 细分与计数天生对不上，而屏幕上什么也没说。
+
+- 放弃「再建一份内存账」，改为 `loggedStepRows(logPath = LOG_PATH)` **直接读日志文件**：
+  逐行 `JSON.parse`，跳过 `entry.event` / 重试行 / 无 step / 非 string status，同一 step 最后一行胜出。
+  理由：内存账和日志会各自跑偏，「屏幕上说的事必须能从日志里核出来」，顺带能发现漏写盘。
+  读不到 → `[]`，调用方回落 `context.stepResults`，**绝不编造分布**。
+- `breakdownCoverageGap(breakdown, counts)`：覆盖不全就打黄字
+  `⚠ warn/skip/noop 细分只覆盖 X/Y 步 —— 其余没有类别记录，以计数行为准`，
+  否则「没列出来的」会被默认当成不存在。
+- `breakdown-coverage.test.js`（10 条）：临时日志 fixture 覆盖「条件跳过/交互跳过也算一步」
+  「重试行与终态事件行不抢账」「warn_kind / reason / noop_kind 各回各位」「半截行与缺文件不编造」
+  「3/19 点名差额」「三项全 0 不打印」；另含 **aborted 守卫**：按花括号深度切出 `if (aborted) {…}`，
+  断言三行细分出现在块结束之后、块内没有 `return` / `process.exit`（提前退出 = 收尾少打三行）。
+
+### 维度④：warn 的类别也可以由处理器声明（`warnKindFrom`）
+
+`detectorReport` 以前把三种完全不同的事都说成「warn 有发现」：报告里有 failed / stale、
+证据对不上当前 HEAD、工作区脏。前一种是真发现，后两种是「记录过期了，得重跑自检」。
+
+- `WARN_KINDS` +3：`stale-evidence`（证据过期）/ `inconsistent-evidence`（自相矛盾）/
+  `unknown-declared`（处理器写了词表外的类别，保留原词）。
+- `warnKindFrom(result, fallback)`：处理器布了词表内的 `warnKind` 就照抄，否则回落引擎判定。
+- `verdictOf` 四支全部带 `warnKind`：`stale-evidence`（HEAD 不符/工作区脏/无 gitSha）、
+  `inconsistent-evidence`（`passed ≠ total`）、`findings`（有 failed/stale）。
+  屏幕：`Step 2.7 detectorReport → warn（证据过期（对不上当前代码））`。
+- 语义底线：**「记录来自 abc123，当前 HEAD 是 def456」不是发现，是要人重跑自检** ——
+  把它算进「有发现」会让收敛判断以为代码有问题。
+
+### 收尾补的三处「处理器没声明原因」（真跑查出来的）
+
+不是本轮新引入的，是湿跑/真跑把「handler-skip」暴露出来后才补的：
+- `skill-runner.js`：本机没有 SKILL.md → `tool-missing`（review 里 3 个 `invokeSkill`）。
+- `detector-report.js`：`readReport` 自己知道是「没有记录」还是「记录坏了」，就顺手返回
+  `reason`（`input-missing` / `input-invalid`）—— 别再让上游按文案猜类别。
+- `review.js`：`classifyLintOutput` 拆开「缺配置」（`input-missing`）与「缺模块」（`tool-missing`）；
+  `runReview` 全部子检查都没跑成时，用 `commonSkipReason(checks)` 取共同原因，
+  **有子检查没声明就不替它编**。
+
+### 验收三元组
+
+1. **变更**：`data/step-reasons.js`、`commands/start.js`、`handlers/detector-report.js` +
+   19 个 handler（ceo-review / changelog / design / external-tool-checks / flow-control / git /
+   issues / memory / mobile-onboard / mobile-release / mobile/audit / mobile/optimize / qa /
+   quality / review / skill-runner / testing / ui-polish / update）；新增
+   `commands/log-schema.test.js`（12 条）、`commands/breakdown-coverage.test.js`（10 条）；
+   改 `detector-report.test.js` / `step-reasons.test.js` / `summary-integrity.test.js` /
+   `retry-semantics.test.js` / `interactive-gate.test.js`。
+2. **验证命令**：`npx vitest run` / `npx eslint .` / `cd claude-scene && npx eslint . --max-warnings 0` /
+   `npm run scan:deadcode` / 26 场景 `start <scene> --dry-run --auto` /
+   `node claude-scene/src/index.js start review --auto --skip-sweep` / `.probe21.py` / 湿跑 `/tmp/mix-r21`。
+3. **验证结果**：vitest **103 files / 1317 tests 全绿**；两套 eslint **0**；deadcode **0**；
+   dry-run **26/26 成功**；review 真跑 **EXIT=0**，43 步与基线 `workflow-review-20261029T083034-5ea052.log`
+   **逐 step 0 差异**（pass 17 / fail 0 / warn 3 / skip 19 / noop 4），且屏幕上
+   `⚡ warn 细分: 证据过期（对不上当前代码） 1 / 有发现 2`、
+   `⏭ skip 细分: 条件不满足 16 / 缺工具或依赖 3`、
+   `○ noop 细分: 需要对话模式才能执行（CLI 下只能供料） 4` —— **19/19、4/4、3/3 全覆盖，无黄字**；
+   自探针 **4/4**（注入 `reason: 'retry'` / 掉 `appendLog` 行 / `warnKind` 拼错 /
+   `guessNoopReason` 退化成常量 → 各自测试变红并点名，还原后回绿）；
+   湿跑 `/tmp/mix-r21` **EXIT=0**，21 个 skip 全部点名类别，`handler-skip` 归零。
+
+### 坑（本轮新增）
+
+- **`String.fromCharCode` 被 `unicorn/prefer-code-point` 点名** → `String.fromCodePoint(10)`；
+  测试里拼正则要用 `String.raw`，否则 `\b` 变退格符，守卫永远 0 命中。
+- **同一 process 里 `describe` 和 `export` 不能共存**（`unicorn/no-top-level-side-effects`）→ 测试文件里别导出辅助函数。
+- **`return reasons.length === 1 ? x : undefined`** 会被 `unicorn/no-useless-undefined` 点名 →
+  改成 `if (...) return x;` 兜底裸 `return`。
+- **`...(cond ? obj : {})`** 会被 `unicorn/consistent-conditional-object-spread` 点名 →
+  `...(cond && obj)`。
+- **`String.fromCharCode(10)` 这种「能跑但 lint 不让」的写法，别等 CI 才发现**：改完立刻跑 SCENE 那套。
+- **湿跑 fixture 的 `.gitignore` 要带 `*.pem` / `*.key` / `credentials.json`**，否则
+  `sensitive-file-check` 真红（那是它对的表现，不是假红），会把整轮湿跑判成 EXIT=1。
+
+### 决策（本轮新增）
+
+- **一列只装一种词汇**：`reason` 只装 `SKIP_REASONS`，`warn_kind` / `noop_kind` 各一列，
+  事件注解走 `event_reason`（允许中文散文），循环停止原因 `STOP_REASONS` 不进日志。
+- **统计的行源就是日志文件**，不建第二份内存账；读不到才回落，绝不编造分布。
+- **细分与计数对不上必须在屏幕上说出来**，否则「没列出来的」会被当成不存在。
+- **noop 的原因也要处理器声明**，但只做「文案已明说」的那些；猜不准就留 `undeclared`。
+- **判定权归处理器**：处理器能布 `warnKind` 就照抄（词表内），词表外记 `unknown-declared` 并保留原词。

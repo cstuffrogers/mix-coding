@@ -277,6 +277,7 @@ export function handleMobileAutoFix(_action, params, _targetPath, _context) {
   // CLI 侧没有移动端自动修复能力，只能给建议：不让「完成」二字替我们撒谎。
   return {
     status: 'noop',
+    reason: 'tool-missing',
     message: `自动修复未执行（模式: ${mode}）：移动端修复需要真机/模拟器验证，CLI 不会直接改代码`,
   };
 }

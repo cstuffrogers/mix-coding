@@ -146,7 +146,7 @@ export function handleAutoUpdateSafe(_action, _params, targetPath, context) {
   }
   const scan = context?.updateScanResult;
   if (!scan || scan.updatable.length === 0) {
-    return { status: 'noop', message: '无 patch/minor 可自动更新' };
+    return { status: 'noop', reason: 'nothing-to-do', message: '无 patch/minor 可自动更新' };
   }
   const npmUpdatable = scan.updatable.filter((r) => r.type === 'npm');
   const updated = [];

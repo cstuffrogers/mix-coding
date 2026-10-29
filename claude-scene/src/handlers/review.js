@@ -138,8 +138,11 @@ function classifyTscOutput(result) {
 function classifyLintOutput(result) {
   if (_hasLintIssues(result)) return 'issues';
   if (result.includes('fixed')) return 'issues';
-  if (/No files matching|Could not find config|Cannot find module|Invalid option|ESLint couldn't find/i.test(result)) {
-    return 'skip';
+  // 「没配置」和「没装」都是 skip，但原因不同：一个是项目缺配置文件，
+  // 一个是环境缺依赖。以前一律收成 skip，引擎只能记「处理器没声明原因」。
+  if (/Cannot find module/i.test(result)) return { status: 'skip', reason: 'tool-missing' };
+  if (/No files matching|Could not find config|Invalid option|ESLint couldn't find/i.test(result)) {
+    return { status: 'skip', reason: 'input-missing' };
   }
   return 'pass';
 }
@@ -149,9 +152,10 @@ function runEslintCheck(targetPath, autoFix) {
   const cmd = lintScript
     ? `npm run lint${autoFix ? ' -- --fix' : ''}`
     : `npx eslint src --ext .js,.jsx,.ts,.tsx${autoFix ? ' --fix' : ''}`;
-  const status = classifyLintOutput(runDiagnostic(cmd, targetPath));
-  if (status === 'skip') console.log(chalk.dim('  ℹ ESLint 配置/环境问题（非代码问题），跳过'));
-  return { status, detail: status === 'skip' ? 'eslint 未跑成（配置/环境问题）' : 'eslint' };
+  const verdict = classifyLintOutput(runDiagnostic(cmd, targetPath));
+  if (verdict === 'skip') console.log(chalk.dim('  ℹ ESLint 配置/环境问题（非代码问题），跳过'));
+  if (verdict === 'pass' || verdict === 'issues') return { status: verdict, detail: 'eslint' };
+  return { status: 'skip', reason: verdict.reason, detail: 'eslint 未跑成（配置/环境问题）' };
 }
 
 function runTypeCheck(targetPath) {
@@ -159,7 +163,7 @@ function runTypeCheck(targetPath) {
   const configs = tsScript ? [] : findTsconfigs(targetPath);
   if (!tsScript && configs.length === 0) {
     console.log(chalk.dim('  ℹ 未找到 tsconfig.json（根及一层子目录），类型检查跳过'));
-    return { status: 'skip', detail: '未找到 tsconfig.json' };
+    return { status: 'skip', reason: 'input-missing', detail: '未找到 tsconfig.json' };
   }
   const runs = tsScript
     ? [{ cmd: 'npm run typecheck', label: 'npm run typecheck' }]
@@ -175,7 +179,7 @@ function runTypeCheck(targetPath) {
     return { status: 'issues', detail: `类型错误（${failing.map(r => r.label).join(', ')}）` };
   }
   if (passed.length === 0) {
-    return { status: 'skip', detail: '类型检查未跑成（tsc 无入口）' };
+    return { status: 'skip', reason: 'tool-missing', detail: '类型检查未跑成（tsc 无入口）' };
   }
   return { status: 'pass', detail: `类型检查通过（${passed.map(r => r.label).join(', ')}）` };
 }
@@ -331,6 +335,17 @@ function summariseChecks(checks) {
   return { issues, ran, skipped, detail: checks.map(c => `${c.name}:${c.status}`).join(' / ') };
 }
 
+/**
+ * 全部子检查都跳过时，「为什么」只能是它们共同声明的那个原因。
+ * 有子检查没声明就不替它编（编出来的类别比「没声明」更难查）。
+ */
+function commonSkipReason(checks) {
+  const skipped = checks.filter((c) => c.status === 'skip');
+  if (skipped.length === 0 || skipped.some((c) => !c.reason)) return;
+  const reasons = [...new Set(skipped.map((c) => c.reason))];
+  if (reasons.length === 1) return reasons[0];
+}
+
 function reviewStatus({ issues, ran, skipped }) {
   if (issues.length > 0) return 'warn';
   if (ran.length === 0) return 'skip';
@@ -355,7 +370,7 @@ export function handleRunReview(_action, params, targetPath, context) {
   const packagePath = path.join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
     // 「完成（…跳过）」是自相矛盾的结论：没审查就是没审查。
-    return { status: 'skip', message: '代码审查跳过：未找到 package.json（不是通过）' };
+    return { status: 'skip', reason: 'input-missing', message: '代码审查跳过：未找到 package.json（不是通过）' };
   }
 
   const specialResult = handleSpecialMode(mode, targetPath, context);
@@ -379,8 +394,13 @@ export function handleRunReview(_action, params, targetPath, context) {
   // 写进去就等于告诉收敛判断「本轮没有发现」（假绿）。没跑就不写。
   if (summary.ran.length > 0) recordFindingCount(context, 'review_issue_count', summary.issues.length);
 
+  const finalStatus = isFoundSecurityIssues ? 'warn' : reviewStatus(summary);
+  // 跳过时把「为什么」一起交出去：以前这一步只写 status+message，
+  // 屏幕上是「代码审查跳过」而不说缺什么 —— 判定权在处理器，这里就该声明。
+  const skipReason = finalStatus === 'skip' ? commonSkipReason(checks) : null;
   return {
-    status: isFoundSecurityIssues ? 'warn' : reviewStatus(summary),
+    status: finalStatus,
+    ...(skipReason && { reason: skipReason }),
     message: (isFoundSecurityIssues ? '代码审查完成（发现安全问题）— ' : '') + reviewMessage(summary),
   };
 }
@@ -391,7 +411,7 @@ export function handleReviewFull(_action, _params, targetPath) {
   if (isInClaudeCode) {
     // 「就绪」之前是裸字符串 → 被文案启发式判成 pass。但引擎在这一步什么都没查：
     // 它只是把活儿交给对话模式的 agent。交接不是通过（同 ceo-review / invokeSkill 的口径）。
-    return { status: 'noop', message: '完整审查未在引擎内执行：交给对话模式的 agent 跑 skill（不计为通过）' };
+    return { status: 'noop', reason: 'delegated', message: '完整审查未在引擎内执行：交给对话模式的 agent 跑 skill（不计为通过）' };
   }
 
   // CLI mode: run a lightweight semantic grep scan as fallback
@@ -413,7 +433,7 @@ export function handleReviewFull(_action, _params, targetPath) {
   }
 
   if (unmeasured.length === patterns.length) {
-    return { status: 'skip', message: `完整审查未执行：grep 不可用（${unmeasured.join(', ')} 均未扫描，不是通过）` };
+    return { status: 'skip', reason: 'tool-missing', message: `完整审查未执行：grep 不可用（${unmeasured.join(', ')} 均未扫描，不是通过）` };
   }
   if (issues > 0 || unmeasured.length > 0) {
     const tail = unmeasured.length ? `；未扫描: ${unmeasured.join(', ')}` : '';
@@ -428,13 +448,13 @@ export function handleVerifyVisual(_action, _params, targetPath) {
   const isInClaudeCode = isConversationMode();
 
   if (isInClaudeCode) {
-    return { status: 'noop', message: '视觉验证未在引擎内执行：交给对话模式的 agent 跑 Playwright（不计为通过）' };
+    return { status: 'noop', reason: 'delegated', message: '视觉验证未在引擎内执行：交给对话模式的 agent 跑 Playwright（不计为通过）' };
   }
 
   // CLI mode: check if Playwright is installed and attempt to run
   const packagePath = path.join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
-    return { status: 'skip', message: '视觉验证跳过：未找到 package.json（不是通过）' };
+    return { status: 'skip', reason: 'input-missing', message: '视觉验证跳过：未找到 package.json（不是通过）' };
   }
 
   try {

@@ -126,7 +126,7 @@ export function handleSetupEnv(_action, _params, targetPath, context) {
   }
   if (existed) {
     // 文件已在 = 本次没生成任何东西，不能记 ✓ pass（消息自己都写着「未覆盖」）。
-    return { status: 'noop', message: '.env 模板已存在（未覆盖，env_template_generated 不置位）' };
+    return { status: 'noop', reason: 'already-done', message: '.env 模板已存在（未覆盖，env_template_generated 不置位）' };
   }
   return '.env 模板生成完成';
 }

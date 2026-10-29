@@ -33,7 +33,7 @@ export function handleCommitPush(_action, params, targetPath) {
   } catch (e) {
     const errMsg = e.stderr ? e.stderr.toString() : e.message;
     if (errMsg.includes('nothing to commit') || errMsg.includes('nothing added')) {
-      return { status: 'noop', message: '无变更可提交' };
+      return { status: 'noop', reason: 'nothing-to-do', message: '无变更可提交' };
     }
     // 以前排错落地成「提交跳过」→ noop：push 被拒/Hook 挂掉看起来像「无需提交」。
     return { status: 'fail', message: `提交失败: ${errMsg.slice(0, 100)}` };

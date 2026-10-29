@@ -277,7 +277,7 @@ export function handleRunCI(_action, params, targetPath, context) {
     return { status: 'fail', message: `CI 有失败: ${results.failed.join(', ')}（${results.passed.length}/${results.passed.length + results.failed.length} 通过）` };
   }
   if (results.passed.length === 0) {
-    return { status: 'noop', message: 'CI 未运行任何检查（check 列表为空或不包含任何已知检查）' };
+    return { status: 'noop', reason: 'nothing-to-do', message: 'CI 未运行任何检查（check 列表为空或不包含任何已知检查）' };
   }
   return `CI 完成: ${results.passed.length}/${results.passed.length} 全部通过`;
 }
