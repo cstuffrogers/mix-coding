@@ -1908,3 +1908,85 @@ C) 谓词读了 `ctx.obj.field` 而 `obj` 从没被填过。手工复核 A 段�
   自动写入还带 `Auto-generated` 戳，等于给猜测发放出处证明。
 - **扫描范围为空 ≠ 通过**：门禁检查读不到任何场景声明时返回 warn。
 - **删步骤不重编号**（2 → 4 → 7 的空洞保留），减少 docs / 场景 churn。
+
+---
+
+## Session 2026-10-29（第十轮）：params 契约 + context 两个维度
+
+用户第二轮追问「再全面检查一下所有工作流」后，选定「三个维度全做」。
+本轮交付 **2 个 commit**：`d6dc99f`（params）/ `49613d5`（context + 私有键）。
+
+### 维度① 场景 params 契约（`d6dc99f`）
+
+审计面：26 场景 / **720 条 params**，判据从「源码里出现过这个字符串」升级为
+「action → handler → 属性访问」。旧判据下 `body` 会命中 `body_ref`、
+`draft` 会命中 `web-design-v0-draft`，假绿遍地。
+
+结论：泛读键 0、无人读 **24 个键**。按「三种合法归宿」逐个处理：
+
+| 归宿 | 键 | 处理 |
+|---|---|---|
+| **接线**（真 bug） | `optimize` `detect` `regression` `since` `auto_fix` `compare_to` `depth` `port` `symbol` `from`/`to` `comment` | 各自接到真实行为上 |
+| **删除** | `mapping`（×6 场景文件） | 值是**任务名**（`go-build`），引擎没有任务运行器；按语言选命令的表在 `quality.js` 已存在 |
+| **明示透传** | `topic` `detail_level` `risk_analysis` `tech_selection` | 内联 registry action（`handler === null`），params 是给 agent 的提示词 |
+
+顺手修掉的**假绿**：
+- `npm audit` 解析失败 → 以前 `findings` 全 0 → `highSeverityFound = false` →
+  **安全门禁报「✓ 通过」**。现在不写该字段（门禁如实 skip）+ warn。
+- `handleBuild` / `languageBuild` / `languageTest` 命令失败 → 以前打行黄字后
+  返回「构建完成」。现在 `{status:'fail'}`。
+- `handleStartDevServer`：dev server 不退出，以前卡死后仍返回「已启动」。
+  现在不真跑，把命令写进 `context.dev_server_command` 交 agent。
+
+守卫升级 `params-contract.test.js`：
+- 判据改属性访问正则（`params.x` / `.x` / `['x']`，词边界）
+- 两类**可推导**豁免，不写白名单：
+  · registry 里写成箭头函数的内联动作 → 由 `actions.js` 结构推导
+  · `block_*` 前缀读取（`checkGate` 的 `startsWith`）与「handler 把 params 交给
+    枚举它的函数」（`ce-plan` → `describePreferences` → `Object.entries(params)`）
+- 两条防自身失效断言：扫描范围非空、内联动作/前缀读取确实存在
+- **自探针**：注入 `zzBogusProbe` → 点名 `deps#7 updateDeps: zzBogusProbe` → 回滚
+
+### 维度②③ context 键 + 私有键（`49613d5`）
+
+- 315 个写入键，146 个无人读。危险的是**长得像结论却没人看**的旗标：
+  删 `healthCheckPassed` / `propertyTestSkipped`×4 / `propertyTestRan` /
+  `semgrepSkipped`×2 / `strykerSkipped`×3 / `changelogSkipped`。
+- 修一个**假红**：`changelog.js` 非 Git 仓库时写 `changelogGenerated = false`
+  → changelog 门禁报 fail。「没查」不是「不通过」，改为不写该键（门禁记 skipped）。
+- 私有键（`_awaitingAnswer` / `_stepDecision` / `_stepAlreadyLogged`）**全部配对
+  delete，没有泄漏** → 不加代码，改为守卫生成不变量：
+  `commands/private-key-lifecycle.test.js` + 自探针（注入 `_zzLeakProbe` 被点名）。
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1057 passed / 81 files** |
+| lint | `npx eslint .` | 0 |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 |
+| 死码 | `npm run scan:deadcode` | Total dead 0 |
+| 26 场景 | 逐个 `--dry-run --auto` | 全部 exit 0 |
+| check 湿跑 | `MIX_CODING_PROJECT_DIR=/tmp/mix-r10 start check --auto` | pass 5 / warn 2 / skip 1 |
+| review 真跑 | `start review --auto --skip-sweep` | pass 17 / **fail 0** / warn 3 / skip 19 / noop 4 |
+
+3 个 warn 都带具体原因（自检记录过期 / npm audit 接口不可用 / skillspector 105 问题），
+没有一个是「无法解释的红」。
+
+### 决策
+- **参数只有三种合法归宿**：接到真实行为、删除、明示为 agent/外部工具透传。
+  「写了没人读」= 用户以为勾了开关，实际什么都没发生。
+- **能从实现源码推导的白名单就不要手写**：内联动作看 registry 形状，
+  前缀读取看 `startsWith`，泛读看「handler 是否把 params 交给枚举函数」。
+- **无人读的 verdict 旗标本身就是负债**：它会让下一个审计把它当成「有测量」的证据。
+- **「没查」不许写成 `false`**：那等于替工具做出了判断（changelog 门禁的假红）。
+- **域守卫只在能证明不变量时才生成**：私有键这一维度审计下来是干净的，
+  于是交付一条守卫而不是一次「假装修复」。
+
+### 下一轮候选维度
+1. **action-messages / 文案表 → handler 结论串**：handler 返回的 `message` 与
+   文案表是否互相矛盾（同一件事两处描述）。
+2. **`on_error: retry` 的 retry 次数来源**：场景写 `params.retry: 3`，
+   `handleStepError` 用的是哪一份。
+3. **`condition` 引用的 context 键是否在**任何**上游被写过**（当前只查「有没有人读」，
+   没查「写的人是否一定先跑」）——即条件对**步骤顺序**的隐式依赖。
