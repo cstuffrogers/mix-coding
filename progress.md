@@ -2643,8 +2643,6 @@ determinable:false}` —— 左边已经确定假，结果就是假，与 b 无�
 - **`opts.filter(file)` 会被 `unicorn/no-array-callback-reference` 误判**：先把谓词取到局部变量再调用。
 - **`python` 里写单反斜杠 + n，落到 JS 源码里就是真换行**：要在 JS 里得到反斜杠 + n，python 字符串里得写四个反斜杠；
   本轮就因此写出过一次 `bad.join('` + 换行 + `')` 的语法错误 —— 改成 `LF` 常量后一劳永逸。
-  本轮就因此写出过一次 `bad.join('` + 换行 + `')` 的语法错误 —— 改成 `LF` 常量后一劳永逸。
-  本轮就因此写出过一次 `bad.join('` + 换行 + `')` 的语法错误 —— 改成 `LF` 常量后一劳永逸。
 - **比对基线别靠记忆**：我记的十六轮基线（16/2/21/4）和当前环境（17/3/19/4）不同，
   用 `git archive HEAD` + junction 跑真基线才确认「0 处差异」。
 
@@ -2656,3 +2654,112 @@ determinable:false}` —— 左边已经确定假，结果就是假，与 b 无�
   且运行时要把豁免说出来（「没拦」与「被关掉」必须可区分）。
 - **旗标只认布尔**：`"true"` / `"false"` 字符串既不生效也不报错，是最难查的一种静默。
 - **守卫测试必须有「不空跑」的自检**：否则文件搬走、正则写错都会让它永远绿。
+
+
+## 第十九轮 · 三个维度：对象返回值必须自己布状态、多轮旗标的归属、noop 不再混进「没过」
+
+**日期**：2026-10-29
+**性质**：引擎语义审计（用户回「全部」→ 三个维度一起做）
+**基线**：本仓库 `start review --auto --skip-sweep` → pass 17 / fail 0 / warn 3 / skip 19 / noop 4，43 步，EXIT=0
+**终态**：vitest **1254 passed / 99 files**；ROOT_ESLINT=0；CS_ESLINT=0；deadcode **Total 0**；26 场景 dry-run **bad=0**；逐 step 与改前基线 **0 处差异**；自探针 **6/6**；工作区 clean
+
+### 审计怎么取证的
+- 维度 1：写临时扫描器遍历 **78 个 handler 文件 / 284 个注册处理器**，只统计「处理器自己这一层」的
+  `return {…}`（跳过 `.map`/`.forEach` 等回调里的返回），比对对象里有没有 `status`：
+  实测 **550 处 return / 348 处对象返回 / 0 处缺 status** —— 现状是干净的，缺的是**守卫**。
+  同时抓到一条真的假绿：`formatResultForDisplay` 会给没布 status 的对象**编造** `success`，
+  `.claude/logs/workflow-plan-*.log` 里 `initPlanningFiles` 就是这么记成 `pass` 的。
+- 维度 2：`grep` 出 **71 处 `context.XPassed = …`**，再读 `conditions.js` 的求值链 ——
+  `runtimeDependentIdentifiers()` 只看「键在不在 ctx 上」，因此 `--iterations N` 第 2 轮
+  某步没跑时，第 1 轮写下的 `testPassed=false` 会被当成**本轮结论**（跳过/放行都不留痕）。
+- 维度 3：读 `describeNotPassSteps` 的过滤条件 `status !== 'pass'` —— `noop` 与 `fail/warn/skip`
+  混在同一张「未通过 / 未执行的步骤」表里，`Step 4 recall → noop` 看上去像第 4 步出了问题。
+
+### 修了什么
+
+**维度 1 —— 对象是「结论」的载体，状态必须自带**
+
+| 位置 | 以前 | 现在 |
+|---|---|---|
+| `start.js` `formatResultForDisplay` | 没布 status 的对象 → 屏幕上编一句「步骤已完成（状态：success）」 | 老实说「处理器返回了对象但没布 status —— 无法判断这一步是否真的做成了」 |
+| `start.js` `deriveStepStatus` | 对象没布 status → 落到文案正则 → 几乎必然 pass | 非 null 对象（含数组）→ **warn**，并把这句说明附在结果串上 |
+| `handlers/status-evidence.test.js` | 只查「裸字符串返回」 | 新增静态守卫：处理器这一层的 `return {…}` 必须显式写 `status` |
+
+**维度 2 —— 旗标要有归属：值不够，还得知道是谁、哪一轮写的**
+
+- 新增 `lib/flag-stamp.js`：`snapshotFlags` / `stampFlagWrites` / `flagWrittenAt` / `staleFlagDetail` / `staleFlags`。
+  `runStep` 与 `retryFailedStep` 在步骤执行前取浅快照，执行后比对变动的键，记进 `context.__flagMeta`
+  （下划线开头，`flow-control` 的报告渲染与序列化本来就会跳过 `_` 前缀键）。
+- `lib/conditions.js`：`runtimeDependentIdentifiers` 把「本轮没重新测过的旧值」也算未判定 ——
+  于是 `testPassed` 是上一轮写的时，条件既不会被当成「确定不满足」悄悄跳过，
+  `explainCondition` 还会多返回一个 `stale: [{key, iteration, step}]` 供输出层点名。
+- `start.js`：条件成立但依据是旧值时打黄字
+  `⚠ Step N 的条件依据是早前轮次留下的值：testPassed（第 1 轮） —— 本轮没有任何步骤重新测量过它`；
+  未判定摘要不再一律写「缺 X」，改成 `X 没人写过` / `X 用的是第 N 轮的旧值`。
+
+**维度 3 —— noop 是「没人可做之事」，不是「没过」**
+
+- `describeNotPassSteps` 返回值扩展为 `{ lines, total, idleLines, idleTotal }`：
+  `lines/total` 只装 fail/warn/skip，noop 单独进 `idleLines/idleTotal`（不丢，账还对得上）。
+- `printNotPassSteps` 打印两段：黄字「未通过 / 未执行的步骤」＋灰字「没有可做之事的步骤（noop，不算问题）」。
+
+### 守卫测试
+- `handlers/status-evidence.test.js` 新增 describe：手写扫描器（`stripLiterals` 抹字符串、
+  `opensFunctionBody` 判 `=> {` / `foo(...) {` 与 `if (...) {`、只在非回调作用域里收 `return {`），
+  自带空跑自检（`NAMES.size > 200`、`rows.length > 200`）。
+- `lib/flag-stamp.test.js`（新，10 条）：只记动过的键 / 同轮重写不算旧值 / 跨轮未重测算旧值 /
+  重新测过就不旧 / 删键也算动过 / 单轮永不旧；以及 `conditions` 侧四种情形（本轮写过、旧值 false、
+  旧值 true、短路优先）。
+- `commands/loop-iterations.test.js` +3：对象无 status → warn 且点名；数组/Date 同类；屏幕上不再出现 `success`。
+- `commands/summary-content.test.js` +3（含 1 处契约变更）：noop 不进 `lines/total`、
+  全 noop 时 `lines` 为空、安静态返回完整结构。
+
+### 自探针（注入 → 点名 → 字节级回滚 → 复绿，6/6 命中）
+
+| # | 注入 | 被谁点名 |
+|---|---|---|
+| 1 | `flow-control.js` 去掉 `return { status: 'skip', … }` 里的 `status` | `status-evidence.test.js` → `flow-control.js:…` |
+| 2 | `deriveStepStatus` 的对象分支加 `&& false` | `loop-iterations.test.js` → `expected 'pass' to be 'warn'` |
+| 3 | `formatResultForDisplay` 还原成编造 `success` | `loop-iterations.test.js` → 断言命中 `success` |
+| 4 | `staleFlagDetail` 直接 `return []` | `flag-stamp.test.js` → `expected [] to deeply equal` |
+| 5 | `runtimeDependentIdentifiers` 里 `stale.has(id)` 短路掉 | `flag-stamp.test.js` → 命中 `testPassed` |
+| 6 | `describeNotPassSteps` 的 noop 过滤失效 | `summary-content.test.js` → 命中 `noop` |
+
+### 湿跑（临时项目 + 自带场景，验完即删）
+- `/tmp/mix-r19`（测试脚本 exit 0，`--iterations 2`）：第 2 轮 Step 1/2 因 `!planning_files_exist` 变假而跳过，
+  Step 3 条件 `testPassed` → 打印 `⚠ Step 3 的条件依据是早前轮次留下的值：testPassed（第 1 轮）`，EXIT=0。
+- `/tmp/mix-r19c`（测试脚本 exit 1）：第 1 轮写下 `testPassed=false`，第 2 轮 Step 3 →
+  `❓ 未判定 Step 3 …，其中 testPassed 是第 1 轮留下的旧值（本轮没重新测）` + 摘要
+  `Step 3 … —— testPassed 用的是第 1 轮的旧值`，EXIT=1（失败照旧如实上报）。
+- `/tmp/mix-r19b`（在已跑过的目录上重跑）：两轮都「没人写过」→ 摘要写 `testPassed 没人写过`，
+  证明两种原因不会被混成一句。
+
+### 回归基线（真跑，不凭记忆）
+`git archive HEAD claude-scene package.json` + `mklink /J` junction 到 `claude-scene/node_modules`（inquirer 只在那）：
+- 本仓库 `review` 场景改前 / 改后 **43 步逐 step 0 处差异**（17/0/3/19/4，EXIT=0）。
+- 单轮下 `__flagMeta` 不产生任何旧值 → 多轮机制对单轮行为零影响。
+
+### 契约变更（改断言的地方，均带理由注释）
+- `summary-content.test.js`：安静态断言从 `{ lines: [], total: 0 }` 改成含 `idleLines/idleTotal` 的完整结构。
+
+### 坑
+- **三元 return 不是对象 return**：第一版扫描器把 `return cond ? 'a' : 'b'` 当成对象返回，
+  `indexOf('{')` 抓到的是后面语句的花括号 → 一次报出 8 处假红（`backup.js`/`cicd.js`/`docker.js`…）。
+  守卫自己也会产生假红，这条得当成一等 bug 修：只认 `return {`。
+- **`/([A-Za-z_$][\w$]*)$/` 会被 `sonarjs/super-linear-regex` 点名**（字符类重叠 + 行尾锚点 → 二次回溯）：
+  改成手写反向扫描 `trailingIdentifier()`。
+- **`{ ...(x || {}) }` 会被 `unicorn/no-useless-fallback-in-spread` 点名**：直接 `{ ...x }`（spread undefined 无副作用）。
+- **`.map(render)`（传函数引用）会被 `unicorn/no-array-callback-reference` 点名**：写 `.map((r) => render(r))`。
+- **`runStep` 加条件分支后认知复杂度撞 17**：把条件门抽成 `passesConditionGate()`（老套路：超了就抽子函数，抽完重跑测试）。
+- **multiedit 是原子的**：一次 `edit` 调用里任何一块 `oldText` 对不上，整批都不落地 ——
+  别以为「前面几块已经生效了」，改完要 `node --check`（本轮就踩过一次）。
+
+### 决策
+- **「返回了对象却没说结论」等于没说**：对象里的 `ok/found/count` 是处理器自己的词汇，
+  引擎没有资格替它翻译成 pass。宁可 warn + 点明原因，也不许编一个 `success`。
+- **旗标要记账，不靠清空**：多轮的输入型键（`platform`、`prompt`、用户确认）不能被清，
+  所以记「谁在第几轮写的」，让读者自己判新旧 —— 与第十七轮「发现数打轮次戳」同一套语义。
+- **旧值不是答案，但也不是「确定不满足」**：它进「未判定」通道（❓ + 摘要点名），
+  走「未判定」既有的一整套披露（`_unjudgedSteps`、收尾提示），不新造概念。
+- **noop 是第三类**：既不是通过，也不是问题，收尾必须单列 —— 混进「未通过」会让人去查一个
+  本来就不需要查的步骤（比漏报更耗费信任）。
