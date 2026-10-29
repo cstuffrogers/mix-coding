@@ -145,7 +145,7 @@ export function handleDetectorReport(_action, _params, targetPath, context) {
     // 第十一轮补：本轮现场自检刚跑过却读不到产物 ≠ 从来没跑过。以前一律提示
     // 「跑 npm run detector:sweep 生成」—— 读者刚刚才让它跑过，等于把人绕回原地。
     if (sweep === 'ran') {
-      return { status: 'warn', message: `本轮现场自检没有产出可用记录：${problem} —— 看 detector-sweep 自己的输出` };
+      return { status: 'skip', message: `本轮现场自检没有产出可用记录：${problem} —— 看 detector-sweep 自己的输出；这不是通过` };
     }
     // --skip-sweep 是用户的明确表态：别再劝他跑一次，把表态说出来
     const skippedByUser = context?.sweepDecision === 'skip' ? '（本轮按 --skip-sweep 未跑自检）' : '';

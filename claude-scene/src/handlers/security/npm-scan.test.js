@@ -31,11 +31,11 @@ function auditUnparsable() {
 }
 
 describe('handleSecurityScan：npm audit 没跑成不能算「没漏洞」', () => {
-  it('npm audit 输出无法解析 → warn，且不写 highSeverityFound（门禁如实跳过）', () => {
+  it('npm audit 输出无法解析 → skip，且不写 highSeverityFound（门禁如实跳过）', () => {
     auditUnparsable();
     const ctx = {};
     const result = handleSecurityScan('securityScan', {}, dir, ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('不是通过');
     // 关键：没有 verdict ≠ verdict false
     expect(ctx.securityScanResult?.highSeverityFound).toBeUndefined();
@@ -120,20 +120,20 @@ describe('handleAnalyzeSecurityVulnerabilities：审计没跑成不写 verdict',
 });
 
 describe('handleDeprecatedDeps：npm outdated 没跑成不写 verdict（假绿同源）', () => {
-  it('safeExec 抛错 → warn，不写 deprecatedDepsPassed', () => {
+  it('safeExec 抛错 → skip，不写 deprecatedDepsPassed', () => {
     execMock.safeExec.mockImplementation(() => { throw new Error('ENOENT: npm not found'); });
     const ctx = {};
     const result = handleDeprecatedDeps('d', {}, dir, ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('未完成');
     expect(ctx.deprecatedDepsPassed).toBeUndefined();
   });
 
-  it('输出里既没有数据也不是「空」 → warn（不能当成查过）', () => {
+  it('输出里既没有数据也不是「空」 → skip（不能当成查过）', () => {
     execMock.safeExec.mockReturnValue('registry unreachable\n');
     const ctx = {};
     const result = handleDeprecatedDeps('d', {}, dir, ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(ctx.deprecatedDepsPassed).toBeUndefined();
   });
 

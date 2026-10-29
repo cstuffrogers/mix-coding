@@ -56,7 +56,7 @@ export function handleAnalyzeUI(_action, _params, targetPath, context) {
 
   // 扫不到任何前端文件时「UI 分析完成: unknown, 0 个前端文件」＝假绿（什么也没看）。
   if (cssFiles.length + componentFiles.length === 0) {
-    return { status: 'warn', message: 'UI 分析未执行：没找到 css/scss/less 或 jsx/tsx/vue/svelte 文件' };
+    return { status: 'skip', message: 'UI 分析未执行：没找到 css/scss/less 或 jsx/tsx/vue/svelte 文件 —— 不是通过' };
   }
   return { status: 'pass', message: `UI 分析: ${framework}，${cssFiles.length} 个样式 + ${componentFiles.length} 个组件文件（CSS 变量 ${cssVarCount} / 硬编码色 ${hardcodedColorCount} / Tailwind ${tailwindClasses}）` };
 }
@@ -1340,7 +1340,7 @@ export function handleImpeccableCritique(_action, _params, targetPath, context) 
 
   // 扫不到文件时「打磨完成: 0 修复, 0 建议」= 假绿：什么都没看。
   if (frontendFiles.length === 0) {
-    return { status: 'warn', message: 'Impeccable 打磨未执行：没找到可打磨的前端文件（jsx/tsx/css/html）' };
+    return { status: 'skip', message: 'Impeccable 打磨未执行：没找到可打磨的前端文件（jsx/tsx/css/html）—— 不是通过' };
   }
 
   for (const filePath of frontendFiles) {

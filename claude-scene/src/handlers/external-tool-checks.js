@@ -824,7 +824,7 @@ export function handleStryker(_action, _params, targetPath, context) {
     }
     const report = readStrykerReport(targetPath) || parseStrykerText(raw);
     if (!report || !report.score) {
-      return { status: 'warn', message: 'Stryker 未产生变异测试报告（检查 stryker 配置与测试命令），本轮未测量' };
+      return { status: 'skip', message: 'Stryker 未产生变异测试报告（检查 stryker 配置与测试命令），本轮未测量 —— 不是通过' };
     }
 
     const { score, killed, survived } = report;
@@ -840,7 +840,7 @@ export function handleStryker(_action, _params, targetPath, context) {
       : `Stryker 变异测试完成: 分数 ${score.toFixed(1)}%，变异体全部被杀死`;
   } catch {
     // 「执行失败」以前被「跳过」二字救回 → 记成 noop。工具没跑通=没测量，但必须可见。
-    return { status: 'warn', message: 'Stryker 执行失败（未测量，不算通过）' };
+    return { status: 'skip', message: 'Stryker 执行失败（未测量，不算通过）' };
   }
 }
 

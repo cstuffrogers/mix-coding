@@ -213,7 +213,8 @@ export function handleListReleases(_action, params, targetPath) {
     }
     return 'Release 列表为空';
   } catch (e) {
-    return { status: 'warn', message: `Release 列表未获取：gh CLI 不可用（${String(e.message).split('\n')[0].slice(0, 80)}）` };
+    // 没拿到列表 = 没测，不能记 warn（warn 在验收门禁里算已审阅的信号）。
+    return { status: 'skip', message: `Release 列表未获取：gh CLI 不可用（${String(e.message).split('\n')[0].slice(0, 80)}）—— 不是通过` };
   }
 }
 

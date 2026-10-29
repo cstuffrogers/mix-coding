@@ -47,11 +47,11 @@ describe('handleEnvVarLeak：没查过 ≠ 安全', () => {
     expect(context.envVarLeakPassed).toBe(false);
   });
 
-  it('grep 没跑起来且零发现 → warn，不写 verdict', () => {
+  it('grep 没跑起来且零发现 → skip，不写 verdict', () => {
     mockGrepScan.mockReturnValue({ ok: false, raw: '', reason: 'grep: command not found' });
     const context = {};
     const result = handleEnvVarLeak('env-var-leak', {}, root, context);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('未完成');
     expect(result.message).toContain('不是通过');
     expect(context.envVarLeakPassed).toBeUndefined();
@@ -87,11 +87,11 @@ describe('handleSensitiveFileCheck：git 不可用不是「没有敏感文件」
     expect(context.sensitiveFilePassed).toBe(false);
   });
 
-  it('git 不可用 → warn，不写 sensitiveFilePassed', () => {
+  it('git 不可用 → skip，不写 sensitiveFilePassed', () => {
     mockGrepScan.mockReturnValue({ ok: false, raw: '', reason: 'not a git repository' });
     const context = {};
     const result = handleSensitiveFileCheck('sensitive-file', {}, root, context);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('git 不可用');
     expect(context.sensitiveFilePassed).toBeUndefined();
   });

@@ -59,13 +59,13 @@ describe('handleDepcruiseArchitecture：跑没跑起来必须分清', () => {
     expect(context.depCruiserPassed).toBe(true);
   });
 
-  it('工具没跑起来 → warn，且不写任何 verdict', () => {
+  it('工具没跑起来 → skip，且不写任何 verdict', () => {
     mockSafeExec.mockImplementation(() => {
       throw execError({ stderr: 'npm error could not determine executable to run', status: 1 });
     });
     const context = {};
     const result = handleDepcruiseArchitecture('x', {}, '/project', context);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('不是通过');
     expect(context.depCruiserPassed).toBeUndefined();
     expect(context.depcruise_violations).toBeUndefined();

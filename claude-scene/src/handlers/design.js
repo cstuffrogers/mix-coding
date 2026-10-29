@@ -332,7 +332,7 @@ export function handleDesignInput(_action, params, _targetPath, context) {
   // 假完成。没值就不写，并明说这步没真正完成。
   if (key && context && value) context[key] = value;
   if (!value) {
-    return { status: 'warn', message: `设计输入「${key || '未命名'}」没有值：非交互模式下无从填写，该步骤未真正完成` };
+    return { status: 'skip', message: `设计输入「${key || '未命名'}」没有值：非交互模式下无从填写，该步骤未真正完成 —— 不是通过` };
   }
   return '设计输入已接收';
 }

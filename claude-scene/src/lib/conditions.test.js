@@ -353,4 +353,40 @@ describe('dry-run 可判定性（三态）', () => {
   it('conditionIdentifiers 不吃字符串字面量里的词', () => {
     expect(conditionIdentifiers("setup_kind === 'e2e' && testPassed")).toEqual(['setup_kind', 'testPassed']);
   });
+
+  // 短路：`a && b` 里 a 已经确定假时，整个条件就是假 —— 跟 b 知不知道无关。
+  // 以前只要表达式里出现未知键就报「未判定」，于是 271 个条件里那些「前置步骤
+  // 没跑就不该跑」的步骤被涂成 ❓，真正的未知扇区被噪声淹掉。
+  it('&& 短路：左边已确定假 → 可判定为「不满足」', () => {
+    const r = explainCondition('hasHardConflict && testPassed', { hasHardConflict: false });
+    expect(r.met).toBe(false);
+    expect(r.determinable).toBe(true);
+    expect(r.unknown).toEqual([]);
+  });
+
+  it('&& 左边为真、右边未知 → 仍未判定（不许假装不满足）', () => {
+    const r = explainCondition('hasHardConflict && testPassed', { hasHardConflict: true });
+    expect(r.met).toBe(false);
+    expect(r.determinable).toBe(false);
+    expect(r.unknown).toContain('testPassed');
+  });
+
+  it('|| 短路：左边已确定真 → 可判定为「满足」', () => {
+    const r = explainCondition('conversation_mode || testPassed', {});
+    expect(r.met).toBe(true);
+    expect(r.determinable).toBe(true);
+    expect(r.unknown).toEqual([]);
+  });
+
+  it('|| 左边假、右边未知 → 仍未判定', () => {
+    const r = explainCondition('hasHardConflict || testPassed', { hasHardConflict: false });
+    expect(r.determinable).toBe(false);
+    expect(r.unknown).toContain('testPassed');
+  });
+
+  it('逻辑连接词不会被当成 context 键报出来（`not b` 的 not）', () => {
+    const r = explainCondition('not testPassed', {});
+    expect(r.unknown).not.toContain('not');
+    expect(r.unknown).toContain('testPassed');
+  });
 });

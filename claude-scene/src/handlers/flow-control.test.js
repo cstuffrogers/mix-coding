@@ -138,7 +138,7 @@ describe('handleVerify', () => {
     const ctx = {};
     // 用 join 拼临时目录：Unix 的 /tmp 被 sonarjs 判为 publicly writable
     const result = await handleVerify('verify', {}, join(tmpdir(), 'mix-coding-no-such-project'), ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(ctx.testPassed).toBeUndefined();
   });
 });
@@ -228,8 +228,19 @@ describe('handleCheckGate', () => {
   it('认不出的检查项要显式告警', () => {
     const ctx = { lintPassed: true };
     const result = handleCheckGate('check-gate', { checks: ['lint', 'unknown_check'] }, '/tmp', ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('unknown_check');
+  });
+
+  // 以前 unknown 分支在 blocked/failed 之前返回，于是「一个认不出的检查名 + 一个真失败」
+  // 只说「部分无法判定」（skip），真失败被降级 —— 而 skip 在验收门禁里不算通过，
+  // 却也不再是那块失败：看汇总的人找不到「哪项没过」。fail 必须先说话。
+  it('认不出的检查项遇到真失败 → fail，不降级成 skip', () => {
+    const ctx = { lintPassed: false };
+    const result = handleCheckGate('check-gate', { checks: ['lint', 'unknown_check'] }, '/tmp', ctx);
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('未通过');
+    expect(result.message).not.toContain('无法判定');
   });
 
   it('handles failed checks', () => {
@@ -277,7 +288,7 @@ describe('handleCheckGate：block_* / mode / gate 参数真的生效', () => {
   it('mode: strict —— 有检查项没跑过就不发通过结论', () => {
     const ctx = { lintPassed: true };
     const result = handleCheckGate('checkGate', { checks: ['lint', 'test'], mode: 'strict' }, '/tmp', ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('test');
   });
 

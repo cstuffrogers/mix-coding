@@ -59,13 +59,13 @@ describe('handleVerify：mode 与退出码', () => {
     expect(ctx.testPassed).toBe(true);
   });
 
-  it('没有 test 脚本 → 没跑成（warn），不算失败也不算通过', async () => {
+  it('没有 test 脚本 → 没跑成（skip），不算失败也不算通过', async () => {
     mockSafeExec.mockImplementation(() => {
       throw new Error('npm ERR! Missing script: "test"');
     });
     const ctx = {};
     const result = await handleVerify('verify', {}, projectWithPackageJson(), ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(ctx.testPassed).toBeUndefined();
     expect(ctx.lastStepFailed).toBeUndefined();
   });
@@ -73,7 +73,7 @@ describe('handleVerify：mode 与退出码', () => {
   it('health_check 没有服务地址 → 不假装验证过', async () => {
     const ctx = {};
     const result = await handleVerify('verify', { mode: 'health_check', scope: 'deployment', retry: 3 }, projectWithPackageJson(), ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('没有服务地址');
     // 没有服务地址 = 没测，结论只能是 warn；返回值本身就说明了
     expect(mockSafeExec).not.toHaveBeenCalled();

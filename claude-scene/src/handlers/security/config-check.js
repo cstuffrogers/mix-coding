@@ -126,7 +126,7 @@ export function handleEnvVarLeak(_action, _params, targetPath, context) {
   if (failed.length > 0) {
     // 没查过 ≠ 没问题：不写 verdict，让门禁如实记 skipped
     const reason = failed.find(s => s.reason)?.reason || 'grep 不可用';
-    return { status: 'warn', message: `环境变量泄露扫描未完成：${reason}（不是通过）` };
+    return { status: 'skip', message: `环境变量泄露扫描未完成：${reason}（不是通过）` };
   }
   if (context) context.envVarLeakPassed = true;
   return '环境变量泄露扫描完成: 安全';

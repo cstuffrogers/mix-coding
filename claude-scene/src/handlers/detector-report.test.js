@@ -176,11 +176,11 @@ describe('detectorReport —— --with-sweep 现场自检（跑在审查之前�
     expect(execFileSync).not.toHaveBeenCalled();
   });
 
-  it('现场跑了却没产出记录 → warn，且不再叫人「跑 npm run detector:sweep」（他刚跑过）', () => {
+  it('现场跑了却没产出记录 → skip，且不再叫人「跑 npm run detector:sweep」（他刚跑过）', () => {
     const result = handleDetectorReport('detectorReport', {}, root, { withSweep: true });
 
     expect(execFileSync).toHaveBeenCalledOnce();
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('本轮现场自检没有产出可用记录');
     expect(result.message).not.toContain('跑 npm run detector:sweep');
   });

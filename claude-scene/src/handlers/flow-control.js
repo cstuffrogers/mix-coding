@@ -150,7 +150,10 @@ function runTests(targetPath) {
 async function checkHealth(params, context) {
   const url = params?.url || context?.dev_server_url || context?.deploy_url;
   if (!url) {
-    return { status: 'warn', message: '健康检查未执行：没有服务地址（context 里没有 dev_server_url / deploy_url，也没传 url 参数）' };
+    // 第十六轮：「没测」一律 skip，不许用 warn —— warn 在验收门禁里算「已审阅的信号」
+    // （acceptance-check 的 PASSING_RE = pass|warn），用 warn 表示「没执行」会让
+    // 「改了代码、验证没跑」这种运行被门禁判成「已审阅」。
+    return { status: 'skip', message: '健康检查未执行：没有服务地址（context 里没有 dev_server_url / deploy_url，也没传 url 参数）—— 不是通过' };
   }
   const attempts = Math.max(1, Number(params?.retry) || 1);
   const timeout = Number(params?.timeout) || 5000;
@@ -196,12 +199,12 @@ function verifyByTestRun(params, targetPath, context) {
   const packagePath = join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
     // 以前没有 package.json 直接算「验证通过」——什么都没验证。
-    return { status: 'warn', message: '验证未执行：没有 package.json，没有可运行的东西（不是通过）' };
+    return { status: 'skip', message: '验证未执行：没有 package.json，没有可运行的东西（不是通过）' };
   }
   const { verdict, detail } = runTests(targetPath);
   if (verdict === 'not-run') {
     if (context) context.testPassed = undefined;
-    return { status: 'warn', message: `验证未执行：${detail}` };
+    return { status: 'skip', message: `验证未执行：${detail} —— 不是通过` };
   }
   const verified = verdict === 'pass';
   if (context) context.testPassed = verified;
@@ -561,14 +564,10 @@ function gateVerdict(results, checks, params, blockKeys) {
       message: `质量门禁未执行：${results.skipped.join(', ')} 都没有结果（对应步骤未跑或未记录）`,
     };
   }
-  if (results.unknown.length) {
-    return {
-      status: 'warn',
-      message: `质量门禁部分无法判定：${results.unknown.join(', ')} 不是已知检查项（已执行：${results.passed.length}/${effectiveTotal}）`,
-    };
-  }
   // 阻断/未通过直接给显式 fail：以前只靠 lastStepFailed + 「未通过」文案，
   // 而「未通过」不含「失败」，任何一个调用方忘了看 lastStepFailed 就成假绿。
+  // 顺序很重要：unknown（认不出的检查名）以前先返回，于是「一个认不出的名字 +
+  // 一个真失败」被判成「部分无法判定」（skip），真失败被降级 —— fail 必须先说话。
   const blockNote = blockKeys.length ? `（已声明 ${blockKeys.join(', ')}，工作流阻断）` : '';
   if (results.blocked.length) {
     return { status: 'fail', message: `质量门禁阻断: ${results.blocked.join('; ')}${blockNote}` };
@@ -576,12 +575,20 @@ function gateVerdict(results, checks, params, blockKeys) {
   if (results.failed.length) {
     return { status: 'fail', message: `质量门禁未通过: ${results.failed.join('; ')}${blockNote}` };
   }
+  // 认不出的检查名不能默默吞掉，但也不能抹掉已经发生的失败（上面已先判 fail）。
+  if (results.unknown.length) {
+    const skipNote = results.skipped.length ? `，另有 ${results.skipped.length} 项没有结果` : '';
+    return {
+      status: 'skip',
+      message: `质量门禁部分无法判定：${results.unknown.join(', ')} 不是已知检查项（已执行：${results.passed.length}/${effectiveTotal}${skipNote}）—— 不是通过`,
+    };
+  }
   // mode: strict —— 有检查项根本没跑过时不许发「通过」：
   // 以前跳过项从分母里扣掉，5 项只跑了 2 项也报「通过 2/2」。
   if (params?.mode === 'strict' && results.skipped.length > 0) {
     return {
-      status: 'warn',
-      message: `质量门禁严格模式：${results.skipped.length} 项没有结果（${results.skipped.join(', ')}），通过 ${results.passed.length}/${checks.length}，不发通过结论`,
+      status: 'skip',
+      message: `质量门禁严格模式：${results.skipped.length} 项没有结果（${results.skipped.join(', ')}），通过 ${results.passed.length}/${checks.length}，不发通过结论 —— 不是通过`,
     };
   }
   return `质量门禁通过: ${results.passed.length}/${effectiveTotal}`;

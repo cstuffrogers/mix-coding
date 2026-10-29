@@ -172,7 +172,7 @@ function scanAndRecord(targetPath, context) {
 
 function scanMessage({ total, fixable, reportPath, raw }) {
   if (String(raw ?? '').trim() === '') {
-    return { status: 'warn', message: 'aislop 扫描未完成：npx aislop 没有任何输出（未安装或执行失败），本次没有结论' };
+    return { status: 'skip', message: 'aislop 扫描未完成：npx aislop 没有任何输出（未安装或执行失败），本次没有结论 —— 不是通过' };
   }
   if (total === 0) {
     return { status: 'pass', message: `aislop 扫描完成: 未发现 AI 代码气味${reportPath ? `（报告: ${reportPath}）` : ''}` };

@@ -115,7 +115,7 @@ export function handleTestUnit(_action, _params, targetPath, context) {
     const verdict = classifyTestRun(error);
     if (verdict === 'not-run') {
       if (context) context.testPassed = undefined;
-      return { status: 'warn', message: '单元测试未跑成：没有可运行的测试脚本（未测量，不算通过）' };
+      return { status: 'skip', message: '单元测试未跑成：没有可运行的测试脚本（未测量，不算通过）' };
     }
     testPassed = false;
   }
@@ -157,7 +157,7 @@ export function handleRunSuite(_action, params, targetPath, context) {
   const verdict = runTestCommand(setup.cmd, targetPath);
   if (verdict === 'not-run') {
     if (context) context.testPassed = undefined;
-    return { status: 'warn', message: `测试套件未跑成：${setup.cmd} 不可用（未测量，不算通过）` };
+    return { status: 'skip', message: `测试套件未跑成：${setup.cmd} 不可用（未测量，不算通过）` };
   }
   const testPassed = verdict === 'pass';
   if (context) {

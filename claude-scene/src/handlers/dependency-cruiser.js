@@ -102,7 +102,7 @@ export function handleDepcruiseArchitecture(_action, params, targetPath, context
   }
 
   if (!outcome.ran) {
-    return { status: 'warn', message: '依赖架构检查未完成：dependency-cruiser 没跑起来（不是通过）' };
+    return { status: 'skip', message: '依赖架构检查未完成：dependency-cruiser 没跑起来（不是通过）' };
   }
   return outcome.violationCount > 0
     ? `依赖架构检查完成: ${outcome.violationCount} 个违规`

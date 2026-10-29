@@ -73,16 +73,16 @@ describe('假绿回归：修复/回归测试验证', () => {
     expect(handleVerifyFix('x', {}, '/tmp', {}).status).toBe('fail');
   });
 
-  it('测试运行器起不来 → warn（没验证过，不能算通过）', () => {
+  it('测试运行器起不来 → skip（没验证过，不能算通过）', () => {
     safeExec.mockImplementation(() => { throw new Error('spawn npx ENOENT'); });
     const r = handleRegression('x', {}, '/tmp', {});
-    expect(r.status).toBe('warn');
+    expect(r.status).toBe('skip');
     expect(r.message).toContain('未执行');
   });
 
-  it('没有任何测试文件 → warn，而不是 fail 也不是 pass', () => {
+  it('没有任何测试文件 → skip，而不是 fail 也不是 pass', () => {
     safeExec.mockImplementation(() => { throw Object.assign(new Error('x'), { status: 1, stdout: 'No test files found, exiting with code 1' }); });
-    expect(handleRegression('x', {}, '/tmp', {}).status).toBe('warn');
+    expect(handleRegression('x', {}, '/tmp', {}).status).toBe('skip');
   });
 
   it('测试全绿 → 字符串 pass', () => {
@@ -217,11 +217,11 @@ describe('假绿回归：没做成的步骤不许记 pass', () => {
     expect(ctx.dependencyAuditPassed).toBe(true);
   });
 
-  it('aislop 完全没有输出 → warn，而不是「未发现 AI 代码气味」', () => {
+  it('aislop 完全没有输出 → skip，而不是「未发现 AI 代码气味」', () => {
     safeExec.mockReturnValue(Buffer.from(''));
     const ctx = {};
     const r = handleAislopScan('aislopScan', {}, project(), ctx);
-    expect(r.status).toBe('warn');
+    expect(r.status).toBe('skip');
     expect(ctx.aislopPassed).toBe(false);
   });
 

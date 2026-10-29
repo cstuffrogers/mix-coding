@@ -194,10 +194,10 @@ describe('假绿修复：没做的事不许记 pass', () => {
     expect(resultStr).toContain('请提供任务目标');
   });
 
-  it('handleDesignInput 没拿到值 → warn', () => {
+  it('handleDesignInput 没拿到值 → skip（没测不是 warn）', () => {
     const context = {};
     const r = handleDesignInput('input', { key: 'missing_env_vars' }, '/tmp', context);
-    expect(r.status).toBe('warn');
+    expect(r.status).toBe('skip');
     expect('missing_env_vars' in context).toBe(false);
   });
 

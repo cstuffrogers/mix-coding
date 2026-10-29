@@ -110,10 +110,10 @@ describe('check-gate-flags：场景声明了什么，引擎就得有什么', () 
     expect(context.unimplementedGates).toEqual(['lintt（demo）']);
   });
 
-  it('一个场景都没读到 → warn（空扫描范围不等于通过）', () => {
+  it('一个场景都没读到 → skip（空扫描范围不等于通过）', () => {
     const dir = mkdtempSync(join(tmpdir(), 'checkscene-'));
     const result = handleCheckGateFlags('checkGateFlags', {}, '/proj', {}, dir);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('扫描范围为空');
   });
 

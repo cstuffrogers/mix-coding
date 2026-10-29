@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { classifyAction, checkAcceptance } from '../lib/acceptance-check.js';
+import { handleVerify } from '../handlers/flow-control.js';
 
 describe('classifyAction', () => {
   it('classifies verify actions', () => {
@@ -115,7 +119,10 @@ describe('checkAcceptance', () => {
     expect(r.unreviewedChange).toBe(false);
   });
 
-  it('treats warn as a reviewed-passing verify status', () => {
+  // 第十六轮把 warn 收紧成「真的跑了、但有发现」：表示「未执行/未测量」的步骤
+  // 一律 skip。所以这条断言现在依赖的前提变了 —— 不再是「warn 普遍算已审阅」，
+  // 而是「warn 只能出现在真跑过的验证上」。下面补了一条真实 handler 的反例。
+  it('treats warn as a reviewed-passing verify status（warn 只用于「跑了但有发现」）', () => {
     const results = [
       { action: 'autoFix', status: 'pass' },
       { action: 'runLint', status: 'warn' },
@@ -123,6 +130,25 @@ describe('checkAcceptance', () => {
     const r = checkAcceptance(flow, [1, 2], false, results);
     expect(r.hasPassingVerify).toBe(true);
     expect(r.unreviewedChange).toBe(false);
+  });
+
+  it('验证没跑成（skip）不算已审阅 —— 真 handler 也不许给 warn', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'acc-verify-'));
+    try {
+      // 没有 package.json = 没东西可跑。以前 verifyByTestRun 返回 warn，
+      // 而 PASSING_RE 收 warn → 「改了代码、验证没跑」被门禁放行（实测 exit 0）。
+      const res = await handleVerify('verify', { mode: 'smoke_test' }, dir, {});
+      expect(res.status).toBe('skip');
+      const r = checkAcceptance(flow, [1, 2], false, [
+        { action: 'autoFix', status: 'pass' },
+        { action: 'runLint', status: res.status },
+      ]);
+      expect(r.hasVerify).toBe(true);
+      expect(r.hasPassingVerify).toBe(false);
+      expect(r.unreviewedChange).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('without stepResults, falls back to verify-presence (static scene check)', () => {

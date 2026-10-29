@@ -70,7 +70,7 @@ export function handleSecurityScan(_action, _params, targetPath, context) {
   }
 
   if (npmUnknown && issues.length === 0) {
-    return { status: 'warn', message: '安全扫描未完成：npm audit 没给出可解析的结果，也没在源码里发现秘密（npm 这一侧没人查过，不是通过）' };
+    return { status: 'skip', message: '安全扫描未完成：npm audit 没给出可解析的结果，也没在源码里发现秘密（npm 这一侧没人查过，不是通过）' };
   }
   return `安全扫描完成: ${issues.length ? issues.join('; ') : '无问题'}`;
 }
@@ -174,7 +174,7 @@ export function handleDeprecatedDeps(_action, _params, targetPath, context) {
     if (queried) context.deprecatedDepsPassed = deprecatedCount === 0;
   }
   if (!queried && deprecatedCount === 0) {
-    return { status: 'warn', message: '废弃依赖检测未完成：npm outdated 没给出可用输出（不是通过）' };
+    return { status: 'skip', message: '废弃依赖检测未完成：npm outdated 没给出可用输出（不是通过）' };
   }
   return `废弃依赖检测完成: ${deprecatedCount} 个`;
 }

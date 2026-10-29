@@ -6,6 +6,9 @@ const VERIFY_RE = /lint|test|verify|audit|check|build|review|smoke|regression|va
 const EDIT_RE = /edit|write|generate|create|modify|patch|refactor|implement|fix/i;
 // A verify step counts as "reviewed-passing" when it ran and did not fail.
 // pass = clean, warn = passed with findings (still a reviewed signal), noop = skipped/unavailable.
+// 注意：warn 只能表示「真跑了、但有发现」。表示「没测」的步骤必须是 skip ——
+// 否则这一行就成了假绿通道（实测：写文件 + verify 两步都没执行，exit 0）。
+// 守卫在 commands/step-status-contract.test.js。
 const PASSING_RE = /^(pass|warn)$/i;
 
 export function classifyAction(action) {

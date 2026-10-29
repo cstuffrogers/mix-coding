@@ -663,10 +663,15 @@ function applyPostStepContext(step, context, sceneId) {
  * 把非 pass 步骤渲染成可核对的行。计数（fail: 1）不告诉你哪步不行，
  * 收尾摘要与报告都靠这个列表说清楚「到底哪里没过」。
  */
-export function describeNotPassSteps(stepResults, limit = 12) {
+export function describeNotPassSteps(stepResults, limit = 12, plannedIterations = 1) {
   const list = (Array.isArray(stepResults) ? stepResults : [])
     .filter((r) => r && typeof r.status === 'string' && r.status !== 'pass');
-  const lines = list.slice(0, limit).map((r) => `Step ${r.step ?? '?'} ${r.action} → ${r.status}`);
+  const lines = list.slice(0, limit).map((r) => {
+    // 多轮时同一个 action 会重复出现：不带轮次的话，两行「Step 3 test → fail」
+    // 看起来像重复记录，实际是第 1、2 轮各失败一次。
+    const round = plannedIterations > 1 && r.iteration ? `（第 ${r.iteration} 轮）` : '';
+    return `Step ${r.step ?? '?'} ${r.action} → ${r.status}${round}`;
+  });
   return { lines, total: list.length };
 }
 
@@ -690,6 +695,27 @@ export function summaryMismatch(summary) {
  */
 export function exitCodeForSummary(summary) {
   return summary && summary.fail > 0 ? 1 : 0;
+}
+
+/** 多轮时先说清 total 的口径：它数的是记录次数，不是场景步数。 */
+function printRoundNote(context) {
+  const planned = context?.iterationsPlanned || 1;
+  if (planned <= 1) return;
+  console.log(chalk.dim(`  本次跑了 ${planned} 轮：同名步骤每轮各记一条，故 total=${LOG_SUMMARY.total} 是记录次数（≈ 步数 × 轮数）`));
+}
+
+/** 「哪几步不行」—— 计数不等于内容，block 收尾时最需要看这个。 */
+function printNotPassSteps(context) {
+  const planned = context?.iterationsPlanned || 1;
+  const { lines, total } = describeNotPassSteps(context?.stepResults, 12, planned);
+  if (lines.length === 0) return;
+  console.log(chalk.yellow('  未通过 / 未执行的步骤：'));
+  for (const line of lines) {
+    console.log(chalk.yellow(`     ${line}`));
+  }
+  if (total > lines.length) {
+    console.log(chalk.dim(`     …共 ${total} 步，完整列表见报告/日志`));
+  }
 }
 
 function printSummary(sceneId, context = null, { aborted = null } = {}) {
@@ -722,17 +748,9 @@ function printSummary(sceneId, context = null, { aborted = null } = {}) {
   if (fail > 0 || noop > 0 || warn > 0 || unjudged.length > 0) {
     console.log(chalk.dim(`  日志: ${LOG_PATH}`));
   }
-  // 计数不等于内容：block 收尾时用户最需要知道「具体哪几歩不行」。
-  const { lines, total } = describeNotPassSteps(context?.stepResults);
-  if (lines.length > 0) {
-    console.log(chalk.yellow('  未通过 / 未执行的步骤：'));
-    for (const line of lines) {
-      console.log(chalk.yellow(`     ${line}`));
-    }
-    if (total > lines.length) {
-      console.log(chalk.dim(`     …共 ${total} 步，完整列表见报告/日志`));
-    }
-  }
+  // 计数不等于内容：block 收尾时用户最需要知道「具体哪几步不行」。
+  printRoundNote(context);
+  printNotPassSteps(context);
   console.log(chalk.dim('─'.repeat(40)));
   // Acceptance triple: bind delivery to a reviewed check, not handoff alone.
   console.log(chalk.cyan('  验收三元组（交付前必须报告）：'));
@@ -1223,7 +1241,7 @@ function recordStepResult(step, stepNum, status, duration, resultStr, context) {
   // step/detail 是给收尾摘要和报告看的：只有 action+status 时，事后看到
   // 「report → warn」也无法知道 warn 的是什么。
   if (!Array.isArray(context.stepResults)) context.stepResults = [];
-  context.stepResults.push({ step: stepNum, action: step.action, status, detail: clipDetail(resultStr) });
+  context.stepResults.push({ step: stepNum, action: step.action, status, detail: clipDetail(resultStr), iteration: context.iteration || 1 });
 }
 
 /**
@@ -1503,13 +1521,30 @@ export function resolveIterations(options, scene) {
   return Math.min(parsed, MAX_ITERATIONS);
 }
 
+/** 用户实际要的轮数（未截断）。用来在「请求 999 轮只跑了 20」时说一声。 */
+export function requestedIterations(options, scene) {
+  const parsed = Number.parseInt(options?.iterations ?? scene?.iterations ?? 1, 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+}
+
 /**
  * 收敛判据：之前“循环 N 次”只是一句没人消费的 prompt 文本（引擎没有迭代概念）。
  * 本轮干净就停；发现数没下降也停，否则 N 轮都在同一批问题上空转。
  * `--force-iterations` 显式要求跑满轮数时，no-progress 只警告不停。
+ *
+ * `findings === null` 表示「这一轮根本没有可数的发现」：场景里一个
+ * aislop / review 扫描步骤都没有。以前这种情况返回 0，于是第一轮就被判
+ * 「本轮无新发现，提前结束」—— 什么都没测，却给了个很自信的理由。
  */
 export function shouldStopLooping({ iteration, max, prevFindings, findings, force = false }) {
   if (iteration >= max) return { stop: true, reason: 'max', message: `已跑满 ${max} 轮` };
+  if (findings === null) {
+    return {
+      stop: false,
+      reason: 'unmeasured',
+      message: '本轮没有可数的发现（场景里没有 aislop / review 扫描步骤）—— 无法判断收敛，按轮数跑满',
+    };
+  }
   if (findings === 0) return { stop: true, reason: 'clean', message: '本轮无新发现，提前结束' };
   if (prevFindings !== null && findings >= prevFindings) {
     const message = `发现数未下降（${prevFindings} → ${findings}）`;
@@ -1519,8 +1554,15 @@ export function shouldStopLooping({ iteration, max, prevFindings, findings, forc
   return { stop: false, reason: 'continue', message: '' };
 }
 
-function countFindings(context) {
-  return (context.aislop_issue_count || 0) + (context.review_issue_count || 0);
+/**
+ * 本轮的发现数。两个计数器都没被写过时返回 null（= 没测），
+ * 而不是 0（= 查过了、干净）—— 这两个结论在收敛判断里作用完全相反。
+ */
+export function countFindings(context) {
+  const aislop = context?.aislop_issue_count;
+  const review = context?.review_issue_count;
+  if (aislop === undefined && review === undefined) return null;
+  return (aislop || 0) + (review || 0);
 }
 
 async function runFlow(sceneId, scene, context, options) {
@@ -1533,12 +1575,32 @@ async function runFlow(sceneId, scene, context, options) {
   }
 }
 
+function announceIteration(iteration, iterations) {
+  if (iterations > 1) console.log(chalk.cyan(`\n🔁 第 ${iteration}/${iterations} 轮`));
+}
+
+function warnCappedIterations(wanted, iterations) {
+  if (wanted <= iterations) return;
+  console.log(chalk.yellow(`⚠ 请求 ${wanted} 轮，超过上限 ${MAX_ITERATIONS} —— 只跑 ${iterations} 轮（上限不是失败，但也不该默默截断）`));
+}
+
+/** 「本轮发现」必须说明是数出来的还是根本没测。 */
+function reportRoundFindings(findings, iterations) {
+  if (iterations <= 1) return;
+  const shown = findings === null
+    ? '本轮没有可数的发现（场景里没有 aislop / review 扫描步骤）'
+    : `本轮发现 ${findings} 处`;
+  console.log(chalk.dim(`   ${shown}`));
+}
+
 async function runIterations(sceneId, scene, context, options) {
   const iterations = options.dryRun ? 1 : resolveIterations(options, scene);
   const force = Boolean(options.forceIterations);
+  if (!options.dryRun) warnCappedIterations(requestedIterations(options, scene), iterations);
+  context.iterationsPlanned = iterations;
   let prevFindings = null;
   for (let iteration = 1; iteration <= iterations; iteration++) {
-    if (iterations > 1) console.log(chalk.cyan(`\n🔁 第 ${iteration}/${iterations} 轮`));
+    announceIteration(iteration, iterations);
     context.iteration = iteration;
     // 每轮都重拍基线：边界量的是「本轮的改动」，上一轮的成果不占这一轮的额度。
     if (!options.dryRun) {
@@ -1547,7 +1609,7 @@ async function runIterations(sceneId, scene, context, options) {
     await runFlow(sceneId, scene, context, options);
     if (options.dryRun) break;
     const findings = countFindings(context);
-    if (iterations > 1) console.log(chalk.dim(`   本轮发现 ${findings} 处`));
+    reportRoundFindings(findings, iterations);
     const decision = shouldStopLooping({ iteration, max: iterations, prevFindings, findings, force });
     if (decision.message && iterations > 1) {
       console.log(chalk.dim(`   ↳ ${decision.message}`));

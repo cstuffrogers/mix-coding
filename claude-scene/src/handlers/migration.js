@@ -111,7 +111,7 @@ export function handleMigrationReview(_action, _params, targetPath, context) {
     // 「审查通过」。不发通过结论，让门禁如实记 skipped。
     if (context) context.migrationFindings = builtin.allFindings;
     const names = builtin.unreadable.map((f) => relative(targetPath, f) || f).join('、');
-    return { status: 'warn', message: `迁移审查未完成：${builtin.unreadable.length} 个迁移文件读不出来（${names}）—— 不是通过` };
+    return { status: 'skip', message: `迁移审查未完成：${builtin.unreadable.length} 个迁移文件读不出来（${names}）—— 不是通过` };
   }
 
   if (guardian.ran && !guardian.exitOk) {

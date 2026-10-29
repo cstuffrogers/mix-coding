@@ -284,6 +284,9 @@ export function evaluateCondition(condition, context) {
 const CONDITION_KEYWORDS = new Set([
   'true', 'false', 'null', 'undefined', 'typeof', 'includes', 'some', 'every',
   'startsWith', 'endsWith', 'length', 'Number', 'String', 'Boolean',
+  // 逻辑连接词不是 context 键，但以前会被当成「运行时状态」报出来：
+  // `not b` 的输出是「未判定（运行时状态：not, b）」—— 一个名字叫 not 的键？
+  'not', 'and', 'or',
 ]);
 
 /**
@@ -343,10 +346,48 @@ function runtimeDependentIdentifiers(condition, context) {
 
 /**
  * 三态判定：满足 / 不满足 / 未判定（dry-run 缺运行时状态）。
+ *
+ * 关键在短路：`a && b` 里 a 已经确定 false 时，结果就是 false，与 b 无关 ——
+ * 以前无条件把「表达式里存在未知键」当成未判定，于是一个必然跳过的步骤被报成
+ * 「引擎不知道」（黄字 ❓），把真正的未知扇区淹掉了。
  */
 export function explainCondition(condition, context) {
-  const met = evaluateCondition(condition, context);
-  if (met) return { met, unknown: [], determinable: true };
+  if (!condition) return { met: true, unknown: [], determinable: true };
+  const verdict = definiteVerdict(condition, context || {});
+  if (verdict !== null) return { met: verdict, unknown: [], determinable: true };
   const unknown = runtimeDependentIdentifiers(condition, context);
-  return { met, unknown, determinable: unknown.length === 0 };
+  // met 永远是「真跑起来会怎么做」；unknown 只用来解释「为什么这次没跑」。
+  // 未判定的意义在于「跳过可能是冤枉的」，所以 met=true 时不必报未知。
+  const met = evaluateCondition(condition, context);
+  if (met || unknown.length === 0) return { met, unknown: [], determinable: true };
+  return { met, unknown, determinable: false };
+}
+
+/**
+ * 三值求值：true / false / null（取决于未知键）。
+ * 只对 `||` / `&&` / `!` 做短路，叶子交给 evalClause + 未知键判断。
+ */
+function definiteVerdict(expr, ctx) {
+  const trimmed = expr.trim();
+  if (trimmed.includes(' || ')) {
+    const parts = trimmed.split(' || ').map((p) => definiteVerdict(p, ctx));
+    if (parts.includes(true)) return true;
+    return parts.every((v) => v === false) ? false : null;
+  }
+  if (trimmed.includes(' && ')) {
+    const parts = trimmed.split(' && ').map((p) => definiteVerdict(p, ctx));
+    if (parts.includes(false)) return false;
+    return parts.every((v) => v === true) ? true : null;
+  }
+  let negated = false;
+  let body = trimmed;
+  while (body.startsWith('!')) {
+    negated = !negated;
+    body = body.slice(1).trim();
+  }
+  const leaf = runtimeDependentIdentifiers(body, ctx).length === 0
+    ? (evalClause(body, ctx) === true)
+    : null;
+  if (leaf === null) return null;
+  return negated ? !leaf : leaf;
 }

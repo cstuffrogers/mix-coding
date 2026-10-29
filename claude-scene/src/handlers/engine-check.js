@@ -124,7 +124,7 @@ export function handleCheckGateFlags(_action, _params, _targetPath, context, sce
   }
   if (declared.size === 0) {
     // 扫描范围为空永远不等于通过
-    return { status: 'warn', message: '没有从任何场景里读到门禁声明（扫描范围为空，不是通过）' };
+    return { status: 'skip', message: '没有从任何场景里读到门禁声明（扫描范围为空，不是通过）' };
   }
   return `场景声明的 ${declared.size} 个门禁都有实现`;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveIterations, shouldStopLooping, deriveStepStatus, spinnerMethodFor, paintByStatus, normalizeStepStatus } from './start.js';
+import { resolveIterations, requestedIterations, shouldStopLooping, countFindings, describeNotPassSteps, deriveStepStatus, spinnerMethodFor, paintByStatus, normalizeStepStatus } from './start.js';
 
 // 回归：`claude-scene start loop --auto "循环10次"` 之前只是把「循环10次」当纯文本塞进
 // prompt —— 引擎根本没有迭代概念，一次就结束。现在 --iterations 才是真驱动。
@@ -23,6 +23,13 @@ describe('resolveIterations', () => {
     expect(resolveIterations({ iterations: 'abc' }, {})).toBe(1);
     expect(resolveIterations({ iterations: 0 }, {})).toBe(1);
     expect(resolveIterations({ iterations: 999 }, {})).toBe(20);
+  });
+
+  // 截断本身没毛病（防跑飞），但默默截断让人以为真跑了 999 轮。
+  it('封顶时能看到用户原本要了多少轮（用于出声，而不是暗暗截断）', () => {
+    expect(requestedIterations({ iterations: 999 }, {})).toBe(999);
+    expect(resolveIterations({ iterations: 999 }, {})).toBe(20);
+    expect(requestedIterations({ iterations: 'abc' }, {})).toBe(1);
   });
 });
 
@@ -57,6 +64,48 @@ describe('shouldStopLooping', () => {
     expect(forced.message).toContain('继续');
     expect(shouldStopLooping({ iteration: 10, max: 10, prevFindings: 940, findings: 940, force: true }).reason).toBe('max');
     expect(shouldStopLooping({ iteration: 2, max: 10, prevFindings: 940, findings: 0, force: true }).reason).toBe('clean');
+  });
+});
+
+// 维度：多轮迭代的「本轮发现」不能是猜的。
+// 实测 --iterations 2 一个没有扫描步骤的场景：countFindings 把「两个计数器都没写过」
+// 算成 0，于是第一轮就报「本轮无新发现，提前结束」—— 什么都没测，却很自信。
+describe('迭代收敛的发现数必须真的测过', () => {
+  it('两个计数器都没写过 → null（没测），不是 0（干净）', () => {
+    expect(countFindings({})).toBeNull();
+    expect(countFindings({ targetPath: '/p' })).toBeNull();
+    expect(countFindings(null)).toBeNull();
+  });
+
+  it('写过的 0 才叫「没有发现」', () => {
+    expect(countFindings({ aislop_issue_count: 0 })).toBe(0);
+    expect(countFindings({ review_issue_count: 0 })).toBe(0);
+    expect(countFindings({ aislop_issue_count: 3, review_issue_count: 2 })).toBe(5);
+  });
+
+  it('没测时不许宣布「本轮无新发现」，而是按轮数跑满', () => {
+    const d = shouldStopLooping({ iteration: 1, max: 5, prevFindings: null, findings: null });
+    expect(d.stop).toBe(false);
+    expect(d.reason).toBe('unmeasured');
+    expect(d.message).toContain('无法判断收敛');
+    expect(d.message).not.toContain('无新发现');
+  });
+});
+
+describe('多轮汇总：同名步骤要带轮次', () => {
+  it('单轮不带轮次噪声', () => {
+    const { lines } = describeNotPassSteps([
+      { step: 3, action: 'test', status: 'fail', iteration: 1 },
+    ], 12, 1);
+    expect(lines).toEqual(['Step 3 test → fail']);
+  });
+
+  it('两轮里同一 action 各失败一次 → 两行且各自标明轮次', () => {
+    const { lines } = describeNotPassSteps([
+      { step: 3, action: 'test', status: 'fail', iteration: 1 },
+      { step: 3, action: 'test', status: 'fail', iteration: 2 },
+    ], 12, 2);
+    expect(lines).toEqual(['Step 3 test → fail（第 1 轮）', 'Step 3 test → fail（第 2 轮）']);
   });
 });
 

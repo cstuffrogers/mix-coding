@@ -46,10 +46,12 @@ export function handleVerifyFix(_action, _params, targetPath) {
   const r = runTestSuite(targetPath);
   if (r.kind === 'ok') return '修复验证通过';
   if (r.kind === 'failed') return { status: 'fail', message: `修复验证失败：测试未通过（exit ${r.exitCode}）` };
-  // 测试器都跑不起来（或根本没有测试），就等于没验证 —— 只能是 warn，不能是 pass。
+  // 测试器都跑不起来（或根本没有测试），就等于没验证 —— 只能是 skip，不能是 pass：
+  // warn 在验收门禁里算「已审阅的信号」，用它表示「未执行」会让「改了代码、没验证」
+  // 的运行被判成已审阅。
   return {
-    status: 'warn',
-    message: `修复验证未执行：${r.output.split('\n')[0].slice(0, 80) || '测试运行器不可用'} —— Bug 修复未经测试验证`,
+    status: 'skip',
+    message: `修复验证未执行：${r.output.split('\n')[0].slice(0, 80) || '测试运行器不可用'} —— Bug 修复未经测试验证（不是通过）`,
   };
 }
 
@@ -57,8 +59,8 @@ export function handleRegression(_action, _params, targetPath) {
   const r = runTestSuite(targetPath);
   if (r.kind === 'ok') return '回归测试通过';
   if (r.kind === 'failed') return { status: 'fail', message: `回归测试失败（exit ${r.exitCode}）` };
-  // 以前 catch 里回「回归测试完成（无测试运行器）」→ 记 ✓ pass。
-  return { status: 'warn', message: `回归测试未执行：${r.output.split('\n')[0].slice(0, 80) || '测试运行器不可用'}` };
+  // 以前 catch 里回「回归测试完成（无测试运行器）」→ 记 ✓ pass。没跑 = skip（不是通过）。
+  return { status: 'skip', message: `回归测试未执行：${r.output.split('\n')[0].slice(0, 80) || '测试运行器不可用'} —— 不是通过` };
 }
 
 export function handleCloseTicket(_action, params, _targetPath, context) {

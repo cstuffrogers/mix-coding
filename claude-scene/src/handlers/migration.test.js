@@ -78,7 +78,7 @@ describe('handleMigrationReview', () => {
     mockReadFileSync.mockImplementationOnce(() => { throw new Error('EACCES'); });
     const ctx = {};
     const result = handleMigrationReview('migration-review', {}, '/tmp', ctx);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('skip');
     expect(result.message).toContain('读不出来');
     expect(ctx.migrationReviewPassed).toBeUndefined();
   });

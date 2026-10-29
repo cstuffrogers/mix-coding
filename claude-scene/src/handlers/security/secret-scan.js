@@ -241,7 +241,7 @@ export function handleSensitiveFileCheck(_action, _params, targetPath, context) 
   }
   if (!gitScanned) {
     // 文件系统那侧（.gitignore / 未忽略的 .env）照跑，但「有没有被 Git 追踪」没查过 —— 不发通过结论
-    return { status: 'warn', message: '敏感文件检查未完成：git 不可用或不是 Git 仓库，无法确认这些文件是否已被追踪（不是通过）' };
+    return { status: 'skip', message: '敏感文件检查未完成：git 不可用或不是 Git 仓库，无法确认这些文件是否已被追踪（不是通过）' };
   }
   if (context) context.sensitiveFilePassed = true;
   return '敏感文件检查完成: 安全';

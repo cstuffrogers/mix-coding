@@ -123,3 +123,102 @@ describe('判定器本身能失败（不是空转）', () => {
     expect(bareStatusReturns(body)).toEqual([]);
   });
 });
+
+// ── 维度：warn 不许用来表示「没测」──
+//
+// `lib/acceptance-check.js` 的 `PASSING_RE = /^(pass|warn)$/`：一个验证步骤只要是
+// warn，验收门禁就当作「已经审过」。于是把「验证未执行」写成 warn，等于用状态骗
+// 门禁 —— 实测过一个「写文件 + verify」的探针场景：两步都没真执行，退出码 0。
+// 「没测」的合法表达是 skip / noop（文案带「不是通过」），warn 只留给
+// 「真的跑了、但有发现」这一种含义。
+const UNMEASURED_WORDS = /(未测量|没有结论|不是通过|不算通过|未执行|未扫描|未跑成|无法判定|不可判定|没有结果|未获取|扫描范围为空|没有产出)/;
+
+/** `status: 'warn'` 所在的字面量对象的起始 `{` 下标（往前找，越过相邻对象）。 */
+function enclosingObjectStart(src, idx) {
+  let depth = 0;
+  for (let i = idx; i >= 0; i -= 1) {
+    if (src[i] === '}') {
+      depth += 1;
+      continue;
+    }
+    if (src[i] !== '{') continue;
+    if (depth === 0) return i;
+    depth -= 1;
+  }
+  return -1;
+}
+
+/** 从 `{` 扫到配对的 `}`（跳过字符串/模板里的花括号）。 */
+function objectAt(src, start) {
+  let depth = 0;
+  let quote = null;
+  for (let i = start; i < src.length; i += 1) {
+    const c = src[i];
+    if (quote) {
+      if (c === '\\') i += 1;
+      else if (c === quote) quote = null;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      quote = c;
+      continue;
+    }
+    if (c === '{') {
+      depth += 1;
+      continue;
+    }
+    if (c !== '}') continue;
+    depth -= 1;
+    if (depth === 0) return src.slice(start, i + 1);
+  }
+  return src.slice(start);
+}
+
+/** 所有 `status: 'warn'` 站点里文案带「没测」措辞的那些 */
+function warnSitesSayingNothingMeasured(sources) {
+  const found = [];
+  let total = 0;
+  for (const { file, src } of sources) {
+    for (const match of src.matchAll(/status:\s*'warn'/g)) {
+      total += 1;
+      const open = enclosingObjectStart(src, match.index);
+      if (open < 0) continue;
+      const body = objectAt(src, open);
+      if (!UNMEASURED_WORDS.test(body)) continue;
+      const line = src.slice(0, match.index).split('\n').length;
+      found.push(`${file}:${line} ${body.replace(/\s+/g, ' ').slice(0, 120)}`);
+    }
+  }
+  return { found, total };
+}
+
+describe('warn 不许用来表示「没测」（验收门禁把 warn 当已审阅）', () => {
+  const { sources } = loadHandlers();
+  const { found, total } = warnSitesSayingNothingMeasured(sources);
+
+  it('扫描范围不是空转：真找到了一大批 warn 站点', () => {
+    expect(sources.length).toBeGreaterThan(20);
+    expect(total).toBeGreaterThan(60);
+  });
+
+  it('warn 文案里没有「未执行 / 未测量 / 不是通过 …」', () => {
+    expect(found, `这些 warn 说的是「没测」，应该写成 skip / noop：\n${found.join('\n')}`).toEqual([]);
+  });
+
+  it('判定器自己会失败：warn + 「验证未执行」→ 点名', () => {
+    const sources = [
+      {
+        file: 'handlers/synthetic.js',
+        src: `
+          export function handleA(p) {
+            if (p) return { status: 'warn', message: '验证未执行：没有 package.json' };
+            return { status: 'warn', message: '审查完成: 3 个问题需要处理' };
+          }`,
+      },
+    ];
+    const { found: hits } = warnSitesSayingNothingMeasured(sources);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toContain('验证未执行');
+    expect(hits[0]).not.toContain('审查完成');
+  });
+});
