@@ -6,6 +6,7 @@ import { grepScan } from '../lib/grep-scan.js';
 import { scanDir } from '../lib/scan-dir.js';
 import { isConversationMode } from '../lib/platform.js';
 import { formatCandidates } from './security/insecure-defaults.js';
+import { recordFindingCount } from '../lib/finding-count.js';
 
 /**
  * Run a command that may exit non-zero (e.g. linter finding issues).
@@ -374,7 +375,9 @@ export function handleRunReview(_action, params, targetPath, context) {
   const isFoundSecurityIssues = accum.security;
 
   applyReviewResults(context, isFoundSecurityIssues, isFoundIssues, autoFix);
-  if (context) context.review_issue_count = summary.issues.length;
+  // 一个检查都没跑成时 summary.issues.length 是 0，但那个 0 不是「查过干净」——
+  // 写进去就等于告诉收敛判断「本轮没有发现」（假绿）。没跑就不写。
+  if (summary.ran.length > 0) recordFindingCount(context, 'review_issue_count', summary.issues.length);
 
   return {
     status: isFoundSecurityIssues ? 'warn' : reviewStatus(summary),

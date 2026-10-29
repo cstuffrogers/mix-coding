@@ -31,8 +31,8 @@ export function handleApplyTemplate(_action, params, targetPath) {
   return { status: 'noop', message: `模板 ${template} 未应用（CLI 不执行，需在对话模式由 agent 完成）` };
 }
 
-export function handleImplementLogic(_action, _params, _targetPath, context) {
-  if (context) context.logic_implemented = true;
+export function handleImplementLogic(_action, _params, _targetPath, _context) {
+  // 消息说「未实现」，旗标就不能叫 logic_implemented —— 下游条件会照它做决定。
   return { status: 'noop', message: '核心逻辑未实现（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 
@@ -122,8 +122,8 @@ export function handleApplyTransformations(_action, params, _targetPath, _contex
   return { status: 'noop', message: `重构变换未应用（CLI 不执行，需在对话模式由 agent 完成）: ${transformations.join(', ')}${guard}` };
 }
 
-export function handleAnalyzeInterface(_action, _params, _targetPath, context) {
-  if (context) context.interface_analyzed = true;
+export function handleAnalyzeInterface(_action, _params, _targetPath, _context) {
+  // 同上：没分析过就别留「已分析」的旗子。
   return { status: 'noop', message: '接口设计未分析（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 

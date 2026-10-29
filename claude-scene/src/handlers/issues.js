@@ -37,8 +37,10 @@ function runTestSuite(targetPath) {
   }
 }
 
-export function handleFix(_action, _params, _targetPath, context) {
-  if (context) context.fixApplied = true;
+export function handleFix(_action, _params, _targetPath, _context) {
+  // 以前这里置 context.fixApplied = true —— 消息写着「待应用」，旗标却说「已应用」。
+  // 这个旗标会被 memory 写进会话记录（memory.js compactFindings），等于把没发生的事
+  // 存成事实。没应用就不写（写 false 也是谎：本轮压根没试过）。
   return { status: 'noop', message: '修复待应用（CLI 不执行，需在对话模式由 agent 完成）' };
 }
 
@@ -63,8 +65,8 @@ export function handleRegression(_action, _params, targetPath) {
   return { status: 'skip', message: `回归测试未执行：${r.output.split('\n')[0].slice(0, 80) || '测试运行器不可用'} —— 不是通过` };
 }
 
-export function handleCloseTicket(_action, params, _targetPath, context) {
-  if (context) context.ticket_closed = true;
+export function handleCloseTicket(_action, params, _targetPath, _context) {
+  // 同上：消息是「Ticket 未关闭」，就不能顺手把 ticket_closed 置真。
   // comment：关闭时要贴的说明。以前没人读 —— 带进结论，agent 照着填。
   const note = typeof params?.comment === 'string' && params.comment ? `；待附评论：${params.comment.split(/[\r\n]+/)[0].slice(0, 60)}` : '';
   return { status: 'noop', message: `Ticket 未关闭（CLI 不执行，需在对话模式由 agent 完成${note}）` };

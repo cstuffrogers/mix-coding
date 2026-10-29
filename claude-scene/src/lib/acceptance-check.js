@@ -29,12 +29,40 @@ function buildStatusLookup(stepResults) {
 }
 
 // A verify step counts as "reviewed-passing" when it ran and did not fail.
-// pass = clean, warn = passed with findings (still a reviewed signal).
+// pass = clean, warn = passed with findings (still a reviewed signal), noop = skipped/unavailable.
 // Without stepResults (static scene check), any verify action counts as presence.
 function isPassingVerify(action, statusLookup, hasStepResults) {
   if (!hasStepResults) return true;
   const status = statusLookup.get(action);
   return typeof status === 'string' && PASSING_RE.test(status);
+}
+
+// 真的动过东西的步骤：pass / warn 是做了，fail 是做了但出错（也可能写了一半）。
+// noop = 没人可做的事，skip = 本环境没执行 —— 这两个没产生变更，
+// 以前按动作名一律算「有变更」，于是 qa / update 这类报告型场景在对话模式下
+// 收尾时被「变更未通过验证」拦下（实测 exit 1），而那条消息里的「有变更」是假话。
+const CHANGED_RE = /^(pass|warn|fail)$/i;
+
+// 判定一个变更类步骤算不算真的动了东西：没有 stepResults（静态检查）只能按动作名；
+// 有 stepResults 就必须看状态 —— pass/warn/fail 是做了，noop/skip 是没做。
+function isChangedEdit(action, statusLookup, hasStepResults) {
+  if (!hasStepResults) return true;
+  const status = statusLookup.get(action);
+  return typeof status === 'string' && CHANGED_RE.test(status);
+}
+
+/** 一个已完成步骤对验收门禁意味着什么（拆出来只是为了让主循环保持平坦）。 */
+function classifyCompletedStep(step, statusLookup, hasStepResults) {
+  const kind = classifyAction(step.action);
+  if (kind === 'edit') {
+    // 注意：edit 与 inert 互斥 —— 「是变更类动作」不等于「真的改了」。
+    const changed = isChangedEdit(step.action, statusLookup, hasStepResults);
+    return { edit: changed, inert: !changed };
+  }
+  if (kind === 'verify') {
+    return { verify: true, passingVerify: isPassingVerify(step.action, statusLookup, hasStepResults) };
+  }
+  return {};
 }
 
 // stepResults: optional array of { action, status } for the completed steps.
@@ -47,19 +75,22 @@ export function checkAcceptance(flow, completedStepNums, allowNoVerify = false, 
   let hasEdit = false;
   let hasVerify = false;
   let hasPassingVerify = false;
+  // 有变更类动作、但一步都没真改动过：调用方要把这个事实说出来，否则
+  // 「门禁没拦」和「门禁被关了」在输出上长得一样。
+  const inertEditSteps = [];
   for (const step of flow || []) {
     if (!completed.has(step.step)) continue;
-    const kind = classifyAction(step.action);
-    if (kind === 'edit') hasEdit = true;
-    if (kind === 'verify') {
-      hasVerify = true;
-      if (isPassingVerify(step.action, statusLookup, hasStepResults)) hasPassingVerify = true;
-    }
+    const c = classifyCompletedStep(step, statusLookup, hasStepResults);
+    if (c.edit) hasEdit = true;
+    if (c.inert) inertEditSteps.push(step.action);
+    if (c.verify) hasVerify = true;
+    if (c.passingVerify) hasPassingVerify = true;
   }
   return {
     hasEdit,
     hasVerify,
     hasPassingVerify,
+    inertEditSteps,
     missingVerify: !allowNoVerify && hasEdit && !hasVerify,
     // Hard gate: change-bearing run closed without any reviewed-passing verify step.
     unreviewedChange: !allowNoVerify && hasEdit && !hasPassingVerify,

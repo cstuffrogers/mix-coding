@@ -108,6 +108,45 @@ describe('checkAcceptance', () => {
     expect(r.unreviewedChange).toBe(true);
   });
 
+  // 维度（第十七轮）：变更类步骤的 status 得看 —— noop/skip 是「没做」，不是「改了」。
+  // 实测（对话模式）：qa 场景的 generateQAReport → noop、update 的 writeUpdateLog → noop，
+  // 两步都没执行任何写入，却被「有变更但验证未通过」拦下 exit 1 —— 消息里的「有变更」是假话。
+  it('noop 的变更类步骤不算「有变更」（不许拿它拦下一次什么都没改的运行）', () => {
+    const r = checkAcceptance(flow, [1, 2], false, [
+      { action: 'autoFix', status: 'noop' },
+      { action: 'runTests', status: 'skip' },
+    ]);
+    expect(r.hasEdit).toBe(false);
+    expect(r.inertEditSteps).toEqual(['autoFix']);
+    expect(r.unreviewedChange).toBe(false);
+    expect(r.missingVerify).toBe(false);
+  });
+
+  it('skip 的变更类步骤也不算，但 fail 的算（写了一半也是写）', () => {
+    const skipped = checkAcceptance(flow, [1], false, [{ action: 'autoFix', status: 'skip' }]);
+    expect(skipped.hasEdit).toBe(false);
+    expect(skipped.inertEditSteps).toEqual(['autoFix']);
+    const failed = checkAcceptance(flow, [1], false, [{ action: 'autoFix', status: 'fail' }]);
+    expect(failed.hasEdit).toBe(true);
+    expect(failed.inertEditSteps).toEqual([]);
+  });
+
+  it('真的改过（pass）仍然要验证 —— 收紧 noop 不是把门禁拆了', () => {
+    const r = checkAcceptance(flow, [1, 2], false, [
+      { action: 'autoFix', status: 'pass' },
+      { action: 'runTests', status: 'skip' },
+    ]);
+    expect(r.hasEdit).toBe(true);
+    expect(r.inertEditSteps).toEqual([]);
+    expect(r.unreviewedChange).toBe(true);
+  });
+
+  it('没有 stepResults 时仍是 presence-only（静态检查不变）', () => {
+    const r = checkAcceptance(flow, [1, 2], false, null);
+    expect(r.hasEdit).toBe(true);
+    expect(r.inertEditSteps).toEqual([]);
+  });
+
   it('with stepResults, passes when at least one verify step is pass', () => {
     const results = [
       { action: 'autoFix', status: 'pass' },

@@ -151,24 +151,34 @@ describe('executeAction', () => {
   it('returns fallback message for unknown actions', async () => {
     const context = {};
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = await executeAction('test-scene', 'nonexistentAction', {}, context, '/tmp');
-    // 兑底文案不能静默：以前场景里 action 名写错也报 ✓ pass
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain('nonexistentAction');
-    // 并且必须显式标 warn —— 否则字符串结果仍会被记成 pass
-    expect(result).toMatchObject({ status: 'warn' });
-    expect(result.message).toContain('nonexistentAction');
-    // 文案不许报「完成」：那 6 个字母曾在 475 行文案表里替一个不存在的动作作证
-    expect(result.message).not.toMatch(/完成|已/);
-    expect(deriveStepStatus(result, {}).stepStatus).toBe('warn');
-    warn.mockRestore();
+    try {
+      const result = await executeAction('test-scene', 'nonexistentAction', {}, context, '/tmp');
+      // 兑底文案不能静默：以前场景里 action 名写错也报 ✓ pass
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toContain('nonexistentAction');
+      // 契约改了（第十七轮）：没有处理器 = 这一步没执行 = skip，不是 warn。
+      // warn 的合同是「真的跑了、但有发现」，验收门禁又拿 warn 当「已审阅」——
+      // 于是把 `verify` 写成 `verifyy` 会一路绿到 exit 0（实测）。
+      expect(result).toMatchObject({ status: 'skip' });
+      expect(result.message).toContain('nonexistentAction');
+      // 文案不许报「完成」：那 6 个字母曾在 475 行文案表里替一个不存在的动作作证
+      expect(result.message).not.toMatch(/完成|已/);
+      expect(result.message).toContain('不是通过');
+      expect(deriveStepStatus(result, {}).stepStatus).toBe('skip');
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('已知动作不报未知警告', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    await executeAction('test-scene', 'memoryRecall', { limit: 1 }, {}, '/tmp');
-    expect(warn).not.toHaveBeenCalled();
-    warn.mockRestore();
+    try {
+      await executeAction('test-scene', 'memoryRecall', { limit: 1 }, {}, '/tmp');
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      // 断言失败也必须收回 spy：泄漏出去会让下一个用例莫名「warn 被调过」。
+      warn.mockRestore();
+    }
   });
 
   it('catches errors and returns an explicit fail', async () => {

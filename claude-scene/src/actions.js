@@ -729,13 +729,16 @@ export async function executeAction(sceneId, action, params, context, targetPath
     }
 
     // 未知动作以前静默返回「执行完成」—— 场景里 action 名写错也报 ✓ pass。
-    // 没处理器就一律 warn：状态、日志、返回值三处都说同一件事。
+    // 第十七轮把它从 warn 改成 skip：warn 的合同是「真的跑了、但有发现」，
+    // 而这里根本没有处理器 —— 一步没跑却报 warn，验收门禁（PASSING_RE 含 warn）
+    // 就会把写错的 `verifyy` 当成「验证已跑过」，实测 exit 0（假绿）。
+    // 没执行 = skip，而且 skip 也要出声：控制台、日志、返回值三处说同一件事。
     console.warn(`\n⚠️ 未知动作 "${action}"（ACTION_REGISTRY 里没有处理器）—— 这一步什么都没做`);
     // 兜底文案不再用 data/action-messages.js 里那一句「XXX 执行完成」：
     // 那张表唯一的读者就是这个分支 —— 一句「完成」永远只在最不该相信它的时候
     // 被引用（处理器根本没有）。文案也不是实现证据：四个扫描器曾把「表里有条
     // 文案」当成「这个 action 存在」的免死金牌。现在只说实话：不认识、没执行。
-    return { status: 'warn', message: `未找到动作 "${action}" 的处理器（这一步没有执行）` };
+    return { status: 'skip', message: `未找到动作 "${action}" 的处理器（这一步没有执行，不是通过）` };
   } catch (error) {
     if (context) context.lastStepFailed = true;
     console.error(`\n⚠️ 执行 ${action} 时出错: ${error.message}`);

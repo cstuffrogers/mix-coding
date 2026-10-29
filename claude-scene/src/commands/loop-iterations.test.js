@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync } from 'fs';
+import { join, basename } from 'path';
 import { resolveIterations, requestedIterations, shouldStopLooping, countFindings, describeNotPassSteps, deriveStepStatus, spinnerMethodFor, paintByStatus, normalizeStepStatus } from './start.js';
+import { recordFindingCount } from '../lib/finding-count.js';
 
 // 回归：`claude-scene start loop --auto "循环10次"` 之前只是把「循环10次」当纯文本塞进
 // prompt —— 引擎根本没有迭代概念，一次就结束。现在 --iterations 才是真驱动。
@@ -77,10 +80,51 @@ describe('迭代收敛的发现数必须真的测过', () => {
     expect(countFindings(null)).toBeNull();
   });
 
+  // 契约变了：发现数必须带「哪一轮写的」（recordFindingCount 打的标）。
+  // 以前只看「计数器存不存在」→ 上一轮的值会被当成本轮结论。现在裸写计数器
+  // 也不算数（下面最后一条守卫会把「绕过 helper 直接赋值」抓出来）。
   it('写过的 0 才叫「没有发现」', () => {
-    expect(countFindings({ aislop_issue_count: 0 })).toBe(0);
-    expect(countFindings({ review_issue_count: 0 })).toBe(0);
-    expect(countFindings({ aislop_issue_count: 3, review_issue_count: 2 })).toBe(5);
+    const mk = (key, value) => {
+      const ctx = { iteration: 1 };
+      recordFindingCount(ctx, key, value);
+      return ctx;
+    };
+    expect(countFindings(mk('aislop_issue_count', 0))).toBe(0);
+    expect(countFindings(mk('review_issue_count', 0))).toBe(0);
+    const both = mk('aislop_issue_count', 3);
+    recordFindingCount(both, 'review_issue_count', 2);
+    expect(countFindings(both)).toBe(5);
+    // 没有轮次标记 = 不知道这份数字属不属于本轮 → 没测。
+    expect(countFindings({ aislop_issue_count: 3 })).toBeNull();
+  });
+
+  it('上一轮的计数器不能当本轮的发现数', () => {
+    const ctx = { iteration: 1 };
+    recordFindingCount(ctx, 'aislop_issue_count', 5);
+    expect(countFindings(ctx)).toBe(5);
+    ctx.iteration = 2; // 第二轮没跑扫描步骤（条件跳过 / 场景里没有）
+    expect(countFindings(ctx)).toBeNull();
+    const d = shouldStopLooping({ iteration: 2, max: 5, prevFindings: 5, findings: countFindings(ctx) });
+    expect(d.reason).toBe('unmeasured');
+    expect(d.message).not.toContain('未下降');
+  });
+
+  // 守卫：绕过 helper 直接写计数器 = 下一个人会踩回同一个坑（静默变成「没测」或读到旧值）。
+  it('引擎里只有 finding-count.js 能直接写发现计数器', () => {
+    const src = readdirSync(join(import.meta.dirname, '..'), { recursive: true })
+      .filter((f) => typeof f === 'string' && f.endsWith('.js') && !f.endsWith('.test.js'))
+      .map((f) => join(import.meta.dirname, '..', f))
+      .filter((f) => !f.endsWith(join('lib', 'finding-count.js')));
+    const offenders = [];
+    for (const file of src) {
+      const text = readFileSync(file, 'utf8');
+      for (const line of text.split(/\r?\n/)) {
+        if (/context\.\w*_issue_count\s*=[^=]/.test(line) && !line.trimStart().startsWith('//')) {
+          offenders.push(`${basename(file)}: ${line.trim()}`);
+        }
+      }
+    }
+    expect(offenders, '发现计数器被直接赋值 —— 改用 recordFindingCount，否则多轮里会读到上一轮的值').toEqual([]);
   });
 
   it('没测时不许宣布「本轮无新发现」，而是按轮数跑满', () => {

@@ -13,6 +13,7 @@ import { applyEnhancements } from '../lib/enhancements.js';
 import { PROJECT_ROOT, resolveScenePath, describePaths } from '../lib/paths.js';
 import { detectHandlerFailure } from '../lib/failure-detection.js';
 import { checkAcceptance } from '../lib/acceptance-check.js';
+import { countMeasuredFindings } from '../lib/finding-count.js';
 import { captureBoundaryBaseline } from '../handlers/codeguardian.js';
 
 const LAYER_ICONS = {
@@ -718,6 +719,37 @@ function printNotPassSteps(context) {
   }
 }
 
+/** 中止时必须说清「中止前做完了哪些歩」—— 只列未通过的步骤等于丢掉了已有的证据。 */
+function printCompletedSteps(context, limit = 12) {
+  const rows = (context?.stepResults || []).filter((r) => r && r.status === 'pass');
+  if (rows.length === 0) {
+    console.log(chalk.yellow('     中止前没有任何步骤真的跑成（pass）—— 上一个环节的成果不可复用。'));
+    return;
+  }
+  const planned = context?.iterationsPlanned || 1;
+  const shown = rows.slice(0, limit).map((r) => `Step ${r.step} ${r.action}${planned > 1 ? `（第 ${r.iteration || 1} 轮）` : ''}`);
+  console.log(chalk.yellow(`     中止前已完成（pass）${rows.length} 步，可复用：`));
+  for (const line of shown) {
+    console.log(chalk.yellow(`       ${line}`));
+  }
+  if (rows.length > shown.length) {
+    console.log(chalk.dim(`       …另有 ${rows.length - shown.length} 步，完整记录见日志`));
+  }
+}
+
+/** 日志终点事件：只有 start 记录的日志分不清「中止在这」和「日志被截断」。 */
+export function buildEndLogEntry({ aborted = null, context = null } = {}) {
+  return {
+    event: 'end',
+    status: aborted ? 'aborted' : 'completed',
+    reason: aborted || null,
+    summary: { ...LOG_SUMMARY },
+    completed_steps: (context?.completedSteps || []).length,
+    iterations_planned: context?.iterationsPlanned || 1,
+    time: new Date().toISOString(),
+  };
+}
+
 function printSummary(sceneId, context = null, { aborted = null } = {}) {
   console.log(chalk.dim(`\n${'─'.repeat(40)}`));
   const { pass, fail, skip, noop, warn } = LOG_SUMMARY;
@@ -731,6 +763,7 @@ function printSummary(sceneId, context = null, { aborted = null } = {}) {
   if (aborted) {
     console.log(chalk.red(`  ⛔ 工作流已中止: ${aborted}`));
     console.log(chalk.red('     上面的计数只是中止前的部分结果 —— 这次运行没有跑完，不要当成通过。'));
+    printCompletedSteps(context);
   }
   const mismatch = summaryMismatch(LOG_SUMMARY);
   if (mismatch) {
@@ -745,7 +778,8 @@ function printSummary(sceneId, context = null, { aborted = null } = {}) {
       console.log(chalk.yellow(`     Step ${item.step} ${item.description}（缺 ${item.keys.join(', ')}）`));
     }
   }
-  if (fail > 0 || noop > 0 || warn > 0 || unjudged.length > 0) {
+  if (fail > 0 || noop > 0 || warn > 0 || unjudged.length > 0 || aborted) {
+    // 中止时一定给日志路径：屏幕上的计数只是摘要，日志才是事后能核对的全量记录。
     console.log(chalk.dim(`  日志: ${LOG_PATH}`));
   }
   // 计数不等于内容：block 收尾时用户最需要知道「具体哪几步不行」。
@@ -758,6 +792,8 @@ function printSummary(sceneId, context = null, { aborted = null } = {}) {
   console.log(chalk.gray('    2. 验证命令：实际跑过的 lint/test/build'));
   console.log(chalk.gray('    3. 验证结果：命令的通过/失败状态'));
   console.log(chalk.dim(`${'─'.repeat(40)}\n`));
+  // printSummary 是每条退出路径的最后一站，所以终点事件写在这里，一次不多一次不少。
+  appendLog(buildEndLogEntry({ aborted, context }));
 }
 
 /** 状态 → 汇总桶（与 recordStepResult 的 switch 一致；认不出的状态算 pass）。 */
@@ -1497,6 +1533,12 @@ function enforceAcceptanceGate(scene, context, sceneId) {
   // Hard acceptance gate: a change-bearing run must close with a reviewed-passing verify step.
   // Scenes that legitimately have no verify step declare allow_no_verify: true.
   const acceptance = checkAcceptance(scene.flow, context.completedSteps, scene.allow_no_verify, context.stepResults);
+  // 变更类步骤全是 noop / skip = 本环境什么都没改。门禁不该拦，但也不能默不作声：
+  // 「没拦」和「被关了」在输出上必须能区分，否则下次有人把 status 写错就没人发现。
+  if (!acceptance.hasEdit && acceptance.inertEditSteps.length > 0) {
+    const list = [...new Set(acceptance.inertEditSteps)].join(', ');
+    console.log(chalk.dim(`  变更类步骤未真正执行（${list}），本次没有实际改动 —— 验收门禁不要求验证`));
+  }
   if (acceptance.missingVerify) {
     console.log(chalk.red('  ✖ 验收阻断：本次工作流包含变更类步骤但未执行任何验证类步骤（lint/test/verify/build）。'));
     console.log(chalk.red('    交付前必须补跑验证并报告「变更 + 验证命令 + 验证结果」三元组。'));
@@ -1532,9 +1574,10 @@ export function requestedIterations(options, scene) {
  * 本轮干净就停；发现数没下降也停，否则 N 轮都在同一批问题上空转。
  * `--force-iterations` 显式要求跑满轮数时，no-progress 只警告不停。
  *
- * `findings === null` 表示「这一轮根本没有可数的发现」：场景里一个
- * aislop / review 扫描步骤都没有。以前这种情况返回 0，于是第一轮就被判
- * 「本轮无新发现，提前结束」—— 什么都没测，却给了个很自信的理由。
+ * `findings === null` 表示「这一轮没有可数的发现」：要么场景里没有扫描步骤，
+ * 要么扫描步骤这一轮没跑成（工具没装 / 条件跳过），要么写的是上一轮的数字。
+ * 以前这种情况返回 0，于是第一轮就被判「本轮无新发现，提前结束」—— 什么都没测，
+ * 却给了个很自信的理由。
  */
 export function shouldStopLooping({ iteration, max, prevFindings, findings, force = false }) {
   if (iteration >= max) return { stop: true, reason: 'max', message: `已跑满 ${max} 轮` };
@@ -1542,7 +1585,7 @@ export function shouldStopLooping({ iteration, max, prevFindings, findings, forc
     return {
       stop: false,
       reason: 'unmeasured',
-      message: '本轮没有可数的发现（场景里没有 aislop / review 扫描步骤）—— 无法判断收敛，按轮数跑满',
+      message: '本轮没有可数的发现（扫描步骤没跑成，或场景里没有扫描步骤）—— 无法判断收敛，按轮数跑满',
     };
   }
   if (findings === 0) return { stop: true, reason: 'clean', message: '本轮无新发现，提前结束' };
@@ -1559,10 +1602,8 @@ export function shouldStopLooping({ iteration, max, prevFindings, findings, forc
  * 而不是 0（= 查过了、干净）—— 这两个结论在收敛判断里作用完全相反。
  */
 export function countFindings(context) {
-  const aislop = context?.aislop_issue_count;
-  const review = context?.review_issue_count;
-  if (aislop === undefined && review === undefined) return null;
-  return (aislop || 0) + (review || 0);
+  // 只有「本轮写过」的发现数才算数：上一轮的值在这一轮什么也没说明（见 lib/finding-count.js）。
+  return countMeasuredFindings(context);
 }
 
 async function runFlow(sceneId, scene, context, options) {
@@ -1588,7 +1629,7 @@ function warnCappedIterations(wanted, iterations) {
 function reportRoundFindings(findings, iterations) {
   if (iterations <= 1) return;
   const shown = findings === null
-    ? '本轮没有可数的发现（场景里没有 aislop / review 扫描步骤）'
+    ? '本轮没有可数的发现（扫描步骤没跑成，或场景里没有扫描步骤）'
     : `本轮发现 ${findings} 处`;
   console.log(chalk.dim(`   ${shown}`));
 }

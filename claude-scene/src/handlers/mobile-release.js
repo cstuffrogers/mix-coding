@@ -179,16 +179,16 @@ export function handleGrayReleaseConfig(_action, _params, _targetPath, context) 
 
 // ── iOS Release ──
 
-export function handleIosRelease(_action, params, _targetPath, context) {
+export function handleIosRelease(_action, params, _targetPath, _context) {
   const lane = params?.lane || 'beta';
-  if (context) context.ios_released = true;
+  // 没发布就不许置 ios_released：这是「未发布」的 noop，不是「已发布」。
   return { status: 'noop', message: `iOS ${lane} 未发布（CLI 不执行，需在对话模式由 agent 完成）` };
 }
 
 // ── Android Release ──
 
-export function handleAndroidRelease(_action, params, _targetPath, context) {
+export function handleAndroidRelease(_action, params, _targetPath, _context) {
   const track = params?.track || 'internal';
-  if (context) context.android_released = true;
+  // 同上：android_released 只在真发布时才能置真。
   return { status: 'noop', message: `Android ${track} 未发布（CLI 不执行，需在对话模式由 agent 完成）` };
 }

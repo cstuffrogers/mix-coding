@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { deriveStepStatus, spinnerMethodFor, paintByStatus } from './start.js';
 import { executeAction } from '../actions.js';
+import { checkAcceptance } from '../lib/acceptance-check.js';
 
 /**
  * 假绿哨兵：这一类「看起来通过了，其实什么都没发生」的缺陷在本仓库出现过 4 种形态。
@@ -56,15 +57,43 @@ describe('假绿哨兵', () => {
   });
 
   describe('3. 未知动作必须留下痕迹', () => {
-    it('ACTION_REGISTRY 里没有 → console.warn + 显式 warn（不许报「完成」）', async () => {
+    it('ACTION_REGISTRY 里没有 → console.warn + 显式 skip（不许报「完成」/「warn」）', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const result = await executeAction('loop', 'definitelyNotAnAction', {}, {}, '.');
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('未知动作'));
-      expect(result).toMatchObject({ status: 'warn' });
-      // 文案里的承诺必须与事实一致：没处理器 = 没执行
-      expect(result.message).toContain('没有执行');
-      expect(result.message).not.toMatch(/完成|已/);
-      warn.mockRestore();
+      try {
+        const result = await executeAction('loop', 'definitelyNotAnAction', {}, {}, '.');
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('未知动作'));
+        // 第十七轮：状态从 warn 改成 skip —— warn 会被验收门禁当成「已审阅」，
+        // 于是 `verify` 手滑写成 `verifyy` 也能 exit 0（实测假绿）。
+        expect(result).toMatchObject({ status: 'skip' });
+        // 文案里的承诺必须与事实一致：没处理器 = 没执行
+        expect(result.message).toContain('没有执行');
+        expect(result.message).toContain('不是通过');
+        expect(result.message).not.toMatch(/完成|已/);
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('未知的验证动作不能把验收门禁逗过去（skip 不是已审阅）', async () => {
+      // 实测过的假绿：`verify` 手滑成 `verifyy` → 以前回 warn → PASSING_RE 命中 →
+      // 写了一堆东西也拿得到 exit 0。这里把两个模块接起来钉住。
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const result = await executeAction('loop', 'verifyy', {}, {}, '.');
+        const { stepStatus } = deriveStepStatus(result, {});
+        const flow = [
+          { step: 1, action: 'writeFile' },
+          { step: 2, action: 'verifyy' },
+        ];
+        const acceptance = checkAcceptance(flow, [1, 2], false, [
+          { action: 'writeFile', status: 'warn' },
+          { action: 'verifyy', status: stepStatus },
+        ]);
+        expect(acceptance.hasPassingVerify).toBe(false);
+        expect(acceptance.unreviewedChange).toBe(true);
+      } finally {
+        warn.mockRestore();
+      }
     });
   });
 

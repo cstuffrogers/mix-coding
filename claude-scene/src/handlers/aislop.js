@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { safeExec } from '../lib/safe-exec.js';
+import { recordFindingCount } from '../lib/finding-count.js';
 
 // `aislop fix` 没有 --include/--changes 之类收窄参数，放它跑就会一次动几百个文件，
 // 无人值守循环里没人复核。超过上限只落盘报警，交人工决定。
@@ -163,7 +164,9 @@ function scanAndRecord(targetPath, context) {
   const ranOk = String(raw).trim() !== '';
   if (context) {
     context.aislopPassed = ranOk && total === 0;
-    context.aislop_issue_count = total;
+    // 只有真拿到输出才能记发现数：第十七轮之前无论跑没跑都写 aislop_issue_count，
+    // 工具没装时那个 0 会被收敛判断读成「本轮没有发现，提前结束」（假绿）。
+    if (ranOk) recordFindingCount(context, 'aislop_issue_count', total);
     context.aislop_fixable = fixable;
     if (reportPath) context.aislop_report_path = reportPath;
   }

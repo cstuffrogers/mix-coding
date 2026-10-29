@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { exitCodeForSummary, summaryMismatch } from './start.js';
+import { exitCodeForSummary, summaryMismatch, buildEndLogEntry } from './start.js';
 
 // 维度：收尾的两件事 —— 汇总自洽 + 退出码说实话。
 //
@@ -81,5 +81,41 @@ describe('中止路径必须自称中止（不是打印一行绿色计数就退�
     // 真实源码上：中止标记与文案都在
     expect(src).toContain('⛔ 工作流已中止');
     expect(src).toContain('上面的计数只是中止前的部分结果');
+  });
+});
+
+// 维度：中止不能把「已经跑成的步骤」一起吞了。
+// 日志以前只有一条 start 事件，事后读它分不清「中止在这」和「日志被截断」；
+// 屏幕上的中止汇总又只列未通过的步骤，读者无法知道哪些成果可以复用。
+describe('中止的证据：日志有终点，屏幕有已完成的步骤', () => {
+  const src = readFileSync(START_SRC, 'utf-8');
+
+  it('终点事件带状态与原因，中止时实话实说', () => {
+    const aborted = buildEndLogEntry({ aborted: '验收阻断：变更未通过验证', context: { completedSteps: [1, 2, 3] } });
+    expect(aborted.event).toBe('end');
+    expect(aborted.status).toBe('aborted');
+    expect(aborted.reason).toContain('验收阻断');
+    expect(aborted.completed_steps).toBe(3);
+    expect(aborted.summary).toMatchObject({ total: expect.any(Number), pass: expect.any(Number) });
+    const done = buildEndLogEntry({ context: null });
+    expect(done.status).toBe('completed');
+    expect(done.reason).toBeNull();
+    expect(done.completed_steps).toBe(0);
+    expect(done.iterations_planned).toBe(1);
+  });
+
+  it('printSummary 是唯一终点，且它真的写终点事件', () => {
+    // 静态判据：写出终点的事件必须在 printSummary 里，否则总有退出路径漏记
+    expect(src).toContain('appendLog(buildEndLogEntry({ aborted, context }))');
+    const summaryFn = src.slice(src.indexOf('function printSummary('));
+    const body = summaryFn.slice(0, summaryFn.indexOf('\n}\n'));
+    expect(body).toContain('buildEndLogEntry');
+    expect(body).toContain('printCompletedSteps(context)');
+  });
+
+  it('中止时一律给日志路径（屏幕只是一半）', () => {
+    // 以前只在 fail/noop/warn/未判定 时才打印 LOG_PATH，awaiting-answer 这类中止
+    // 可能一条 fail 都没有 → 用户手上没有任何可核对的全量记录。
+    expect(/fail > 0[^\n]*\|\| aborted\s*\)/.test(src)).toBe(true);
   });
 });
