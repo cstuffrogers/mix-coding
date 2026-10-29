@@ -2074,3 +2074,82 @@ C) 谓词读了 `ctx.obj.field` 而 `obj` 从没被填过。手工复核 A 段�
    收窄到 handler + 一跳调用链才能抓到「同名键在别处被读，本 handler 其实没读」。
 3. **报告/汇总与实际状态的第三遍核对**：`detectorReport` 的「记录已过期」判定
    是否覆盖 `--skip-sweep` 场景（现在只能靠 warn 提示）。
+
+---
+
+## 第十三轮（2026-10-29）：场景参数契约的「有人读」必须发生在自己的执行路径上
+
+上一轮候选维度 2 落地。前十二轮反复修「假绿/假红」，这一轮修的是**检测器自己的假绿**。
+
+### 维度① 判据收窄：全仓库有人读 → 这条动作自己的执行路径
+
+原守卫在**全仓库任意位置**找 `.key` 命中，于是：
+- `report.format`（8 个场景写 `"summary"`）—— `handleReport` 从不读它，
+  但 `handlers/logging.js` 里有个 `.format` → 判活；
+- `analyze.metrics`（handler 读的是 `metric` 单数）→ 同上判活；
+- `invokeSkill.command`（handler 读的是 `subcommand`）→ 18 行静默失效。
+
+新判据（全部可从源码推导，无手写白名单）：
+
+| 算「读过」 | 说明 |
+|---|---|
+| handler **函数体**内 | 不再算「同一文件的别处」 |
+| 一跳被调函数体 | 只认实参文本里出现 `params` 的调用（`f(params)` / `f({...params})` / 第三位实参） |
+| 交互层 `commands/` | `start.js` 真的在读 `step.params` 做提问 |
+| 前缀读取 | `startsWith('block_')` 覆盖 `block_release` 等 |
+| 泛读 | `Object.entries/keys/values(params)`、`JSON.stringify(params)`、`...params` |
+
+内联动作（`ACTION_REGISTRY` 里直接写箭头函数）豁免：params 是给 agent 的提示词。
+判据抽成 `lib/param-contract.js`（**才能给判据本身写测试**）；守卫文件自己从扫描范围排除，
+否则它内部的 `.body` / `.file` 会给同名参数放水。
+
+### 维度② 39 组「写了没人读」的 triage
+
+- **接线（真行为）**：`invokeSkill.command` → subcommand 别名（ui-polish 18 行）、
+  `jscpd.threshold`（0.05 比例 / 5 百分数都认，垃圾值回落并出声）、
+  `listReleases.limit`（进 gh 命令）、`listMemories.limit`（进 slice）、
+  `scanSource.tool`（就是去 `hasTool()` 查的那个）。
+- **透传（引擎不执行，但 agent 要知道做什么）**：`scanDependencies.tool`、
+  `runAgent.focus`、`analyzeBundle.tool` —— 写进 skip/noop 的结论里。
+- **删除（引擎做不了、也没人会看）= 30 组**：`report.format/include`、
+  各类 `format/sections/template/coverage/command`、`a11y-scan.checks`、
+  `impeccable-critique.rules/checks`、`actionlint.config/format`、`issueQuery.limit`、
+  `locate/checkAPIConsistency/codeguardian_optimize/sec-bug-hunt.scope`、`regression.cleanup`、
+  `autoFix.source`、`readSpec.paths`、`recall.keywords`、`analyze.metrics`、
+  `skillspector-scan.format`、`runReview.tool`。两份场景 JSON 逐字节同步。
+  删除用一次性脚本做外科手术（定位 step 的 params 对象 → 删键 → 原缩进重排 →
+  整文件 `JSON.parse` 复核），不做整体 `JSON.stringify` 落盘。
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1166 passed / 93 files**（本轮前 1143/91） |
+| lint | `npx eslint .` | 0 |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 |
+| 死码 | `npm run scan:deadcode` | Total dead 0（Handlers 0/70、Scenes 0/26） |
+| 26 场景 | 逐个 `start <scene> --dry-run --auto` | 全部 exit 0 |
+| review 真跑 | `start review --auto --skip-sweep` | pass 17 / **fail 0** / warn 3 / skip 19 / noop 4；git status 前后同为 71 行 |
+
+守卫自探针：临时往 review.json 的 jscpd 步骤插 `zzDeadParam` → 测试点名
+`review#2.95 jscpd: zzDeadParam`；回滚后判定器自己的合成用例仍全绿
+（handler 体内算读、同文件别的函数**不**算读、一跳只认真的递了 params、
+交互层算读、handler 找不到要报 unresolved）。
+
+### 决策
+- **「有人读过」必须发生在同一条执行路径上** —— 全仓任意位置命中同名属性是守卫自己的假绿。
+- **参数只有三种合法归宿**：接到真实行为上、删除、或明示为 agent/外部工具透传。
+  透传必须出现在结论文案里，否则等于没透传。
+- **静态收窄必须双向自证**：收窄后要能列出 DEAD 清单（能失败），
+  也要能证明合法读取没被误杀（前缀 / 泛读 / 交互层三类逃逸口逐一核实）。
+- **检测器的豁免口一律从实现源码推导**：内联动作由 `ACTION_REGISTRY` 结构推、
+  交互层由目录推、前缀由 `startsWith` 字面量推 —— 不手写白名单。
+
+### 下一轮候选维度
+1. **handler 结论串 vs 状态旗标**：还有哪些 handler 返回裸字符串、靠 `detectHandlerFailure`
+   的正则启发式定状态？（`lib/failure-detection.js` 仍是唯一靠文案猜的地方）
+2. **场景 `description` 与实际行为的一致性**：删掉 `report.include` 后，
+   该步骤的 description 仍写着「Token/API 调用/MCP 使用成本汇总」—— 描述承诺的能力
+   引擎从来没实现，这类「描述假绿」还没有守卫。
+3. **`metrics` 全仓口径**：`analyze` 读 `metric`、场景曾写 `metrics`，说明命名口径
+   存在多处单复数漂移，可做一次键名同义词普查（只报不改，先看规模）。
