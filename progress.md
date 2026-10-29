@@ -2763,3 +2763,125 @@ determinable:false}` —— 左边已经确定假，结果就是假，与 b 无�
   走「未判定」既有的一整套披露（`_unjudgedSteps`、收尾提示），不新造概念。
 - **noop 是第三类**：既不是通过，也不是问题，收尾必须单列 —— 混进「未通过」会让人去查一个
   本来就不需要查的步骤（比漏报更耗费信任）。
+
+---
+
+## 第二十轮 · 四个维度：warn 不再是同一个词、skip 要说原因、场景不许吹能力、`--auto` 的决定必须亮出来
+
+起点：用户问「`--auto` 到底替我了什么？」—— 追下去发现四个都是同一类毛病：
+**引擎自己在替用户下结论**（warn 合成一个数字、skip 不给原因、场景描述比能力大、auto 静默取值）。
+
+### 维度①②：warn / skip 的词汇表（`src/data/step-reasons.js`，新文件）
+
+以前收尾只有 `⚡ warn: 3` 和 `⏭ skip: 19`。这两个数字把完全不同的事压成同一个计数：
+
+| warn 类别 | 含义 | 读者该去哪看 |
+|---|---|---|
+| `findings` | 真跑了，报告里有发现 | 读报告 |
+| `contract` | 处理器返回了对象却没布 status | 读处理器源码（补 status） |
+| `silent` | 处理器什么都没返回 | 读处理器源码（补返回值） |
+| `unknown-status` | status 词引擎不认识 | 读处理器源码（拼写） |
+| `heuristic` | 正则猜「文案像有发现」 | 去让处理器布 status |
+
+skip 同理 11 类：`condition` / `unjudged` / `user` / `interactive` / `not-applicable` /
+`tool-missing` / `permission` / `input-missing` / `input-invalid` / `engine-disabled` /
+`handler-skip`（= 处理器说跳过但没说哪类，**明写「没说原因」**，绝不按文案猜类别）。
+
+- `deriveStepStatus` 现在返回 `{resultStr, stepStatus, warnKind?, skipReason?}`；
+  `explicitWarnKind()` 只认 `warn/warning/partial/issues` 这些**表示「有发现」的词**。
+- `recordStepResult(..., meta)` / `rewriteStepRecord(..., meta)` 把类别写进
+  `context.stepResults[]` 和日志行（`warn_kind` / `reason`）—— 重试改写状态时类别同步改写，
+  不会出现「status 变 pass 了、原因还挂在 warn 上」。
+- `describeStatusBreakdown(stepResults)` 按**最终状态现算**分布（不用会减不回来的计数器），
+  `printSummary` 在计数行**之后**单独打 `⚡ warn 细分:` / `⏭ skip 细分:`（老格式化原样保留）。
+- `describeNotPassSteps` 行尾加原因：`Step 4 sec-bug-hunt → warn（有发现）`。
+
+### 维度③：场景声称 vs 实际能力（真红只有 1 条，但引擎自己的统计也在说谎）
+
+取证脚本扫 26 个场景：先剔除「建议式措辞」（修复建议 / 修复方案 / 修复项 / 待修复…），
+再认「动手式措辞」（自动修复 / 自动写入 / 落盘 / 重构代码 / 自动提交…），
+最后要求 flow 里有能动手的步骤。第一版把 `invokeSkill` / `runAgent` 算成「不动手」→ 7 条假红；
+加上 `AI_RE` 桶后剩 **1 条真漂移：`check.json`**。
+
+- 场景写「引擎自检 + **自愈**」「**自动修复** gate-flags 数据文件」「发现数 + **修复数** + 遗留问题」，
+  而那两个自愈步骤当年就被删了（`engine-check.js:100` 的注释写着为什么：猜出来的映射没人验证，
+  每次跑还把工作区弄脏）。**改的是场景描述，不是把能力加回来**。
+- 同时修引擎自己的统计：`classifyAction` 增 `ai` 桶（`invokeSkill|runAgent|mp-|skill-`，
+  verify 优先），`checkAcceptance` 返回 `aiSteps` / `mutating` —— 以前「本场景能不能改代码」
+  被答成「不能」，8 个场景被判 noEdit，其中每一个都在 `invokeSkill` 后面改文件。
+- 验收门禁那句「本次没有实际改动」也改了：AI 代做的步骤数 > 0 时明确写
+  「引擎自己没改任何文件；另有 N 步把改动交给了 AI（引擎看不见它们改了什么）」。
+
+### 维度④：`--auto` 的每个决定都要亮出来（`src/data/auto-decisions.js`，新文件）
+
+`--auto` 的语义是「别打断我」，不是「替我选」—— 分界只有一条：**这个选择事后能不能被看见**。
+登记 10 类决定（`target-path` / `theme` / `brand` / `modes` / `option` / `kind` /
+`context-flag` / `confirm-answer` / `sweep` / `iterations`），每类带 `label` + `override`。
+埋点 7 处，收尾统一打印：
+
+```
+⚙ --auto 替你做的决定（共 3 项，不带 --auto 会逐项问你）：
+    目标项目路径 → E:\auto-coding
+      --target <路径>（不带则用 $MIX_CODING_PROJECT_DIR 或 cwd）
+    迭代轮数 → 1
+      --iterations <N>
+    Step 0 selectModes: 审查模式组合 → code_review,security_deep
+      --mode <id,id>（不带则用场景逐项声明的 default:true）
+```
+
+同一份内容落日志（`event: 'auto-decision'`）。`target-path` / `iterations` 是在 `initLog()`
+之前定的 —— 以前记了也写不进去，所以 `appendLog` 改成返回 boolean，
+`flushAutoDecisionLog()` 在 `initLog` 之后立刻补写（真跑日志里三条都在）。
+
+### 守卫测试（+39 条，1293 total）
+- `commands/step-reasons.test.js`（23）：5 个 warn 类别 / 11 个 skip 原因 / `skipReasonFrom`
+  保留原词 / 分布统计 / 清单带原因 / **词表与代码字面量一致**（扫全量 `.js`，
+  `warnKind: '…'`、`skipReason: '…'`、`reason: '…'` 都必须在词表里，`files.length > 100` 防空跑）。
+- `commands/auto-decisions.test.js`（11）：登记表完整性（label + override 非空）/ 豁免函数必须给理由 /
+  **按函数边界扫 `start.js`**，凡提到 `options.auto` 的函数必须「披露 or 问人 or 在豁免表里」
+  → `offenders` 必须为空（`functions.length > 80`、`touching >= 6` 防空跑）/ `noteAutoDecision`
+  未登记 id 带「未登记的类别」/ 收尾打印带覆盖方式、无决定时一个字不打印。
+- `commands/scene-description-claims.test.js`（+4）：`ADVISORY_PHRASE` 剔除 + `MUTATION_CLAIM` 认声称 +
+  「声称会动手 ⇒ flow 里必须有 edit 或 ai 步骤」+ 动作分类器四桶断言 + `aiSteps` 不进老门禁。
+
+### 自探针（注入 → 点名 → 字节级回滚 → 复绿，4/4 命中）
+| # | 注入 | 被谁点名 |
+|---|---|---|
+| 1 | `warnKind: 'silent'` → `'silentt'` | `step-reasons.test.js`（词表一致性） |
+| 2 | 删掉 `applyContextFlag` 里的 `noteAutoDecision(...)` | `auto-decisions.test.js`（offenders） |
+| 3 | `check.json` 描述改回「自动修复 gate-flags 数据文件」 | `scene-description-claims.test.js` |
+| 4 | `AI_RE` 改成永不命中 | `scene-description-claims.test.js`（ai 桶失效） |
+
+### 验收
+- `npx vitest run`（claude-scene）：**101 files / 1293 tests 全绿**。
+- `npx eslint .`（根，宽松）+ `cd claude-scene && npx eslint . --max-warnings 0`（严格）**双 0**。
+- `npm run scan:deadcode`：0 dead（Handlers 0/70、Scenes 0/26、Commands 0/33、Skills 0/29、MCP 0/3）。
+- 26 个场景 `--dry-run --auto`：**0 失败**（只认退出码）。
+- 本仓库真跑 `review --auto --skip-sweep`：**43 步逐 step 与改前基线 0 差异**（17/0/3/19/4，EXIT=0），
+  新增行只有 `⚙ --auto 替你做的决定（共 3 项）` + `⚡ warn 细分: 有发现 3` + `⏭ skip 细分: 处理器判为跳过但没声明原因 3`，
+  日志里 3 条 `auto-decision`（含 initLog 前补写的 `target-path` / `iterations`）。
+- 湿跑 `/tmp/mix-r20`（对话模式，无 TTY）：`sec-bug-hunt → warn（有发现）`、
+  5 个 `skip（处理器判为跳过但没声明原因）` —— 原因直接写在清单里，不用去翻日志。
+
+### 坑
+- **`\n` 在 python heredoc 里会被 shell 折成真换行**：`appendFileSync(… + '\n')` 写进 JS 变成跨行字符串 → 语法错。
+  模板里一律 `<BS>` 占位 + `BS = chr(92)` + `.replace('<BS>', BS)`（本轮两个 append 都踩了）。
+- **`i = j`（for 循环里改计数器）会被 `sonarjs/updated-loop-counter` 点名** → `while` + `index += 1` + 抽 `functionBody()`。
+- **抽子函数也会再撞复杂度**：`checkAcceptance` 把 ai 计数挪进 `classifyCompletedStep` 后还是 17 →
+  再抽 `tallyStep()`（累加器对象），主循环只剩 3 行。
+- **`collectSources` 之外还有「场景 JSON 也要同步」**：改 `claude-scene/scenes/check.json` 后
+  `interactive-gate.test.js` 立刻红（overlay `.claude/scenes/*.json` 必须与打包版逐字节一致）。
+
+### 决策
+- **「为什么不是 pass」必须是词汇表里的键，不许按文案猜**：类别只能来自处理器 `reason` 字段
+  或引擎自己的判定分支；没声明就是 `handler-skip`（明写「没说原因」），词表外的值 →
+  `handler-skip` + `unknownDeclared` 保留原词。
+- **分布不用全局计数器，按 `stepResults` 最终状态现算**：重试会把 fail 改写成 pass，
+  计数器减不回来，分布会和计数打架 —— 「那种不一致比不给细分更糟」。
+- **细分单独打一行，不动老计数行**（`✓ pass: N  ✗ fail: …` 有测试和用户习惯在读）。
+- **`heuristic` 要自曝是猜的**：正则判出来的 warn 标「文案像有发现（正则猜的）」，
+  提示读者去让处理器布 status，而不是「报告里有发现」。
+- **AI 代做也算「会动手」**：把 `invokeSkill` 算成不动手，就等于要求所有 AI 型场景都假红。
+- **`fix-gate-flags` 当年的删除是对的**，所以修的是描述，不是把能力加回来。
+- **`--auto` 的自主决定必须「登记 + 打印 + 落日志」三件齐全**：只有打印没日志 = 事后查不到；
+  只有日志没打印 = 用户当场不知道。
