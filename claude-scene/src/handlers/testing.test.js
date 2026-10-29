@@ -204,7 +204,9 @@ describe('handleRunCI', () => {
   it('reports failed checks', () => {
     mockSafeExec.mockImplementation(() => { throw new Error('fail'); });
     const result = handleRunCI('run-ci', { check: ['linting'] }, '/tmp');
-    expect(result).toContain('0/1');
+    // 「CI 完成: 0/1 通过」曾是真假绿：文案带「完成」→ 引擎判 pass，但一个检查都没过。
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('0/1');
   });
 });
 

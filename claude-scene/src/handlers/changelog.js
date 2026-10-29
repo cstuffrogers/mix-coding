@@ -141,7 +141,7 @@ export function handleGenerateChangeLog(_action, _params, targetPath, context) {
   if (!isGit) {
     // 「非 Git 仓库」是没查，不是查了不通过 —— 以前把 changelogGenerated 写成 false，
     // changelog 门禁于是报 fail（假红）。不写这个键，门禁会如实记成 skipped。
-    return '变更日志跳过（非 Git 仓库）';
+    return { status: 'skip', message: '变更日志跳过（非 Git 仓库，未生成）' };
   }
 
   const tag = getLatestTag(targetPath);
@@ -153,7 +153,7 @@ export function handleGenerateChangeLog(_action, _params, targetPath, context) {
       context.changelogGenerated = false;
       context.commitCount = 0;
     }
-    return '无提交记录，未生成变更日志';
+    return { status: 'noop', message: '无提交记录，未生成变更日志（无需生成）' };
   }
 
   const content = generateChangelog(commits, tag, targetPath);
@@ -165,7 +165,7 @@ export function handleGenerateChangeLog(_action, _params, targetPath, context) {
 
   if (!ok) {
     if (context) context.lastStepFailed = true;
-    return '变更日志生成失败';
+    return { status: 'fail', message: '变更日志生成失败' };
   }
 
   if (context) {

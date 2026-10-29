@@ -67,7 +67,8 @@ describe('handleGenerateChangeLog', () => {
   it('returns early when not a git repo', () => {
     const ctx = {};
     const result = handleGenerateChangeLog('genChangelog', {}, '/test/project', ctx);
-    expect(result).toContain('非 Git 仓库');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('非 Git 仓库');
     // 「非 Git 仓库」是没查，不是查了不通过。以前写 changelogGenerated = false，
     // changelog 门禁于是报 fail（假红）。现在不写这个键，门禁如实记 skipped。
     expect(ctx.changelogGenerated).toBeUndefined();

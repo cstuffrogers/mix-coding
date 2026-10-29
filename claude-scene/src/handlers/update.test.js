@@ -54,7 +54,8 @@ describe('update handlers', () => {
       mockScanAll.mockReturnValue({ hard: [{ message: 'dup' }], soft: [] });
       const ctx = {};
       const result = handleDetectConflicts('detectConflicts', {}, '/project', ctx);
-      expect(result).toContain('阻断');
+      expect(result.status).toBe('fail');
+      expect(result.message).toContain('阻断');
       expect(ctx.hasHardConflict).toBe(true);
     });
   });
@@ -63,13 +64,16 @@ describe('update handlers', () => {
     it('skips when hard conflict flag set', () => {
       const ctx = { hasHardConflict: true };
       const result = handleAutoUpdateSafe('autoUpdateSafe', {}, '/project', ctx);
-      expect(result).toContain('跳过');
+      // 硬件冲突是「没做」，不是「做了但失败」，也不是通过
+      expect(result.status).toBe('skip');
+      expect(result.message).toContain('跳过');
     });
 
     it('returns no-update when scan empty', () => {
       const ctx = { updateScanResult: { updatable: [] } };
       const result = handleAutoUpdateSafe('autoUpdateSafe', {}, '/project', ctx);
-      expect(result).toContain('无 patch/minor');
+      expect(result.status).toBe('noop');
+      expect(result.message).toContain('无 patch/minor');
     });
 
     it('updates npm patch packages', () => {
@@ -92,7 +96,9 @@ describe('update handlers', () => {
       };
       mockSafeExec.mockReturnValue('');
       const result = handleAutoUpdateSafe('autoUpdateSafe', {}, '/project', ctx);
-      expect(result).toContain('非法字符');
+      // 包名非法 → 本包没升级 = 升级这个动作没做成（以前叫「跳过」→ pass）
+      expect(result.status).toBe('fail');
+      expect(result.message).toContain('非法字符');
       expect(mockSafeExec).not.toHaveBeenCalled();
     });
   });

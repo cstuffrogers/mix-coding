@@ -220,7 +220,7 @@
       "params": {
         "mode": "unit"
       },
-      "description": "运行生成的测试套件，验证功能正确性并检查覆盖率",
+      "description": "运行生成的单元测试套件，按退出码判定通过与否（覆盖率由 8.5 门禁的 coverage 项判定）",
       "on_error": "abort",
       "timeout": 300
     },

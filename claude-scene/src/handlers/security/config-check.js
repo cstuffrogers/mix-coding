@@ -11,7 +11,7 @@ export function handleCorsCheck(_action, _params, targetPath, context) {
   // 改为和 sec-bug-hunt 用同一份「项目源码清单」，0 文件即判失败。
   const files = listProjectCodeFiles(targetPath);
   if (!assertSources(files, context, 'CORS 配置检查')) {
-    return 'CORS 配置检查失败: 未找到任何源码文件（扫描范围为空，结果不可信）';
+    return { status: 'fail', message: 'CORS 配置检查失败: 未找到任何源码文件（扫描范围为空，结果不可信）' };
   }
 
   const corsPatterns = [

@@ -47,9 +47,11 @@ export function handleLighthouseGate(_action, params, targetPath, context) {
     }
 
     if (context) context.lighthousePassed = isPassed;
-    return `Lighthouse CI 完成: ${isPassed ? '通过' : '未通过'}`;
+    return isPassed
+      ? `Lighthouse CI 完成: 通过`
+      : { status: 'fail', message: `Lighthouse CI 完成: 未通过（预算/断言不达标）` };
   } catch {
-    // Don't set Passed — let gate report as skipped (tool didn't run)
-    return 'Lighthouse CI 完成（不可用）';
+    // Don't set Passed — 工具没跑成就是没测，不是「完成」。
+    return { status: 'skip', message: 'Lighthouse CI 未执行（本机不可用，不是通过）' };
   }
 }

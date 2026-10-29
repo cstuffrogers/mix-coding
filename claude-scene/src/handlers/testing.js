@@ -272,7 +272,14 @@ export function handleRunCI(_action, params, targetPath, context) {
   }
 
   if (results.failed.length) console.error(chalk.yellow(`  ⚠ 失败: ${results.failed.join(', ')}`));
-  return `CI 完成: ${results.passed.length}/${results.passed.length + results.failed.length} 通过`;
+  // 「CI 完成: 2/3 通过」以前被判成 pass —— 完成 ≠ 全部通过。
+  if (results.failed.length) {
+    return { status: 'fail', message: `CI 有失败: ${results.failed.join(', ')}（${results.passed.length}/${results.passed.length + results.failed.length} 通过）` };
+  }
+  if (results.passed.length === 0) {
+    return { status: 'noop', message: 'CI 未运行任何检查（check 列表为空或不包含任何已知检查）' };
+  }
+  return `CI 完成: ${results.passed.length}/${results.passed.length} 全部通过`;
 }
 
 function scanDirForUntested(dirPath, ext, testPatterns, findings) {
@@ -388,7 +395,7 @@ export function handleLoadTest(_action, params, targetPath, context) {
 
   if (configs.length === 0) {
     // 没跑负载测试就不写 verdict（以前写 null，门禁的 `!== false` 把它当通过）
-    return '负载测试跳过（无配置文件）';
+    return { status: 'skip', message: '负载测试跳过（无配置文件，不是通过）' };
   }
 
   // Select config matching mode, or first available
@@ -398,7 +405,7 @@ export function handleLoadTest(_action, params, targetPath, context) {
 
   if (!result.ran) {
     // 同上：Artillery 不可用 = 没测量，不写 verdict
-    return '负载测试跳过（Artillery 不可用）';
+    return { status: 'skip', message: '负载测试跳过（Artillery 不可用，不是通过）' };
   }
 
   if (result.passed) {
@@ -415,5 +422,5 @@ export function handleLoadTest(_action, params, targetPath, context) {
 
   return result.passed
     ? `负载测试完成: ${config.name} 通过`
-    : `负载测试完成: ${config.name} 失败`;
+    : { status: 'fail', message: `负载测试完成: ${config.name} 失败` };
 }

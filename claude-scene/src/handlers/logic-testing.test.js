@@ -34,8 +34,9 @@ describe('handlePropertyTestScout', () => {
     pkg({ vitest: '^4.0.0' });
     const ctx = {};
     const result = handlePropertyTestScout(null, null, dir, ctx);
-    expect(result).toContain('跳过');
-    expect(result).toContain('fast-check');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('跳过');
+    expect(result.message).toContain('fast-check');
     expect(ctx.propertyTestPassed).toBeUndefined();
   });
 
@@ -43,8 +44,9 @@ describe('handlePropertyTestScout', () => {
     pkg({ 'fast-check': '^4.0.0', vitest: '^4.0.0' });
     const ctx = {};
     const result = handlePropertyTestScout(null, null, dir, ctx);
-    expect(result).toContain('跳过');
-    expect(result).toContain('未找到属性测试用例');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('跳过');
+    expect(result.message).toContain('未找到属性测试用例');
     expect(ctx.propertyTestPassed).toBeUndefined();
   });
 
@@ -55,8 +57,9 @@ describe('handlePropertyTestScout', () => {
     testFile('src/x.prop.test.js', "import fc from 'fast-check';\n// no cases\n");
     const ctx = {};
     const result = handlePropertyTestScout(null, null, dir, ctx);
-    expect(result).toContain('跳过');
-    expect(result).toContain('没有可执行的');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('跳过');
+    expect(result.message).toContain('没有可执行的');
     expect(ctx.propertyTestPassed).toBeUndefined();
     // Spawns a real runner in a temp project; give it room to boot.
   }, 60000);
@@ -66,7 +69,8 @@ describe('handlePropertyTestScout', () => {
     testFile('src/x.prop.test.js', "import fc from 'fast-check';\n");
     const ctx = {};
     const result = handlePropertyTestScout(null, null, dir, ctx);
-    expect(result).toContain('未找到测试运行器');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('未找到测试运行器');
     expect(ctx.propertyTestPassed).toBeUndefined();
   });
 
@@ -75,8 +79,9 @@ describe('handlePropertyTestScout', () => {
     const ctx = {};
     const result = handlePropertyTestScout(null, null, dir, ctx);
     // Detected, but no property test file exists yet.
-    expect(result).toContain('跳过');
-    expect(result).toContain('hypothesis');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('跳过');
+    expect(result.message).toContain('hypothesis');
     expect(ctx.propertyTestPassed).toBeUndefined();
   });
 

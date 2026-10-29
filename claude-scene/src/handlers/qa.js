@@ -30,10 +30,11 @@ export function handleMapRoutes(_action, params, targetPath, context) {
 }
 
 export function handleLoadPages(_action, _params, _targetPath, context) {
-  if (!context?.has_frontend_changes) return '跳过（无前端变更）';
+  if (!context?.has_frontend_changes) return { status: 'skip', message: '页面加载未执行：无前端变更（不是通过）' };
   const pages = context?.routePages || [];
   if (context) context.pagesLoaded = pages.slice(0, 5);
-  return `页面加载候选: ${pages.length} 个（CLI 模式跳过实际浏览器访问）`;
+  // CLI 侧并未真的访问页面 —— 「候选 N 个」不是「加载了 N 个」。
+  return { status: 'noop', message: `页面加载未执行（需浏览器）：候选 ${pages.length} 个已登记` };
 }
 
 export function handleTestInteractions(_action, params, _targetPath, context) {
@@ -49,15 +50,15 @@ export function handleTestInteractions(_action, params, _targetPath, context) {
 }
 
 export function handleVisualCheck(_action, params, _targetPath, context) {
-  if (!context?.has_frontend_changes) return '跳过（无前端变更）';
+  if (!context?.has_frontend_changes) return { status: 'skip', message: '视觉检查未执行：无前端变更（不是通过）' };
   const checks = params?.checks || ['layout', 'styling'];
   if (context) context.visualChecks = checks;
-  return `视觉检查候选: ${checks.join(', ')}（CLI 模式跳过截图对比）`;
+  return { status: 'noop', message: `视觉检查未执行（需浏览器截图）：候选 ${checks.join(', ')} 已登记` };
 }
 
 export function handleA11yScan(_action, _params, targetPath) {
   const srcDir = join(targetPath, 'src');
-  if (!existsSync(srcDir)) return '跳过（无 src/ 目录）';
+  if (!existsSync(srcDir)) return { status: 'noop', message: 'a11y 扫描无需执行：没有 src/ 目录' };
   let n = 0;
   for (const ext of ['.tsx', '.jsx']) {
     try {
@@ -128,6 +129,6 @@ export function handleGenerateQAReport(_action, _params, targetPath, context) {
     if (context) context.qaReportPath = outPath;
     return `QA 报告已生成: ${outPath}`;
   } catch (e) {
-    return `QA 报告生成失败: ${e.message}`;
+    return { status: 'fail', message: `QA 报告生成失败: ${e.message}` };
   }
 }

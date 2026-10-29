@@ -128,7 +128,8 @@ describe('handleCheckEnvFile', () => {
 describe('handleGenerateEnv', () => {
   it('fails gracefully when no .env.example', () => {
     const result = handleGenerateEnv('generate-env', {}, '/tmp');
-    expect(result).toContain('缺失');
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('缺失');
   });
 });
 

@@ -193,10 +193,10 @@
     {
       "step": 12,
       "layer": "capability",
-      "service": "CostService",
+      "service": "ReportService",
       "action": "report",
       "params": {},
-      "description": "发布流程成本报告"
+      "description": "发布流程报告：步骤结论 + 门禁汇总"
     },
     {
       "step": 13,

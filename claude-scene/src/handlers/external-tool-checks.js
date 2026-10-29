@@ -128,8 +128,8 @@ export function handleBuildLeakCheck(_action, _params, targetPath, context) {
   });
 
   if (!hasArtifacts) {
-    // Don't set buildLeakPassed — let gate report as skipped (tool didn't run)
-    return '构建泄露检查完成: 无构建产物，已跳过';
+    // Don't set buildLeakPassed — 没有产物就没有可泄露的东西，不是「通过」。
+    return { status: 'noop', message: '构建泄露检查无需执行: 无构建产物' };
   }
 
   const findings = [];
@@ -312,7 +312,7 @@ export function handleRecheckCli(_action, _params, targetPath, context) {
   // 改为内置嵌套量词启发式（ReDoS 的经典形态），不依赖外部 CLI 与网络。
   const files = listProjectCodeFiles(targetPath).filter((f) => /\.(js|jsx|mjs|cjs|ts|tsx)$/i.test(f));
   if (!assertSources(files, context, 'ReDoS 扫描')) {
-    return 'ReDoS 扫描失败: 未找到任何 JS/TS 源码（扫描范围为空，结果不可信）';
+    return { status: 'fail', message: 'ReDoS 扫描失败: 未找到任何 JS/TS 源码（扫描范围为空，结果不可信）' };
   }
   // 只认「括号内以量词结尾 + 括号本身也被量词修饰」： (a+)+ / (\w*)* / (.*)+
   // 普通算术 `(a + 3) * 2` 不会命中（`)` 前必须紧贴「原子+量词」）。
@@ -809,7 +809,7 @@ function readStrykerReport(targetPath) {
 export function handleStryker(_action, _params, targetPath, context) {
   if (!hasStrykerConfig(targetPath)) {
     // 没配置就没跑。置 passed 等于「没验证却算通过」——这正是本引擎要杜绝的。
-    return 'Stryker 跳过: 无 stryker 配置（npm i -D @stryker-mutator/core 后可启用变异测试）';
+    return { status: 'skip', message: 'Stryker 跳过: 无 stryker 配置（npm i -D @stryker-mutator/core 后可启用变异测试）' };
   }
 
   try {
@@ -819,9 +819,12 @@ export function handleStryker(_action, _params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 4 * 1024 * 1024, timeout: 600000 },
     ).toString();
 
+    if (isToolMissing(raw)) {
+      return { status: 'skip', message: 'Stryker 跳过: 本机没有 stryker（不是通过）' };
+    }
     const report = readStrykerReport(targetPath) || parseStrykerText(raw);
     if (!report || !report.score) {
-      return 'Stryker 跳过: 未产生变异测试报告（检查 stryker 配置与测试命令）';
+      return { status: 'warn', message: 'Stryker 未产生变异测试报告（检查 stryker 配置与测试命令），本轮未测量' };
     }
 
     const { score, killed, survived } = report;
@@ -833,10 +836,11 @@ export function handleStryker(_action, _params, targetPath, context) {
     console.log(chalk.dim(`  ℹ 变异分数 ${score.toFixed(1)}%（杀死 ${killed} / 存活 ${survived}）`));
     // 有存活变异体说明测试没覆盖到该路径 —— 归 warn，不归 pass。
     return survived > 0
-      ? `Stryker 变异测试完成: 分数 ${score.toFixed(1)}%，${survived} 处发现（存活变异体，测试未覆盖）`
+      ? { status: 'warn', message: `Stryker 变异测试完成: 分数 ${score.toFixed(1)}%，${survived} 处发现（存活变异体，测试未覆盖）` }
       : `Stryker 变异测试完成: 分数 ${score.toFixed(1)}%，变异体全部被杀死`;
   } catch {
-    return 'Stryker 跳过: 执行失败';
+    // 「执行失败」以前被「跳过」二字救回 → 记成 noop。工具没跑通=没测量，但必须可见。
+    return { status: 'warn', message: 'Stryker 执行失败（未测量，不算通过）' };
   }
 }
 
@@ -881,11 +885,13 @@ export function handleSpectral(_action, _params, targetPath, context) {
   });
 
   if (!hasSpectralConfig(targetPath) && specFiles.length === 0) {
-    if (context) context.spectralPassed = true;
-    return 'Spectral API lint 完成: 无 OpenAPI/Spec 文件，已跳过';
+    // 没有 spec 文件 = 没有可 lint 的对象，不是「lint 通过」。
+    return { status: 'noop', message: 'Spectral API lint 无需执行: 无 OpenAPI/Spec 文件' };
   }
 
   let issueCount = 0;
+  let measured = false;
+  let missing = false;
   try {
     const targets = specFiles.length > 0 ? specFiles.join(' ') : '.';
     const raw = safeExec(
@@ -894,14 +900,25 @@ export function handleSpectral(_action, _params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 2 * 1024 * 1024, timeout: 60000 }
     ).toString();
 
-    const result = parseSpectralJson(raw) || parseSpectralText(raw);
-    issueCount = result.issueCount;
+    if (isToolMissing(raw)) {
+      missing = true;
+    } else {
+      const result = parseSpectralJson(raw) || parseSpectralText(raw);
+      issueCount = result.issueCount;
+      measured = true;
+    }
   } catch {
     console.log(chalk.dim('  ℹ Spectral 不可用，跳过 API lint'));
   }
 
+  if (!measured) {
+    // 以前 catch 后 issueCount 仍是 0 → spectralPassed = true → 门禁报通过。
+    return { status: 'skip', message: `Spectral API lint 未执行：${missing ? '本机没有 spectral' : '无输出'}（不是通过）` };
+  }
   if (context) context.spectralPassed = issueCount === 0;
-  return `Spectral API lint 完成: ${issueCount > 0 ? `${issueCount} 个问题` : '无问题'}`;
+  return issueCount > 0
+    ? { status: 'warn', message: `Spectral API lint 完成: ${issueCount} 个问题` }
+    : 'Spectral API lint 完成: 无问题';
 }
 
 // ── markdownlint — Markdown file linting (5k+ stars) ──
@@ -928,6 +945,8 @@ function countMdTextErrors(raw) {
 
 export function handleMarkdownlint(_action, _params, targetPath, context) {
   let issueCount = 0;
+  let measured = false;
+  let missing = false;
   try {
     const raw = safeExec(
       'npx markdownlint "**/*.md" --ignore node_modules --ignore ".git" --ignore ".claude/worktrees" --json 2>&1 || true',
@@ -935,23 +954,33 @@ export function handleMarkdownlint(_action, _params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 4 * 1024 * 1024, timeout: 60000 }
     ).toString();
 
-    try {
-      issueCount = countMdJsonErrors(JSON.parse(raw));
-    } catch {
-      issueCount = countMdTextErrors(raw);
-    }
-
-    if (issueCount > 0) {
-      console.log(chalk.yellow(`  ⚠ markdownlint: ${issueCount} 个问题`));
-    } else if (raw.trim()) {
-      console.log(chalk.green('  ✅ markdownlint: 无问题'));
+    if (isToolMissing(raw) || !raw.trim()) {
+      missing = isToolMissing(raw);
+    } else {
+      try {
+        issueCount = countMdJsonErrors(JSON.parse(raw));
+      } catch {
+        issueCount = countMdTextErrors(raw);
+      }
+      measured = true;
+      if (issueCount > 0) {
+        console.log(chalk.yellow(`  ⚠ markdownlint: ${issueCount} 个问题`));
+      } else {
+        console.log(chalk.green('  ✅ markdownlint: 无问题'));
+      }
     }
   } catch {
     console.log(chalk.dim('  ℹ markdownlint 不可用，跳过 Markdown lint'));
   }
 
+  if (!measured) {
+    // 以前工具没装时 issueCount 停在 0 → markdownlintPassed = true（没查=通过）。
+    return { status: 'skip', message: `markdownlint 未执行：${missing ? '本机没有 markdownlint' : '无输出'}（不是通过）` };
+  }
   if (context) context.markdownlintPassed = issueCount === 0;
-  return `markdownlint 完成: ${issueCount > 0 ? `${issueCount} 个问题` : '无问题'}`;
+  return issueCount > 0
+    ? { status: 'warn', message: `markdownlint 完成: ${issueCount} 个问题` }
+    : 'markdownlint 完成: 无问题';
 }
 
 // ── size-limit — bundle size budgeting (6.5k+ stars) ──
@@ -1004,12 +1033,14 @@ function logSizeLimitText(raw) {
 
 export function handleSizeLimit(_action, _params, targetPath, context) {
   if (!hasSizeLimitConfig(targetPath)) {
-    if (context) context.sizeLimitPassed = true;
-    return '包体积检查完成: 无 size-limit 配置，已跳过';
+    // 没有预算配置 = 无事可做；以前顺手置 sizeLimitPassed = true 冒充「体积达标」。
+    return { status: 'noop', message: '包体积检查无需执行: 无 size-limit 配置' };
   }
 
   let isPassed = true;
   let failures = [];
+  let measured = false;
+  let missing = false;
 
   try {
     const raw = safeExec(
@@ -1018,19 +1049,30 @@ export function handleSizeLimit(_action, _params, targetPath, context) {
       { stdio: 'pipe', maxBuffer: 1024 * 1024, timeout: 60000 }
     ).toString();
 
-    try {
-      const parsed = parseSizeLimitResults(JSON.parse(raw));
-      failures = parsed.failures;
-      isPassed = logSizeLimitOutcome(parsed.failures, parsed.isEmpty);
-    } catch {
-      isPassed = logSizeLimitText(raw);
+    if (isToolMissing(raw)) {
+      missing = true;
+    } else {
+      try {
+        const parsed = parseSizeLimitResults(JSON.parse(raw));
+        failures = parsed.failures;
+        isPassed = logSizeLimitOutcome(parsed.failures, parsed.isEmpty);
+      } catch {
+        isPassed = logSizeLimitText(raw);
+      }
+      measured = true;
     }
   } catch {
     console.log(chalk.dim('  ℹ size-limit 不可用，跳过包体积检查'));
   }
 
+  if (!measured) {
+    // 以前 catch 后 isPassed 仍是 true → sizeLimitPassed = true（没测=通过）。
+    return { status: 'skip', message: `包体积检查未执行：${missing ? '本机没有 size-limit' : '调用失败'}（不是通过）` };
+  }
   if (context) context.sizeLimitPassed = isPassed;
-  return `包体积检查完成: ${isPassed ? '通过' : failures.join('; ')}`;
+  return isPassed
+    ? '包体积检查完成: 通过'
+    : { status: 'warn', message: `包体积检查完成: 超出预算 — ${failures.join('; ') || '见 size-limit 输出'}` };
 }
 
 // ── pa11y-ci — WCAG 无障碍扫描 ──
@@ -1078,7 +1120,7 @@ export function handleDesignMdLint(_action, _params, targetPath, context) {
     if (context) context.designMdPassed = !raw.includes('error') && !raw.includes('FAIL');
     return `DESIGN.md lint 完成`;
   } catch {
-    return 'DESIGN.md lint 不可用，跳过';
+    return { status: 'skip', message: 'DESIGN.md lint 不可用（未检查，不是通过）' };
   }
 }
 
@@ -1089,7 +1131,7 @@ export function handleDesignMdExport(_action, _params, targetPath) {
     safeExec('npx @google/design.md export --format tailwind 2>&1', targetPath, { stdio: 'pipe' });
     return 'DESIGN.md Tailwind 配置导出完成';
   } catch {
-    return 'DESIGN.md export 不可用，跳过';
+    return { status: 'skip', message: 'DESIGN.md export 不可用（未导出，不是通过）' };
   }
 }
 

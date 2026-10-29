@@ -428,7 +428,7 @@ function printBrandGroups(brands, groups) {
 
 export function handleOdBrandList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_DESIGN_SYSTEMS_DIR)) {
-    return 'open-design 品牌列表跳过（目录不存在）';
+    return { status: 'skip', message: 'open-design 品牌列表跳过（open-design 未安装/目录不存在，不是通过）' };
   }
 
   const entries = readdirSync(OD_DESIGN_SYSTEMS_DIR, { withFileTypes: true });
@@ -640,7 +640,7 @@ function loadTemplateContext(templateDir, templateId, context) {
 
 export function handleOdTemplateList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_TEMPLATES_DIR)) {
-    return 'open-design 模板列表跳过（目录不存在）';
+    return { status: 'skip', message: 'open-design 模板列表跳过（open-design 未安装/目录不存在，不是通过）' };
   }
 
   const templates = [];
@@ -666,7 +666,7 @@ export function handleOdTemplatePreview(_action, params, targetPath, context) {
   if (!templateId || templateId.toLowerCase() === 'skip') {
     const available = context?.od_available_templates || [];
     if (available.length === 0) {
-      return '模板预览已跳过（无可用模板）';
+      return { status: 'skip', message: '模板预览跳过（无可用模板，不是通过）' };
     }
     templateId = available[0];
   }
@@ -675,10 +675,10 @@ export function handleOdTemplatePreview(_action, params, targetPath, context) {
 
   // Validate templateId doesn't contain shell metacharacters or path traversal
   if (!/^[\w\-./]+$/.test(templateId)) {
-    return `模板 "${templateId}" 包含无效字符`;
+    return { status: 'fail', message: `模板 "${templateId}" 包含无效字符` };
   }
   if (!existsSync(templateDir)) {
-    return `模板 "${templateId}" 未找到`;
+    return { status: 'fail', message: `模板 "${templateId}" 未找到` };
   }
 
   const exampleHtml = join(templateDir, 'example.html');
@@ -733,7 +733,7 @@ export function handleOdSkillLoad(_action, params, _targetPath, context) {
     const coreSkills = ['design-brief', 'color-expert', 'brand-guidelines', 'design-md'];
     skillName = coreSkills.find(s => existsSync(join(OD_SKILLS_DIR, s, 'SKILL.md')));
     if (!skillName) {
-      return 'open-design skill 加载已跳过（未找到核心 Skill）';
+      return { status: 'skip', message: 'open-design skill 加载跳过（未找到核心 Skill，不是通过）' };
     }
   }
 
@@ -741,7 +741,7 @@ export function handleOdSkillLoad(_action, params, _targetPath, context) {
   const skillMd = join(skillDir, 'SKILL.md');
 
   if (!existsSync(skillMd)) {
-    return `open-design skill "${skillName}" 未找到`;
+    return { status: 'fail', message: `open-design skill "${skillName}" 未找到` };
   }
 
   try {
@@ -752,7 +752,7 @@ export function handleOdSkillLoad(_action, params, _targetPath, context) {
     }
     return `open-design skill "${skillName}" 已加载（${content.length} 字节）`;
   } catch {
-    return `open-design skill "${skillName}" 加载失败`;
+    return { status: 'fail', message: `open-design skill "${skillName}" 加载失败` };
   }
 }
 
@@ -762,7 +762,7 @@ const OD_FRAMES_DIR = join(findOptionalToolDir('open-design'), 'assets', 'frames
 
 export function handleOdFrameList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_FRAMES_DIR)) {
-    return 'open-design 设备框架列表跳过（目录不存在）';
+    return { status: 'skip', message: 'open-design 设备框架列表跳过（open-design 未安装/目录不存在，不是通过）' };
   }
   const frameFiles = readdirSync(OD_FRAMES_DIR).filter(f => f.endsWith('.html'));
   const frames = frameFiles.map(f => {
@@ -788,14 +788,14 @@ export function handleOdFrameApply(_action, params, targetPath, context) {
   if (!frameId || frameId.toLowerCase() === 'skip') {
     const available = context?.od_available_frames || [];
     if (available.length === 0) {
-      return '设备框架应用已跳过（无可用框架）';
+      return { status: 'skip', message: '设备框架应用跳过（无可用框架，不是通过）' };
     }
     frameId = available.includes('iphone-15-pro') ? 'iphone-15-pro' : available[0];
   }
 
   const frameFile = join(OD_FRAMES_DIR, `${frameId}.html`);
   if (!existsSync(frameFile)) {
-    return `框架 "${frameId}" 未找到`;
+    return { status: 'fail', message: `框架 "${frameId}" 未找到` };
   }
 
   const frameHtml = readFileSync(frameFile, 'utf-8');
@@ -858,7 +858,7 @@ export function handleOdPromptTemplateLoad(_action, params, _targetPath, context
     const groups = context?.od_available_prompts || {};
     const available = [...(groups.image || []), ...(groups.video || [])].map(t => t.key);
     if (available.length === 0) {
-      return '提示词模板加载已跳过（无可用模板）';
+      return { status: 'skip', message: '提示词模板加载跳过（无可用模板，不是通过）' };
     }
     promptId = available[0];
   }
@@ -873,10 +873,10 @@ export function handleOdPromptTemplateLoad(_action, params, _targetPath, context
           context.od_selected_prompt = promptId;
         }
         return `提示词模板 "${data.title || promptId}" 已加载（${type}）`;
-      } catch { return `提示词模板 "${promptId}" 解析失败`; }
+      } catch { return { status: 'fail', message: `提示词模板 "${promptId}" 解析失败` }; }
     }
   }
-  return `提示词模板 "${promptId}" 未找到`;
+  return { status: 'fail', message: `提示词模板 "${promptId}" 未找到` };
 }
 
 // ── Open Design deck template handlers ──
@@ -885,7 +885,7 @@ const OD_DECKS_DIR = join(findOptionalToolDir('open-design'), 'templates');
 
 export function handleOdDeckList(_action, _params, _targetPath, context) {
   if (!existsSync(OD_DECKS_DIR)) {
-    return 'open-design 演示文稿模板列表跳过（目录不存在）';
+    return { status: 'skip', message: 'open-design 演示文稿模板列表跳过（open-design 未安装/目录不存在，不是通过）' };
   }
   const decks = [];
 
@@ -910,7 +910,9 @@ export function handleOdDeckList(_action, _params, _targetPath, context) {
     context.od_available_decks = decks.map(d => d.key);
     context.od_deck_count = decks.length;
   }
-  return `open-design 演示文稿模板已展示（${decks.length} 个）`;
+  return decks.length > 0
+    ? `open-design 演示文稿模板已展示（${decks.length} 个）`
+    : { status: 'noop', message: 'open-design 演示文稿模板目录为空（无可用模板）' };
 }
 
 export function handleOdDeckLoad(_action, params, targetPath, context) {
@@ -918,14 +920,14 @@ export function handleOdDeckLoad(_action, params, targetPath, context) {
   if (!deckId) {
     const available = context?.od_available_decks || [];
     if (available.length === 0) {
-      return '演示文稿加载已跳过（无可用模板）';
+      return { status: 'skip', message: '演示文稿加载跳过（无可用模板，不是通过）' };
     }
     deckId = available[0];
   }
 
   // Validate deckId doesn't contain shell metacharacters or path traversal
   if (!/^[\w\-./]+$/.test(deckId)) {
-    return `演示文稿 "${deckId}" 包含无效字符`;
+    return { status: 'fail', message: `演示文稿 "${deckId}" 包含无效字符` };
   }
 
   if (deckId.startsWith('live-artifacts/')) {
@@ -934,11 +936,11 @@ export function handleOdDeckLoad(_action, params, targetPath, context) {
     ensureDir(destDir);
     try {
       cpSync(sourcePath, destDir, { recursive: true });
-    } catch { return `演示文稿 "${deckId}" 复制失败`; }
+    } catch { return { status: 'fail', message: `演示文稿 "${deckId}" 复制失败` }; }
   } else {
     const sourcePath = join(OD_DECKS_DIR, `${deckId}.html`);
     if (!existsSync(sourcePath)) {
-      return `演示文稿 "${deckId}" 未找到`;
+      return { status: 'fail', message: `演示文稿 "${deckId}" 未找到` };
     }
     const deckHtml = readFileSync(sourcePath, 'utf-8');
     const decksDir = join(targetPath, '.claude', 'designs', 'decks');

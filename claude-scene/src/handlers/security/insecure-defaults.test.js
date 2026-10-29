@@ -245,14 +245,16 @@ describe('handleInsecureDefaults：输出契约', () => {
   it('0 文件 → 判失败并给「未找到」措辞（不能伪装成没问题）', () => {
     const ctx = {};
     const msg = handleInsecureDefaults(null, {}, dir, ctx);
-    expect(msg).toMatch(/未找到可扫描的源文件/);
+    expect(msg.status).toBe('fail');
+    expect(msg.message).toMatch(/未找到可扫描的源文件/);
     expect(ctx.lastStepFailed).toBe(true);
   });
 
-  it('规则集缺失 → 「未找到」→ 引擎判 noop', () => {
+  it('规则集缺失 → skip（没做成这件事，不是通过的 noop）', () => {
     write('src/app.js', 'export const a = 1;\n');
     const msg = handleInsecureDefaults(null, { rules_dir: '/nope/none' }, dir, {});
-    expect(msg).toMatch(/未找到 insecure-defaults 规则集/);
+    expect(msg.status).toBe('skip');
+    expect(msg.message).toMatch(/未找到 insecure-defaults 规则集/);
   });
 
   it('配置文件也在扫描范围内（.toml/.env/yml）', () => {

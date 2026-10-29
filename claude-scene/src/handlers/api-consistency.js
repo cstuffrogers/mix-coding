@@ -41,7 +41,7 @@ export async function handleCheckAPIConsistency(_action, _params, targetPath, co
   const specFile = findOpenApiSpec(targetPath);
   if (!specFile) {
     writeSkipReport(targetPath, context);
-    return '一致性检查跳过（无 OpenAPI 规范）';
+    return { status: 'skip', message: '一致性检查跳过（无 OpenAPI 规范，未测量）' };
   }
 
   const issues = { critical: [], high: [] };
@@ -55,7 +55,7 @@ export async function handleCheckAPIConsistency(_action, _params, targetPath, co
   if (!spec) {
     issues.critical.push(`OpenAPI 规范文件 \`${specFileToUse}\` 解析失败`);
     writeConsistencyReport(targetPath, specFile, lintResult, null, { endpoints: new Map(), schemas: new Map() }, [], issues, totalChecks, context);
-    return `API一致性检查失败（规范解析错误）`;
+    return { status: 'fail', message: `API一致性检查失败（规范解析错误）` };
   }
 
   const serverEndpoints = extractEndpoints(spec);
@@ -81,7 +81,12 @@ export async function handleCheckAPIConsistency(_action, _params, targetPath, co
     console.log(chalk.green(`  ✅ 前后端 API 契约一致（评分: ${score}/100）`));
   }
 
-  return `API一致性检查完成（评分: ${score}/100，Lint: ${lintResult.passed ? 'PASS' : 'FAIL'}，Types: ${typesResult.success ? 'OK' : 'FAIL'}，端点: ${serverEndpoints.size}）`;
+  // 以前这行文案里有 `Lint: FAIL` → 正则直接判 fail，即使只是 HIGH 级问题。
+  // 只有 CRITICAL 才算契约破裂；Lint/Types 有问题归 warn。
+  const message = `API一致性检查完成（评分: ${score}/100，Lint: ${lintResult.passed ? 'PASS' : 'FAIL'}，Types: ${typesResult.success ? 'OK' : 'FAIL'}，端点: ${serverEndpoints.size}）`;
+  if (issues.critical.length > 0) return { status: 'fail', message };
+  if (!lintResult.passed || !typesResult.success || issues.high.length > 0) return { status: 'warn', message };
+  return message;
 }
 
 function writeConsistencyReport(targetPath, specFile, lintResult, typesResult,

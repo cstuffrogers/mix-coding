@@ -177,8 +177,9 @@ export function handleChangelog(_action, params, targetPath, context) {
 
     if (context) context.changelogGenerated = true;
     return `CHANGELOG 已生成 (${commits.length} 条提交${since ? `，范围 ${since}..HEAD` : ''})`;
-  } catch {
-    return 'CHANGELOG 生成跳过';
+  } catch (e) {
+    // 裸 catch 写「跳过」= 把真错误（EPERM/无仓库）当无事发生。
+    return { status: 'warn', message: `CHANGELOG 未生成：${e.message}` };
   }
 }
 
@@ -282,7 +283,7 @@ CLI 命令 → Commander 解析参数 → \`commands/start.js\` 加载场景 JSO
     writeFileSync(archPath, content, 'utf-8');
     if (context) context.devDocsGenerated = true;
     return '开发者文档已生成';
-  } catch {
-    return '开发者文档生成跳过';
+  } catch (e) {
+    return { status: 'warn', message: `开发者文档未生成：${e.message}` };
   }
 }

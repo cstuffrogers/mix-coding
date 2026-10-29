@@ -130,7 +130,8 @@ export function handleDetectConflicts(_action, _params, targetPath, context) {
   result.hard.forEach((h) => console.log(chalk.red(`    [硬冲突] ${h.message}`)));
   result.soft.forEach((s) => console.log(chalk.yellow(`    [软冲突] ${s.message}`)));
   if (result.hard.length) {
-    return `检测到 ${result.hard.length} 个硬冲突,已阻断更新`;
+    // 显式 status：这行文案同时含「阻断」（失败词）和「已…」，交给正则猜就会翻车。
+    return { status: 'fail', message: `检测到 ${result.hard.length} 个硬冲突,已阻断更新` };
   }
   return `冲突检测通过: 硬 0 · 软 ${result.soft.length}`;
 }
@@ -140,25 +141,27 @@ const NPM_PKG_RE = /^@?[a-zA-Z0-9][a-zA-Z0-9._/-]*@[a-zA-Z0-9.\-+]+$/;
 
 export function handleAutoUpdateSafe(_action, _params, targetPath, context) {
   if (context?.hasHardConflict) {
-    return '存在硬冲突,跳过自动更新';
+    // 「跳过」以前被 NOOP_RES 记成 noop —— 冲突挡住的更新不是「无需执行」。
+    return { status: 'skip', message: '存在硬冲突,跳过自动更新（不是通过）' };
   }
   const scan = context?.updateScanResult;
   if (!scan || scan.updatable.length === 0) {
-    return '无 patch/minor 可自动更新';
+    return { status: 'noop', message: '无 patch/minor 可自动更新' };
   }
   const npmUpdatable = scan.updatable.filter((r) => r.type === 'npm');
   const updated = [];
   if (npmUpdatable.length) {
     const safe = npmUpdatable.every((r) => NPM_PKG_RE.test(`${r.name}@${r.latest}`));
     if (!safe) {
-      return 'npm 包名含非法字符,跳过自动更新(安全阻断)';
+      // 以前这行被「跳过」救回记成 pass —— 包名非法是必须人修的问题，安全阻断=fail。
+      return { status: 'fail', message: 'npm 包名含非法字符,跳过自动更新(安全阻断)' };
     }
     const pkgs = npmUpdatable.map((r) => `${r.name}@${r.latest}`);
     try {
       safeExec(`npm install ${pkgs.join(' ')}`, join(targetPath, 'claude-scene'), { stdio: 'pipe' });
       npmUpdatable.forEach((r) => updated.push({ ...r, joinMode: '全部替换' }));
     } catch {
-      return 'npm 安装失败,未自动更新';
+      return { status: 'fail', message: 'npm 安装失败,未自动更新' };
     }
   }
   if (context) context.autoUpdated = updated;

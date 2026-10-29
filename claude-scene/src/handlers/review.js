@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 
 import path from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
+import { grepScan } from '../lib/grep-scan.js';
 import { scanDir } from '../lib/scan-dir.js';
 import { isConversationMode } from '../lib/platform.js';
 import { formatCandidates } from './security/insecure-defaults.js';
@@ -352,7 +353,8 @@ export function handleRunReview(_action, params, targetPath, context) {
 
   const packagePath = path.join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
-    return '代码审查完成（未找到 package.json，跳过）';
+    // 「完成（…跳过）」是自相矛盾的结论：没审查就是没审查。
+    return { status: 'skip', message: '代码审查跳过：未找到 package.json（不是通过）' };
   }
 
   const specialResult = handleSpecialMode(mode, targetPath, context);
@@ -389,25 +391,30 @@ export function handleReviewFull(_action, _params, targetPath) {
 
   // CLI mode: run a lightweight semantic grep scan as fallback
   let issues = 0;
-  try {
-    const exclude = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist';
-    const patterns = [
-      { name: 'any 类型滥用', grep: ': any\\b', exts: '*.ts,*.tsx' },
-      { name: 'console.log 残留', grep: 'console\\.log', exts: '*.ts,*.tsx,*.js' },
-      { name: '@ts-ignore', grep: '@ts-ignore', exts: '*.ts,*.tsx' },
-      { name: 'TODO/FIXME 未处理', grep: 'TODO\\|FIXME', exts: '*.ts,*.tsx,*.js' },
-    ];
-    for (const p of patterns) {
-      const cmd = `grep -rn "${exclude}" --include="${p.exts}" "${p.grep}" . 2>/dev/null | head -20 || true`;
-      const result = safeExec(cmd, targetPath, { stdio: 'pipe', timeout: 10000 }).toString().trim();
-      if (result) {
-        const count = result.split('\n').length;
-        issues += count;
-      }
-    }
-  } catch { /* non-critical */ }
+  const unmeasured = [];
+  const exclude = '--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist';
+  const patterns = [
+    { name: 'any 类型滥用', grep: ': any\\b', exts: '*.ts,*.tsx' },
+    { name: 'console.log 残留', grep: 'console\\.log', exts: '*.ts,*.tsx,*.js' },
+    { name: '@ts-ignore', grep: '@ts-ignore', exts: '*.ts,*.tsx' },
+    { name: 'TODO/FIXME 未处理', grep: 'TODO\\|FIXME', exts: '*.ts,*.tsx,*.js' },
+  ];
+  for (const p of patterns) {
+    // 以前是 `grep ... || true`：grep 没装/目录不存在时也是空串 → 「0 处可疑代码」→ pass。
+    const scan = grepScan(`grep -rn ${exclude} --include="${p.exts}" "${p.grep}" .`, targetPath);
+    if (!scan.ok) { unmeasured.push(p.name); continue; }
+    const result = scan.raw.trim();
+    if (result) issues += result.split('\n').length;
+  }
 
-  return `完整审查完成: CLI 模式发现 ${issues} 处可疑代码`;
+  if (unmeasured.length === patterns.length) {
+    return { status: 'skip', message: `完整审查未执行：grep 不可用（${unmeasured.join(', ')} 均未扫描，不是通过）` };
+  }
+  if (issues > 0 || unmeasured.length > 0) {
+    const tail = unmeasured.length ? `；未扫描: ${unmeasured.join(', ')}` : '';
+    return { status: 'warn', message: `完整审查完成: CLI 模式发现 ${issues} 处可疑代码${tail}` };
+  }
+  return `完整审查完成: CLI 模式发现 0 处可疑代码`;
 }
 
 export function handleVerifyVisual(_action, _params, targetPath) {
@@ -420,7 +427,7 @@ export function handleVerifyVisual(_action, _params, targetPath) {
   // CLI mode: check if Playwright is installed and attempt to run
   const packagePath = path.join(targetPath, 'package.json');
   if (!existsSync(packagePath)) {
-    return '视觉验证已跳过';
+    return { status: 'skip', message: '视觉验证跳过：未找到 package.json（不是通过）' };
   }
 
   try {

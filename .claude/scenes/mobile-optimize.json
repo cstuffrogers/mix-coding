@@ -186,10 +186,10 @@
     {
       "step": 13,
       "layer": "capability",
-      "service": "CostService",
+      "service": "ReportService",
       "action": "report",
       "params": {},
-      "description": "性能优化流程成本报告"
+      "description": "性能优化流程报告：步骤结论 + 门禁汇总"
     },
     {
       "step": 14,

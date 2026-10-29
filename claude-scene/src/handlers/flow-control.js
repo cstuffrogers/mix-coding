@@ -100,10 +100,10 @@ export function handleGenerateEnv(_action, _params, targetPath) {
   const envExample = join(targetPath, '.env.example');
   const envPath = join(targetPath, '.env');
   if (!existsSync(envExample)) {
-    return '.env.example 缺失，生成跳过';
+    return { status: 'skip', message: '.env.example 缺失，未生成 .env（不是通过）' };
   }
   if (existsSync(envPath)) {
-    return '.env 已存在，跳过生成';
+    return { status: 'noop', message: '.env 已存在，无需生成（不覆盖已有文件）' };
   }
   const content = readFileSync(envExample, 'utf-8');
   writeFileSync(envPath, content, 'utf-8');

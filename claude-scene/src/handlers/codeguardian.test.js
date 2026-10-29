@@ -82,8 +82,9 @@ describe('CodeGuardian 变更边界验证', () => {
     mkdirSync(plain, { recursive: true });
     const ctx = {};
     const msg = handleCodeGuardianOptimize('codeguardian_optimize', {}, plain, ctx);
-    expect(msg).toContain('跳过');
-    expect(msg).toContain('无法量化');
+    expect(msg.status).toBe('skip');
+    expect(msg.message).toContain('跳过');
+    expect(msg.message).toContain('无法量化');
     expect(ctx.boundaryOk).toBeUndefined();
   });
 });

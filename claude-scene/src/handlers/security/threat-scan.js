@@ -432,7 +432,7 @@ export function handleLogSanitization(_action, _params, targetPath, context) {
     // [patched:logsan-maxbuffer] 扫描本身失败必须计入 fail，不能返回「部分操作可能失败」被算成 pass
     console.log(chalk.red(`  ❌ 日志脱敏扫描失败: ${error.message}`));
     if (context) context.lastStepFailed = true;
-    return `日志脱敏扫描失败（未能扫描，结果不可信）: ${error.message}`;
+    return { status: 'fail', message: `日志脱敏扫描失败（未能扫描，结果不可信）: ${error.message}` };
   }
   if (!raw.trim()) {
     // 一个 console.* 调用都没有：不是「扫描通过」，是「没有可扫的行」—— 说清楚。

@@ -149,7 +149,7 @@ export function handleScanSource(_action, params, _targetPath, _context) {
   // 声明没人读 —— 现在声明的工具就是真去查的那个。
   const tool = typeof params?.tool === 'string' && params.tool ? params.tool : 'mobsfscan';
   const installed = hasTool(tool);
-  if (!installed) return `${tool} 未安装，源代码 SAST 未执行（不计为通过）`;
+  if (!installed) return { status: 'skip', message: `${tool} 未安装，源代码 SAST 未执行（不计为通过）` };
   return { status: 'skip', message: `${tool} 已安装，源码扫描需手动/对话执行（规则集: ${rules}），本轮未测量` };
 }
 

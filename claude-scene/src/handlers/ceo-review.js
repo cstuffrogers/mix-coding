@@ -62,6 +62,6 @@ export function handleGenerateCEOReport(_action, params, targetPath, context) {
     if (context) context.ceoReportPath = outPath;
     return `CEO 精简策略报告已生成: ${outPath}`;
   } catch (e) {
-    return `CEO 报告生成失败: ${e.message}`;
+    return { status: 'fail', message: `CEO 报告生成失败: ${e.message}` };
   }
 }

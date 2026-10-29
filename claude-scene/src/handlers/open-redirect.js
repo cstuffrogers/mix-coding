@@ -34,7 +34,7 @@ export function handleOpenRedirectScan(_action, _params, targetPath, context) {
   // frontend/*/ 的项目会扫 0 个文件，然后报「0 处可疑」= 空转也算通过。
   const frontendFiles = listProjectCodeFiles(targetPath).filter((f) => /\.(js|jsx|mjs|cjs|ts|tsx|vue)$/i.test(f));
   if (!assertSources(frontendFiles, context, '开放重定向扫描')) {
-    return '开放重定向检测失败: 未找到任何前端源码文件（扫描范围为空，结果不可信）';
+    return { status: 'fail', message: '开放重定向检测失败: 未找到任何前端源码文件（扫描范围为空，结果不可信）' };
   }
   const redirectPatterns = [
     { name: 'location.href 参数拼接', re: [

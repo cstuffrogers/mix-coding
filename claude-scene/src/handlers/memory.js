@@ -596,7 +596,7 @@ export function handleListMemories(_action, params, targetPath) {
 
 export function handleAutoRemember(_action, _params, targetPath, context) {
   if (context?._memorySaved) {
-    return '自动记忆: 已跳过（显式保存已完成）';
+    return { status: 'noop', message: '自动记忆无需执行（显式保存已完成）' };
   }
 
   const scope = projectScope(targetPath);

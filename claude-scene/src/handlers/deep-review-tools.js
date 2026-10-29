@@ -234,13 +234,13 @@ export function handleSemgrepScan(_action, params, targetPath, context) {
   const files = listProjectCodeFiles(targetPath);
   if (!files.length) {
     assertSources(files, context, 'Semgrep 逻辑/IO 扫描');
-    return 'Semgrep 扫描失败: 扫描范围为 0 个源码文件，结果不可信';
+    return { status: 'fail', message: 'Semgrep 扫描失败: 扫描范围为 0 个源码文件，结果不可信' };
   }
 
   const semgrep = resolveSemgrep();
   if (!semgrep) {
     console.log(chalk.dim('  ℹ semgrep 不可用（pip install semgrep），跳过逻辑/IO 缺陷扫描'));
-    return 'Semgrep 跳过: 未安装（pip install semgrep 后可启用逻辑/IO 缺陷扫描）';
+    return { status: 'skip', message: 'Semgrep 跳过: 未安装（pip install semgrep 后可启用逻辑/IO 缺陷扫描，不是通过）' };
   }
 
   const { config, source } = resolveSemgrepConfig(targetPath);

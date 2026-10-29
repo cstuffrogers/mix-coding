@@ -695,7 +695,7 @@ export async function handleApplyHuashuStyle(_action, params, targetPath, contex
     writeFileSync(cssFile, cssContent);
   } catch (err) {
     console.error(chalk.red(`  ✗ 写入 CSS 文件失败: ${err.message}`));
-    return `huashu 风格应用部分失败: ${style.name}`;
+    return { status: 'fail', message: `huashu 风格应用失败（写入 CSS 失败）: ${style.name}` };
   }
 
   // Inject @import into src/index.css if it exists
@@ -1156,7 +1156,7 @@ function collectCssFileTokens(targetPath, existing, values) {
 
 export function handleReconcileDesignTokens(_action, _params, targetPath, context) {
   if (!context) {
-    return '设计 Token 调和跳过（缺少上下文）';
+    return { status: 'skip', message: '设计 Token 调和跳过（缺少上下文，不是通过）' };
   }
   const existing = { brand: [], fonts: [], spacing: [], radii: [], shadows: [], motion: [] };
   const values = { colors: {}, fonts: {}, spacing: {}, radii: {}, shadows: {}, motion: {} };

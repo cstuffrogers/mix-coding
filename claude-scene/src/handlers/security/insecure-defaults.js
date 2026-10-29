@@ -404,7 +404,7 @@ export function handleInsecureDefaults(_action, params, targetPath, context) {
   const scope = params?.scope || 'code';
   const corpus = loadCorpus(targetPath, params?.rules_dir);
   if (corpus.length === 0) {
-    return '未找到 insecure-defaults 规则集（references/*.json），跳过候选扫描';
+    return { status: 'skip', message: '未找到 insecure-defaults 规则集（references/*.json），候选扫描未执行（不是通过）' };
   }
 
   const files = filesForScope(targetPath, scope);
@@ -412,7 +412,7 @@ export function handleInsecureDefaults(_action, params, targetPath, context) {
     // 0 文件不是「没问题」，是「没扫」，必须按失败处理（与 semgrep 一致）。
     if (context) context.lastStepFailed = true;
     console.log('  ❌ insecure-defaults: 扫描范围为 0 个文件（结果不可信，按失败处理）');
-    return '未找到可扫描的源文件（结果不可信）';
+    return { status: 'fail', message: '未找到可扫描的源文件（扫描范围为空，结果不可信）' };
   }
 
   const { candidates, perCategory } = scanFiles(targetPath, files, corpus, scope);

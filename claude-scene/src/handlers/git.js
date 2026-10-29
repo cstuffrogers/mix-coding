@@ -33,9 +33,10 @@ export function handleCommitPush(_action, params, targetPath) {
   } catch (e) {
     const errMsg = e.stderr ? e.stderr.toString() : e.message;
     if (errMsg.includes('nothing to commit') || errMsg.includes('nothing added')) {
-      return '无变更提交';
+      return { status: 'noop', message: '无变更可提交' };
     }
-    return `提交跳过: ${errMsg.slice(0, 100)}`;
+    // 以前排错落地成「提交跳过」→ noop：push 被拒/Hook 挂掉看起来像「无需提交」。
+    return { status: 'fail', message: `提交失败: ${errMsg.slice(0, 100)}` };
   }
 }
 
@@ -101,7 +102,7 @@ export function handleBumpVersion(_action, params, targetPath, context) {
     return `版本号已更新: ${pkg.version}`;
   } catch (e) {
     if (context) context.lastStepFailed = true;
-    return `版本号更新失败: ${e.message}`;
+    return { status: 'fail', message: `版本号更新失败: ${e.message}` };
   }
 }
 
@@ -222,7 +223,7 @@ export function handleRollback(_action, params, targetPath) {
     safeExec(`git revert ${escapeArg(target)} --no-edit 2>&1`, targetPath, { stdio: 'pipe' });
     return `回滚完成: ${target}`;
   } catch (e) {
-    return `回滚失败: ${e.message}`;
+    return { status: 'fail', message: `回滚失败: ${e.message}` };
   }
 }
 
@@ -239,9 +240,10 @@ export function handleGitDiffNameOnly(_action, _params, targetPath, context) {
     }
     return `Git diff 完成: ${files.length} 个变更文件${hasFrontend ? ' (含前端)' : ''}`;
   } catch (e) {
-    // Non-git directory or no commits: treat as no changes, do not fail the step.
-    if (context) { context.gitDiffFiles = []; context.has_frontend_changes = false; context.lastStepFailed = false; }
-    return `Git diff 跳过（非 git 仓库或无提交）: ${e.message.split('\n')[0]}`;
+    // Non-git directory or no commits: 没查到 diff ≠ 没有前端变更。
+    // 但下游（QA 的 has_frontend_changes 分支）只能看到这个布尔值，所以必须显式说明「没查」。
+    if (context) { context.gitDiffFiles = []; context.has_frontend_changes = false; }
+    return { status: 'skip', message: `Git diff 未执行（非 git 仓库或无提交，不是通过）: ${e.message.split('\n')[0]}` };
   }
 }
 

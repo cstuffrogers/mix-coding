@@ -183,10 +183,10 @@
     {
       "step": 8,
       "layer": "capability",
-      "service": "CostService",
+      "service": "ReportService",
       "action": "report",
       "params": {},
-      "description": "输出本轮迭代的Token/API调用/MCP使用成本汇总"
+      "description": "输出本轮迭代的步骤结论与门禁汇总报告"
     },
     {
       "step": 9,

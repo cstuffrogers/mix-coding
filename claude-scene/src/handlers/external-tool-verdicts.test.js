@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -16,6 +16,9 @@ const {
   handleZizmor,
   handleJscpd,
   handleSkillspectorScan,
+  handleSpectral,
+  handleMarkdownlint,
+  handleSizeLimit,
 } = await import('./external-tool-checks.js');
 
 // claude-scene 的 eslint 没开 node globals，别用 Buffer；handler 只调 .toString()
@@ -194,5 +197,54 @@ describe('skillspector：扫文档必然命中示例代码 → 只 warn，且不
     expect(result.message).toContain('人工复核');
     // 「扫描对象是文档」的判定：写 passed 旗标 = 恒 false 的假门禁
     expect(context.skillspectorPassed).toBeUndefined();
+  });
+});
+
+// 第十三轮维度1：**工具没跑成时不许写门禁旗标**。
+// 以前 spectral / markdownlint / size-limit 三条都有同一个坑：catch 之后计数变量
+// 还停在初始值（0 / true），于是 `xPassed = true` 写进了 context，门禁报通过 ——
+// 而工具根本没装、根本没跑。没测量就是没测量，不许冒充达标。
+describe('工具没跑成 → skip 且不写 verdict 旗标', () => {
+  it('spectral 无 spec 文件 → noop，不写 spectralPassed', () => {
+    const context = {};
+    const result = handleSpectral('spectral', {}, root, context);
+    expect(result.status).toBe('noop');
+    expect(context.spectralPassed).toBeUndefined();
+    expect(mockSafeExec).not.toHaveBeenCalled();
+  });
+
+  it('spectral 工具缺失 → skip，不写 spectralPassed', () => {
+    writeFileSync(join(root, 'openapi.yaml'), 'openapi: 3.0.0\n');
+    mockSafeExec.mockReturnValue(out("'spectral' is not recognized as an internal or external command"));
+    const context = {};
+    const result = handleSpectral('spectral', {}, root, context);
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('不是通过');
+    expect(context.spectralPassed).toBeUndefined();
+  });
+
+  it('markdownlint 工具缺失 → skip，不写 markdownlintPassed', () => {
+    mockSafeExec.mockReturnValue(out("'markdownlint' is not recognized as an internal or external command"));
+    const context = {};
+    const result = handleMarkdownlint('markdownlint', {}, root, context);
+    expect(result.status).toBe('skip');
+    expect(context.markdownlintPassed).toBeUndefined();
+  });
+
+  it('size-limit 无配置 → noop，不写 sizeLimitPassed', () => {
+    const context = {};
+    const result = handleSizeLimit('sizeLimit', {}, root, context);
+    expect(result.status).toBe('noop');
+    expect(context.sizeLimitPassed).toBeUndefined();
+    expect(mockSafeExec).not.toHaveBeenCalled();
+  });
+
+  it('size-limit 工具缺失 → skip，不写 sizeLimitPassed', () => {
+    writeFileSync(join(root, '.size-limit.json'), '[]');
+    mockSafeExec.mockReturnValue(out("'size-limit' is not recognized as an internal or external command"));
+    const context = {};
+    const result = handleSizeLimit('sizeLimit', {}, root, context);
+    expect(result.status).toBe('skip');
+    expect(context.sizeLimitPassed).toBeUndefined();
   });
 });

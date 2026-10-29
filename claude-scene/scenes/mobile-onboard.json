@@ -135,10 +135,10 @@
     {
       "step": 11,
       "layer": "capability",
-      "service": "CostService",
+      "service": "ReportService",
       "action": "report",
       "params": {},
-      "description": "环境搭建流程成本报告"
+      "description": "环境搭建流程报告：步骤结论 + 门禁汇总"
     },
     {
       "step": 12,

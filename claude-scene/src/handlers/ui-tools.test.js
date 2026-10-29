@@ -80,7 +80,8 @@ describe('detectFramework', () => {
 describe('handleReconcileDesignTokens', () => {
   it('skips with a message when context is missing', () => {
     const res = handleReconcileDesignTokens({}, {}, tmp, null);
-    expect(res).toBe('设计 Token 调和跳过（缺少上下文）');
+    expect(res.status).toBe('skip');
+    expect(res.message).toBe('设计 Token 调和跳过（缺少上下文，不是通过）');
   });
 
   it('returns zero-count message and writes context fields on an empty project', () => {

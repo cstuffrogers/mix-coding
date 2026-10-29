@@ -139,18 +139,18 @@ export function handleCodeGuardianOptimize(_action, params = {}, targetPath, con
   const base = params.base || 'HEAD';
 
   if (!targetPath || !existsSync(targetPath)) {
-    return 'CodeGuardian 边界检查跳过：未指定目标目录';
+    return { status: 'skip', message: 'CodeGuardian 边界检查跳过：未指定目标目录（不是通过）' };
   }
 
   const toplevel = git(targetPath, 'rev-parse --show-toplevel');
   if (toplevel === null || normPath(toplevel.trim()) !== normPath(targetPath)) {
     // 子目录也「在仓库里」，但统计会混进别的目录，宁可不量。
-    return 'CodeGuardian 边界检查跳过：目标目录不是 git 仓库根，无法量化变更';
+    return { status: 'skip', message: 'CodeGuardian 边界检查跳过：目标目录不是 git 仓库根，无法量化变更（不是通过）' };
   }
 
   const current = changedLines(targetPath, base);
   if (current === null) {
-    return `CodeGuardian 边界检查跳过：无法读取 ${base} 的 diff`;
+    return { status: 'skip', message: `CodeGuardian 边界检查跳过：无法读取 ${base} 的 diff（不是通过）` };
   }
   const baseline = context?.codeguardianBaseline || null;
   // 有快照：只量本轮新增的变更；没快照（单跑）：维持相对 HEAD 的旧行为。
