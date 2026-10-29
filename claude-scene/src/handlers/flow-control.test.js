@@ -304,6 +304,25 @@ describe('handleCheckGate：block_* / mode / gate 参数真的生效', () => {
     expect(result.status).toBe('warn');
     expect(result.message).toContain('no_such_gate');
   });
+
+  // 第十一轮：门禁的通过判定曾经是 `context[flag] !== false` → passed。
+  // 于是 `context.loadTestPassed = null`（负载测试没跑）被当成「✓ 通过」——
+  // null !== false 成立。现在是「只有 === true 才算通过」。
+  it('非布尔确认值（null）不能冒充通过', () => {
+    const result = handleCheckGate('checkGate', { checks: ['loadtest'] }, '/tmp', { loadTestPassed: null });
+    expect(result.status).not.toBe('pass');
+    expect(String(result.message)).toContain('不是布尔结论');
+  });
+
+  it('未测量（undefined）→ skip，不报 fail 也不报 pass', () => {
+    const result = handleCheckGate('checkGate', { checks: ['loadtest'] }, '/tmp', {});
+    expect(result.status).toBe('skip');
+  });
+
+  it('明确的 true / false 仍然照旧判', () => {
+    expect(String(handleCheckGate('checkGate', { checks: ['loadtest'] }, '/tmp', { loadTestPassed: true }))).toContain('通过');
+    expect(handleCheckGate('checkGate', { checks: ['loadtest'] }, '/tmp', { loadTestPassed: false }).status).toBe('fail');
+  });
 });
 
 describe('handleCeAction', () => {

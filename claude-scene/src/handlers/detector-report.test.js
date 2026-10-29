@@ -78,7 +78,9 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
 
     expect(result.status).toBe('pass');
     expect(result.message).toContain('12/12');
-    expect(context.detectorSweepPassed).toBe(12);
+    // 第十一轮：门禁旗标必须是布尔值（以前写的是数字 12，evalStandardGate
+    // 的新契约「只有 === true 才算通过」会把数字当成「不是结论」）。
+    expect(context.detectorSweepPassed).toBe(true);
   });
 
   it('有 failed 条目时 warn 并点名（守卫是空的）', () => {

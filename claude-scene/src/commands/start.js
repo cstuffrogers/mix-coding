@@ -758,8 +758,32 @@ export function rewriteStepRecord(stepResults, stepNum, status, resultStr) {
  *
  * 返回 'recovered' | 'exhausted' | 'awaiting'。
  */
+/**
+ * on_error=retry：重跑到成功为止。
+ *
+ * 次数来源（第十一轮）：以前硬编码 3，而 release#12 / rollback#8 / onboard#11 这些步骤
+ * 自己的 params 里就写着 `retry: 3/5`（那是处理器内部的健康检查重试），两步重试都叫
+ * 「retry」却没任何提示 —— 读者只能猜哪个数字生效。现在：
+ *   - 次数默认 3，可用 step.max_retries 覆盖（场景能控制的那一份）；
+ *   - 两者同时存在时把两个数字都打出来，不再让人猜。
+ */
+export const DEFAULT_MAX_RETRIES = 3;
+
+export function resolveMaxRetries(step) {
+  const declared = step?.max_retries;
+  if (declared === undefined) return DEFAULT_MAX_RETRIES;
+  if (Number.isSafeInteger(declared) && declared > 0) return declared;
+  // 垃圾值不静默吞：说清楚用了默认值
+  console.log(chalk.yellow(`  ⚠ Step ${step.step} 的 max_retries=${JSON.stringify(declared)} 不是正整数，按默认 ${DEFAULT_MAX_RETRIES} 次重试`));
+  return DEFAULT_MAX_RETRIES;
+}
+
 export async function retryFailedStep(step, sceneId, resolvedParams, context, dispatch = dispatchAction) {
-  const MAX_RETRIES = 3;
+  const MAX_RETRIES = resolveMaxRetries(step);
+  const handlerRetry = resolvedParams?.retry;
+  if (handlerRetry !== undefined) {
+    console.log(chalk.dim(`  → 步级重试 ${MAX_RETRIES} 次；params.retry=${JSON.stringify(handlerRetry)} 是处理器内部的重试，两者各算各的`));
+  }
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     context.lastStepFailed = false;
     console.log(chalk.yellow(`\n🔄 Step ${step.step} 失败，第 ${attempt}/${MAX_RETRIES} 次重试...`));
@@ -807,7 +831,7 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
     const outcome = await retryFailedStep(step, sceneId, resolvedParams, context);
     if (outcome === 'awaiting') abortForAwaitingAnswer(sceneId, step, context, { counted: true });
     if (outcome === 'exhausted') {
-      console.log(chalk.red(`\n✖ Step ${step.step} 重试 3 次后仍失败（on_error=retry），工作流中止`));
+      console.log(chalk.red(`\n✖ Step ${step.step} 重试 ${resolveMaxRetries(step)} 次后仍失败（on_error=retry），工作流中止`));
       printSummary(sceneId, context);
       process.exit(1);
     }

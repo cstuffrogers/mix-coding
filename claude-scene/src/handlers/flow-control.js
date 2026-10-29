@@ -473,9 +473,15 @@ function evalSecurityGate(check, context) {
 function evalStandardGate(check, context) {
   const flag = GATE_FLAGS[check];
   if (!flag) return { kind: 'unknown', label: check };
-  if (context?.[flag] === undefined) return { kind: 'skipped', label: check };
-  if (context?.[flag] !== false) return { kind: 'passed', label: check };
-  return { kind: 'failed', label: check };
+  const value = context?.[flag];
+  if (value === undefined) return { kind: 'skipped', label: check };
+  // 第十一轮：只认 === true 为通过。以前写的是 `!== false` → passed，于是
+  // `context.loadTestPassed = null`（负载测试没跑）被当成「✓ 通过」——
+  // null !== false 成立，假绿就这么来的。没测量就应该是 skipped，
+  // 而不是被当成通过；任何非 true 的确认值（null/'yes'/0）都不能冒充通过。
+  if (value === true) return { kind: 'passed', label: check };
+  if (value === false) return { kind: 'failed', label: check };
+  return { kind: 'skipped', label: `${check}（${flag}=${JSON.stringify(value)}，不是布尔结论）` };
 }
 
 function evalSingleCheck(check, context) {
@@ -534,7 +540,7 @@ function gateVerdict(results, checks, params, blockKeys) {
   if (effectiveTotal === 0) {
     return {
       status: 'skip',
-      message: `质量门禁未执行：${checks.join(', ')} 都没有结果（对应步骤未跑或未记录）`,
+      message: `质量门禁未执行：${results.skipped.join(', ')} 都没有结果（对应步骤未跑或未记录）`,
     };
   }
   if (results.unknown.length) {

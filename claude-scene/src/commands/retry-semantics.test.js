@@ -16,7 +16,7 @@ vi.mock('../actions.js', async (importOriginal) => {
 });
 
 const { executeAction } = await import('../actions.js');
-const { retryFailedStep, shiftSummary, rewriteStepRecord, bucketOf } = await import('./start.js');
+const { retryFailedStep, shiftSummary, rewriteStepRecord, bucketOf, resolveMaxRetries, DEFAULT_MAX_RETRIES } = await import('./start.js');
 
 const STEP = { step: 7, action: 'runSuite', on_error: 'retry', description: '跑测试套件' };
 
@@ -121,6 +121,52 @@ describe('retryFailedStep', () => {
     const outcome = await retryFailedStep(STEP, 'bugfix', {}, context);
 
     expect(outcome).toBe('exhausted');
+  });
+
+  // 第十一轮：步级重试次数以前硬编码 3，场景写的 `params.retry` 是处理器内部重试。
+  // 两个都叫 retry，只有一个数字生效 —— 现在步级次数可以由场景控制，且两者同时
+  // 出现时把两个数字都打出来。
+  it('step.max_retries 决定步级重试次数（不是恒为 3）', async () => {
+    const context = { stepResults: [] };
+    executeAction.mockImplementation(failingResult());
+
+    const outcome = await retryFailedStep({ ...STEP, max_retries: 5 }, 'bugfix', {}, context);
+
+    expect(outcome).toBe('exhausted');
+    expect(executeAction).toHaveBeenCalledTimes(5);
+  });
+
+  it('max_retries 是垃圾值 → 回落默认值，并明说用了默认（不静默）', async () => {
+    const context = { stepResults: [] };
+    executeAction.mockImplementation(failingResult());
+
+    const outcome = await retryFailedStep({ ...STEP, max_retries: 'many' }, 'bugfix', {}, context);
+
+    expect(outcome).toBe('exhausted');
+    expect(executeAction).toHaveBeenCalledTimes(DEFAULT_MAX_RETRIES);
+  });
+
+  it('resolveMaxRetries：未声明 → 默认；正整数 → 该值；0/负数/小数 → 默认', () => {
+    expect(resolveMaxRetries(STEP)).toBe(DEFAULT_MAX_RETRIES);
+    expect(resolveMaxRetries({ ...STEP, max_retries: 2 })).toBe(2);
+    expect(resolveMaxRetries({ ...STEP, max_retries: 0 })).toBe(DEFAULT_MAX_RETRIES);
+    expect(resolveMaxRetries({ ...STEP, max_retries: -4 })).toBe(DEFAULT_MAX_RETRIES);
+    expect(resolveMaxRetries({ ...STEP, max_retries: 2.5 })).toBe(DEFAULT_MAX_RETRIES);
+  });
+
+  it('params.retry 与步级重试同时存在时，两个数字都要出现在日志里', async () => {
+    const context = { stepResults: [] };
+    executeAction.mockImplementation(failingResult());
+    const logged = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((...args) => { logged.push(String(args[0])); });
+
+    await retryFailedStep({ ...STEP, max_retries: 2 }, 'rollback', { retry: 5 }, context);
+
+    const note = logged.find((line) => line.includes('params.retry'));
+    expect(note).toBeTruthy();
+    expect(note).toContain('步级重试 2 次');
+    expect(note).toContain('5');
+    spy.mockRestore();
   });
 
   it('重试的处理器要人回答问题 → awaiting（不许吞掉问题继续）', async () => {

@@ -34,8 +34,12 @@ describe('handleSetupMonitor', () => {
     mockExistsSync.mockReturnValue(false);
     const ctx = {};
     const result = handleSetupMonitor('setupMonitor', {}, '/test/fake', ctx);
-    expect(result).toContain('非 Git 仓库');
-    expect(ctx.monitorConfigured).toBe(false);
+    expect(result.message).toContain('非 Git 仓库');
+    // 第十一轮：以前写 monitorConfigured = false，门禁把 false 当「查了不通过」→
+    // 报 fail，而这一步的文案是「跳过」。没查不是不通过，现在不写这个键，
+    // 让门禁如实记 skipped，并且显式返回 status: 'skip'。
+    expect(result.status).toBe('skip');
+    expect(ctx.monitorConfigured).toBeUndefined();
   });
 
   it('generates config when .upptimerc.yml is missing', () => {

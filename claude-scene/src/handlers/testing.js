@@ -371,7 +371,11 @@ function runArtillery(configPath, targetPath) {
       `npx artillery run "${configPath}" --output "${join(tmpdir(), 'artillery-report.json')}" 2>&1`,
       targetPath, { stdio: 'pipe' }
     ).toString();
-    return { ran: true, passed: !result.includes('fail') && !result.includes('error'), output: result };
+    // execSync 在非零退出码时抛错，所以能返回就是 exit 0 = 真的跑过了。
+    // 以前用 `!result.includes('fail')` 判通过：artillery 的报告表本身就有
+    // `failures` 这一列（即使是 0），于是**通过的负载测试被报成失败**（假红）。
+    // 退出码已经是权威结论，不需要再从文案里猜。
+    return { ran: true, passed: true, output: result };
   } catch (e) {
     return { ran: false, passed: false, output: e.stdout || e.message };
   }
@@ -383,7 +387,7 @@ export function handleLoadTest(_action, params, targetPath, context) {
   const configs = findArtilleryConfig(targetPath);
 
   if (configs.length === 0) {
-    if (context) context.loadTestPassed = null;
+    // 没跑负载测试就不写 verdict（以前写 null，门禁的 `!== false` 把它当通过）
     return '负载测试跳过（无配置文件）';
   }
 
@@ -393,7 +397,7 @@ export function handleLoadTest(_action, params, targetPath, context) {
   const result = runArtillery(config.path, targetPath);
 
   if (!result.ran) {
-    if (context) context.loadTestPassed = null;
+    // 同上：Artillery 不可用 = 没测量，不写 verdict
     return '负载测试跳过（Artillery 不可用）';
   }
 

@@ -100,8 +100,10 @@ export function handleSetupMonitor(_action, _params, targetPath, context) {
     } catch { /* not a Git repo */ }
   }
   if (!isGit) {
-    if (context) context.monitorConfigured = false;
-    return 'Upptime 配置跳过（非 Git 仓库）';
+    // 以前这里写 monitorConfigured = false。门禁把 false 当「查了不通过」→ monitor
+    // 门禁报 fail，而本步的文案写的是「跳过」。没查不是不通过，不写这个键，
+    // 门禁才会如实记 skipped。
+    return { status: 'skip', message: 'Upptime 配置跳过（非 Git 仓库）' };
   }
 
   const gitInfo = detectGitInfo(targetPath);

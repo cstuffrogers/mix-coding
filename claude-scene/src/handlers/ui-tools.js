@@ -477,8 +477,11 @@ function runPlaywrightVisual(targetPath, context) {
   try {
     safeExec('npx playwright test --grep visual 2>&1', targetPath, { stdio: 'inherit' });
     if (context) context.visualRegressionPassed = true;
+    return true;
   } catch {
+    // 真跑过了才配写 false：playwright 非零退出 = 视觉回归真的挂了
     if (context) context.visualRegressionPassed = false;
+    return false;
   }
 }
 
@@ -503,30 +506,39 @@ function hasPlaywright(pkg) {
 export function handleVisualRegression(_action, params, targetPath, context) {
   const viewports = params?.viewports || ['desktop'];
 
+  // 「没测」不等于「没通过」。以前四条「压根没跑」的路径全都写
+  // visualRegressionPassed = false —— 门禁把「没装 Playwright / 没有视觉测试文件」
+  // 读成「视觉回归失败」（假红），还把 skip 说成 pass（假绿：无匹配测试文件那条
+  // 返回的是「完成」文案）。现在只承认真正跑过的那两次结论。
+  const packagePath = path.join(targetPath, 'package.json');
+  if (!existsSync(packagePath)) {
+    return { status: 'skip', message: '视觉回归测试跳过：目标目录没有 package.json（不是通过，也不是失败）' };
+  }
+
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+  } catch {
+    return { status: 'skip', message: '视觉回归测试未执行：package.json 读不出来（不是通过）' };
+  }
+
+  if (!hasPlaywright(pkg)) {
+    return { status: 'skip', message: '视觉回归测试未执行：未安装 Playwright（不是通过）' };
+  }
+
+  const visualTests = findVisualTestFiles(targetPath);
+  if (visualTests.length === 0) {
+    return { status: 'skip', message: '视觉回归测试未执行：没有匹配的视觉测试文件（需要手动添加 visual 测试，不是通过）' };
+  }
+
   const screenshotsDir = path.join(targetPath, 'screenshots');
   if (!existsSync(screenshotsDir)) mkdirSync(screenshotsDir, { recursive: true });
 
-  const packagePath = path.join(targetPath, 'package.json');
-  if (!existsSync(packagePath)) {
-    if (context) context.visualRegressionPassed = false;
-    return { status: 'skip', message: '视觉回归测试跳过：目标目录没有 package.json' };
+  const ran = runPlaywrightVisual(targetPath, context);
+  if (!ran) {
+    return { status: 'fail', message: '视觉回归测试失败：playwright test --grep visual 非零退出' };
   }
-
-  try {
-    const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
-    if (!hasPlaywright(pkg)) throw new Error('no playwright');
-
-    const visualTests = findVisualTestFiles(targetPath);
-    if (visualTests.length === 0) {
-      if (context) context.visualRegressionPassed = false;
-      return '视觉回归测试完成（无匹配测试文件 — 需要手动添加 visual 测试）';
-    }
-    runPlaywrightVisual(targetPath, context);
-    return `视觉回归测试完成 (${viewports.join(', ')}, ${visualTests.length} 个视觉测试)`;
-  } catch { /* unreadable file or no playwright */ }
-
-  if (context) context.visualRegressionPassed = false;
-  return '视觉回归测试完成（需要手动安装 Playwright）';
+  return `视觉回归测试完成 (${viewports.join(', ')}, ${visualTests.length} 个视觉测试)`;
 }
 
 export { handleCheckAPIConsistency } from './api-consistency.js';

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import { safeExec, escapeArg } from '../../lib/safe-exec.js';
+import { grepScan } from '../../lib/grep-scan.js';
 
 const SAFE_FILES = new Set([
   '.env.example',
@@ -203,17 +204,20 @@ export function handleSensitiveFileCheck(_action, _params, targetPath, context) 
     { pattern: '.env.production', name: '生产 .env' },
   ];
 
+  // `|| true` 会把「不是 Git 仓库 / git 不可用」变成空输出，与「没有敏感文件被追踪」
+  // 无法区分 —— 于是非 Git 项目上这一步报「✅ 未发现敏感文件暴露」，其实什么都没查。
+  // 单独记下 git 这一侧有没有真的查到。
+  let gitScanned = true;
   for (const { pattern, name } of sensitivePatterns) {
-    try {
-      const raw = safeExec(
-        `git ls-files --cached --others --exclude-standard -- "${pattern}" 2>&1 || true`,
-        targetPath,
-        { stdio: 'pipe', timeout: 10000 }
-      ).toString().trim();
-      if (raw) {
-        raw.split('\n').filter(Boolean).forEach(f => findings.push(`${name}: ${f}（已被 Git 追踪）`));
-      }
-    } catch { /* skip */ }
+    const scan = grepScan(
+      `git ls-files --cached --others --exclude-standard -- "${pattern}"`,
+      targetPath
+    );
+    if (!scan.ok) { gitScanned = false; continue; }
+    const tracked = scan.raw.trim();
+    if (tracked) {
+      tracked.split(String.fromCodePoint(10)).filter(Boolean).forEach(f => findings.push(`${name}: ${f}（已被 Git 追踪）`));
+    }
   }
 
   const gitignoreContent = checkGitignoreRules(targetPath, findings);
@@ -226,6 +230,14 @@ export function handleSensitiveFileCheck(_action, _params, targetPath, context) 
     console.log(chalk.green('  ✅ 未发现敏感文件暴露'));
   }
 
-  if (context) context.sensitiveFilePassed = findings.length === 0;
-  return `敏感文件检查完成: ${findings.length ? `${findings.length} 处风险` : '安全'}`;
+  if (findings.length > 0) {
+    if (context) context.sensitiveFilePassed = false;
+    return `敏感文件检查完成: ${findings.length} 处风险`;
+  }
+  if (!gitScanned) {
+    // 文件系统那侧（.gitignore / 未忽略的 .env）照跑，但「有没有被 Git 追踪」没查过 —— 不发通过结论
+    return { status: 'warn', message: '敏感文件检查未完成：git 不可用或不是 Git 仓库，无法确认这些文件是否已被追踪（不是通过）' };
+  }
+  if (context) context.sensitiveFilePassed = true;
+  return '敏感文件检查完成: 安全';
 }

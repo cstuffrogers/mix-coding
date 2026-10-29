@@ -130,23 +130,23 @@ export function handleDetectorReport(_action, _params, targetPath, context) {
   const { data, problem } = readReport(root);
 
   if (!data) {
-    if (context) {
-      context.detectorSweepReported = false;
-      context.detectorSweepProblem = problem;
-    }
+    // 第十一轮：以前还写了 detectorSweepReported / detectorSweepProblem，两个键无人读
+    // （与第十轮删掉的那批 verdict 旗标同一类负债），彻底删除。问题本身已经写进 message。
     return { status: 'skip', message: `${problem} —— 守卫是否真的会红，本轮未验（${HINT}）` };
-  }
-
-  if (context) {
-    context.detectorSweepReported = true;
-    context.detectorSweepPassed = data.passed;
-    context.detectorSweepTotal = data.total;
   }
 
   const issue = verdictOf(data, {
     head: gitHead(root),
     dirty: data.workingTreeDirty === true,
   });
+
+  if (context) {
+    // 门禁旗标只允许布尔值。以前直接写 `data.passed`（数字 12），
+    // 而 evalStandardGate 的新契约是「只有 === true 才算通过」—— 数字会被当成
+    // 「有值但不是结论」。这里的布尔值就是 verdict 本身：没问题 → true。
+    context.detectorSweepPassed = issue === null;
+  }
+
   if (issue) return issue;
 
   return {
