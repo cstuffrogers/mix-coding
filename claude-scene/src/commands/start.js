@@ -670,13 +670,46 @@ export function describeNotPassSteps(stepResults, limit = 12) {
   return { lines, total: list.length };
 }
 
-function printSummary(sceneId, context = null) {
+/**
+ * 汇总自洽性：total 是「记了几次」，分项是「各判成什么」。
+ * 两者不相等 = 有步骤被记了两次（重试路径）或记了 total 却没进桶 ——
+ * 以前这个不变量没人查，所以「一个步骤在汇总里出现两行」只能靠肉眼。
+ */
+export function summaryMismatch(summary) {
+  if (!summary || typeof summary !== 'object') return null;
+  const { total = 0, pass = 0, fail = 0, skip = 0, noop = 0, warn = 0 } = summary;
+  const sum = pass + fail + skip + noop + warn;
+  return total === sum ? null : { total, sum, diff: total - sum };
+}
+
+/**
+ * 退出码：失败步骤数 > 0 就是 1。
+ * 以前 `startScene` 收尾只有 printSummary，从不设退出码 —— 一个 fail: 3 的工作流
+ * 退出码是 0，CI 与 agent 都读「成功」。我们自己的规矩是「退出码是权威，文案不是」，
+ * 那就不能让权威说谎：跑完了不等于全绿。
+ */
+export function exitCodeForSummary(summary) {
+  return summary && summary.fail > 0 ? 1 : 0;
+}
+
+function printSummary(sceneId, context = null, { aborted = null } = {}) {
   console.log(chalk.dim(`\n${'─'.repeat(40)}`));
   const { pass, fail, skip, noop, warn } = LOG_SUMMARY;
   const failIcon = fail > 0 ? chalk.red(`  ✗ fail: ${fail}`) : chalk.green('  ✗ fail: 0');
   const warnIcon = warn > 0 ? chalk.yellow(`  ⚡ warn: ${warn}`) : chalk.green('  ⚡ warn: 0');
   const noopIcon = noop > 0 ? chalk.yellow(`  ⚠ noop: ${noop}`) : chalk.green('  ⚠ noop: 0');
-  console.log(chalk.cyan(`  Scene: ${sceneId}  `) + chalk.green(`✓ pass: ${pass}  `) + failIcon + warnIcon + chalk.gray(`  ⏭ skip: ${skip}  `) + noopIcon);
+  // 中止时的计数行不能长得像成功收尾：以前 gateBlocked / abort / 验收阻断都会打印
+  // 一行绿色的「✓ pass: N ✗ fail: 0」再退出，最后一眼看到的是全绿。
+  const passLabel = aborted ? chalk.yellow(`已完成: ${pass}  `) : chalk.green(`✓ pass: ${pass}  `);
+  console.log(chalk.cyan(`  Scene: ${sceneId}  `) + passLabel + failIcon + warnIcon + chalk.gray(`  ⏭ skip: ${skip}  `) + noopIcon);
+  if (aborted) {
+    console.log(chalk.red(`  ⛔ 工作流已中止: ${aborted}`));
+    console.log(chalk.red('     上面的计数只是中止前的部分结果 —— 这次运行没有跑完，不要当成通过。'));
+  }
+  const mismatch = summaryMismatch(LOG_SUMMARY);
+  if (mismatch) {
+    console.log(chalk.yellow(`  ⚠ 汇总不自洽: total=${mismatch.total} 但分项合计=${mismatch.sum}（差 ${mismatch.diff}，有步骤被记了两次或漏记）`));
+  }
   // skip 里混着两种东西：条件明确不满足，和「运行时键没人写过，根本没法判」。
   // 后者没跑 ≠ 不该跑，汇总里必须点名，否则就是静默跳过。
   const unjudged = context?._unjudgedSteps || [];
@@ -812,19 +845,19 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
   // 这就是「失败即阻断」的承诺，不该再依赖场景有没有记得写 on_error。
   if (context.gateBlocked) {
     console.log(chalk.red(`\n✖ Step ${step.step} 质量门禁阻断（场景声明了 block_*），工作流中止`));
-    printSummary(sceneId, context);
+    printSummary(sceneId, context, { aborted: `Step ${step.step} ${step.action} 质量门禁阻断（block_*）` });
     process.exit(1);
   }
   if (!context.lastStepFailed || !step.on_error) return;
 
   if (step.on_error === 'abort') {
     console.log(chalk.red(`\n✖ Step ${step.step} 失败（on_error=abort），工作流中止`));
-    printSummary(sceneId, context);
+    printSummary(sceneId, context, { aborted: `Step ${step.step} ${step.action} 失败（on_error=abort）` });
     process.exit(1);
   }
   if (step.on_error === 'fail_workflow') {
     console.log(chalk.red(`\n✖ Step ${step.step} 失败（on_error=fail_workflow），安全阻断，工作流中止`));
-    printSummary(sceneId, context);
+    printSummary(sceneId, context, { aborted: `Step ${step.step} ${step.action} 失败（on_error=fail_workflow 安全阻断）` });
     process.exit(1);
   }
   if (step.on_error === 'retry') {
@@ -832,7 +865,7 @@ async function handleStepError(step, context, sceneId, resolvedParams) {
     if (outcome === 'awaiting') abortForAwaitingAnswer(sceneId, step, context, { counted: true });
     if (outcome === 'exhausted') {
       console.log(chalk.red(`\n✖ Step ${step.step} 重试 ${resolveMaxRetries(step)} 次后仍失败（on_error=retry），工作流中止`));
-      printSummary(sceneId, context);
+      printSummary(sceneId, context, { aborted: `Step ${step.step} ${step.action} 重试耗尽（on_error=retry）` });
       process.exit(1);
     }
     return;
@@ -1207,7 +1240,7 @@ function abortForAwaitingAnswer(sceneId, step, context, { counted = false } = {}
   if (!counted) { LOG_SUMMARY.total++; LOG_SUMMARY.fail++; }
   appendLog({ step: step.step, action: step.action, status: 'fail', reason: 'needs-answer', detail: awaiting.label, time: new Date().toISOString() });
   reportAwaitingAnswer(awaiting, step.step);
-  printSummary(sceneId, context);
+  printSummary(sceneId, context, { aborted: `Step ${step.step} ${step.action} 需要用户回答，非交互环境下无人可问` });
   process.exit(2);
 }
 
@@ -1325,7 +1358,7 @@ async function runStep(sceneId, step, context, options) {
   if (shouldAbortOnEnclosure(context)) {
     console.log(chalk.red('\n✖ 圈地越界（--strict-enclosure）：边界超限即中止，不在破了的地界上继续施工'));
     console.log(chalk.yellow('   先 git status 看改动范围，必要时按围栏快照回滚（fenceRestore）'));
-    printSummary(sceneId, context);
+    printSummary(sceneId, context, { aborted: `Step ${step.step} ${step.action} 圈地越界（--strict-enclosure）` });
     process.exit(1);
   }
 
@@ -1449,13 +1482,13 @@ function enforceAcceptanceGate(scene, context, sceneId) {
   if (acceptance.missingVerify) {
     console.log(chalk.red('  ✖ 验收阻断：本次工作流包含变更类步骤但未执行任何验证类步骤（lint/test/verify/build）。'));
     console.log(chalk.red('    交付前必须补跑验证并报告「变更 + 验证命令 + 验证结果」三元组。'));
-    printSummary(sceneId, context);
+    printSummary(sceneId, context, { aborted: '验收阻断：有变更但没有任何验证类步骤' });
     process.exit(1);
   }
   if (acceptance.unreviewedChange) {
     console.log(chalk.red('  ✖ 验收阻断：本次工作流有变更，但验证类步骤未通过（全部 fail/noop/skip）。'));
     console.log(chalk.red('    交付前必须让验证步骤 pass 或 warn（通过带发现），并报告「变更 + 验证命令 + 验证结果」三元组。'));
-    printSummary(sceneId, context);
+    printSummary(sceneId, context, { aborted: '验收阻断：变更未通过验证' });
     process.exit(1);
   }
 }
@@ -1564,5 +1597,12 @@ export async function startScene(sceneId, options) {
     await executeAction(sceneId, 'autoRemember', {}, context, context.targetPath || PROJECT_ROOT);
     enforceAcceptanceGate(scene, context, sceneId);
     printSummary(sceneId, context);
+    // 失败步骤数 > 0 就是非零退出：跑完了 ≠ 全绿。on_error=continue 让工作流走完，
+    // 但退出码不能让 CI / agent 把「有 3 步失败」读成「成功」。
+    const code = exitCodeForSummary(LOG_SUMMARY);
+    if (code !== 0) {
+      console.log(chalk.red(`  ✗ ${LOG_SUMMARY.fail} 个步骤失败（on_error 允许继续），退出码 ${code} —— 流程跑完了，但没有全绿`));
+      process.exit(code);
+    }
   }
 }

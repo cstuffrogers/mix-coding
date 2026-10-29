@@ -143,7 +143,9 @@ describe('executeAction', () => {
   it('handles ce- prefixed actions', async () => {
     const context = {};
     const result = await executeAction('test-scene', 'ce-plan', {}, context, '/tmp');
-    expect(result).toContain('CE');
+    // 交接类 CE 动作在引擎里不执行：返回显式 skip，不是裸字符串 pass。
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('CE');
   });
 
   it('returns fallback message for unknown actions', async () => {

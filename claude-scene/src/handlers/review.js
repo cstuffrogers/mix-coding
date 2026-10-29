@@ -386,7 +386,9 @@ export function handleReviewFull(_action, _params, targetPath) {
   const isInClaudeCode = isConversationMode();
 
   if (isInClaudeCode) {
-    return '代码审查就绪（对话模式 Skill 调用）';
+    // 「就绪」之前是裸字符串 → 被文案启发式判成 pass。但引擎在这一步什么都没查：
+    // 它只是把活儿交给对话模式的 agent。交接不是通过（同 ceo-review / invokeSkill 的口径）。
+    return { status: 'noop', message: '完整审查未在引擎内执行：交给对话模式的 agent 跑 skill（不计为通过）' };
   }
 
   // CLI mode: run a lightweight semantic grep scan as fallback
@@ -421,7 +423,7 @@ export function handleVerifyVisual(_action, _params, targetPath) {
   const isInClaudeCode = isConversationMode();
 
   if (isInClaudeCode) {
-    return '视觉验证就绪（对话模式 Playwright 执行）';
+    return { status: 'noop', message: '视觉验证未在引擎内执行：交给对话模式的 agent 跑 Playwright（不计为通过）' };
   }
 
   // CLI mode: check if Playwright is installed and attempt to run

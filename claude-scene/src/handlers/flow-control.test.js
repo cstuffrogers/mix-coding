@@ -328,13 +328,18 @@ describe('handleCheckGate：block_* / mode / gate 参数真的生效', () => {
 
 describe('handleCeAction', () => {
   it('resolves ce-plan description', () => {
-    const result = handleCeAction('ce-plan');
-    expect(result).toContain('CE plan');
+    // 用临时目录当 targetPath：传 undefined 会回落 PROJECT_ROOT，
+    // 那台机器装没装 CE 插件 / 是否对话模式会直接改变状态（测试不许吃宿主环境）。
+    const result = handleCeAction('ce-plan', {}, mkTmp());
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('CE plan');
   });
 
-  it('falls back for unknown CE action', () => {
-    const result = handleCeAction('ce-unknown');
-    expect(result).toContain('CE unknown');
+  it('unknown CE action → fail（配置错误，不是「完成」）', () => {
+    const result = handleCeAction('ce-unknown', {}, mkTmp());
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('CE unknown');
+    expect(result.message).toContain('未识别');
   });
 });
 
@@ -447,10 +452,12 @@ describe('CE 步骤不许写「没发生的事」', () => {
   // 拿仓库自己当目标会被宿主环境（本机装了 CE 插件）污染成假绿。
   const emptyProject = () => mkTmp();
 
-  it('CE 插件不可用 → 记 requested，不记 executed', () => {
+  it('CE 插件不可用 → 记 requested，不记 executed，且状态是 skip（不是 pass）', () => {
     const ctx = {};
     const r = handleCeAction('ce-plan', {}, emptyProject(), ctx);
-    expect(r).toContain('CE plan');
+    expect(r.status).toBe('skip');
+    expect(r.message).toContain('CE plan');
+    expect(r.message).toContain('不是通过');
     expect(ctx.ce_requested).toEqual(['plan']);
     expect(ctx.ce_executed).toBeUndefined();
     expect(ctx.ce_planned).toBeUndefined();

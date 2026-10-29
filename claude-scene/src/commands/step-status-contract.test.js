@@ -18,7 +18,7 @@ import { bodyOfDefinition, collectSources, findDefinition, parseHandlerMap } fro
 const SRC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FAIL_WORDS = /(失败|阻断|abort|错误|异常)/i;
 // 「没测成」：跳过、未安装、未执行、未产生、未找到…… 这些都不是「通过」
-const NOT_MEASURED = /(跳过|未执行|未获取|不可用|超时|未安装|未运行|不计为通过|未测量|未生成|未产生|未找到)/;
+const NOT_MEASURED = /(跳过|未执行|未获取|不可用|超时|未安装|未运行|不计为通过|未测量|未生成|未产生|未找到|对话模式|交给.*agent|待 agent|由 agent|需人工)/;
 // 内部三态分类器（'fail' | 'skip' | 'pass'）是机器判词，不是给人看的结论，豁免
 const MACHINE_VERDICTS = new Set(['pass', 'fail', 'skip', 'warn', 'noop', 'ok']);
 
@@ -86,6 +86,18 @@ describe('判定器本身能失败（不是空转）', () => {
     expect(hits).toHaveLength(2);
     expect(hits[0]).toContain('提交跳过');
     expect(hits[1]).toContain('扫描失败');
+  });
+
+  it('裸字符串把交接写成「就绪」→ 也点名（交给 agent ≠ 通过）', () => {
+    const body = `
+      function handleZ() {
+        if (a) return '代码审查就绪（对话模式 Skill 调用）';
+        if (b) return '视觉验证就绪（对话模式 Playwright 执行）';
+        return 'CE Plugin 就绪（对话模式执行）';
+      }`;
+    const hits = bareStatusReturns(body);
+    expect(hits).toHaveLength(3);
+    expect(hits[0]).toContain('对话模式');
   });
 
   it('显式 status / 机器判词 / 普通通过文案 → 都不算', () => {

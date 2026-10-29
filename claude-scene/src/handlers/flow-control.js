@@ -268,11 +268,30 @@ function notifyVerdict(context) {
   return `通知已发送（本次有 ${failures.length} 个步骤失败：${names}）—— 不报「已完成」`;
 }
 
+/** 只记「被要求过」和「真的交给了对话模式」，不写没意义的布尔值 */
+function recordCeIntent(context, ceAction, executed) {
+  if (!context) return;
+  const bucket = executed ? 'ce_executed' : 'ce_requested';
+  if (!Array.isArray(context[bucket])) context[bucket] = [];
+  if (context[bucket].includes(ceAction)) return;
+  context[bucket].push(ceAction);
+}
+
+const CE_HANDOFF = '—— 交接类步骤，引擎不执行（不计为通过）';
+const CE_CANNOT_RUN = '—— 本环境跑不了，动作未执行（不是通过）';
+
+function ceOutcome(ceAvailable, executed) {
+  if (executed) return { status: 'noop', base: '交给对话模式的 agent 执行', tail: CE_HANDOFF };
+  if (ceAvailable) return { status: 'skip', base: 'CE Plugin 已安装，但需对话模式才能跑', tail: CE_CANNOT_RUN };
+  return { status: 'skip', base: 'CE Plugin 未安装', tail: CE_CANNOT_RUN };
+}
+
 export function handleCeAction(action, params, targetPath, context) {
   const ceAction = action.replace('ce-', '');
   const desc = CE_DESCRIPTIONS[ceAction];
   if (!desc) {
-    return `CE ${ceAction}: 未知操作`;
+    // 认不出的 CE 动作是配置错误，不是「完成」：以前返回裸字符串 → pass。
+    return { status: 'fail', message: `CE ${ceAction}: 未识别的动作（场景写了引擎不支持的 ce-*，没有执行任何东西）` };
   }
   // 场景给 CE 步骤带了意图参数（ce-plan: detail_level / risk_analysis /
   // tech_selection）。以前这些键没人读，等于把用户的要求吞了。这里是引导性
@@ -287,15 +306,14 @@ export function handleCeAction(action, params, targetPath, context) {
   // 以前无条件写 `ce_<action>_executed = true` + `ce_planned/ce_reviewed/...`：
   // 这两个键全仓库无人读，而且 CE 插件没装时也是 true —— 写了就撒谎。
   // 现在只记「被要求过」和「真的交给了对话模式」，不写没意义的布尔值。
-  if (context) {
-    const executed = ceAvailable && isConversationMode();
-    const bucket = executed ? 'ce_executed' : 'ce_requested';
-    if (!Array.isArray(context[bucket])) context[bucket] = [];
-    if (!context[bucket].includes(ceAction)) context[bucket].push(ceAction);
-  }
+  const executed = ceAvailable && isConversationMode();
+  recordCeIntent(context, ceAction, executed);
 
-  const base = ceAvailable && isConversationMode() ? 'CE Plugin 就绪（对话模式执行）' : ceAvailable ? 'CE Plugin 已安装但需对话模式' : '上下文已设置（CE Plugin 未安装）';
-  return `CE ${ceAction}: ${base}${preferences ? `（要求: ${preferences}）` : ''}`;
+  const { status, base, tail } = ceOutcome(ceAvailable, executed);
+  const prefs = preferences ? `（要求: ${preferences}）` : '';
+  // 引擎里这里只打了 banner + 记了意图，一个动作也没执行：
+  // 以前返回裸字符串 → 被文案启发式判成 pass（CE Plugin 没装也算通过）。
+  return { status, message: `CE ${ceAction}（${base}）${prefs} ${desc} ${tail}` };
 }
 
 function printCeBanner(ceAction, desc, ceAvailable, preferences) {
