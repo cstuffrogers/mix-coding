@@ -441,6 +441,17 @@ export function handleAskUser(_action, params, _targetPath, context) {
   };
 }
 
+/** 引擎自己特判的检查项（不走 GATE_FLAGS 映射） */
+const SPECIAL_CHECKS = new Set(['security', 'security_scan']);
+// 具名门禁（`checkGate: { gate: "setup_config" }`）。往这个集合里加名字，
+// 必须同时在 evalNamedGate 里写出它到底查什么 —— 只加名字等于凭空造门禁。
+const NAMED_GATES = new Set(['setup_config']);
+
+/** 门禁是否真的实现了 —— 场景声明了什么、引擎就得有什么，这里只回答「认不认识」。 */
+export function isKnownCheck(name) {
+  return SPECIAL_CHECKS.has(name) || NAMED_GATES.has(name) || Object.hasOwn(GATE_FLAGS, name);
+}
+
 function evalSecurityGate(check, context) {
   const secResult = context?.securityScanResult;
   // 没跑过安全扫描（highSeverityFound 未定义）不能算通过 —— 以前只要 context 里有个
@@ -463,7 +474,7 @@ function evalStandardGate(check, context) {
 }
 
 function evalSingleCheck(check, context) {
-  if (check === 'security' || check === 'security_scan') {
+  if (SPECIAL_CHECKS.has(check)) {
     return evalSecurityGate(check, context);
   }
   return evalStandardGate(check, context);
@@ -471,7 +482,7 @@ function evalSingleCheck(check, context) {
 
 /** 场景声明的具名门禁（`gate: "setup_config"`） */
 function evalNamedGate(name, context) {
-  if (name !== 'setup_config') return { kind: 'unknown', label: name };
+  if (!NAMED_GATES.has(name)) return { kind: 'unknown', label: name };
   // 设施是否真的搭出来了：e2e / monitor 各自的 handler 会写 flag，
   // property 那支不落文件，靠这三个键判断是否有人表过态。
   const flags = ['setupConfigured', 'e2eConfigured', 'monitorConfigured'].map((k) => context?.[k]);

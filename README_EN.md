@@ -98,7 +98,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 | **monitor** | 9 | Website monitoring (Upptime + GitHub Actions + status page) + log/incident enhancements | `/monitor` |
 | **qa** | 12 | Browser QA verification (git diff → browser test → bug report), also /review enhancement | `/qa` |
 | **plan-ceo-review** | 11 | Founder-mode product review (10x analysis + simplify + user value), also /feature enhancement | `/plan-ceo-review` |
-| **check** | 10 | Engine self-check + self-heal: dead action detection / orphan gate flags / missing action messages, auto-fix data files | `/check` |
+| **check** | 7 | Engine self-check: dead actions / unimplemented gates / stubbed handlers (never rewrites engine source) | `/check` |
 | **plan** | 10 | Manus-style persistent planning (session recovery + SHA256 attestation + multi-stage tracking) | `/plan` |
 | **update** | 10 | System resource update (scan MCP/Skill/CLI/npm → conflict detection → patch/minor auto-update → major pending confirmation → date-stamped log) | `/update` |
 | **mobile-audit** | 24 | App security audit (MobSF + mobsfscan + Bearer PII/GDPR + DependencyCheck CVE + OWASP MASVS + 5-layer gates) | `/mobile-audit` |
@@ -125,8 +125,7 @@ The system registers **126 actions** (see `claude-scene/src/actions.js` `ACTION_
 | `check-api-consistency` | OpenAPI standard pipeline (Redocly lint + cross-validation + openapi-typescript) | ✅ |
 | `sec-bug-hunt` / `gitLeaks` / `npm-audit` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `state-audit` / `i18n-audit` | Security + Performance + Architecture + i18n | ✅ |
 | `verify-handlers` | Handler verification: 10-pass stub detection | ✅ |
-| `check-smoke` / `check-action-messages` / `check-gate-flags` | Engine self-check: smoke test / action message integrity / gate flag integrity | ✅ |
-| `fix-action-messages` / `fix-gate-flags` | Engine self-heal: auto-fill missing action messages and gate flag mappings | ✅ |
+| `check-smoke` / `check-gate-flags` | Engine self-check: smoke test / every declared gate is implemented | ✅ |
 | `migration-review` / `load-test` | Migration review / Load testing | ✅ |
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | One-click infrastructure config | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | Incident/Changelog/SBOM automation | ✅ |

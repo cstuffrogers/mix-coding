@@ -2,7 +2,7 @@
   "scene_id": "check",
   "workflow": "check",
   "name": "引擎自检 + 自愈",
-  "description": "引擎功能完整性检查：检测 dead actions / orphan gate flags / missing action messages，自动修复数据文件",
+  "description": "引擎功能完整性检查：检测 dead actions / 场景声明但未实现的门禁 / 空转 handler，自动修复 gate-flags 数据文件",
   "trigger_keywords": ["自检", "check", "完整性检查", "引擎检查", "自愈"],
   "flow": [
     {
@@ -35,36 +35,12 @@
       "description": "Vitest 冒烟测试：dead action 检测 / handler smoke / await-safeExec 反模式 / scene JSON 完整性"
     },
     {
-      "step": 3,
-      "layer": "capability",
-      "service": "SelfCheckService",
-      "action": "check-action-messages",
-      "params": {},
-      "description": "交叉对比 ACTION_REGISTRY 与 action-messages.js，检测缺少 action message 的 handler"
-    },
-    {
       "step": 4,
       "layer": "capability",
       "service": "SelfCheckService",
       "action": "check-gate-flags",
       "params": {},
-      "description": "扫描 handler 文件 context.flag 写入，与 gate-flags.js 交叉对比，检测孤儿 flag"
-    },
-    {
-      "step": 5,
-      "layer": "capability",
-      "service": "SelfCheckService",
-      "action": "fix-action-messages",
-      "params": {},
-      "description": "自动修复缺失 action message：为 handler 生成消息并插入 action-messages.js"
-    },
-    {
-      "step": 6,
-      "layer": "capability",
-      "service": "SelfCheckService",
-      "action": "fix-gate-flags",
-      "params": {},
-      "description": "自动修复缺失 gate flag 映射：推断检查名并插入 gate-flags.js"
+      "description": "交叉对比场景声明的门禁名（checkGate.checks / gate）与引擎实现，点名引擎不认识的门禁"
     },
     {
       "step": 7,

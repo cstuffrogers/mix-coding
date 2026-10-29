@@ -59,7 +59,6 @@ const START_CONTEXT_KEYS = new Set();
     for (const m of mapFn[1].matchAll(/^\s+\w+\s*:\s*['"](\w+)['"]/gm)) START_CONTEXT_KEYS.add(m[1]);
   }
 }
-const msgsSrc = readFileSync(join(root, 'claude-scene', 'src', 'data', 'action-messages.js'), 'utf8');
 
 // 已注册的 action 名（对象 key）
 const registeredActions = new Set();

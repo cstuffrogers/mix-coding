@@ -130,6 +130,20 @@ describe('假绿回归：gh CLI 不可用', () => {
     expect(cmd).toContain('--target v1.2.3');
   });
 
+  it('draft 真的进了 gh 命令（两个场景都声明了 draft: false）', () => {
+    // release#13 与 mobile-release#10 的 params 里都有 draft。以前没人读它：
+    // 场景写着草稿就草稿、正式就正式 —— 而实际两种都发正式版。
+    // 当时这条声明还被文案表里的 'web-design-v0-draft' 子串掩护着。
+    safeExec.mockReturnValue(Buffer.from('ok'));
+    handleCreateRelease('x', { tag: 'v1', draft: true }, '/tmp', {});
+    expect(safeExec.mock.calls.at(-1)[0]).toContain('--draft');
+    expect(handleCreateRelease('x', { tag: 'v1', draft: true }, '/tmp', {})).toContain('草稿');
+    safeExec.mockReturnValue(Buffer.from('ok'));
+    const notDraft = handleCreateRelease('x', { tag: 'v1', draft: false }, '/tmp', {});
+    expect(safeExec.mock.calls.at(-1)[0]).not.toContain('--draft');
+    expect(String(notDraft)).not.toContain('草稿');
+  });
+
   it('创建成功 → 报已创建', () => {
     safeExec.mockReturnValue(Buffer.from('https://github.com/o/r/releases/v1'));
     expect(handleCreateRelease('x', { tag: 'v1' }, '/tmp', {})).toContain('已创建');

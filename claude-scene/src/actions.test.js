@@ -153,10 +153,11 @@ describe('executeAction', () => {
     // 兑底文案不能静默：以前场景里 action 名写错也报 ✓ pass
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain('nonexistentAction');
-    expect(context.unknownAction).toBe('nonexistentAction');
     // 并且必须显式标 warn —— 否则字符串结果仍会被记成 pass
     expect(result).toMatchObject({ status: 'warn' });
     expect(result.message).toContain('nonexistentAction');
+    // 文案不许报「完成」：那 6 个字母曾在 475 行文案表里替一个不存在的动作作证
+    expect(result.message).not.toMatch(/完成|已/);
     expect(deriveStepStatus(result, {}).stepStatus).toBe('warn');
     warn.mockRestore();
   });
@@ -168,17 +169,26 @@ describe('executeAction', () => {
     warn.mockRestore();
   });
 
-  it('catches errors and sets lastStepFailed on context', async () => {
+  it('catches errors and returns an explicit fail', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     const context = {};
     const original = ACTION_REGISTRY['_testThrower'];
     ACTION_REGISTRY['_testThrower'] = () => {
       throw new Error('simulated failure');
     };
-    const result = await executeAction('test-scene', '_testThrower', {}, context, '/tmp');
-    expect(context.lastStepFailed).toBe(true);
-    expect(result).toContain('部分操作可能失败');
-    delete ACTION_REGISTRY['_testThrower'];
-    if (original) ACTION_REGISTRY['_testThrower'] = original;
+    try {
+      const result = await executeAction('test-scene', '_testThrower', {}, context, '/tmp');
+      expect(context.lastStepFailed).toBe(true);
+      // 以前这里返回裸字符串「动作 X 执行完成（部分操作可能失败）」—— 既说完成
+      // 又说可能失败，且不带 status：没有 context 时直接记成 ✓ pass。
+      expect(result).toMatchObject({ status: 'fail' });
+      expect(result.message).not.toMatch(/执行完成/);
+      expect(deriveStepStatus(result, {}).stepStatus).toBe('fail');
+    } finally {
+      delete ACTION_REGISTRY['_testThrower'];
+      if (original) ACTION_REGISTRY['_testThrower'] = original;
+      err.mockRestore();
+    }
   });
 
   it('passes params and context through to handler', async () => {

@@ -43,7 +43,7 @@ Scene 引擎在对话内执行工作流。25 个场景。`node src/index.js star
 | `/ui-polish` | 前端美化 + 设计 | `/optimize` | 性能优化 |
 | `/setup [kind]` | 测试/监控/属性测试设施搭建（`--kind` 选分支，默认 e2e） | `/new-project` | 新建项目 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
-| `/check` | 引擎自检+自愈 | `/plan` | Manus 持久规划 |
+| `/check` | 引擎自检（只检测不改源码） | `/plan` | Manus 持久规划 |
 | `/enhance-prompt` | UI prompt 精炼 | — | — |
 
 > **交互式模式选择**：`/review` `/ui-polish` `/refactor` `/setup` 启动时弹出选择菜单，3秒无操作使用默认。

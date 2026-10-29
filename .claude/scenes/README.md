@@ -8,7 +8,7 @@
 |---------|------|------|
 <!-- AUTO-SYNC:SCENE-TABLE-START -->
 | `bugfix` | `/bugfix 描述` | 端到端一键修复Bug流程（Jira/issue/PR --> issue注释 --> 本地分支 --> 修复 --> 测试 --> 提交 --> PR --> 回归测试 --> 关单） |
-| `check` | `/check` | 引擎功能完整性检查：检测 dead actions / orphan gate flags / missing action messages，自动修复数据文件 |
+| `check` | `/check` | 引擎功能完整性检查：检测 dead actions / 场景声明但未实现的门禁 / 空转 handler，自动修复 gate-flags 数据文件 |
 | `cicd` | `/cicd` | 使用 Act + Task 配置本地 CI/CD 流水线，验证 GitHub Actions 工作流，生成 Taskfile.yml 任务运行器 |
 | `deps` | `/deps` | 安全依赖更新流程：检查过期 → 逐项更新 → 测试验证 → 检查breaking changes → 更新lockfile |
 | `feature` | `/feature 描述` | 端到端一键推进新功能开发流程（集成CE知识沉淀） |

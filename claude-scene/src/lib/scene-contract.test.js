@@ -3,7 +3,6 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { ACTION_REGISTRY } from '../actions.js';
-import { hasActionMessage } from '../data/action-messages.js';
 
 /**
  * 场景契约：场景里写的每个条件标识符、每个 action 名，都必须有人实现。
@@ -132,7 +131,9 @@ function isKnownAction(action, where) {
   if (Object.hasOwn(ACTION_REGISTRY, action)) return true;
   if (action.startsWith('ce-')) return true;
   if (START_SPECIALS.has(action)) return true;
-  if (hasActionMessage(action)) return true;
+  // 以前这里还有 `if (hasActionMessage(action)) return true` —— 那是一张
+  // 650 行的文案表，只凭「表里有条文案」就把一个没有处理器的 action 当成已知。
+  // 文案不是实现，已经从引擎里删了（data/action-messages.js）。
   return [...where].every((s) => SCENE_OWNED_ACTIONS.has(s));
 }
 
@@ -203,10 +204,49 @@ describe('场景 ↔ 引擎契约', () => {
     expect(report, `围栏/影响域接线有问题：${report.join('；')}`).toEqual([]);
   });
 
-  it('每个 action 都在 ACTION_REGISTRY / 消息表 / 已知特例里', () => {
+  it('每个 action 都在 ACTION_REGISTRY / 已知特例里（实现是唯一权威）', () => {
     const dangling = [...collected.actions]
       .filter(([action, where]) => !isKnownAction(action, where))
       .map(([action, where]) => `${action}  ←  ${[...where].join(', ')}`);
     expect(dangling, `悬空动作（引擎不认识，静默 pass）：\n${dangling.join('\n')}`).toEqual([]);
+  });
+
+  it('没有第二条「动作合法性」权威：文案表不许复活', () => {
+    // 曾经有一张 475 行的 claude-scene/src/data/action-messages.js。它唯一的读者
+    // 是「找不到处理器」的兜底分支 —— 也就是说，那句「XXX 执行完成」永远只在
+    // 处理器根本不存在的时候被引用。而它同时被 4 个扫描器当成「已知动作」：
+    // actions.js 兜底文案、本文件的 isKnownAction、smoke.test 的死动作检查、
+    // scripts/check-dead-actions.cjs 与 scripts/audit-scenes.mjs。
+    // 后果不是「多了一句废话」：拼错的 action 名不再被报成死动作（假绿），两个
+    // 真死参数（createRelease 的 draft、release#13 写成 body 而不是 body_ref）
+    // 也被表里 'web-design-v0-draft' 这类键的子串巧合掩护过去。
+    // 所以这条守卫盯两件事：文件不许回来，引用也不许回来。
+    expect(existsSync(join(SRC, 'data', 'action-messages.js'))).toBe(false);
+
+    const scanned = [];
+    const walk = (dir) => {
+      if (!existsSync(dir)) return;
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.(?:js|cjs|mjs)$/.test(name)) scanned.push(full);
+      }
+    };
+    walk(SRC);
+    walk(join(REPO_ROOT, 'scripts'));
+
+    // 只看代码，不看注释：本轮在很多地方写下了「以前的文案表……」这类
+    // 解释性注释，它们本身不构成引用。注释先剔掉就不会因为「提到过」而报错，
+    // 也就不会逼着后来者把来历从注释里删掉。
+    const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+    const offenders = scanned
+      // 本文件自己会提到那个名字（这就是守卫本身），同名排除只限这一行。
+      .filter((file) => file !== fileURLToPath(import.meta.url))
+      .filter((file) => /action-messages\.js/.test(stripComments(read(file))))
+      .map((file) => file.slice(REPO_ROOT.length + 1));
+    // 防空跑：真的扫到了源码
+    expect(scanned.length).toBeGreaterThan(100);
+    expect(offenders, `又有人把「文案」当成动作存在的依据：\n${offenders.join('\n')}`).toEqual([]);
   });
 });

@@ -56,12 +56,14 @@ describe('假绿哨兵', () => {
   });
 
   describe('3. 未知动作必须留下痕迹', () => {
-    it('既不在注册表也没有消息模板 → console.warn + context.unknownAction', async () => {
+    it('ACTION_REGISTRY 里没有 → console.warn + 显式 warn（不许报「完成」）', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const context = {};
-      await executeAction('loop', 'definitelyNotAnAction', {}, context, '.');
-      expect(context.unknownAction).toBe('definitelyNotAnAction');
+      const result = await executeAction('loop', 'definitelyNotAnAction', {}, {}, '.');
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('未知动作'));
+      expect(result).toMatchObject({ status: 'warn' });
+      // 文案里的承诺必须与事实一致：没处理器 = 没执行
+      expect(result.message).toContain('没有执行');
+      expect(result.message).not.toMatch(/完成|已/);
       warn.mockRestore();
     });
   });

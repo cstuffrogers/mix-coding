@@ -220,7 +220,7 @@
       "service": "GitService",
       "action": "createRelease",
       "params": {
-        "body": "changelog_content",
+        "body_ref": "changelog_content",
         "draft": false
       },
       "description": "在GitHub上创建Release并附上CHANGELOG",

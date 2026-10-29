@@ -153,6 +153,24 @@ export function handleDeploy(_action, params, targetPath) {
   return { status: 'skip', message: `部署未执行：无可部署项目${strategyNote}` };
 }
 
+/** 拼 `gh release create …` 的命令行（纯字符串，不碰 shell，方便单测）。 */
+function buildReleaseCommand({ tag, title, target, prerelease, draft, notes }) {
+  let cmd = `gh release create ${escapeArg(tag || 'latest')}`;
+  if (title) cmd += ` --title ${escapeArg(title)}`;
+  if (target) cmd += ` --target ${escapeArg(String(target))}`;
+  if (prerelease) cmd += ' --prerelease';
+  if (draft) cmd += ' --draft';
+  // 以前这里拼了 `|| true`：gh 不存在 / 没登录也只是 exit 0，于是
+  // "Release 已创建: gh: command not found" 被记成 ✓ pass。
+  // 正文走临时文件（--notes-file），不经 shell 引号/JSON 转义。
+  if (notes) {
+    const notesFile = join(tmpdir(), `mix-coding-release-notes-${Date.now()}.md`);
+    writeFileSync(notesFile, notes, 'utf-8');
+    cmd += ` --notes-file ${escapeArg(notesFile)}`;
+  }
+  return cmd;
+}
+
 export function handleCreateRelease(_action, params, targetPath, context) {
   const tag = params?.tag || '';
   const title = params?.title || 'Release';
@@ -164,23 +182,15 @@ export function handleCreateRelease(_action, params, targetPath, context) {
   const notes = params?.notes || (typeof bodyFromContext === 'string' ? bodyFromContext : '');
   const target = params?.tag_ref && context ? context[params.tag_ref] : undefined;
   const prerelease = params?.prerelease === true;
+  // release#13 / mobile-release#10 都写了 `draft`。以前没人读它 —— 场景写着
+  // 「建草稿 Release」，实际发的是正式版（而且因为没人读，参数契约守卫也
+  // 看不见：文案表里的 `web-design-v0-draft` 里恰好包含这几个字母）。
+  const draft = params?.draft === true;
   try {
-    let cmd = `gh release create ${escapeArg(tag || 'latest')}`;
-    if (title) cmd += ` --title ${escapeArg(title)}`;
-    if (target) cmd += ` --target ${escapeArg(String(target))}`;
-    if (prerelease) cmd += ' --prerelease';
-    // 以前这里拼了 `|| true`：gh 不存在 / 没登录也只是 exit 0，于是
-    // "Release 已创建: gh: command not found" 被记成 ✓ pass。
-    // 正文走临时文件（--notes-file），不经 shell 引号/JSON 转义。
-    let notesFile = null;
-    if (notes) {
-      notesFile = join(tmpdir(), `mix-coding-release-notes-${Date.now()}.md`);
-      writeFileSync(notesFile, notes, 'utf-8');
-      cmd += ` --notes-file ${escapeArg(notesFile)}`;
-    }
+    const cmd = buildReleaseCommand({ tag, title, target, prerelease, draft, notes });
     const result = safeExec(cmd, targetPath, { stdio: 'pipe' }).toString().trim();
     const missingBody = bodyRef && typeof bodyFromContext !== 'string' ? `（body_ref=${bodyRef} 在 context 里不存在，正文为空）` : '';
-    return `Release 已创建: ${result}${missingBody}`;
+    return `Release 已创建${draft ? '（草稿）' : ''}: ${result}${missingBody}`;
   } catch (e) {
     const full = [e.message, e.stderr, e.stdout].filter(Boolean).join('\n');
     const first = String(e.message).split('\n')[0].slice(0, 80);

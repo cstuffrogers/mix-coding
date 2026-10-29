@@ -1,51 +1,49 @@
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { safeExec } from '../lib/safe-exec.js';
+import { isKnownCheck } from './flow-control.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, '..', 'data');
+const SCENE_DIR = join(__dirname, '..', '..', 'scenes');
 
-function extractObjectKeys(source, _objectName) {
-  const sigRes = [/^[ \t]*'([^']+)'[ \t]*:/gm, /^[ \t]*"([^"]+)"[ \t]*:/gm, /^[ \t]*(\w+)[ \t]*:/gm];
-  const keys = new Set();
-  for (const sigRe of sigRes) {
-  let m;
-  while ((m = sigRe.exec(source)) !== null) {
-    keys.add(m[1]);
+/** 读一个场景 JSON；坏 JSON 返回 null（由 scene-integrity.test.js 负责报） */
+function readSceneFile(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf-8'));
+  } catch {
+    return null;
   }
-  }
-  return keys;
 }
 
-function isInlineArrow(source, key) {
-  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`${escaped}\\s*:\\s*(?:\\([\\s\\S]*?\\)|function)\\s*=>`);
-  return re.test(source);
+/** 一个场景里声明的门禁名：`checkGate.checks[]` 与 `checkGate.gate` */
+function sceneGateNames(scene) {
+  const names = [];
+  for (const step of scene.flow || []) {
+    if (step?.action !== 'checkGate' || !step.params) continue;
+    if (Array.isArray(step.params.checks)) names.push(...step.params.checks);
+    if (step.params.gate) names.push(step.params.gate);
+  }
+  return names;
 }
 
-function collectContextFlags(handlersDir) {
-  const flags = new Set();
-  if (!existsSync(handlersDir)) return flags;
-  for (const f of readdirSync(handlersDir)) {
-    if (!f.endsWith('.js')) continue;
-    const src = readFileSync(join(handlersDir, f), 'utf-8');
-    const re = /context\.(\w+)\s*=/g;
-    let m;
-    while ((m = re.exec(src)) !== null) {
-      const name = m[1];
-      if (name === 'lastStepFailed') continue;
-      // Only flags that look like gate results
-      if (/(?:Passed|Configured|Generated|Created)$/.test(name)) {
-        flags.add(name);
-      }
+/**
+ * 场景声明的门禁名 → 声明它的场景列表。
+ * @param {string} [scenesDir] 默认引擎自带 scenes/（测试可传临时目录）
+ */
+export function collectDeclaredChecks(scenesDir = SCENE_DIR) {
+  const declared = new Map();
+  if (!existsSync(scenesDir)) return declared;
+  for (const f of readdirSync(scenesDir)) {
+    if (!f.endsWith('.json')) continue;
+    const scene = readSceneFile(join(scenesDir, f));
+    if (!scene) continue;
+    const sceneName = f.replace(/\.json$/, '');
+    for (const name of sceneGateNames(scene)) {
+      declared.set(name, [...(declared.get(name) || []), sceneName]);
     }
   }
-  return flags;
-}
-
-function camelToSnake(str) {
-  return str.replace(/[A-Z]/g, (c, i) => (i > 0 ? '_' : '') + c.toLowerCase());
+  return declared;
 }
 
 // ── Check: smoke tests ──
@@ -93,185 +91,42 @@ export function handleCheckSmoke(_action, _params, targetPath, context) {
   return record(failedCount > 0 ? 'fail' : 'warn', failedCount > 0 ? `冒烟测试: ${failedCount} 个失败` : '冒烟测试已执行但无明确通过/失败结论');
 }
 
-// ── Check: action messages ──
-
-export function handleCheckActionMessages(_action, _params, targetPath, context) {
-  const actionsFile = join(__dirname, '..', 'actions.js');
-  const messagesFile = join(DATA_DIR, 'action-messages.js');
-
-  if (!existsSync(actionsFile) || !existsSync(messagesFile)) {
-    // 这几个分支以前返回裸字符串：既不含「跳过」也不含「不可用」，
-    // 于是「引擎自己找不到自己的文件」在自检报告里是 ✓ pass —— 最讽刺的一种假绿。
-    return { status: 'warn', message: 'action-messages 完整性检查未完成：找不到 actions.js 或 action-messages.js（引擎安装不完整）' };
-  }
-
-  const actionsSrc = readFileSync(actionsFile, 'utf-8');
-  const messagesSrc = readFileSync(messagesFile, 'utf-8');
-
-  // Extract ACTION_REGISTRY keys (only inside the ACTION_REGISTRY block)
-  const registryBlock = actionsSrc.match(/export const ACTION_REGISTRY = \{([\s\S]*?)\n\};/);
-  if (!registryBlock) {
-    return { status: 'warn', message: 'action-messages 完整性检查未完成：actions.js 里解析不出 ACTION_REGISTRY 块（结构被改动过？）' };
-  }
-
-  const registryKeys = extractObjectKeys(registryBlock[1]);
-  const messageKeys = extractObjectKeys(
-    messagesSrc.slice(0, messagesSrc.indexOf('export function getActionMessage'))
-  );
-
-  const orphanKeys = [...registryKeys]
-    .filter(k => !messageKeys.has(k))
-    .filter(k => !isInlineArrow(registryBlock[1], k));
-
-  if (context) {
-    context.missingActionMessages = orphanKeys;
-    context.missingActionMessageCount = orphanKeys.length;
-  }
-
-  if (orphanKeys.length === 0) {
-    return 'action-messages 完整性检查通过';
-  }
-
-  return { status: 'warn', message: `发现 ${orphanKeys.length} 个缺少 action message 的 handler` };
-}
-
 // ── Check: gate flags ──
 
-export function handleCheckGateFlags(_action, _params, targetPath, context) {
-  const handlersDir = join(__dirname, '..', 'handlers');
-  const gateFlagsFile = join(DATA_DIR, 'gate-flags.js');
-
-  if (!existsSync(gateFlagsFile)) {
-    return { status: 'warn', message: 'gate-flags 完整性检查未完成：找不到 data/gate-flags.js（引擎安装不完整）' };
-  }
-
-  const contextFlags = collectContextFlags(handlersDir);
-  const gateSrc = readFileSync(gateFlagsFile, 'utf-8');
-
-  // Extract flag names from gate-flags.js (right side of mappings)
-  const flagRe = /'(\w+)'/g;
-  const mappedFlags = new Set();
-  let m;
-  while ((m = flagRe.exec(gateSrc)) !== null) {
-    if (!m[1].includes('Passed') && !m[1].includes('Configured')
-      && !m[1].includes('Generated') && !m[1].includes('Created'))
-      continue;
-    mappedFlags.add(m[1]);
-  }
-
-  const orphanFlags = [...contextFlags].filter(f => !mappedFlags.has(f));
+/**
+ * @param {string} [scenesDir] 场景目录（默认引擎自带 scenes/；测试用来喂临时场景，
+ *   免得结论依赖宿主仓库里有什么场景）
+ */
+export function handleCheckGateFlags(_action, _params, _targetPath, context, scenesDir = SCENE_DIR) {
+  // 这一步原来比的是「handler 写了 *Passed flag，但 gate-flags.js 里没映射」，
+  // 然后 fix-gate-flags 把 flag 名驼峰转蛇形写回引擎源码，再盖一个
+  // `// Auto-generated by /check` 戳。三个问题：
+  //   1) 那个「缺失」不是缺陷：healthCheckPassed / setupConfigured 根本没有场景
+  //      拿它们做门禁（setup 走 `gate: "setup_config"` 的具名门禁），于是每跑一次
+  //      /check 都固定报「2 缺失」—— 假信号。
+  //   2) 修法是猜：inferCheckName 把 depCruiserPassed 猜成 dep_cruiser，而真正的
+  //      门禁名是 depcruise（原注释自己都写着），猜出来的映射没人验证。
+  //   3) 它写的是引擎自己的源码：哪怕 MIX_CODING_PROJECT_DIR 指向临时目录，改的
+  //      仍是仓库里的 gate-flags.js（实测把工作区弄脏，和 action-messages 一个病）。
+  // 现在只问一件能证伪的事：**场景声明的门禁名，引擎认不认识。**
+  const declared = collectDeclaredChecks(scenesDir);
+  const unknown = [...declared].filter(([name]) => !isKnownCheck(name));
 
   if (context) {
-    context.missingGateFlags = orphanFlags;
-    context.missingGateFlagCount = orphanFlags.length;
+    context.declaredGateCount = declared.size;
+    context.unimplementedGates = unknown.map(([name, scenes]) => `${name}（${scenes.join(', ')}）`);
+    context.unimplementedGateCount = unknown.length;
   }
 
-  if (orphanFlags.length === 0) {
-    return 'gate-flags 完整性检查通过';
+  if (unknown.length > 0) {
+    const named = unknown.map(([name, scenes]) => `${name}（${scenes.join(',')}）`).join('、');
+    return { status: 'warn', message: `场景声明了 ${unknown.length} 个引擎不认识的门禁：${named}` };
   }
-
-  return { status: 'warn', message: `发现 ${orphanFlags.length} 个未映射的 context flag` };
-}
-
-// ── Fix: action messages ──
-
-function inferMessage(key) {
-  const messages = {
-    codegraph_impact: 'CodeGraph 影响分析完成（对话模式）',
-    codegraph_trace: 'CodeGraph 依赖追踪完成（对话模式）',
-    codeguardian_optimize: 'CodeGuardian 代码优化完成（对话模式）',
-  };
-  if (messages[key]) return messages[key];
-  // Generic fallback: convert kebab/snake to readable form
-  const readable = key.replace(/[-_]/g, ' ');
-  return `${readable} 检查完成`;
-}
-
-export function handleFixActionMessages(_action, _params, _targetPath, context) {
-  const orphanKeys = context?.missingActionMessages;
-  if (!orphanKeys || orphanKeys.length === 0) {
-    return '无需修复：没有缺少 action message 的 handler';
+  if (declared.size === 0) {
+    // 扫描范围为空永远不等于通过
+    return { status: 'warn', message: '没有从任何场景里读到门禁声明（扫描范围为空，不是通过）' };
   }
-
-  const messagesFile = join(DATA_DIR, 'action-messages.js');
-  let src = readFileSync(messagesFile, 'utf-8');
-
-  // Double-check current state for idempotency
-  const existingKeys = extractObjectKeys(
-    src.slice(0, src.indexOf('export function getActionMessage'))
-  );
-  const stillMissing = orphanKeys.filter(k => !existingKeys.has(k));
-  if (stillMissing.length === 0) {
-    if (context) context.fixedActionMessages = 0;
-    return '无需修复：action message 已存在（可能已被其他进程添加）';
-  }
-
-  // Generate entries and insert before closing };
-  const insertIdx = src.lastIndexOf('};', src.indexOf('export function getActionMessage'));
-  const quoteKey = (k) => /^[a-zA-Z_$][\w$]*$/.test(k) ? k : `'${k}'`;
-  const entries = stillMissing.map(k => `  ${quoteKey(k)}: '${inferMessage(k)}',`);
-  const indent = '  ';
-  const insertion = `\n${indent}// Auto-generated by /check\n${indent}${entries.join(`\n${indent}`)}\n`;
-  src = src.slice(0, insertIdx) + insertion + src.slice(insertIdx);
-
-  writeFileSync(messagesFile, src, 'utf-8');
-  if (context) context.fixedActionMessages = stillMissing.length;
-
-  return `已修复 ${stillMissing.length} 个缺失的 action message`;
-}
-
-// ── Fix: gate flags ──
-
-function inferCheckName(flagName) {
-  // context.lintPassed → lint
-  // context.depCruiserPassed → depcruiser (but gate uses depcruise)
-  // context.monitorConfigured → monitor
-  const suffixPatterns = ['Passed', 'Configured', 'Generated', 'Created'];
-  let base = flagName;
-  for (const s of suffixPatterns) {
-    if (base.endsWith(s)) {
-      base = base.slice(0, -s.length);
-      break;
-    }
-  }
-  return camelToSnake(base);
-}
-
-export function handleFixGateFlags(_action, _params, _targetPath, context) {
-  const orphanFlags = context?.missingGateFlags;
-  if (!orphanFlags || orphanFlags.length === 0) {
-    return '无需修复：没有未映射的 context flag';
-  }
-
-  const gateFlagsFile = join(DATA_DIR, 'gate-flags.js');
-  let src = readFileSync(gateFlagsFile, 'utf-8');
-
-  // Double-check for idempotency
-  const existingMappings = new Set();
-  const flagRe = /'(\w+)'/g;
-  let m;
-  while ((m = flagRe.exec(src)) !== null) existingMappings.add(m[1]);
-
-  const stillMissing = orphanFlags.filter(f => !existingMappings.has(f));
-  if (stillMissing.length === 0) {
-    if (context) context.fixedGateFlags = 0;
-    return '无需修复：gate flag 映射已存在';
-  }
-
-  // Insert before the closing });
-  const insertIdx = src.lastIndexOf('});');
-  const entries = stillMissing.map(f => `  ${inferCheckName(f)}: '${f}',`);
-  const indent = '  ';
-  const insertion = `\n${indent}// Auto-generated by /check\n${indent}${entries.join(`\n${indent}`)}\n`;
-  src = src.slice(0, insertIdx) + insertion + src.slice(insertIdx);
-
-  writeFileSync(gateFlagsFile, src, 'utf-8');
-  if (context) {
-    context.fixedGateFlags = stillMissing.length;
-    context.fixedGateFlagDetails = stillMissing.map(f => `${inferCheckName(f)} → ${f}`);
-  }
-
-  return `已修复 ${stillMissing.length} 个缺失的 gate flag 映射`;
+  return `场景声明的 ${declared.size} 个门禁都有实现`;
 }
 
 // ── Report ──
@@ -292,17 +147,11 @@ export function handleSelfCheckReport(_action, _params, _targetPath, context) {
     lines.push(`    失败数:     ${context.smokeFailures}`);
   }
 
-  // Action messages
-  const msgMissing = context?.missingActionMessageCount ?? '?';
-  const msgFixed = context?.fixedActionMessages ?? 0;
-  lines.push(`  Action 消息:  ${msgMissing === 0 ? '✅ 完整' : `⚠ ${msgMissing} 缺失`}`);
-  if (msgFixed > 0) lines.push(`    已修复:     ${msgFixed} 个`);
-
-  // Gate flags
-  const flagMissing = context?.missingGateFlagCount ?? '?';
-  const flagFixed = context?.fixedGateFlags ?? 0;
-  lines.push(`  Gate 映射:    ${flagMissing === 0 ? '✅ 完整' : `⚠ ${flagMissing} 缺失`}`);
-  if (flagFixed > 0) lines.push(`    已修复:     ${flagFixed} 个`);
+  // 门禁实现：场景声明了什么，引擎就得有什么
+  const gateCount = context?.declaredGateCount ?? 0;
+  const gateBad = context?.unimplementedGateCount ?? 0;
+  lines.push(`  门禁实现:     ${gateBad === 0 && gateCount > 0 ? `✅ ${gateCount} 个都认识` : `⚠ ${gateBad} 个未实现`}`);
+  for (const g of context?.unimplementedGates || []) lines.push(`    ${g}`);
 
   lines.push('');
   lines.push('═══════════════════════════════════════');

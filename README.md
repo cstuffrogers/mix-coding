@@ -114,7 +114,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | **cicd** | 12 步 | CI/CD 配置（Act + Taskfile + Docker化/备份可选增强） | `/cicd` |
 | **qa** | 12 步 | 浏览器 QA 验证（git diff → 浏览器测试 → Bug 分级） | `/qa` |
 | **plan-ceo-review** | 11 步 | 创始人策略审查（10x 分析 + 精简化 + 用户价值） | `/plan-ceo-review` |
-| **check** | 10 步 | 引擎自检+自愈（dead action / orphan gate / 自动修复） | `/check` |
+| **check** | 7 步 | 引擎自检（dead action / 未实现门禁 / 空转 handler；不自动改源码） | `/check` |
 | **enhance-prompt** | — | UI prompt 精炼（模糊 UI 想法 → 结构化 prompt，含关键词参考 + 形容词调色板） | `/enhance-prompt` |
 | **plan** | 10 步 | Manus 持久规划（会话恢复 + SHA256认证 + 多阶段追踪） | `/plan` |
 | **update** | 10 步 | 系统资源更新（扫描 MCP/Skill/CLI/npm → 冲突检测 → patch/minor 自动更新 → major 待确认 → 写日期日志） | `/update` |
@@ -286,8 +286,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 | `check-api-consistency` | OpenAPI 标准管线（Redocly lint + 交叉验证 + openapi-typescript） | ✅ |
 | `sec-bug-hunt` / `gitLeaks` / `npm-audit` / `security-headers` / `build-leak-check` / `dead-link-check` / `lighthouse-gate` / `open-redirect-scan` / `state-audit` / `i18n-audit` | 安全扫描 + 性能 + 架构 + i18n | ✅ |
 | `verify-handlers` | Handler 功能验证：10 Pass 空转桩检测（内联桩/CE桩/逻辑密度/工具健康/依赖/导入链/场景交叉/静态安全/MCP配置） | ✅ |
-| `check-smoke` / `check-action-messages` / `check-gate-flags` | 引擎自检：冒烟测试 / Action 消息完整性 / Gate 映射完整性 | ✅ |
-| `fix-action-messages` / `fix-gate-flags` | 引擎自愈：自动补全缺失的 action message 和 gate flag 映射 | ✅ |
+| `check-smoke` / `check-gate-flags` | 引擎自检：冒烟测试 / 场景声明的门禁是否都实现了 | ✅ |
 | `migration-review` / `load-test` | 迁移审查 / 负载测试 | ✅ |
 | `setup-monitor` / `setup-ci` / `setup-backup` / `setup-docker` / `setup-e2e` / `setup-logging` | 一键基础设施配置 | ✅ |
 | `incident-runbook` / `generate-changelog` / `generate-sbom` | 事故/变更/SBOM 自动化 | ✅ |

@@ -1,4 +1,3 @@
-import { getActionMessage, hasActionMessage } from './data/action-messages.js';
 import { isConversationMode } from './lib/platform.js';
 
 /**
@@ -76,7 +75,7 @@ import {
 } from './handlers/flow-control.js';
 import { handleCheckPrerequisites } from './handlers/prerequisites.js';
 import { handleVerifyHandlers } from './handlers/handler-verify.js';
-import { handleCheckSmoke, handleCheckActionMessages, handleCheckGateFlags, handleFixActionMessages, handleFixGateFlags, handleSelfCheckReport } from './handlers/engine-check.js';
+import { handleCheckSmoke, handleCheckGateFlags, handleSelfCheckReport } from './handlers/engine-check.js';
 import { handleScanUpdates, handleDetectConflicts, handleAutoUpdateSafe, handleWriteUpdateLog, handleUpdateReport } from './handlers/update.js';
 
 // Mobile handlers
@@ -358,14 +357,8 @@ export const ACTION_REGISTRY = {
   // Engine self-check
   checkSmoke: handleCheckSmoke,
   'check-smoke': handleCheckSmoke,
-  checkActionMessages: handleCheckActionMessages,
-  'check-action-messages': handleCheckActionMessages,
   checkGateFlags: handleCheckGateFlags,
   'check-gate-flags': handleCheckGateFlags,
-  fixActionMessages: handleFixActionMessages,
-  'fix-action-messages': handleFixActionMessages,
-  fixGateFlags: handleFixGateFlags,
-  'fix-gate-flags': handleFixGateFlags,
   selfCheckReport: handleSelfCheckReport,
   'self-check-report': handleSelfCheckReport,
 
@@ -736,14 +729,20 @@ export async function executeAction(sceneId, action, params, context, targetPath
     }
 
     // 未知动作以前静默返回「执行完成」—— 场景里 action 名写错也报 ✓ pass。
-    // 也不能靠消息模板兜底：模板里有文案 ≠ 真的做了事。没处理器就一律 warn。
+    // 没处理器就一律 warn：状态、日志、返回值三处都说同一件事。
     console.warn(`\n⚠️ 未知动作 "${action}"（ACTION_REGISTRY 里没有处理器）—— 这一步什么都没做`);
-    if (context) context.unknownAction = action;
-    // 返回显式 warn：否则消息字符串会被当成「有输出」记 ✓ pass。
-    return { status: 'warn', message: hasActionMessage(action) ? `${getActionMessage(action)}（未找到该动作的处理器，实际未执行）` : `未找到动作 "${action}" 的处理器` };
+    // 兜底文案不再用 data/action-messages.js 里那一句「XXX 执行完成」：
+    // 那张表唯一的读者就是这个分支 —— 一句「完成」永远只在最不该相信它的时候
+    // 被引用（处理器根本没有）。文案也不是实现证据：四个扫描器曾把「表里有条
+    // 文案」当成「这个 action 存在」的免死金牌。现在只说实话：不认识、没执行。
+    return { status: 'warn', message: `未找到动作 "${action}" 的处理器（这一步没有执行）` };
   } catch (error) {
     if (context) context.lastStepFailed = true;
     console.error(`\n⚠️ 执行 ${action} 时出错: ${error.message}`);
-    return `动作 ${action} 执行完成（部分操作可能失败）`;
+    // 以前这里返回裸字符串「动作 X 执行完成（部分操作可能失败）」：
+    // console.error 不是状态，只有 context.lastStepFailed 在撑；而 context 可能
+    // 不存在（executeAction 的第 4 个参数可省），那时一个抛异常的动作会被记成
+    // ✓ pass —— 抛错反而比正常返回更好看的经典假绿。
+    return { status: 'fail', message: `动作 ${action} 执行失败：${String(error.message).split('\n')[0].slice(0, 120)}` };
   }
 }

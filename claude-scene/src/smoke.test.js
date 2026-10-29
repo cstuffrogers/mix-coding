@@ -7,7 +7,6 @@ import { tmpdir } from 'os';
 const __dirname = join(fileURLToPath(import.meta.url), '..');
 const SCENES_DIR = join(__dirname, '..', '..', '.claude', 'scenes');
 const HANDLERS_DIR = join(__dirname, 'handlers');
-const DATA_DIR = join(__dirname, 'data');
 
 // ═══ Mocks ═══
 
@@ -61,7 +60,6 @@ function makeTempDir() {
 
 function collectRegisteredKeys() {
   const registrySrc = readFileSync(join(__dirname, 'actions.js'), 'utf-8');
-  const msgSrc = readFileSync(join(DATA_DIR, 'action-messages.js'), 'utf-8');
   const uiSrc = existsSync(join(HANDLERS_DIR, 'ui-polish.js'))
     ? readFileSync(join(HANDLERS_DIR, 'ui-polish.js'), 'utf-8') : '';
   const keyRe = /(?:^|[\s,{])(?:'([^']+)'|"([^"]+)"|(\w+))\s*:/gm;
@@ -70,7 +68,30 @@ function collectRegisteredKeys() {
     while ((m = keyRe.exec(s)) !== null) keys.add(m[1] || m[2] || m[3]);
     return keys;
   };
-  return new Set([...extract(registrySrc), ...extract(uiSrc), ...extract(msgSrc)]);
+  // 以前这里还扫 data/action-messages.js：一张谁都不读的文案表成了
+  // 「场景里那个拼错的 action 名不是死的」的依据 —— 死动作检查因此假绿。
+  return new Set([...extract(registrySrc), ...extract(uiSrc), ...collectStartSpecials()]);
+}
+
+/**
+ * 引擎内部直接处理、不进 ACTION_REGISTRY 的交互动作（selectModes 有专属
+ * 处理器，selectSetupKind 走 handleSingleChoice 的 actionMap）。
+ *
+ * 这里从 start.js 源码里抽，不手写白名单：手写白名单不会被删，只会慢慢
+ * 长出与实现无关的名字（上一张文案表就是这么变成 475 行的）。抽取方式与
+ * 引擎实际的判断语句完全同构 —— `step.action === 'x'` 与 actionMap 的键。
+ */
+function collectStartSpecials() {
+  const startSrc = readFileSync(join(__dirname, 'commands', 'start.js'), 'utf-8');
+  const keys = new Set();
+  // 抽两种写法：`step.action === 'x'` 与 `step.action !== 'x'`（后者是白名单式的
+  // 「只有 x 走专属分支」）。不用 `\s*[!=]==\s*`：那个写法会被 sonarjs 判为
+  // 超线性回溯，而这里的输入是固定格式的源码。
+  for (const m of startSrc.matchAll(/step\.action (?:===|!==) '([\w-]+)'/g)) keys.add(m[1]);
+  const mapBlock = startSrc.match(/const actionMap = \{([\s\S]*?)\};/);
+  // 行首锚定 + 单个空白类，避开 `(\w+)\s*:\s*'` 那种多段回溯写法。
+  if (mapBlock) for (const m of mapBlock[1].matchAll(/^[ \t]*(\w+):/gm)) keys.add(m[1]);
+  return keys;
 }
 
 function collectSceneActions() {
@@ -87,7 +108,7 @@ function collectSceneActions() {
 }
 
 describe('dead action references', () => {
-  it('every scene JSON action has a registered handler or message', () => {
+  it('every scene JSON action has a registered handler', () => {
     const allKeys = collectRegisteredKeys();
     const dead = [];
     for (const { scene, action, step } of collectSceneActions()) {

@@ -3,7 +3,6 @@ const path = require('path');
 
 const projectRoot = path.join(__dirname, '..');
 const actionsContent = fs.readFileSync(path.join(projectRoot, 'claude-scene/src/actions.js'), 'utf-8');
-const actionMessagesContent = fs.readFileSync(path.join(projectRoot, 'claude-scene/src/data/action-messages.js'), 'utf-8');
 const uiPolishContent = fs.readFileSync(path.join(projectRoot, 'claude-scene/src/handlers/ui-polish.js'), 'utf-8');
 
 const scenesDir = path.join(projectRoot, '.claude/scenes');
@@ -16,7 +15,8 @@ function actionExists(action) {
   const re = new RegExp(keyPattern, 'm');
   if (re.test(actionsContent)) return true;
   if (re.test(uiPolishContent)) return true;
-  if (re.test(actionMessagesContent)) return true;
+  // 不再把 data/action-messages.js 当成「动作存在」的依据：那张文案表没有读者，
+  // 却让拼错的 action 名（表里有条「XXX 执行完成」）躲过本检查 —— 死动作误报为 0。
   // Special: shell commands (git diff, etc.)
   if (action.includes(' ')) return true;
   return false;

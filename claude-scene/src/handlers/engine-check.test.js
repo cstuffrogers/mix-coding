@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Buffer } from 'node:buffer';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const safeExec = vi.fn();
 vi.mock('../lib/safe-exec.js', () => ({ safeExec: (...args) => safeExec(...args), escapeArg: (v) => v }));
 
-const { handleCheckSmoke, handleSelfCheckReport } = await import('./engine-check.js');
+const { handleCheckSmoke, handleCheckGateFlags, handleSelfCheckReport } = await import('./engine-check.js');
 
 function throwsWith({ message = '', stdout = '', stderr = '' }) {
   const error = new Error(message);
@@ -73,5 +76,51 @@ describe('自检报告不把「没跑」说成「失败」', () => {
     expect(result.message).toContain('❌ 失败');
     expect(result.message).toContain('3');
     expect(result.status).toBe('warn');
+  });
+});
+
+describe('check-gate-flags：场景声明了什么，引擎就得有什么', () => {
+  const sceneDirWith = (flow) => {
+    const dir = mkdtempSync(join(tmpdir(), 'checkscene-'));
+    writeFileSync(join(dir, 'demo.json'), JSON.stringify({ name: 'demo', flow }), 'utf-8');
+    return dir;
+  };
+
+  it('场景声明的门禁都实现了 → pass，并报出个数', () => {
+    // 以前这一步比的是「handler 写了 *Passed flag 但 gate-flags.js 没映射」，
+    // 于是 healthCheckPassed / setupConfigured 固定报「2 缺失」—— 假信号。
+    const dir = sceneDirWith([
+      { action: 'checkGate', params: { checks: ['lint', 'test', 'security'] } },
+      { action: 'checkGate', params: { gate: 'setup_config' } },
+    ]);
+    const context = {};
+    const result = handleCheckGateFlags('checkGateFlags', {}, '/proj', context, dir);
+    expect(result).toContain('都有实现');
+    expect(context.unimplementedGateCount).toBe(0);
+    expect(context.declaredGateCount).toBe(4);
+  });
+
+  it('场景写了引擎不认识的门禁名 → warn 且点名场景', () => {
+    const dir = sceneDirWith([{ action: 'checkGate', params: { checks: ['lint', 'lintt'] } }]);
+    const context = {};
+    const result = handleCheckGateFlags('checkGateFlags', {}, '/proj', context, dir);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('lintt');
+    expect(result.message).toContain('demo');
+    expect(context.unimplementedGates).toEqual(['lintt（demo）']);
+  });
+
+  it('一个场景都没读到 → warn（空扫描范围不等于通过）', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'checkscene-'));
+    const result = handleCheckGateFlags('checkGateFlags', {}, '/proj', {}, dir);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('扫描范围为空');
+  });
+
+  it('引擎自己的 26 个场景：声明的门禁全都实现了', () => {
+    const context = {};
+    handleCheckGateFlags('checkGateFlags', {}, '/proj', context);
+    expect(context.declaredGateCount).toBeGreaterThan(20);
+    expect(context.unimplementedGates).toEqual([]);
   });
 });
