@@ -14,7 +14,6 @@ const IGNORED_DIRS = [
   ".claude/",
   ".codex/",
   ".zcode/",
-  ".opencode/",
   ".agents/",
   ".github/",
   ".husky/",

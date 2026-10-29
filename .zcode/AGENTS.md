@@ -55,14 +55,14 @@ node claude-scene/src/index.js memory remember   # 保存当前会话要点
 | 场景 | 用途 | 场景 | 用途 |
 |------|------|------|------|
 | `/feature` | 新功能开发 | `/bugfix` | Bug 修复 |
-| `/review` | 代码审查 + 安全审计(含 audit/analyze 模式) | `/refactor` | 代码重构 + 简化 + 架构优化 |
+| `/review` | 代码审查 + 安全审计（原 /hunt /audit /analyze 已并入） | `/refactor` | 代码重构 + 简化 + 架构优化 |
 | `/optimize` | 性能优化 | `/ui-polish` | 前端美化(DaisyUI) |
 | `/new-project` | 从零新建项目 | `/release` | 发布部署 |
 | `/rollback` | 快速回滚 | `/deps` | 依赖更新 |
-| `/check` | 引擎自检 + 自愈 | `/hunt` | 安全漏洞审查 |
+| `/check` | 引擎自检 + 自愈 | `/setup` | 测试/监控设施搭建（`--kind e2e\|monitor`，原 /e2e /monitor 已合并） |
 | `/qa` | 浏览器 QA 验证 | `/loop` | 自动迭代循环 |
-| `/onboard` | 开发环境搭建 | `/e2e` | E2E 测试配置 |
-| `/cicd` | CI/CD 流水线 | `/monitor` | 监控配置 |
+| `/onboard` | 开发环境搭建 | `/others` | 全部工具一览 |
+| `/cicd` | CI/CD 流水线 | `/report` | 汇总报告 |
 | `/plan` | Manus 持久规划(会话恢复+SHA256) | `/plan-ceo-review` | 创始人策略审查 |
 | `/mobile-*` | 移动端系列(audit/e2e/onboard/optimize/release/review) | | |
 

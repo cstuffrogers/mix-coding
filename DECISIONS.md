@@ -35,8 +35,8 @@
 
 ## ADR-002: 多平台支持 (Claude Code + opencode + Codex + ZCode + pi)
 
-**Status**: ACCEPTED
-**Date**: 2026-06-15 (2026-10-24 更新: 新增 pi)
+**Status**: ACCEPTED（2026-07-01 修订：opencode 退役）
+**Date**: 2026-06-15 (2026-10-24 更新: 新增 pi；2026-07-01 更新: 移除 opencode 全局配置)
 **Decided By**: System Architect
 
 ### Context
@@ -47,14 +47,16 @@
 
 - `.claude/` 作为共享资源宿主（scenes/skills/rules/memory/plugins）
 - 各平台通过环境变量 (CLAUDECODE/OPENCODE/CODEX/ZCODE/AI_AGENT) 自识别
-- opencode 采用全局配置 (`~/.config/opencode/opencode.json`) + 项目配置的 双层架构
+- ~~opencode 采用全局配置 (`~/.config/opencode/opencode.json`) + 项目配置的 双层架构~~
+  → **已撤销（2026-07-01）**：opencode 不再使用，生成器/部署脚本/校验器与 `.opencode/` 一并删除；`platform.js` 保留 `OPENCODE=1` 识别仅为了不在 opencode 里跑出不可预期行为
 - 共享配置通过 `CLAUDE.md` → `AGENTS.md` 链引用
 - pi 使用专属 `.pi/` 目录（官方 CONFIG_DIR_NAME） + 引擎 CLI；percho 是 pi 的桌面端 GUI，共用 `.pi/` 与引擎，不单独识别
 
 ### Consequences
 
-- 正向: 一次配置，五个平台可用
-- 正向: `.claude/commands/*.md` 38 个工作流在 opencode 中 100% 对齐
+- 正向: 一次配置，多平台可用（现为四个平台）
+- ~~正向: `.claude/commands/*.md` 38 个工作流在 opencode 中 100% 对齐~~
+  → 该对齐靠手写模板维持，多次漂移（指向已删命令、步骤数写错）；平台退役后随之删除
 - 负向: ZCode / pi 尚未实测（AI_AGENT=pi 标记已从 pi 源码核验）
 
 ---

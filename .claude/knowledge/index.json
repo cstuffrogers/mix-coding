@@ -12,7 +12,7 @@
       "id": "KNOW-002",
       "title": "多平台策略",
       "category": "architecture",
-      "content": "Claude Code 用 .claude/commands/*.md, opencode 用全局 ~/.config/opencode/opencode.json (108命令+17MCP). 共享资源在 .claude/ (scenes/skills/rules/memory). 环境变量: CLAUDECODE/OPENCODE/CODEX/ZCODE."
+      "content": "Claude Code 用 .claude/commands/*.md (33 个), Codex/ZCode/pi 各自 .xxx/ 目录 + AGENTS.md 入口. 共享资源在 .claude/ (scenes/skills/rules/memory). 环境变量: CLAUDECODE/CODEX/ZCODE/AI_AGENT; opencode 已退役 (2026-07-01, 仅保留 OPENCODE=1 识别)."
     },
     {
       "id": "KNOW-003",

@@ -14,7 +14,7 @@ Execute workflows via Scene engine CLI:
 | `/refactor` | refactor | 代码重构 + 简化 |
 | `/plan` | plan | Manus 持久规划 (会话恢复+SHA256) |
 | `/check` | check | Engine self-check |
-| `/hunt` | hunt | Security scan |
+| `/setup` | setup | E2E / monitor 设施搭建（`--kind e2e\|monitor`，原 /e2e /monitor 已合并） |
 | `/qa` | qa | QA verification |
 
 **Example:**

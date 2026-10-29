@@ -91,32 +91,6 @@ const DETECTORS = {
  * when: () => bool — only show if detector returns true
  */
 const REGISTRY = {
-  design: [
-    {
-      key: 'huashu_brand_protocol',
-      label: 'Huashu Brand Protocol — 检测品牌→5 步资产清单→brand-spec.md',
-      default: true,
-      when: (ctx) => DETECTORS.brandLikelyMentioned(ctx.prompt),
-    },
-    {
-      key: 'huashu_expert_review',
-      label: 'Huashu 5 维度专家评审 — philosophy/hierarchy/craft/functionality/originality',
-      default: true,
-      when: (ctx) => DETECTORS.uiFiles(ctx.targetPath),
-    },
-    {
-      key: 'impeccable_audit',
-      label: 'Impeccable 设计打磨 — 27 条反模式规则 + 12 条 LLM 批判规则，去 AI 塑料感',
-      default: true,
-      when: () => true,
-    },
-    {
-      key: 'stagehand_responsive',
-      label: 'Stagehand 响应式校验 — desktop/tablet/mobile 多视口自动截图对比',
-      default: false,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
-    },
-  ],
   'ui-polish': [
     {
       key: 'huashu_expert_review',
@@ -189,56 +163,6 @@ const REGISTRY = {
       when: () => DETECTORS.mythosAgent(),
     },
   ],
-  changelog: [
-    {
-      key: 'huashu_release_deck',
-      label: 'Huashu Deck — 根据 changelog 高亮生成 HTML deck',
-      default: false,
-      when: () => true,
-    },
-  ],
-  audit: [
-    {
-      key: 'huashu_infographic',
-      label: 'Huashu Infographic — 审计指标单页 HTML 信息图',
-      default: true,
-      when: () => true,
-    },
-    {
-      key: 'architecture_deep_audit',
-      label: '架构深度审计 — 分层合规 + 复杂度热点图',
-      default: false,
-      when: () => true,
-    },
-    {
-      key: 'mythos_agent_audit',
-      label: 'mythos-agent 安全审计 — 假设驱动全库扫描 + 数据流推理',
-      default: true,
-      when: () => DETECTORS.mythosAgent(),
-    },
-    {
-      key: 'critiq_full_audit',
-      label: 'Critiq 全量安全审计 — 9 语言 21 类别 1,243 条规则 + secret 专项扫描',
-      default: true,
-      when: (ctx) => DETECTORS.critiq(ctx.targetPath),
-    },
-  ],
-  analyze: [
-    {
-      key: 'huashu_infographic',
-      label: 'Huashu Infographic — 分析报告单页 HTML 信息图',
-      default: true,
-      when: () => true,
-    },
-  ],
-  prototype: [
-    {
-      key: 'huashu_prototype_fallback',
-      label: 'Huashu HTML Prototype Fallback — MattPocock 不可用时兜底',
-      default: true,
-      when: () => true,
-    },
-  ],
   bugfix: [
     {
       key: 'stagehand_reproduce',
@@ -261,14 +185,6 @@ const REGISTRY = {
       when: () => DETECTORS.mythosAgent(),
     },
   ],
-  e2e: [
-    {
-      key: 'stagehand_functional',
-      label: 'Stagehand 功能性测试 — act/extract/observe 验证用户关键路径',
-      default: true,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
-    },
-  ],
   feature: [
     {
       key: 'stagehand_acceptance',
@@ -281,28 +197,6 @@ const REGISTRY = {
       label: 'mythos-agent 新功能安全审计 — API 端点/文件上传/数据流安全推理',
       default: true,
       when: () => DETECTORS.mythosAgent(),
-    },
-  ],
-  hunt: [
-    {
-      key: 'mythos_agent_hunt',
-      label: 'mythos-agent 假设驱动扫描 — AI 推理未知漏洞 + 变量分析 + PoC 生成',
-      default: true,
-      when: () => DETECTORS.mythosAgent(),
-    },
-    {
-      key: 'critiq_vulnerability_scan',
-      label: 'Critiq 确定性漏洞扫描 — SQLi/SSRF/路径遍历/不安全反序列化/硬编码密钥',
-      default: true,
-      when: (ctx) => DETECTORS.critiq(ctx.targetPath),
-    },
-  ],
-  monitor: [
-    {
-      key: 'stagehand_synthetic',
-      label: 'Stagehand 合成监控 — 定时跑关键路径浏览器验证，失败告警',
-      default: false,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
     },
   ],
   'new-project': [

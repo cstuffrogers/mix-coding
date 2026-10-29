@@ -1,6 +1,6 @@
 ---
 name: security-engineer
-description: Deep security audit — OWASP Top 10, dependency vulnerabilities, secrets detection, input validation, auth/authz review. Use during /hunt and /review scenes.
+description: Deep security audit — OWASP Top 10, dependency vulnerabilities, secrets detection, input validation, auth/authz review. Use during /review scenes (security_deep mode; /hunt merged into it).
 model: sonnet
 color: red
 skills:

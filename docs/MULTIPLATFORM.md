@@ -1,6 +1,12 @@
 # Multi-Platform Support
 
-本项目同时适配 Claude Code、opencode、Codex、ZCode、pi 五个 AI 编码平台。
+本项目适配 Claude Code、Codex、ZCode、pi（含 percho 桌面端）四个 AI 编码平台。
+
+> **opencode 已退役（2026-07-01）**：`opencode` 不再作为使用目标，`~/.config/opencode/opencode.json`
+> 的生成器 / 部署脚本 / 校验器（`scripts/generate-opencode-config.cjs`、`scripts/setup-opencode-global.sh`、
+> `scripts/check-opencode-config.cjs`）与 `.opencode/` 目录已删除。引擎仍认得 `OPENCODE=1` 这个宿主标记
+> （`platform.js` 里的一行映射，删掉反而会让在 opencode 里跑引擎的行为不可预期），但**不再维护任何 opencode 专属配置**——
+> 表里留着这一行是为了说清楚「为什么不提供」，而不是承诺支持。
 
 ## 平台识别
 
@@ -8,12 +14,12 @@
 
 | 平台 | 环境变量 | 配置目录 | 命令源 |
 |------|---------|---------|--------|
-| Claude Code | `CLAUDECODE=1` | `.claude/` | `.claude/commands/*.md` (35 工作流) |
-| opencode | `OPENCODE=1` | `.opencode/` + 全局 `~/.config/opencode/opencode.json` | 全局面板 (命令对齐 35 工作流) |
+| Claude Code | `CLAUDECODE=1` | `.claude/` | `.claude/commands/*.md`（33 个） |
 | Codex | `CODEX=1` | `.codex/` | prompt 文件 |
 | ZCode | `ZCODE=1` | `.zcode/` | AGENTS.md + 引擎 CLI |
 | pi *(含 percho 桌面端)* | `AI_AGENT=pi` | `.pi/` | AGENTS.md + 引擎 CLI |
 | CLI (无宿主) | 无 | `.claude/` (回退) | — |
+| ~~opencode~~ *(已退役)* | `OPENCODE=1`（仅识别） | 无（不再提供） | 无（不再生成全局配置） |
 
 > **percho 不是独立平台**：它是 Pi 的桌面端 GUI（Electron 内嵌 `@earendil-works/pi-coding-agent` SDK），
 > 与 Pi CLI 共用 `~/.pi/agent/` 配置与项目级 `.pi/`，会话引擎一致，无独立识别标记，因此并入 pi 平台。
@@ -24,25 +30,19 @@
 ## 目录结构
 
 ```
-~/.config/opencode/opencode.json  ← opencode 全局配置 (命令/MCP/Provider 数量见 `node .opencode/deploy-global.cjs --dry-run`)
-
 auto-coding/
 ├── .claude/              ← 共享资源宿主 (各平台共用)
 │   ├── scenes/           ★ 引擎场景 (26 个)
-│   ├── skills/           ★ 引擎技能 (21 个)
+│   ├── skills/           ★ 引擎技能 (29 个)
 │   ├── rules/            ★ 引擎规则
 │   ├── memory/           ★ 引擎记忆
 │   ├── plugins/          ★ 引擎插件
-│   ├── commands/         ★ 工作流源文件 (35 个 .md, 所有平台共用)
+│   ├── commands/         ★ 工作流源文件 (33 个 .md, 所有平台共用)
 │   ├── agents/           Claude Code 专属子代理
 │   ├── mcp.json          MCP 配置定义
 │   ├── mcp-enable.json   工作流-MCP 动态启用映射
 │   ├── settings.json     Claude Code 专属设置
 │   └── (运行产物: logs/ reviews/ designs/ 等)
-│
-├── .opencode/            ← opencode 项目专属
-│   ├── AGENTS.md         项目指令 (指向 CLAUDE.md)
-│   └── commands/         opencode 命令文件 (当前为空, 统一使用全局)
 │
 ├── .codex/               ← Codex 专属
 │   ├── AGENTS.md         项目指令
@@ -55,9 +55,8 @@ auto-coding/
 ├── .pi/                  ← pi 专属（percho 桌面端共享此目录）
 │   └── AGENTS.md         项目指令
 │
-├── opencode.jsonc        ← opencode 项目配置 (仅 instructions + skills)
 ├── CLAUDE.md             ← Claude Code 入口 (所有平台源文档)
-├── AGENTS.md             ← opencode/Codex 入口 (指向 CLAUDE.md)
+├── AGENTS.md             ← Codex / ZCode / pi 入口 (指向 CLAUDE.md)
 └── docs/MULTIPLATFORM.md ← 本文档
 ```
 
@@ -73,23 +72,6 @@ auto-coding/
 
 1. 在 `.claude/commands/` 创建 `.md` 文件（YAML frontmatter + 工作流说明）
 2. Claude Code 自动发现并注册为 `/command`
-
-## 为 opencode 添加新命令
-
-opencode 采用 **全局配置 + 项目配置** 双层架构：
-
-- **全局配置** (`~/.config/opencode/opencode.json`): 命令/MCP/Provider 全部由生成器产出（数量不写死），所有项目共享
-- **项目配置** (`opencode.jsonc`): 仅 `instructions` 和 `skills.paths`，保持最小
-
-添加新命令的步骤：
-
-1. 编辑 `scripts/generate-opencode-config.cjs` 中的 `commands` 对象
-2. 部署：
-   - `node .opencode/deploy-global.cjs` （推荐，自动检测 Pencil + 注入环境变量）
-   - 或 `./scripts/setup-opencode-global.sh` （shell 版本，支持更多 API Key 传递方式）
-3. 重启 opencode 桌面版
-
-> 全局配置将 35 个 `.claude/commands/*.md` 工作流全部引用到模板中，行为与 Claude Code 一致。
 
 ## 为 Codex 添加新命令
 
@@ -108,3 +90,9 @@ percho 桌面端同样如此。采用与 ZCode 相同的路径：
 1. 在 `.pi/AGENTS.md` 中追加指令块，指向引擎场景
 2. 或直接使用引擎 CLI：`node claude-scene/src/index.js start <scene> --auto`
 3. 或将工作流包装为 pi prompt template / skill 挂到 `.pi/` 下（需按 pi 的扩展约定编写）
+
+## opencode（已退役）
+
+不再维护 opencode 专属配置。历史实现（全局 `opencode.json` 生成器 + 项目级 `opencode.jsonc`）已于
+2026-07-01 删除：那份生成器里的「N 步」「读取 X.md」条目多次与仓库真值漂移（指向已删除的命令文件、
+步骤数写错），而校验它需要一整套 checker —— 对一个不再使用的平台，正确的做法是删掉，不是继续维护。

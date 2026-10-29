@@ -7,16 +7,16 @@
 
 ## 一、定位与卖点
 
-**一句话定位**:让 Claude Code 从"能用"变"自动"的中文全自动驾驶系统 —— 27 个工作流 + 多平台(Claude/opencode/Codex/ZCode)+ 5 后端记忆 + 外部安全工具链,一键 `./install.sh` 装好。
+**一句话定位**:让 Claude Code 从"能用"变"自动"的中文全自动驾驶系统 —— 26 个工作流 + 多平台(Claude Code/Codex/ZCode/pi)+ 5 后端记忆 + 外部安全工具链,一键 `./install.sh` 装好。
 
 **核心卖点(按 B 站观众口味排序)**:
 
 1. **真·一键**:Windows/Mac/Linux 双脚本,`install.sh` / `install-tools.bat` 全自动装齐 30+ 工具
-2. **27 个工作流**:`/ui-polish` `/hunt` `/feature` `/release` 等斜杠命令,覆盖开发全链路
+2. **26 个工作流**:`/ui-polish` `/review` `/feature` `/release` 等斜杠命令,覆盖开发全链路
 3. **反 AI 套娃设计**:hallmark skill + 57 条 slop-test 门禁,生成的 UI 不像 AI 写的
 4. **安全工具链**:gitleaks/semgrep/trivy/critiq 等 28 个安全工具零冲突集成
 5. **记忆系统**:auto-memory + 项目 CLI 两层记忆,跨会话不丢上下文
-6. **多平台**:同一套配置同时喂 Claude Code / opencode / Codex / ZCode
+6. **多平台**:同一套配置同时喂 Claude Code / Codex / ZCode / pi
 
 ---
 
@@ -39,7 +39,7 @@
 | 0. 钩子 | 0-15s | "Claude Code 装完不会用?这个项目让你一行命令跑 27 个工作流" | 快剪 6 个斜杠命令执行画面 |
 | 1. 是什么 | 15-60s | Mix-Coding 定位:中文全自动驾驶系统,多平台 | 项目 README 截图 + 架构图 |
 | 2. 一键安装 | 60-150s | 实录 `./install.sh` 跑通,Git/Node/Claude/工具链全自动 | 终端录屏,标注每步 ✓ |
-| 3. 工作流演示 | 150-330s | 挑 3 个有冲击力的:`/ui-polish`(丑→美)、`/hunt`(扫漏洞)、`/feature`(出功能) | 三段前后对比 |
+| 3. 工作流演示 | 150-330s | 挑 3 个有冲击力的:`/ui-polish`(丑→美)、`/review`(5 层审查+安全)、`/feature`(出功能) | 三段前后对比 |
 | 4. 设计亮点 | 330-420s | hallmark 反 AI 套娃 + 57 slop-test | 设计系统截图 |
 | 5. 记忆系统 | 420-460s | auto-memory 跨会话召回演示 | 两终端会话对照 |
 | 6. 多平台 | 460-480s | 同一配置喂 4 个 AI CLI | 四宫格 |
@@ -51,7 +51,7 @@
 
 1. **安装零失败**:`./install.sh` 从头到尾全绿 ✓(bug 已修复,正好录)
 2. **ui-polish 视觉冲击**:找个极简 HTML 页,`/ui-polish` 前后对比,反差越大越好
-3. **hunt 扫漏洞**:在故意有 SQLi 的 demo 代码上跑 `/hunt`,展示 gitleaks/semgrep 输出
+3. **review 扫漏洞**:在故意有 SQLi 的 demo 代码上跑 `/review`(security_deep 模式),展示 gitleaks/semgrep 输出
 4. **跨会话记忆**:`/clear` 后 `python .claude/scripts/session-catchup.py` 恢复上下文
 
 ---
@@ -74,7 +74,7 @@
 
 1. **预热**:B 站动态发 1 条"修完 bug 准备录安装视频" + 1 张架构图
 2. **正片发布**:周末晚 8-10 点(技术视频黄金时段)
-3. **切片**:剪 3 个 60s 短视频(ui-polish 对比 / hunt 扫洞 / 一键安装),隔天发
+3. **切片**:剪 3 个 60s 短视频(ui-polish 对比 / review 扫洞 / 一键安装),隔天发
 4. **互动**:评论区置顶 GitHub 链接 + 环境问题答疑承诺
 
 ---

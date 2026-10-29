@@ -100,12 +100,12 @@ Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js star
 
 ## 多平台支持
 
-本项目同时支持 Claude Code、opencode、Codex、ZCode、pi 五个平台。配置目录互不冲突：
+本项目支持 Claude Code、Codex、ZCode、pi 四个平台（opencode 已退役，2026-07-01）。配置目录互不冲突：
 
 | 平台 | 配置目录 | 入口文件 | 环境变量 |
 |------|---------|---------|---------|
 | Claude Code | `.claude/` | `CLAUDE.md` | `CLAUDECODE=1` |
-| opencode | `.opencode/` + `opencode.jsonc` | `AGENTS.md` → `CLAUDE.md` | `OPENCODE=1` |
+| ~~opencode~~ *(已退役)* | 无（`OPENCODE=1` 仅识别） | — | `OPENCODE=1` |
 | Codex | `.codex/` | `AGENTS.md` → `CLAUDE.md` | `CODEX=1` |
 | ZCode | `.zcode/` | `AGENTS.md` → `CLAUDE.md` | `ZCODE=1` |
 | pi *(含 percho 桌面端)* | `.pi/` | `AGENTS.md` → `CLAUDE.md` | `AI_AGENT=pi` |

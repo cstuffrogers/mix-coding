@@ -3544,3 +3544,130 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
 - **元数据跟着真实内容走**：`_modes` 是给人和脚本读的，改完配置必须同步改写，否则它比没有更糟。
 - **陈旧产物要么删、要么接上生成器**：留在仓库里没人读、又会被当「统计结果」引用的文件，
   比不存在更有害（`state-audit` 就是这么活下来的）。
+
+## 第二十七轮：不再维护的平台要退役，死配置和假引用一起清（2026-07-01）
+
+> 上一轮还在「修 opencode 的假数字」。用户说了一句「opencode 本来就不用了」，
+> 于是发现真正的错不是数字不对，而是**这个平台根本不该在这里**：
+> 修好一个没人用的平台，本身就是浪费。顺着这条线，同一类假话还有两处：
+> ①**已退役的命令**在活的文档里仍被当现存命令写；②工具矩阵里 **`/audit (step 3.x)`** 这种
+> 指向已删场景、编造的步骤号。
+
+### 改前取证（全部实测）
+
+- `grep -ran "deploy-global\|setup-opencode-global\|generate-opencode-config\|check-opencode-config"`
+  → 引擎代码零依赖（只有 opencode 自己那套脚本互相引用），删得掉。
+- `.opencode/.gitignore` 是**自忽略文件**（内容里含 `.gitignore` 自身），所以 `git rm -r .opencode`
+  之后 `find .opencode -type f` 还剩一个 → 必须 `find -delete && rmdir` 兜底。
+- 工具表的假引用：`README.md` 写着 `/review` (step 4.10) / (step 4.12) / (step 4.15) / (step 3)，
+  而 `review.json` 的 `flow` 里**没有这些 step**（真值是 4.1 / 4.3 / 4.5 / 4.55 / 4.56 / 4.57 …）；
+  `.claude/rules/conditional/security-toolchain.md` 33 行里几乎每行是 `/audit`，还有
+  `` `/audit`, `/audit` `` 这种复制粘贴出的重复单元格。
+- `.claude/rules/conditional/enhancements.md`：`/cicd`、`/setup --kind monitor`、`/setup --kind e2e`、
+  `/design`、`/review 安全深度` 五节讲的增强项，在 `REGISTRY` 里**没有对应分组**；
+  `/feature` 第 1 项「jvn 多 Agent 审查」在仓库里 `grep jvn` **零命中** —— 是纯凭空的菜单项。
+
+### 维度①：opencode 退役（删，不修）
+
+- 删 `.opencode/`（`AGENTS.md` / `deploy-global.cjs` / `opencode.jsonc`）、
+  `scripts/generate-opencode-config.cjs`、`scripts/setup-opencode-global.sh`、
+  `scripts/check-opencode-config.cjs`、`claude-scene/src/commands/opencode-config.test.js`。
+- `eslint.config.js` 去掉 `.opencode/` 忽略；`README.md` 去掉速查表行与目录树段；
+  `README_EN.md` 去掉 `check-opencode-config.cjs` 行。
+- 文档改写：`docs/MULTIPLATFORM.md` 整体重写（四平台 / 33 工作流 / 29 skills）、
+  `CLAUDE.md`、`AGENTS.md`、`.codex/AGENTS.md`、`.zcode/AGENTS.md`、`ARCHITECTURE.md`、
+  `docs/tool-versions.md`、`.claude/knowledge/index.json`、`.claude/agents/security-engineer.md`、
+  `bilibili-promotion-plan.md`、`docs/全适配方案.md`。
+- `DECISIONS.md` ADR-002 用**删除线 + 已撤销 (2026-07-01)** 留痕，不重写历史结论；
+  `docs/CHANGELOG.md` 记入 `### Removed`。
+- `platform.js` 的 `OPENCODE=1` 识别**保留**，并在注释里写明「这是识别，不是支持」。
+
+### 维度②：退役命令不许在活文档里「还活着」
+
+- `AGENTS.md`、`.codex/AGENTS.md`、`.zcode/AGENTS.md`、`.pi/skills/scene-runner/SKILL.md`
+  （`/audit` `/analyze` `/e2e` `/monitor`）、`.claude/commands/review.md`（`/audit` 那行）
+  全部改成 `旧名 → /review …` 或直接删。
+- `README_EN.md` 用法示例 block 里的 `/hunt` 换成 `/setup`（与中文版对齐）。
+- 新增守卫 `claude-scene/src/commands/retired-commands.test.js`：
+  ①活的文档里出现 `` `/hunt` ``（代码格式的斜杠命令）必须带「原 / 旧名 / 已合并 / 已并入 / 退役 / 已删除」之一，
+  否则红；②opencode 五件套（目录 / 三个脚本 / 测试）**不许复活**，且生产代码不许再引用；
+  ③文档不许再写 opencode 的假数字（`106 命令` / `38 工作流` / `38 .md`）。
+  扫文件时**排除测试自身**（它必须能写「这个文件不存在」），并对 `lib/platform.js` 的 `.opencode` 白名单。
+
+### 维度③：工具表「场景 + step」引用校验器
+
+- 新增 `scripts/check-tool-steps.cjs`（三态：0 全对 / 1 有错 / 2 扫不到东西）：
+  从 `claude-scene/scenes/*.json` 建 `Map<场景, Set<String(step)>>`，正则
+  `` /`\/([a-z][a-z0-9-]*)`(?:\s*\(step\s*([0-9.]+)\))?/gu `` 抽引用，判据三条：
+  ①场景必须存在（点退役场景给专门的提示）②`(step N)` 必须 ∈ 该场景 `flow[*].step`，报错时把真值列出来
+  ③「未接入」不算引用，但可核引用总数低于 `MIN_REFS=20` 或表行数低于 `MIN_ROWS=15` → **exit 2**（塌面）。
+  扫描三份文档：`README.md` / `README_EN.md` / `.claude/rules/conditional/security-toolchain.md`。
+  实跑：**工具表 56 行 · 可核引用 64 处 · 场景 26 个（全部对得上）EXIT=0**。
+- 两份 README 的工具矩阵「负责工作流」列按真值重写（`noleak` → `/release` 8.5 + `/cicd` 2.5、
+  `recheck-cli` → 4.1、`log-sanitizer` → 4.3、`sensitive-file-check` → 4.55、`seraphim-audit` → 4.56、
+  `jscpd` → 2.95、`size-limit` → 2.96、`Stryker` → `/qa` 6.5 …）。
+  没有 handler 的八个（`trivy` `shellcheck` `sqlfluff` `bruno` `commitlint` `biome` `ruff` `hurl`）
+  改标「未接入引擎：没有 handler，只有安装与版本检查」——`ACTION_REGISTRY` 里确实零命中；
+  handler 有但无场景步骤调用的三个（`lychee` / `Spectral` / `markdownlint`）写
+  「未接入场景：handler 已注册，无场景步骤调用」，并删掉导语里「已集成到对应工作流中，自动执行，零冲突」那句假话。
+
+### 维度④：增强项登记表的死配置
+
+- `lib/enhancements.js` 的 `REGISTRY` 按 `sceneId` 索引，`applyEnhancements(sceneId)` 查不到就一项都不出。
+  删掉 8 个「场景 JSON 已不存在」的分组：`audit`(26 行) `analyze`(8) `hunt`(14) `monitor`(8)
+  `e2e`(8) `design`(26) `prototype`(8) `changelog`(8)。剩 10 个分组 / 21 个增强项，全部有对应场景。
+- `.claude/rules/conditional/enhancements.md` 按 `REGISTRY` 重写清单：每节逐项列出 code 里的
+  `key` + `label` + `default`；删掉 `/cicd`、`/setup --kind monitor`、`/review 安全深度`、
+  `/setup --kind e2e`、`/design` 五节；探测器表只留真正被引用的 4 个（`uiFiles` / `stagehand` /
+  `mythosAgent` / `critiq`）；「无增强场景」列表改成按「场景总数 − REGISTRY 键」算出来的 16 个。
+- 新增三条守卫：`REGISTRY` 的每个键必须有 `scenes/<key>.json`；文档里的 `### /scene` 集合 == `REGISTRY` 键集合；
+  文档表格里列出的 key 多重集 == code 里的 key 多重集（既不少写也不多编）。
+
+### 维度⑤：校验器自己的测试
+
+- 新增 `claude-scene/src/commands/tool-steps.test.js`（9 例）：fixture 造 `scenes/*.json` + 工具表，
+  覆盖 0/1/2 三态 —— 全对 / 退役场景 `/audit` / 幽灵场景 `/nope` / 编的 step 9.9（断言报出「真实值：1, 2.5」）/
+  不写 step 也算可核 / 行数不足 exit 2 / 引用数不足 exit 2 / 没有 scenes 目录 exit 2 / **真仓库自己必须干净**。
+
+### 验收三元组
+
+1. **变更**：删 5 项 opencode 产物 + 8 个死增强分组；新增 `scripts/check-tool-steps.cjs`、
+   `retired-commands.test.js`(11)、`tool-steps.test.js`(9)；改 `README.md`、`README_EN.md`、
+   `.claude/rules/conditional/{security-toolchain,enhancements}.md`、`docs/{MULTIPLATFORM,CHANGELOG,tool-versions}.md`、
+   `CLAUDE.md`、`AGENTS.md`、`DECISIONS.md`、`ARCHITECTURE.md` 等 20+ 份文档与 `eslint.config.js`。
+2. **验证命令**：`npx vitest run`、`npx eslint .`、`cd claude-scene && npx eslint . --max-warnings 0`、
+   `npm run scan:deadcode`、`node scripts/check-{readme-stats,action-stats,doc-counts,tool-steps,dead-actions}.cjs`、
+   26 场景 `start <scene> --dry-run --auto`、`start review --auto --skip-sweep`。
+3. **验证结果**：vitest **111 files / 1403 tests 全绿**（删 opencode-config 21 例、新增 20 例）；
+   双 eslint **0 / 0**；`scan:deadcode` **0 dead**（33 命令 / 29 skills / 3 MCP）；
+   五个 checker **全 EXIT=0**（`check-tool-steps`：56 行 / 64 处引用 / 26 场景）；
+   dry-run **26/26 无失败**；review 真跑 **EXIT=0**（`fail 0`）。
+
+### 坑
+
+- **对着「已经不用了」的东西修 bug 是错的方向**：上一轮刚刚把 opencode 的假数字修好，
+  这一轮整条链路被删掉 —— 那 21 个测试和 300 行文档全是沉没成本。先问「这东西还该存在吗」。
+- **解析注册表用的正则漏了数字**：`^  '?([a-z-]+)'?: \[$` 匹配不到 `'e2e'`，于是「删 4 组」静默只删了 3 组，
+  是 `assert len(removed)==4` 把它抓住的。**批量删除前先断言删到了几个**。
+- **守卫的第二个用例名单比第一个短**：`audit/analyze/hunt/monitor` 里漏了 `e2e`，
+  它靠「每个分组必须挂真实场景」那条通用断言才暴露出来 —— 名单式断言要和通用不变量配着写。
+- **守卫扫源码会扫到自己**：`retired-commands.test.js` 自己要断言「文件不存在」，
+  必须跳过 `*.test.js`；`lib/platform.js` 合法保留 `.opencode` 字样，需要显式白名单。
+- **`walk()` 扫不到东西时会「通过」**：加了「实际扫过 137 个文件，低于 100 就炸」的下限断言，
+  否则路径写错也能绿灯。
+- **`unicorn/no-negated-array-predicate`**：`!arr.some(f)` 要写成 `arr.every((x) => !f(x))`。
+- **文档重写要从代码生成，不要手抄**：`enhancements.md` 的 21 个 `key` 是用脚本从 `REGISTRY` 直接吐出来的，
+  再用手写的一致性断言锁住 —— 手抄一遍必然漂移。
+
+### 决策
+
+- **不再使用的平台应该退役，不是继续维护**：对一个不用的平台，「修好它」本身就是错的。
+- **`platform.js` 的 `OPENCODE=1` 留着**：删掉会让「在 opencode 里跑引擎」的行为不可预期；
+  文档要写明「留着是为了说清为什么不提供支持，不是承诺支持」。
+- **ADR 修订用删除线 + 日期，不重写历史结论**；退役写进 `### Removed`，不删历史条目。
+- **工具矩阵的「负责工作流」列必须先有场景存在**：`step N` 的真值只有一个来源（scene JSON 的 `flow[*].step`），
+  所以只能有校验器，不能有「我记得大概是 4.15」。
+- **没有 handler 的工具不许写成「自动执行」**；handler 有但没人调，就写「未接入场景」——
+  这比「已集成」诚实，也比整行删掉有用（它暴露了真实的死接线）。
+- **增强项登记表按 scene id 索引 → 退役场景的登记表就是死配置**，删；文档必须照着 `REGISTRY` 生成，
+  并由测试锁住「文档 == 代码」。

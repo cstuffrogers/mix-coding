@@ -2,6 +2,20 @@
 
 ## 2026-07-01
 
+### Removed
+
+- **opencode 支持退役**：删除 `.opencode/`（`deploy-global.cjs` / `opencode.jsonc` / `AGENTS.md`）、`scripts/generate-opencode-config.cjs`、`scripts/setup-opencode-global.sh`、`scripts/check-opencode-config.cjs` 及其测试。此前这套「全局配置生成器 + 部署脚本 + 校验器」是纯维护负担：模板里的文件名与步骤数反复与仓库真值漂移，而该平台已不再使用。`platform.js` 保留 `OPENCODE=1` 识别（仅为行为可预期），不再提供任何 opencode 专属配置。
+- 同步删除 `scripts/scenes-stats-utf8.txt`、`claude-scene/.express-sec-audit-cache.json` 两个陈旧产物，并在 `.gitignore` 拦住复活。
+- **退役命令的残留引用清理**：`.pi/skills/scene-runner/SKILL.md`、`.claude/commands/review.md`、`AGENTS.md`、`.codex/AGENTS.md`、`.zcode/AGENTS.md`、README 使用示例里把 `/hunt` `/e2e` `/monitor` `/analyze` `/audit` 当现存命令的写法全部改掉（改成 `/review` / `/setup` 或明确标「旧名」）。
+- **`lib/enhancements.js` 删掉 8 个死增强分组**：`audit` `analyze` `hunt` `monitor` `e2e` `design` `prototype` `changelog`。`applyEnhancements` 按 `REGISTRY[sceneId]` 查表，这些场景 JSON 都不存在 → 对应增强项永远不会出现在菜单里，是纯死配置（`ENHANCEMENT_KEYS` 也跟着少 8 个键）。
+- **`.claude/rules/conditional/enhancements.md` 按 `REGISTRY` 重写**：删掉 `/cicd`、`/setup --kind monitor`、`/review 安全深度`、`/setup --kind e2e`、`/design` 五节（都是死分组），清单改为逐项列出 code 里的 `key` + `label` + 默认值，探测器表只留真正被引用的 4 个。
+
+### Fixed
+
+- **README 外部工具表「负责工作流」列长期在编数字**：写着 `/review` (step 4.10) / (step 4.12) / (step 4.15) / (step 3) 等，`review.json` 里根本没有这些 `step`；整列还指向 `/audit` `/hunt` `/e2e` 这些已删场景。现按 scene JSON 真值重写（如 recheck-cli 4.1、log-sanitizer 4.3、sensitive-file-check 4.55、seraphim-audit 4.56、jscpd 2.95、size-limit 2.96、Stryker qa@6.5），没有 handler 或没有场景步骤调用的工具（trivy / shellcheck / sqlfluff / bruno / commitlint / biome / ruff / hurl / lychee / Spectral / markdownlint）改标「未接入」，不再宣称自动执行。
+- **新增 `scripts/check-tool-steps.cjs`**：校验三份文档（README.md / README_EN.md / `.claude/rules/conditional/security-toolchain.md`）工具表里每个 `` `/scene` (step N) `` 的场景存在且 `N ∈ flow[*].step`；退役场景、幽灵场景、编的步骤号一律 exit 1，表结构/引用格式变了 exit 2。
+- **新增 `retired-commands.test.js` 守卫**：活的文档里退役命令必须以「旧名/已合并/已并入/退役/已删除/原」标注；增强项文档与 `REGISTRY` 一一对应；`REGISTRY` 的每个分组必须挂在真实场景上。
+
 ### Quality
 
 - **ESLint 错误归零 (1216→0, -100%)**：93 个 sonarjs 规则违规全部修复（47 super-linear-regex、51 cognitive-complexity、21 no-unused-vars、10 no-dead-store 等）

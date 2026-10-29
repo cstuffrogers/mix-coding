@@ -43,14 +43,14 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 
 | 旧命令 | 新命令 | 说明 |
 |--------|--------|------|
-| `/audit` | `/review` | review 场景勾选"全量审计"模式 |
-| `/analyze` | `/review` | review 场景勾选"仅分析"模式 |
+| `/audit` | `/review` | 旧名，review 场景勾选"全量审计"模式 |
+| `/analyze` | `/review` | 旧名，review 场景勾选"仅分析"模式 |
 | `/hunt` | `/review` | 安全已并入 review 的 security_deep 模式（默认开启） |
 | `/simplify` | `/refactor` | refactor 场景勾选"代码简化"模式 |
 | `/design` | `/ui-polish` | 使用 ui-polish 场景 |
 | `/polish` | `/ui-polish` | 使用 ui-polish 场景 |
-| `/e2e` | `/setup` | `claude-scene start setup --kind e2e`（默认） |
-| `/monitor` | `/setup` | `claude-scene start setup --kind monitor` |
+| `/e2e` | `/setup` | 旧名，`claude-scene start setup --kind e2e`（默认） |
+| `/monitor` | `/setup` | 旧名，`claude-scene start setup --kind monitor` |
 | `/property` | `/setup` | `claude-scene start setup --kind property` |
 
 ## 用法

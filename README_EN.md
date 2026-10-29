@@ -233,33 +233,33 @@ node src/index.js start hunt --auto --target "E:\your\project"
 
 ## 🛡️ External Toolchain
 
-These tools are integrated into corresponding workflows, executing automatically with zero conflicts:
+The "Workflows" column below lists only what the engine actually has: every `step N` after `/review` `/release` is a real `step` value in `claude-scene/scenes/<scene>.json` (verified by `scripts/check-tool-steps.cjs`). Tools marked "Not wired" are **not invoked by any scene step** — we do not pretend they run automatically:
 
 | Tool | Type | Workflows | Function | Severity |
 |------|------|-----------|----------|----------|
-| **noleak** | npm CLI | `/release`, `/audit` | Build artifact leak detection (Source Map / .env / secrets / .git) | BLOCK-RELEASE |
-| **seraphim-audit** | Python CLI | `/hunt`, `/audit` | Security header scan (CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy) | — |
-| **lychee** | Rust binary | `/audit` | Dead link detection in Markdown/HTML files | — |
-| **Lighthouse CI** | npm CLI | `/release`, `/audit` | Performance gates: LCP/CLS/TBT assertions + cache strategy + PWA offline check | BLOCK-RELEASE |
-| **pa11y-ci** | npm CLI | `/review` (a11y layer) | WCAG 2.1 AA accessibility scan | — |
-| **recheck-cli** | npm CLI | `/hunt`, `/audit` | ReDoS catastrophic backtracking scan | — |
-| **log-sanitizer** | built-in grep | `/hunt`, `/audit`, `/review` | Log sanitization: Token/password/PII/email leak detection | — |
-| **cors-checker** | built-in grep | `/hunt`, `/audit`, `/review` | CORS config: wildcard + credentials leak detection | — |
-| **env-leak-scanner** | built-in grep | `/hunt`, `/audit`, `/review` | Frontend env variable leak: Vite import.meta.env / process.env | — |
-| **sensitive-file-check** | built-in git | `/hunt`, `/audit`, `/review` | Sensitive file exposure: .env/*.pem/*.key/credentials.json | — |
-| **deprecated-deps** | npm CLI | `/audit` | Deprecated/unmaintained dependency detection | — |
-| **knip** | npx CLI | `/audit`, `/review` | AST-level dead code/dependency detection (11k+ stars) | — |
-| **skillspector** | Python CLI | `/hunt`, `/audit` | AI skill security scan: 64 vulnerability patterns (NVIDIA, 2.5k+ stars) | — |
-| **aislop** | npx CLI | `/review`, `/audit` | AI code smell scan: 50+ rules | — |
-| **dependency-cruiser** | npx CLI | `/audit` | Dependency architecture validation: circular deps, orphans, layer compliance (6.7k+ stars) | — |
-| **prototype-pollution** | ESLint rule | `/audit`, `/hunt`, `/review` | no-prototype-builtins prototype pollution detection | — |
-| **trivy** | Go binary | `/hunt`, `/audit` | Container image/filesystem/IaC full security scan: CVE + secrets + misconfig (Aqua Security, 25k+ stars) | — |
-| **shellcheck** | Haskell binary | `/audit`, `/cicd` | Shell script static analysis: syntax errors/bad practices/security risks (37k+ stars) | — |
-| **sqlfluff** | Python CLI | `/review`, `/audit` | SQL linter + formatter: 200+ rules, 8 SQL dialects (8k+ stars, MIT) | — |
-| **bruno** | npm CLI | `/e2e`, `/review` | API interaction testing: REST/GraphQL/WebSocket collection runner, Git-friendly plain text (31k+ stars, MIT) | — |
-| **gitleaks** | Go binary | `/hunt`, `/audit` | Git history secret leak detection: 120+ built-in rules, detect/describe/git subcommands (18k+ stars, MIT) | — |
-| **semgrep** | Python CLI | `/hunt`, `/audit`, `/review` | Multi-language AST-level SAST: 2,500+ community rules, custom rule support (11k+ stars, LGPL) | — |
-| **commitlint** | npm CLI | `/review`, `/cicd` | Conventional Commits format validation: `@commitlint/config-conventional` + extensible rules (18k+ stars, MIT) | — |
+| **noleak** | npm CLI | `/release` (step 8.5), `/cicd` (step 2.5) | Build artifact leak detection (Source Map / .env / secrets / .git) | BLOCK-RELEASE |
+| **seraphim-audit** | Python CLI | `/review` (step 4.56) | Security header scan (CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy) | — |
+| **lychee** | Rust binary | Not wired: handler registered, no scene step calls it | Dead link detection in Markdown/HTML files | — |
+| **Lighthouse CI** | npm CLI | `/release` (step 8.6) | Performance gates: LCP/CLS/TBT assertions + cache strategy + PWA offline check | BLOCK-RELEASE |
+| **pa11y-ci** | npm CLI | `/review` (step 2.35) | WCAG 2.1 AA accessibility scan | — |
+| **recheck-cli** | npm CLI | `/review` (step 4.1) | ReDoS catastrophic backtracking scan | — |
+| **log-sanitizer** | built-in grep | `/review` (step 4.3) | Log sanitization: Token/password/PII/email leak detection | — |
+| **cors-checker** | built-in grep | `/review` (step 4.4) | CORS config: wildcard + credentials leak detection | — |
+| **env-leak-scanner** | built-in grep | `/review` (step 4.5) | Frontend env variable leak: Vite import.meta.env / process.env | — |
+| **sensitive-file-check** | built-in git | `/review` (step 4.55) | Sensitive file exposure: .env/*.pem/*.key/credentials.json | — |
+| **deprecated-deps** | npm CLI | `/deps` (step 3.5) | Deprecated/unmaintained dependency detection | — |
+| **knip** | npx CLI | `/review` (step 2.6) | AST-level dead code/dependency detection (11k+ stars) | — |
+| **skillspector** | Python CLI | `/review` (step 4.57) | AI skill security scan: 64 vulnerability patterns (NVIDIA, 2.5k+ stars) | — |
+| **aislop** | npx CLI | `/review` (step 2.9), `/release` (step 8.7) | AI code smell scan: 50+ rules | — |
+| **dependency-cruiser** | npx CLI | `/review` (step 2.65) | Dependency architecture validation: circular deps, orphans, layer compliance (6.7k+ stars) | — |
+| **prototype-pollution** | ESLint rule | `/review` (step 2) | no-prototype-builtins prototype pollution detection | — |
+| **trivy** | Go binary | Not wired: no handler (install/version check only) | Container image/filesystem/IaC full security scan: CVE + secrets + misconfig (Aqua Security, 25k+ stars) | — |
+| **shellcheck** | Haskell binary | Not wired: no handler (install/version check only) | Shell script static analysis: syntax errors/bad practices/security risks (37k+ stars) | — |
+| **sqlfluff** | Python CLI | Not wired: no handler (install/version check only) | SQL linter + formatter: 200+ rules, 8 SQL dialects (8k+ stars, MIT) | — |
+| **bruno** | npm CLI | Not wired: no handler (install/version check only) | API interaction testing: REST/GraphQL/WebSocket collection runner, Git-friendly plain text (31k+ stars, MIT) | — |
+| **gitleaks** | Go binary | `/review` (step 4.551) | Git history secret leak detection: 120+ built-in rules, detect/describe/git subcommands (18k+ stars, MIT) | — |
+| **semgrep** | Python CLI | `/review` (step 4.6) | Multi-language AST-level SAST: 2,500+ community rules, custom rule support (11k+ stars, LGPL) | — |
+| **commitlint** | npm CLI | Not wired: no handler (install/version check only) | Conventional Commits format validation: `@commitlint/config-conventional` + extensible rules (18k+ stars, MIT) | — |
 
 ---
 
@@ -273,7 +273,7 @@ These tools are integrated into corresponding workflows, executing automatically
 /bugfix Login page form validation error
 /feature Add user management module
 /review
-/hunt
+/setup
 ```
 
 **Method 2: Using CLI tool**
@@ -336,7 +336,7 @@ mix-coding/
 │   ├── check-readme-stats.cjs # README scene/step counts vs scene JSONs (exit 1 mismatch / 2 collapsed)
 │   ├── check-action-stats.cjs # README action/handler counts + every ✅ action in the table (1 / 2)
 │   ├── check-doc-counts.cjs  # README/CLAUDE.md command/skill/MCP/npm/tool counts (exit 1 / 2)
-│   ├── check-opencode-config.cjs # opencode generator: .md refs exist, step counts, doc counts (1 / 2)
+│   ├── check-tool-steps.cjs  # every `/scene (step N)` in tool tables exists in scene JSON (1 / 2)
 │   ├── check-dead-actions.cjs # Scene actions must have implementations (exit 1 if not)
 │   ├── audit-scenes.mjs      # Static audit of scene logic (exit 1 on errors)
 │   └── find-deadcode-full.cjs # Dead code scanner (gate: exit 1 on dead code)

@@ -51,7 +51,6 @@
 | 工具 | 文件 | 功能 | 平台 |
 |------|------|------|------|
 | **Claude Code 启动器** | [start-claude.bat](./start-claude.bat) / [start-claude.sh](./start-claude.sh) | 一键启动 Claude Code + 自动 init.sh 环境检查 | Windows / macOS / Linux |
-| **opencode 全局配置** | [scripts/setup-opencode-global.sh](./scripts/setup-opencode-global.sh) | 106 命令（其中 38 个直接引用本仓库 `.claude/commands/*.md`）· 17 MCP · 1 Provider，由生成器现场统计、`scripts/check-opencode-config.cjs` 校验 | Windows / macOS / Linux |
 | **会话初始化** | [init.sh](./init.sh) | Node/Git/依赖/测试/Harness 文件完整性检查 | macOS / Linux |
 | **架构合规检查** | [zero-conflict-check.sh](./zero-conflict-check.sh) | 工具前缀验证 + 层纯度 + Harness 文件完整性 | macOS / Linux |
 | **会话结束清理** | [scripts/clean-session.cjs](./scripts/clean-session.cjs) | Git 状态/测试/lint 检查，`--fix` 自动提交 | Windows / macOS / Linux |
@@ -450,36 +449,36 @@ node src/index.js start hunt --auto --target "./your-project"
 
 ## 🛡️ 外部工具链
 
-以下工具已集成到对应工作流中，自动执行，零冲突：
+下表「负责工作流」列只写**引擎里真有的东西**：`/review` `/release` 之类后面跟的 `step N` 都是 `claude-scene/scenes/<场景>.json` 里 `flow` 条目的真实 `step` 值（`scripts/check-tool-steps.cjs` 校验）；标「未接入」的是**没有接进任何场景步骤**的工具——不假装它会自动跑：
 
 | 工具 | 类型 | 负责工作流 | 功能 | 阻断级别 |
 |------|------|-----------|------|---------|
-| **noleak** | npm CLI | `/release` (step 8.5), `/audit` (step 8.7) | 构建产物泄露检测：Source Map / .env / 密钥 / .git 目录扫描 | BLOCK-RELEASE |
-| **seraphim-audit** | Python CLI | `/review` (step 4.5), `/audit` (step 3.5) | 安全响应头扫描：CSP / HSTS / X-Frame-Options / X-Content-Type-Options / Referrer-Policy / Permissions-Policy | — |
-| **lychee** | Rust 二进制 | `/audit` (step 8.5) | 死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 | — |
-| **Lighthouse CI** | npm CLI | `/release` (step 8.6), `/audit` (step 8.8) | 性能门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查 | BLOCK-RELEASE |
-| **pa11y-ci** | npm CLI | `/review` (a11y 增强层) | WCAG 2.1 AA 深度无障碍扫描 | — |
-| **recheck-cli** | npm CLI | `/review` (step 4.7), `/audit` (step 3.6) | 正则 ReDoS 灾难性回溯扫描 | — |
-| **log-sanitizer** | 内置 grep | `/review` (step 4.8), `/audit` (step 3.7), `/review` (step 4.3) | 日志脱敏扫描：Token/密码/身份证/手机号/邮箱泄露检测 | — |
-| **cors-checker** | 内置 grep | `/review` (step 4.9), `/audit` (step 3.8), `/review` (step 4.4) | CORS 配置检测：通配符 + credentials 泄露 | — |
-| **env-leak-scanner** | 内置 grep | `/review` (step 4.10), `/audit` (step 3.9), `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
-| **sensitive-file-check** | 内置 git | `/review` (step 4.12), `/audit` (step 3.12), `/review` (step 4.6) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
-| **deprecated-deps** | npm CLI | `/audit` (step 3.16) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | — |
-| **knip** | npx CLI | `/audit` (verifier Pass 7), `/review` (verifier Pass 7) | AST 级死代码/依赖检测：未使用文件/未使用导出/未解析导入/未声明依赖/未使用依赖（11k+ stars） | — |
-| **skillspector** | Python CLI | `/review` (step 4.15), `/audit` (step 3.18) | AI 技能安全扫描：提示注入/数据外泄/权限提升/供应链攻击等 64 种漏洞模式（NVIDIA, 2.5k+ stars） | — |
-| **aislop** | npx CLI | `/review` (step 2.9), `/audit` (step 3.19) | AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper（子秒级确定性） | — |
-| **dependency-cruiser** | npx CLI | `/audit` (step 3.20) | 依赖架构验证：循环依赖检测/孤儿模块识别/架构分层合规/调用图生成（6.7k+ stars） | — |
-| **prototype-pollution** | ESLint 规则 | `/audit` (step 1, 2), `/review` (step 3), `/review` (step 2 lint) | no-prototype-builtins 原型链污染检测 | — |
-| **trivy** | Go 二进制 | `/review`, `/audit` | 容器镜像/文件系统/IaC 全量安全扫描：CVE + 密钥 + 配置错误（Aqua Security, 25k+ stars） | — |
-| **shellcheck** | Haskell 二进制 | `/audit`, `/cicd` | Shell 脚本静态分析：语法错误/不良实践/安全风险（37k+ stars） | — |
-| **sqlfluff** | Python CLI | `/review`, `/audit` | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言（8k+ stars, MIT） | — |
-| **bruno** | npm CLI | `/setup`（e2e 模式）, `/review` | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本（31k+ stars, MIT） | — |
-| **gitleaks** | Go 二进制 | `/review`, `/audit` | Git 历史密钥泄露检测：120+ 内置规则，detect/describe/git 子命令（18k+ stars, MIT） | — |
-| **semgrep** | Python CLI | `/review`, `/audit` | 多语言 AST 级 SAST：2,500+ 社区规则，支持自定义规则，跨语言模式匹配（11k+ stars, LGPL） | — |
-| **commitlint** | npm CLI | `/review`, `/cicd` | Conventional Commits 格式校验：`@commitlint/config-conventional` + 可扩展规则（18k+ stars, MIT） | — |
-| **biome** | npm CLI | `/review`, `/audit`, `/refactor` | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier，零配置高性能（50k+ stars, MIT/Apache-2.0） | — |
-| **ruff** | Python CLI | `/review`, `/audit`, `/refactor` | Rust 编写 Python linter + formatter，替代 Flake8+isort+black，10-100x 更快（35k+ stars, MIT） | — |
-| **hurl** | Rust 二进制 | `/setup`（e2e 模式）, `/review`, `/cicd` | 纯文本 API 测试 CLI，Git 友好，CI/CD 原生支持（13k+ stars, Apache-2.0） | — |
+| **noleak** | npm CLI | `/release` (step 8.5), `/cicd` (step 2.5) | 构建产物泄露检测：Source Map / .env / 密钥 / .git 目录扫描 | BLOCK-RELEASE |
+| **seraphim-audit** | Python CLI | `/review` (step 4.56) | 安全响应头扫描：CSP / HSTS / X-Frame-Options / X-Content-Type-Options / Referrer-Policy / Permissions-Policy | — |
+| **lychee** | Rust 二进制 | 未接入场景：handler 已注册，没有任何场景步骤调用 | 死链接检测：扫描项目 Markdown/HTML 文件中的失效链接 | — |
+| **Lighthouse CI** | npm CLI | `/release` (step 8.6) | 性能门禁：LCP/CLS/TBT 断言 + 缓存策略 + PWA 离线检查 | BLOCK-RELEASE |
+| **pa11y-ci** | npm CLI | `/review` (step 2.35) | WCAG 2.1 AA 深度无障碍扫描 | — |
+| **recheck-cli** | npm CLI | `/review` (step 4.1) | 正则 ReDoS 灾难性回溯扫描 | — |
+| **log-sanitizer** | 内置 grep | `/review` (step 4.3) | 日志脱敏扫描：Token/密码/身份证/手机号/邮箱泄露检测 | — |
+| **cors-checker** | 内置 grep | `/review` (step 4.4) | CORS 配置检测：通配符 + credentials 泄露 | — |
+| **env-leak-scanner** | 内置 grep | `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
+| **sensitive-file-check** | 内置 git | `/review` (step 4.55) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
+| **deprecated-deps** | npm CLI | `/deps` (step 3.5) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | — |
+| **knip** | npx CLI | `/review` (step 2.6) | AST 级死代码/依赖检测：未使用文件/未使用导出/未解析导入/未声明依赖/未使用依赖（11k+ stars） | — |
+| **skillspector** | Python CLI | `/review` (step 4.57) | AI 技能安全扫描：提示注入/数据外泄/权限提升/供应链攻击等 64 种漏洞模式（NVIDIA, 2.5k+ stars） | — |
+| **aislop** | npx CLI | `/review` (step 2.9), `/release` (step 8.7) | AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper（子秒级确定性） | — |
+| **dependency-cruiser** | npx CLI | `/review` (step 2.65) | 依赖架构验证：循环依赖检测/孤儿模块识别/架构分层合规/调用图生成（6.7k+ stars） | — |
+| **prototype-pollution** | ESLint 规则 | `/review` (step 2) | no-prototype-builtins 原型链污染检测 | — |
+| **trivy** | Go 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 容器镜像/文件系统/IaC 全量安全扫描：CVE + 密钥 + 配置错误（Aqua Security, 25k+ stars） | — |
+| **shellcheck** | Haskell 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | Shell 脚本静态分析：语法错误/不良实践/安全风险（37k+ stars） | — |
+| **sqlfluff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言（8k+ stars, MIT） | — |
+| **bruno** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本（31k+ stars, MIT） | — |
+| **gitleaks** | Go 二进制 | `/review` (step 4.551) | Git 历史密钥泄露检测：120+ 内置规则，detect/describe/git 子命令（18k+ stars, MIT） | — |
+| **semgrep** | Python CLI | `/review` (step 4.6) | 多语言 AST 级 SAST：2,500+ 社区规则，支持自定义规则，跨语言模式匹配（11k+ stars, LGPL） | — |
+| **commitlint** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Conventional Commits 格式校验：`@commitlint/config-conventional` + 可扩展规则（18k+ stars, MIT） | — |
+| **biome** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier，零配置高性能（50k+ stars, MIT/Apache-2.0） | — |
+| **ruff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 Python linter + formatter，替代 Flake8+isort+black，10-100x 更快（35k+ stars, MIT） | — |
+| **hurl** | Rust 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 纯文本 API 测试 CLI，Git 友好，CI/CD 原生支持（13k+ stars, Apache-2.0） | — |
 
 ### 工具安装
 
@@ -583,18 +582,14 @@ mix-coding/
 │   ├── knowledge/            # 知识索引
 │   └── scheduled_tasks.json  # 定时任务配置
 │
-├── .opencode/                # opencode 专属配置
-│   ├── deploy-global.cjs     # 全局配置自动部署脚本
-│   └── opencode.jsonc        # 项目级配置（最小引用）
-│
 ├── .github/workflows/        # CI 流水线（lint → test）
 ├── .husky/pre-commit         # Git 钩子（eslint + test + 死代码扫描）
 ├── .specify/                 # Spec-Kit 配置
 ├── claude-scene/             # CLI 工具（Scene 引擎）
 ├── scripts/                  # 项目脚本（Node.js .cjs）
-│   ├── generate-opencode-config.cjs  # opencode 全局配置生成器
-│   ├── clean-session.cjs     # 会话结束清理
-│   ├── setup-opencode-global.sh      # opencode 一键部署
+│   ├── check-readme-stats.cjs        # README 场景数/步骤数校验
+│   ├── check-doc-counts.cjs          # README/CLAUDE.md 类目计数校验
+│   ├── check-tool-steps.cjs          # 工具表「场景 + step」引用是否真实存在
 │   └── ...其他脚本
 ├── feature_list.json         # WIP 特性跟踪（wip_limit: 1）
 ├── progress.md               # 会话状态日志

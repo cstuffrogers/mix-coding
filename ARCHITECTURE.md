@@ -27,7 +27,7 @@ This project implements a **three-layer architecture** following the **12-factor
 │   ┌────────────────────────────────────────────────────────────┐    │
 │   │  claude-scene CLI · 场景模板(.claude/scenes/) · 进度展示    │    │
 │   │  /new-project  /feature  /bugfix  /refactor  /design  /review│   │
-│   │  /hunt  /analyze  /loop  /simplify  /optimize  /ui-polish      │    │
+│   │  /setup  /loop  /simplify  /optimize  /ui-polish  /qa  /deps   │    │
 │   └────────────────────────────────────────────────────────────┘    │
 │                                                                     │
 │   【设计原则】12-factor-agents #7（环境等价）· #10（日志即事件）        │

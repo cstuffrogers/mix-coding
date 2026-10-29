@@ -3,7 +3,7 @@
 > 多平台共享入口。`CLAUDE.md` 是所有平台的源文档。
 > 本文件包含 Harness Engineering 操作指南，确保 AI Agent 行为一致。
 
-**平台**: Claude Code | opencode | Codex | ZCode | pi (含 percho 桌面端)
+**平台**: Claude Code | Codex | ZCode | pi (含 percho 桌面端) — opencode 已退役 (2026-07-01)
 **入口链**: `CLAUDE.md` ← `AGENTS.md` (跨平台别名)
 
 ---
@@ -75,7 +75,7 @@ bash init.sh
 
 | Command | Purpose |
 |---------|---------|
-| `/audit` | 全量健康检查（→ `/review` 的 full_audit 模式） |
+| `/audit` | 旧名：全量健康检查（→ `/review` 的 full_audit 模式） |
 | `/review` | 5 层代码审查 + 安全审计 |
 | `/feature` | 新功能开发 |
 | `/bugfix` | Bug 修复 |

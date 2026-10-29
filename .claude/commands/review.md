@@ -25,8 +25,8 @@ argument-hint: "[模式: code_review/full_audit/analyze_only/security_deep/quali
 
 | 原场景 | 现入口 |
 |--------|--------|
-| `/audit` | `/review` + 勾选"全量审计" |
-| `/analyze` | `/review` + 勾选"仅分析" |
+| `/audit` | 旧名 → `/review` + 勾选"全量审计" |
+| `/analyze` | 旧名 → `/review` + 勾选"仅分析" |
 
 ## Step 2.68：开工前必问 sweep
 

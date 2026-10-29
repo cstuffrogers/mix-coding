@@ -238,7 +238,7 @@ node claude-scene/src/index.js start setup --auto   # 走 e2e
 
 ## 待办
 
-- [ ] Task #1: 四平台验证 `i-have-adhd` 加载 (opencode/Codex/ZCode)
+- [ ] Task #1: 三平台验证 `i-have-adhd` 加载 (Codex/ZCode/pi)
 - [ ] 清理孤儿 submodule `.claude/tools/agent-egress-bench` (`.gitmodules` 无 mapping)
 - [ ] scanUpdates 盲区:`scanSkills` 不对比上游 release,`scanCliTools` 不对比 pypi 最新版
 - [ ] `hallmark` 上游无 tags,需 commit hash 追踪机制
