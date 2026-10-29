@@ -2332,3 +2332,111 @@ CI 与 agent 都把「跑完了」读成「全绿」。`enforceAcceptanceGate` �
 - **未识别的配置取值是 fail，不是「未知操作」的 pass**（`ce-*` 写错 = 什么都没执行）。
 - **守卫词表宁窄不宽**：`就绪` 会误杀真测量，只收「对话模式 / 由 agent / 需人工」这类
   明确的交接措辞 —— 收窄不漏，宽了就是假红。
+
+---
+
+## 第十六轮：三个维度一起收（用户选「全部」）
+
+上一轮末尾给了三个候选维度，用户回「全部」—— 不挑，全查。
+
+### 维度 1 —— `warn` 的语义侵蚀
+
+**审计**：全仓 `status: 'warn'` 站点 120 处。`warn` 实际上被当成两种意思用：
+「跑了、但有发现」（skillspector 命中问题）和「没测/没跑成」（验证未执行）。
+而 `lib/acceptance-check.js` 的 `PASSING_RE = /^(pass|warn)$/` 把 warn 当「已审阅」，
+于是第二种用法等于给验收门禁开后门。
+
+**实证假绿**：探针场景 `/tmp/mix-r16/.claude/scenes/zz-verify.json`
+（step1 `writeFile`（无处理器）+ step2 `verify`（无 package.json））——
+改前：门禁放行，**exit 0**。两步都没真执行。
+
+**修**：
+- 21 处 `warn` → `skip`（文案补「不是通过」）：`flow-control`(5)、`aislop`、
+  `dependency-cruiser`、`external-tool-checks`(2)、`detector-report`、`git`、`issues`(2)、
+  `testing`(2)、`ui-tools`(2)、`engine-check`、`design`、`migration`、
+  `security/config-check`、`security/npm-scan`(2)、`security/secret-scan`。
+- `gateVerdict` 分支重排：`effectiveTotal===0` → `blocked` → `failed` → `unknown` → strict。
+  以前 `unknown` 排在 `blocked`/`failed` 之前，「认不出的检查名 + 一个真失败」被降级成
+  「部分无法判定」，真失败从汇总里消失。
+- 改后同一探针：**✗ 验收阻断：变更未通过验证，exit 1**。
+
+**守卫**：`commands/step-status-contract.test.js` 新增一段 —— 扫全仓 `status:'warn'`
+对象字面量（括号配对扫描、跳过字符串/模板），文案命中
+`未测量|没有结论|不是通过|不算通过|未执行|未扫描|未跑成|无法判定|不可判定|没有结果|未获取|扫描范围为空|没有产出`
+即点名。含非空转断言（`total > 60` 个 warn 站点、`sources.length > 20`）。
+
+**注意**：「交付物没产出」（`未生成`/`未完成`）仍保留 warn —— 那是「跑了但结果不理想」，
+不是「没跑」。词表只收「没测」措辞。
+
+### 维度 2 —— 条件表达式的「未判定」假信号
+
+**机制本来就在**：`noteUnjudgedStep` 真实执行时也调用，`appendLog` 区分
+`reason:'unjudged' | 'condition'`，`printSummary` 打 ❓ 列表。问题出在判定本身。
+
+**确认 bug**：`explainCondition('a && b', {a:false})` → `{met:false, unknown:['b'],
+determinable:false}` —— 左边已经确定假，结果就是假，与 b 无关，却报「未判定」。
+
+**修**：`explainCondition` 改为三值求值（新增 `definiteVerdict`，沿 `||` / `&&` / `!`
+短路递归，叶子用「有无未知键」+ `evalClause`）：
+- `hasHardConflict && testPassed`（左边 false）→ 可判定「不满足」。
+- `conversation_mode || testPassed`（左边 true）→ 可判定「满足」。
+- 左边为真、右边未知 → 仍报未判定（不许假装知道）。
+- `met=true` 时不报未知：未判定的意义是「跳过可能是冤枉的」，跑起来的步骤没有这个问题。
+- `CONDITION_KEYWORDS` 补 `not` / `and` / `or`：`not testPassed` 以前输出
+  「运行时状态：not, testPassed」——一个名字叫 not 的 context 键。
+
+**实测**：26 场景 dry-run 中「未判定」行 **119 → 94**（25 条噪声消失，真未知保留）。
+
+### 维度 3 —— `--iterations` 的收敛判据与汇总口径
+
+**确认 bug**：`countFindings` 只累加 `aislop_issue_count + review_issue_count`；
+场景里没有扫描步骤时两者都是 `undefined` → 返回 0 → `shouldStopLooping` 判
+「本轮无新发现，提前结束」→ `--iterations 2` 只跑 1 轮，**且理由是编的**（什么都没测）。
+
+**修**：
+- `countFindings` 导出；两个计数器都没写过 → `null`（= 没测），不是 0（= 干净）。
+- `shouldStopLooping` 新增 `unmeasured` 分支：无法判断收敛 → 按轮数跑满 +
+  「本轮没有可数的发现（场景里没有 aislop / review 扫描步骤）」。
+- `stepResults` 条目带 `iteration`；`describeNotPassSteps(stepResults, limit, plannedIterations)`
+  多轮时标注「（第 k 轮）」（以前两行 `Step 3 test → fail` 看起来像重复记录）。
+- `printSummary` 多轮时说明 total 口径：「本次跑了 N 轮：同名步骤每轮各记一条，
+  故 total=X 是记录次数（≈ 步数 × 轮数）」。
+- `requestedIterations` + `warnCappedIterations`：`--iterations 999` 不再被默默截到 20，
+  打印「⚠ 请求 999 轮，超过上限 20 —— 只跑 20 轮」。
+
+### 自探针（4 次注入 → 点名 → 回滚 → 复绿）
+
+| # | 注入 | 谁点名 |
+|---|---|---|
+| 1 | `definiteVerdict` 第一行 `return null`（短路失效） | `conditions.test.js`「&& 短路：左边已确定假」 |
+| 2 | `ui-tools` 的 UI 分析改回 `status:'warn'` | `step-status-contract.test.js`「warn 文案」 |
+| 3 | `countFindings` 改回 `if (… undefined) return 0` | `loop-iterations.test.js`「两个计数器都没写过」 |
+| 4 | `verifyByTestRun` 无 package.json 改回 `warn` | `acceptance-check.test.js`「验证没跑成（skip）不算已审阅」 |
+
+每次回滚后 `git diff --stat` 与本轮终态一致，全量 1215 tests 复绿。
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 单测 | `npx vitest run` | **1215 passed / 97 files**（本轮前 1199/97） |
+| lint | `npx eslint .` | 0 problems |
+| lint（严格） | `cd claude-scene && npx eslint . --max-warnings 0` | 0 problems |
+| 死码 | `npm run scan:deadcode` | Total dead 0（Handlers 0/70、Scenes 0/26、Commands 0/33、Skills 0/29、MCP 0/3） |
+| 26 场景 | 逐个 `start <scene> --dry-run --auto` | exit 0 ×26，bad=0；「未判定」行 119 → 94 |
+| review 真跑（本仓库） | `start review --auto --skip-sweep` | pass 16 / fail 0 / warn 2 / skip 21 / noop 4，exit 0 |
+| 同上前后比对 | 改动前后各跑一次，按 `step|action` 逐条比 | **0 处状态变化**；warn 2 = detectorReport / sec-bug-hunt（真发现） |
+| 假绿探针 | `zz-verify`（writeFile + verify，无 package.json） | 改前 exit 0 → 改后 exit 1（验收阻断） |
+| 迭代湿跑 | `zz-verify --auto --iterations 2` | 跑满 2 轮 + 「本轮没有可数的发现」+ 每步带「（第 1/2 轮）」 |
+| 封顶出声 | `zz-verify --auto --iterations 999` | ⚠ 请求 999 轮，超过上限 20 |
+
+### 决策
+- **`warn` 只有一个意思**：「真的跑了、但有发现」。没测 = `skip` + 文案带「不是通过」。
+  这是在「语义精确」和「下游消费方便」之间选精确 —— 门禁按状态消费，状态就必须无歧义。
+- **认不出的检查项不许抹掉同时发生的失败**：fail 优先于「部分无法判定」。
+- **短路能定的条件就是能定**；只有真依赖未知键才报未判定，且 `met=true` 时不报。
+- **发现数「没测」用 `null` 不用 `0`**：在收敛判据里这两个结论方向完全相反。
+- **total 数的是记录次数**：多轮必须在汇总里点明口径，不许让人把 N 倍当步数。
+- **上限截断要出声**：不是失败，但也不该默默发生。
+- **探针实证要固化成测试**：`zz-verify` 的结论落成 `acceptance-check.test.js` 的跨模块用例
+  （真 handler 给 skip + 该 skip 让 `unreviewedChange=true`），否则下次谁把 warn 加回来都没人拦。
