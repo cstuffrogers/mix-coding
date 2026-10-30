@@ -63,12 +63,12 @@ AskUserQuestion 交互式选择：
 2. Animal Island UI — Natural, playful, rounded design
 3. Custom — Keep existing style, apply animations + icons + micro-interactions
 4. Huashu 40 风格库 — Bash 调用 `node -e "import('./src/lib/huashu/style-library.js').then(m => m.listStyles())"` 浏览 40 种风格
-5. Open Design 品牌库 — 152 品牌设计系统（含 DESIGN.md + tokens.css + components.html）
+5. Open Design 品牌库 — 上游品牌设计系统（含 DESIGN.md + tokens.css + components.html；目录里有多少就用多少，不写死条数）
 6. Liquid Glass — Apple 液态玻璃效果（[liquid-glass-react](https://github.com/rdev/liquid-glass-react)：折射/色散/磨砂/弹性；安装依赖 + 生成 GlassCard/GlassButton 示例组件）
-7. Open Design 设计模板 — 111 模板（`ls open-design/design-templates/`）
-8. Open Design Skills — 138 AI 技能（`ls open-design/skills/`），按需注入到打磨链
-9. Open Design 提示词模板 — 103 提示词模板（46 图片生成 + 57 视频生成），用于 AI 图片/视频素材生成
-10. Open Design 演示框架 — 3 演示文稿框架（deck-framework.html / kami-deck.html / live-artifacts），用于生成设计演示稿
+7. Open Design 设计模板 — `ls open-design/design-templates/` 看当前有哪些模板
+8. Open Design Skills — `ls open-design/skills/` 列出可用技能，按需注入到打磨链
+9. Open Design 提示词模板 — 图片/视频生成提示词（`ls open-design/prompts/`），用于 AI 素材生成
+10. Open Design 演示框架 — deck-framework.html / kami-deck.html / live-artifacts，用于生成设计演示稿
 
 选择 Open Design 品牌时：
 - Bash `ls open-design/design-systems/` 展示可用品牌

@@ -1,5 +1,5 @@
-// Deep review tools — the "logic defect / IO validation" tier from
-// docs/补充.md (open-code-review, CodeQL, AI Code Reviewer, Semgrep, Sonar).
+// Deep review tools — the "logic defect / IO validation" tier. Tools considered:
+// open-code-review, CodeQL, AI Code Reviewer, Semgrep, Sonar.
 //
 // Reality check, verified on this machine rather than assumed:
 //   semgrep          1.165.0 installed via pip   → real integration (offline rules)

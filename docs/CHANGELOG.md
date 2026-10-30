@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-10-30（第三十七轮：会过期又核不了的数字不是事实）
+
+### Fixed
+
+- **活的文档里躺着 45 处 GitHub star 数**：`README.md` 17 处、`README_EN.md` 14 处、
+  `.claude/rules/conditional/security-toolchain.md` 9 处、`ARCHITECTURE.md` 2 处、
+  `docs/补充.md` 1 处。star 数每次上游涨粉就过期，本机也核不了 ——
+  写进文档不是信息，是把「我记得当时是这样」冒充成事实（同第三十四轮 ADR-026）。
+  整段删掉热度指标，只留功能与许可：`（8k+ stars, MIT）` → `（MIT）`、
+  `（NVIDIA, 2.5k+ stars）` → `（NVIDIA）`、`(Rust, 50k+ stars)` → `(Rust)`。
+  `ARCHITECTURE.md` 两张表的 `GitHub Stars` 列整列删除（表里其它列不动）。
+- **同一个上游、两个互相矛盾的条数**：`ARCHITECTURE.md` 写「129 brand-level design systems」，
+  `.claude/commands/ui-polish.md` 的选项里写「152 品牌设计系统」；同一份 `ui-polish.md` 还写着
+  「111 模板 / 138 AI 技能 / 103 提示词模板（46+57）/ 3 演示框架」。
+  这些目录还躺在被 `.gitignore` 忽略的 `open-design/` 里，谁也没数过。
+  改成「有多少用多少，不写死条数」，并给出可自查的 `ls` 命令。
+- **删掉 `docs/补充.md`**：它不是文档，是把一段 AI 回答粘进仓库 —— 全文靠
+  「⭐ 25k+ Stars（2026 年 7 月开源后迅速爆发）」「内置了数百万级真实缺陷样本训练」这类
+  本机核不了、而且一开口就过期的说法撑起。它被两份代码注释当作事实来源引用
+  （`actions.js`、`deep-review-tools.js`），那两句已改成直接述事。
+
+### Added
+
+- **守卫 `doc-claims.test.js` 新增一例**：「易变的外部热度数字不进活的文档」。
+  扫描面 = 入口文档 + `docs/*.md`（去掉台账与带「归档」横幅的历史提案）+
+  `.claude/{commands,rules}/**.md`，非空跑下限 40 个文件；
+  拦 `Nk+ stars` / `N Stars` 与 `N brand-level design systems` / `N 品牌设计系统`。
+  **刻意不拦**「35 presets / 2000+ icons」这类功能规模数字：那是能力描述，
+  一条正则分不清它和本仓库自己的真值（26 个场景 / 585 步），拦了只会制造假红。
+- **`retired-artifacts.test.js` 的退役名单加入 `docs/补充.md`**：
+  文件必须不存在、没有代码读它、活文档不许再点名它。
+
+### Self-audit
+
+8 条自探针逐条弄红后按字节复原（`$TEMP/r37-probes.py`，`ALL_RED_AS_EXPECTED=True`，
+每条 `cmp` 校验与探针前字节一致）：README 加回 star 数 → 红；README_EN 加回 → 红；
+`security-toolchain.md` 加回 → 红；`ARCHITECTURE.md` 加回「129 brand-level」→ 红；
+`docs/architecture.md` 加「152 品牌设计系统」→ 红；`docs/补充.md` 复活 → 红；
+活文档点名 `docs/补充.md` → 红；守卫自己少扫（`const out = []`）→ 红。
+
+### 验收
+
+`npx vitest run` 117 files / 1506 tests 全绿；`npx eslint claude-scene --max-warnings 0` 与
+`npx eslint .` 均干净；6 个 checker 全 `EXIT=0`；`scan:deadcode` Total dead 0。
+
+### 遗留债务
+
+- 「35 presets / 2000+ icons / 80+ presets」这类上游功能规模数字仍在表里 —— 见上面「刻意不拦」。
+- `docs/architecture.md` 由 `/docs arch` 生成、手提交，页头「自动生成于 2026-06-05」会一直躺在仓库里；
+  生成物该不该入库、入库要不要带「sha + 生成命令」，留待下一轮。
+
 ## 2026-10-30（第三十六轮：永远为真的 warn 不是信息）
 
 ### Fixed

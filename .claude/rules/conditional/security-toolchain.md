@@ -35,16 +35,16 @@
 | **markdownlint** | npx CLI | 未接入场景：handler 已注册，无场景步骤调用 | Markdown 格式检查 |
 | **codeguardian** | Python MCP | `/loop` (step 4.2), `/optimize` (step 9.6), `/refactor` (step 13.5) | AI 代码优化守护者 |
 | **critiq** | npm CLI | `/review` 增强项（`critiq_security_scan`，需装 `@critiq/cli` 并在增强菜单里勾选） | 确定性安全规则扫描：1,243 条规则 9 语言 (SQLi/SSRF/路径遍历/反序列化/硬编码密钥) |
-| **trivy** | Go 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 容器镜像/文件系统/IaC 全量扫描：CVE + 密钥 + 配置错误 (25k+ stars, Aqua Security) |
-| **shellcheck** | Haskell 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | Shell 脚本静态分析 (37k+ stars) |
+| **trivy** | Go 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 容器镜像/文件系统/IaC 全量扫描：CVE + 密钥 + 配置错误 (Aqua Security) |
+| **shellcheck** | Haskell 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | Shell 脚本静态分析 |
 | **sqlfluff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言 (MIT) |
-| **bruno** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本 (31k+ stars, MIT) |
-| **gitleaks** | Go 二进制 | `/review` (step 4.551) | Git 历史 + 实时密钥泄露检测：120+ 内置规则 (18k+ stars) |
-| **semgrep** | Python CLI | `/review` (step 4.6) | 多语言 AST 级 SAST：2,500+ 社区规则 (11k+ stars) |
-| **commitlint** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Conventional Commits 格式校验 (18k+ stars) |
-| **biome** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier (50k+ stars) |
-| **ruff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 Python linter + formatter，替代 Flake8+isort+black (35k+ stars) |
-| **hurl** | Rust 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 纯文本 API 测试 CLI，替代 bruno 做 CI 集成 (13k+ stars) |
+| **bruno** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本 (MIT) |
+| **gitleaks** | Go 二进制 | `/review` (step 4.551) | Git 历史 + 实时密钥泄露检测：120+ 内置规则 |
+| **semgrep** | Python CLI | `/review` (step 4.6) | 多语言 AST 级 SAST：2,500+ 社区规则 |
+| **commitlint** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Conventional Commits 格式校验 |
+| **biome** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier |
+| **ruff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 Python linter + formatter，替代 Flake8+isort+black |
+| **hurl** | Rust 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 纯文本 API 测试 CLI，替代 bruno 做 CI 集成 |
 
 ## 工具安装
 

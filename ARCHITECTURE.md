@@ -108,10 +108,10 @@ interface MemoryService {
 
 **Purpose**: AI-driven visual design generation
 
-**Tool**: **Open Design** ([nexu-io/open-design](https://github.com/nexu-io/open-design), 40k+ Stars, Apache 2.0)
+**Tool**: **Open Design** ([nexu-io/open-design](https://github.com/nexu-io/open-design), Apache 2.0)
 
 **Features**:
-- 129 brand-level design systems (Stripe, Apple, Linear, Airbnb, etc.)
+- Brand-level design systems (Stripe, Apple, Linear, Airbnb, etc.) — the catalogue grows upstream, so its size is not pinned here
 - 31 composable skills covering web, mobile, slide, and marketing design
 - 5 visual directions (Editorial Monocle, Modern Minimal, Warm Soft, Tech Utility, Brutalist)
 - Export: HTML/CSS, PDF, PPTX, MP4
@@ -191,13 +191,13 @@ interface DesignService {
 
 For non-professional developers and designers — zero technical knowledge required, fully automated:
 
-| Tool | GitHub Stars | Function | License | Automation |
-|------|-------------|----------|---------|-------------|
-| **Open Design** | 40k+ | AI design generation (design systems; count changes upstream) | Apache 2.0 | ✅ |
-| **DaisyUI** | 30k+ | Tailwind theme plugin (35 presets) | MIT | ✅ |
-| **Animate.css** | 77k+ | CSS animations (80+ presets) | MIT | ✅ |
-| **Lucide React** | 12k+ | Icon system (2000+ icons) | ISC | ✅ |
-| **Playwright** | 65k+ | Automated visual regression testing | Apache 2.0 | ✅ |
+| Tool | Function | License | Automation |
+|------|----------|---------|-------------|
+| **Open Design** | AI design generation (design systems; catalogue grows upstream) | Apache 2.0 | ✅ |
+| **DaisyUI** | Tailwind theme plugin (35 presets) | MIT | ✅ |
+| **Animate.css** | CSS animations (80+ presets) | MIT | ✅ |
+| **Lucide React** | Icon system (2000+ icons) | ISC | ✅ |
+| **Playwright** | Automated visual regression testing | Apache 2.0 | ✅ |
 
 ### Integration Workflow
 
@@ -408,16 +408,16 @@ node src/index.js start new-project --auto
 
 ### Rejected Tools (热度验证后明确拒绝)
 
-| Tool | Reason | Stars |
-|------|--------|-------|
-| lean-ctx | Low activity, unverified community | 239 |
-| ouroboros | Experimental, security risk (self-delete incident) | 547 |
-| codebase-memory-mcp | Duplicate of CodeGraph | — |
-| agent-orchestrator | Conflicts with scene workflow architecture | — |
-| claude-context | Duplicate of Claude-Mem | — |
-| cc-haha | Based on leaked source code, legal risk | — |
-| GrapesJS | Replaced by Open Design (AI-driven, higher quality) | — |
-| *[7 shown]* | See project history for full list | — |
+| Tool | Reason |
+|------|--------|
+| lean-ctx | Low activity, unverified community |
+| ouroboros | Experimental, security risk (self-delete incident) |
+| codebase-memory-mcp | Duplicate of CodeGraph |
+| agent-orchestrator | Conflicts with scene workflow architecture |
+| claude-context | Duplicate of Claude-Mem |
+| cc-haha | Based on leaked source code, legal risk |
+| GrapesJS | Replaced by Open Design (AI-driven, higher quality) |
+| *[7 shown]* | See project history for full list |
 
 ### Configuration Files
 

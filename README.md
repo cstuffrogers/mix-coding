@@ -466,23 +466,23 @@ node src/index.js start hunt --auto --target "./your-project"
 | **env-var-leak** | 内置 grep | `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
 | **sensitive-file-check** | 内置 git | `/review` (step 4.55) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
 | **deprecated-deps** | npm CLI | `/deps` (step 3.5) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | — |
-| **knip** | npx CLI | `/review` (step 2.6) | AST 级死代码/依赖检测：未使用文件/未使用导出/未解析导入/未声明依赖/未使用依赖（11k+ stars） | — |
-| **skillspector** | Python CLI | `/review` (step 4.57) | AI 技能安全扫描：提示注入/数据外泄/权限提升/供应链攻击等 64 种漏洞模式（NVIDIA, 2.5k+ stars） | — |
+| **knip** | npx CLI | `/review` (step 2.6) | AST 级死代码/依赖检测：未使用文件/未使用导出/未解析导入/未声明依赖/未使用依赖 | — |
+| **skillspector** | Python CLI | `/review` (step 4.57) | AI 技能安全扫描：提示注入/数据外泄/权限提升/供应链攻击等 64 种漏洞模式（NVIDIA） | — |
 | **aislop** | npx CLI | `/review` (step 2.9), `/release` (step 8.7) | AI 代码气味扫描：50+ 规则检测叙事注释/吞异常/死代码/as any 滥用/重复 helper（子秒级确定性） | — |
-| **dependency-cruiser** | npx CLI | `/review` (step 2.65) | 依赖架构验证：循环依赖检测/孤儿模块识别/架构分层合规/调用图生成（6.7k+ stars） | — |
+| **dependency-cruiser** | npx CLI | `/review` (step 2.65) | 依赖架构验证：循环依赖检测/孤儿模块识别/架构分层合规/调用图生成 | — |
 | **prototype-pollution** | ESLint 规则 | `/review` (step 2) | no-prototype-builtins 原型链污染检测 | — |
-| **trivy** | Go 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 容器镜像/文件系统/IaC 全量安全扫描：CVE + 密钥 + 配置错误（Aqua Security, 25k+ stars） | — |
-| **shellcheck** | Haskell 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | Shell 脚本静态分析：语法错误/不良实践/安全风险（37k+ stars） | — |
-| **sqlfluff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言（8k+ stars, MIT） | — |
-| **bruno** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本（31k+ stars, MIT） | — |
-| **gitleaks** | Go 二进制 | `/review` (step 4.551) | Git 历史密钥泄露检测：120+ 内置规则，detect/describe/git 子命令（18k+ stars, MIT） | — |
-| **semgrep** | Python CLI | `/review` (step 4.6) | 多语言 AST 级 SAST：2,500+ 社区规则，支持自定义规则，跨语言模式匹配（11k+ stars, LGPL） | — |
-| **commitlint** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Conventional Commits 格式校验：`@commitlint/config-conventional` + 可扩展规则（18k+ stars, MIT） | — |
-| **biome** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier，零配置高性能（50k+ stars, MIT/Apache-2.0） | — |
-| **ruff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 Python linter + formatter，替代 Flake8+isort+black，10-100x 更快（35k+ stars, MIT） | — |
-| **hurl** | Rust 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 纯文本 API 测试 CLI，Git 友好，CI/CD 原生支持（13k+ stars, Apache-2.0） | — |
+| **trivy** | Go 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 容器镜像/文件系统/IaC 全量安全扫描：CVE + 密钥 + 配置错误（Aqua Security） | — |
+| **shellcheck** | Haskell 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | Shell 脚本静态分析：语法错误/不良实践/安全风险 | — |
+| **sqlfluff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | SQL linter + formatter：200+ 规则，支持 8 种 SQL 方言（MIT） | — |
+| **bruno** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | API 交互测试：REST/GraphQL/WebSocket 集合运行，Git 友好纯文本（MIT） | — |
+| **gitleaks** | Go 二进制 | `/review` (step 4.551) | Git 历史密钥泄露检测：120+ 内置规则，detect/describe/git 子命令（MIT） | — |
+| **semgrep** | Python CLI | `/review` (step 4.6) | 多语言 AST 级 SAST：2,500+ 社区规则，支持自定义规则，跨语言模式匹配（LGPL） | — |
+| **commitlint** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Conventional Commits 格式校验：`@commitlint/config-conventional` + 可扩展规则（MIT） | — |
+| **biome** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier，零配置高性能（MIT/Apache-2.0） | — |
+| **ruff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 Python linter + formatter，替代 Flake8+isort+black，10-100x 更快（MIT） | — |
+| **hurl** | Rust 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 纯文本 API 测试 CLI，Git 友好，CI/CD 原生支持（Apache-2.0） | — |
 | **jscpd** | npx CLI | `/review` (step 2.95) | 代码重复检测：跨文件复制粘贴片段扫描（默认 5 行 / 50 token） | — |
-| **size-limit** | npx CLI | `/review` (step 2.96) | 包体积预算检查：超过 `.size-limit.json` 阈值即失败（6.5k+ stars） | — |
+| **size-limit** | npx CLI | `/review` (step 2.96) | 包体积预算检查：超过 `.size-limit.json` 阈值即失败 | — |
 | **Stryker** | npx CLI | `/qa` (step 6.5) | 变异测试：注入变异体验证测试是否真能抓住错误（mutation score） | — |
 | **Spectral** | npx CLI | 未接入场景：handler 已注册，没有任何场景步骤调用 | API lint（OpenAPI/Swagger 规范校验） | — |
 | **markdownlint** | npx CLI | 未接入场景：handler 已注册，没有任何场景步骤调用 | Markdown 格式检查（标题层级 / 列表缩进 / 行宽） | — |
@@ -519,13 +519,13 @@ npm install -g @usebruno/cli
 # commitlint — Commit 规范校验
 npm install -D @commitlint/cli @commitlint/config-conventional
 
-# biome — JS/TS linter + formatter (Rust, 50k+ stars)
+# biome — JS/TS linter + formatter (Rust)
 npm install -D @biomejs/biome
 
-# ruff — Python linter + formatter (Rust, 35k+ stars)
+# ruff — Python linter + formatter (Rust)
 pip install ruff
 
-# hurl — API 测试 CLI (Rust, 13k+ stars)
+# hurl — API 测试 CLI (Rust)
 # winget install Orange-OpenSource.Hurl  (Windows, 需管理员)
 # brew install hurl                       (macOS)
 

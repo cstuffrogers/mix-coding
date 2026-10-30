@@ -248,28 +248,28 @@ The "Workflows" column below lists only what the engine actually has: every `ste
 | **env-var-leak** | built-in grep | `/review` (step 4.5) | Frontend env variable leak: Vite import.meta.env / process.env | — |
 | **sensitive-file-check** | built-in git | `/review` (step 4.55) | Sensitive file exposure: .env/*.pem/*.key/credentials.json | — |
 | **deprecated-deps** | npm CLI | `/deps` (step 3.5) | Deprecated/unmaintained dependency detection | — |
-| **knip** | npx CLI | `/review` (step 2.6) | AST-level dead code/dependency detection (11k+ stars) | — |
-| **skillspector** | Python CLI | `/review` (step 4.57) | AI skill security scan: 64 vulnerability patterns (NVIDIA, 2.5k+ stars) | — |
+| **knip** | npx CLI | `/review` (step 2.6) | AST-level dead code/dependency detection | — |
+| **skillspector** | Python CLI | `/review` (step 4.57) | AI skill security scan: 64 vulnerability patterns (NVIDIA) | — |
 | **aislop** | npx CLI | `/review` (step 2.9), `/release` (step 8.7) | AI code smell scan: 50+ rules | — |
-| **dependency-cruiser** | npx CLI | `/review` (step 2.65) | Dependency architecture validation: circular deps, orphans, layer compliance (6.7k+ stars) | — |
+| **dependency-cruiser** | npx CLI | `/review` (step 2.65) | Dependency architecture validation: circular deps, orphans, layer compliance | — |
 | **prototype-pollution** | ESLint rule | `/review` (step 2) | no-prototype-builtins prototype pollution detection | — |
-| **trivy** | Go binary | Not wired: no handler (install/version check only) | Container image/filesystem/IaC full security scan: CVE + secrets + misconfig (Aqua Security, 25k+ stars) | — |
-| **shellcheck** | Haskell binary | Not wired: no handler (install/version check only) | Shell script static analysis: syntax errors/bad practices/security risks (37k+ stars) | — |
-| **sqlfluff** | Python CLI | Not wired: no handler (install/version check only) | SQL linter + formatter: 200+ rules, 8 SQL dialects (8k+ stars, MIT) | — |
-| **bruno** | npm CLI | Not wired: no handler (install/version check only) | API interaction testing: REST/GraphQL/WebSocket collection runner, Git-friendly plain text (31k+ stars, MIT) | — |
-| **gitleaks** | Go binary | `/review` (step 4.551) | Git history secret leak detection: 120+ built-in rules, detect/describe/git subcommands (18k+ stars, MIT) | — |
-| **semgrep** | Python CLI | `/review` (step 4.6) | Multi-language AST-level SAST: 2,500+ community rules, custom rule support (11k+ stars, LGPL) | — |
-| **commitlint** | npm CLI | Not wired: no handler (install/version check only) | Conventional Commits format validation: `@commitlint/config-conventional` + extensible rules (18k+ stars, MIT) | — |
+| **trivy** | Go binary | Not wired: no handler (install/version check only) | Container image/filesystem/IaC full security scan: CVE + secrets + misconfig (Aqua Security) | — |
+| **shellcheck** | Haskell binary | Not wired: no handler (install/version check only) | Shell script static analysis: syntax errors/bad practices/security risks | — |
+| **sqlfluff** | Python CLI | Not wired: no handler (install/version check only) | SQL linter + formatter: 200+ rules, 8 SQL dialects (MIT) | — |
+| **bruno** | npm CLI | Not wired: no handler (install/version check only) | API interaction testing: REST/GraphQL/WebSocket collection runner, Git-friendly plain text (MIT) | — |
+| **gitleaks** | Go binary | `/review` (step 4.551) | Git history secret leak detection: 120+ built-in rules, detect/describe/git subcommands (MIT) | — |
+| **semgrep** | Python CLI | `/review` (step 4.6) | Multi-language AST-level SAST: 2,500+ community rules, custom rule support (LGPL) | — |
+| **commitlint** | npm CLI | Not wired: no handler (install/version check only) | Conventional Commits format validation: `@commitlint/config-conventional` + extensible rules (MIT) | — |
 | **jscpd** | npx CLI | `/review` (step 2.95) | Copy-paste detection: cross-file duplicated snippets (5 lines / 50 tokens by default) | — |
-| **size-limit** | npx CLI | `/review` (step 2.96) | Bundle size budget: fails when a bundle exceeds `.size-limit.json` limits (6.5k+ stars) | — |
+| **size-limit** | npx CLI | `/review` (step 2.96) | Bundle size budget: fails when a bundle exceeds `.size-limit.json` limits | — |
 | **Stryker** | npx CLI | `/qa` (step 6.5) | Mutation testing: injects mutants to prove the tests actually catch bugs (mutation score) | — |
 | **Spectral** | npx CLI | Not wired: handler registered, no scene step calls it | API lint (OpenAPI/Swagger validation) | — |
 | **markdownlint** | npx CLI | Not wired: handler registered, no scene step calls it | Markdown formatting (heading levels / list indent / line length) | — |
 | **codeguardian** | Python MCP | `/loop` (step 4.2), `/optimize` (step 9.6), `/refactor` (step 13.5) | AI code-optimization guardian: complexity / duplication / readability advice | — |
 | **critiq** | npm CLI | `/review` enhancement (`critiq_security_scan`, needs `@critiq/cli` and must be ticked in the menu) | Deterministic security rules: 1,243 rules, 9 languages (SQLi/SSRF/path traversal/deserialization/hardcoded secrets) | — |
-| **biome** | npm CLI | Not wired: no handler (install/version check only) | Rust-powered JS/TS linter + formatter, replaces ESLint+Prettier (50k+ stars, MIT/Apache-2.0) | — |
-| **ruff** | Python CLI | Not wired: no handler (install/version check only) | Rust-powered Python linter + formatter, replaces Flake8+isort+black, 10-100x faster (35k+ stars, MIT) | — |
-| **hurl** | Rust binary | Not wired: no handler (install/version check only) | Plain-text API test CLI, Git-friendly, CI/CD native (13k+ stars, Apache-2.0) | — |
+| **biome** | npm CLI | Not wired: no handler (install/version check only) | Rust-powered JS/TS linter + formatter, replaces ESLint+Prettier (MIT/Apache-2.0) | — |
+| **ruff** | Python CLI | Not wired: no handler (install/version check only) | Rust-powered Python linter + formatter, replaces Flake8+isort+black, 10-100x faster (MIT) | — |
+| **hurl** | Rust binary | Not wired: no handler (install/version check only) | Plain-text API test CLI, Git-friendly, CI/CD native (Apache-2.0) | — |
 
 ---
 

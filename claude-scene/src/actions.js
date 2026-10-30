@@ -386,7 +386,7 @@ export const ACTION_REGISTRY = {
 	'design-md-export': handleDesignMdExport,
 	designMdExport: handleDesignMdExport,
 
-	// 深层逻辑/IO 缺陷扫描（docs/补充.md 工具落地）
+	// 深层逻辑/IO 缺陷扫描（对齐 CodeQL / Semgrep / Sonar 这类工具的能力面，只接本机能离线真跑的）
 	// 只保留能离线真跑的：semgrep（模式+污点规则包）。CodeQL 需要 ~1GB bundle 且私有仓库
 // 要 GitHub Advanced Security 许可，本机网络到不了 GitHub，留着就是永久 noop。
 	// SonarQube / open-code-review / ai-codereviewer 需要自建服务器、无本地 CLI 或仅 Action 形态，

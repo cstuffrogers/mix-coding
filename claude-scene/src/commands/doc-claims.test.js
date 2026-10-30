@@ -275,3 +275,52 @@ describe('「哪些功能并进了哪个场景」必须双向可验', () => {
     expect(missing, 'README 的「不可达」清单少了这些功能').toEqual([]);
   });
 });
+
+/**
+ * 第三十七轮：**易变的外部热度数字不是文档**。
+ *
+ * 取证：活的文档里躺着 45 处 GitHub star 数（README.md 17、README_EN.md 14、
+ * `.claude/rules/conditional/security-toolchain.md` 9、`ARCHITECTURE.md` 1、
+ * `docs/补充.md` 1），外加两处互相矛盾的上游品牌库条数 —— `ARCHITECTURE.md` 写
+ * 「129 brand-level design systems」，`.claude/commands/ui-polish.md` 写「152 品牌设计系统」。
+ * 同一个上游、两个数字，说明它们从来没有人真的数过；而 star 数每次上游涨粉就会过期，
+ * 本机也核不了。写进文档只是把「我记得当时是这样」冒充成事实。
+ *
+ * 判据：活的文档不许出现 star 数，也不许给上游品牌库写死条数。
+ * 台账（`progress.md` / `DECISIONS.md` / `docs/CHANGELOG.md`）记录的是历史，不在此列。
+ * 刻意不拦「35 presets / 2000+ icons」这类功能规模数字：那是能力描述，
+ * 一台正则分不清它和本仓库自己的真值（26 个场景 / 585 步），拦了只会制造假红。
+ */
+describe('易变的外部热度数字不进活的文档', () => {
+  const STAR_COUNT = /\d[\d.,]{0,16}\s{0,2}k?\+?\s{0,2}stars/i;
+  const CATALOGUE_SIZE = /\d{1,6}\s{0,2}(?:brand-level design systems?|品牌设计系统)/iu;
+  const ARCHIVED_MARK = '> **归档**';
+
+  /** 活的 markdown：入口文档 + docs/*.md（去掉台账与带「归档」横幅的历史提案）+ 命令/规则正文。 */
+  function livingMarkdown() {
+    const out = liveDocs();
+    const docsDir = join(ROOT, 'docs');
+    if (existsSync(docsDir)) {
+      for (const name of readdirSync(docsDir)) {
+        if (!name.endsWith('.md') || name === 'CHANGELOG.md') continue;
+        out.push(join(docsDir, name));
+      }
+    }
+    return out.filter((file) => !readFileSync(file, 'utf-8').includes(ARCHIVED_MARK));
+  }
+
+  it('没有一行拿 star 数或上游条数当事实', () => {
+    const docs = livingMarkdown();
+    // 自证非空跑：一个文件都没读到、或正则失配，这条断言就变成假证据
+    expect(docs.length, '活的文档一个都没读到').toBeGreaterThan(40);
+
+    const offenders = [];
+    for (const file of docs) {
+      const rel = file.slice(ROOT.length + 1).replaceAll(String.fromCodePoint(92), '/');
+      for (const [index, line] of readFileSync(file, 'utf-8').split('\n').entries()) {
+        if (STAR_COUNT.test(line) || CATALOGUE_SIZE.test(line)) offenders.push(`${rel}:${index + 1}`);
+      }
+    }
+    expect(offenders, '这些行把会过期的外部数字写成了事实').toEqual([]);
+  });
+});
