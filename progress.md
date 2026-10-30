@@ -4781,3 +4781,40 @@ ui-polish）共有的坑：`show <场景>` 只在 step 0 的 `参数:` 里塞一
 
 验证：`show.test.js` 7 tests；全量 **1510 tests / 117 files 全绿**；`npx knip` 零输出；
 `audit-scenes` 26 场景 0/0；claude-scene eslint 0 error。
+
+## 2026-10-30（续 5）上一轮的守卫只拦了一种写法
+
+第三十七轮（`babf0a1`）的 commit message 说「活的文档不许出现 star 数 / 上游品牌库条数」，
+但 `doc-claims.test.js` 里的 `CATALOGUE_SIZE` 只认「品牌设计系统」这一个短语。结果是同一份
+`.claude/commands/ui-polish.md` 里另外七处照样冒充事实 —— frontmatter 的
+`152品牌+111模板+138技能+11craft规则+8Huashu模块+5设备框+103提示词模板+3演示框架+8吉祥物`，
+正文 Phase 0 第 4 步「列出 152 品牌 + 111 设计模板 + 138 技能 + 103 提示词模板（46 图片 +
+57 视频）」。同批数字在 `new-project.md` 13 处、`README.md` 4 处、`README_EN.md` 5 处。
+这些目录都在 `.gitignore` 掉的 `open-design/` 里，本机核不了 —— 和上一轮删掉的 star 数同类。
+
+做法（先弄红再改绿，不靠人读文件数）：
+
+1. **守卫扩到同一毛病的各种写法**：品牌 / 模板 / 技能 / 插件 / 设备框 / 吉祥物 / craft 规则，
+   外加英文侧 `152 brands`。**只拦两位数以上的条数** —— `5 精选品牌 DESIGN.md（Vercel/Linear/
+   Stripe/Notion/Apple）`、`3 插件` 这种把名字列全了的核得住，拦了就是假红（第一版没设下限，
+   当场把 README 里 `eslint + 3 插件` 打红）。自证非空跑下限 40 个文件仍在。
+2. 扩完跑红，一次列全 **31 行**（26 中文 + 5 英文），逐行改成「以 `ls` 输出为准，不写死条数」，
+   跑绿。
+3. `ui-polish.md` 顺手修四处真缺陷：
+   - frontmatter `59-step hybrid workflow` 是旧数（场景现 74 步，`scenes-stats.json` 与
+     `show` 都能核）→ 不写核不了的步数，改 `5-mode hybrid workflow` + 模式清单。
+   - Phase 0 列表 `7.` 出现两次（brand-protocol / expert-review），html-direction-advisor 跟着错位。
+     重排 7/8/9，补第 10 步 `landing-page-design`（场景 Step 0.07）。
+   - 「完成标准」的 `Phase 0 全部 8 步` 与实际条数不符 → 10 步并补齐链条。
+   - 「执行模式」原文「完全在对话内执行，CLI 会跳过所有 Skill 步骤」**说反了**：CLI 里
+     Skill 步骤是 `noop / conversation-mode`（正文写进 `context.skill_*`），机械步骤真跑。
+4. 新增「模式（`--mode`，逗号分隔）」节：5 个模式表 + 替换语义警告 + `landing_page` 五级裁决顺序
+   （与 `.pi/prompts/ui-polish.md` 同一口径）。
+
+验证：`doc-claims.test.js` 7 tests 绿（含扩后的 31 行归零）；4 个 checker（readme-stats /
+doc-counts / action-stats / tool-steps）全绿；`audit-scenes` 26 场景 0 错误 0 警告；
+两套 eslint 0；`npx knip` 零输出；`npx vitest run` **118 files / 1518 tests 全绿**
+（含并行会话的 `docs.js` / `docs.test.js` WIP）。提交 `2f1af8b`，钩子 4/4 真跑通过。
+
+**教训**：守卫的断言宽度必须等于 commit message 声称的宽度。声称「上游条数」却只正则
+「品牌设计系统」，等于给自己发了一张免检证 —— 而免检的正是同一份文件里剩下的七处。
