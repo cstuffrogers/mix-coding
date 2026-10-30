@@ -141,12 +141,71 @@ function resolveSinceRev(since, targetPath) {
   }
 }
 
+/**
+ * 生成区的起止标记。和 `DEV_DOCS_MARKER` 同一个作用：区分「我上次写的」和「人写的」。
+ * 只靠 `split('\n').slice(1)` 丢标题行来「保留旧内容」是不行的 ——
+ * 那样每跑一次都在顶部叠一段新版本，跑三次文件里就有三个 `## Unreleased`。
+ */
+const CHANGELOG_BEGIN = '<!-- generated-by: mix-coding /docs changelog -->';
+const CHANGELOG_END = '<!-- /generated-by -->';
+
+function buildChangelogBlock(version, today, groups) {
+  let body = `## ${version} (${today})\n\n`;
+  for (const [type, entries] of Object.entries(groups)) {
+    // 分组用 ### ：## 是版本号的位置。以前两者都是 ## ，跑一次就把手写 CHANGELOG
+    // （本仓库用的是 ### Fixed）压成一排平级章节。
+    body += `### ${CONVENTIONAL_LABELS[type]}\n\n`;
+    for (const e of entries) body += `- ${e}\n`;
+    body += '\n';
+  }
+  return `${CHANGELOG_BEGIN}\n${body}${CHANGELOG_END}\n`;
+}
+
+/** 找生成区；返回位置，判断「这是不是我的产物」只此一处。 */
+function markerRange(existing) {
+  const beginAt = existing.indexOf(CHANGELOG_BEGIN);
+  const endAt = existing.indexOf(CHANGELOG_END);
+  return { beginAt, endAt, generated: beginAt !== -1 && endAt > beginAt };
+}
+
+/**
+ * 只重写标记之间那一段，标记之外的人写内容原样保留。
+ * 标记后面的空行无论几个都归成一个分隔 —— 否则每跑一次文件末尾就多一个换行：
+ * 内容一样、字节不同，提交里永远挂着一个「无变化」的 diff。
+ */
+function mergeGeneratedBlock(existing, block) {
+  const { beginAt, endAt } = markerRange(existing);
+  const before = existing.slice(0, beginAt);
+  const after = existing.slice(endAt + CHANGELOG_END.length).replace(/^\n+/u, '');
+  return after === '' ? `${before}${block}` : `${before}${block}\n${after}`;
+}
+
+function parseCommitLines(log) {
+  return log
+    .split('\n')
+    .map((line) => {
+      const match = line.match(/^[a-f0-9]+\s(.+)$/u);
+      return match ? match[1] : line;
+    })
+    .filter((line) => line !== '');
+}
+
 export function handleChangelog(_action, params, targetPath, context) {
-  ensureDocsDir(targetPath);
+  const changelogPath = guardWrite(targetPath, 'docs/CHANGELOG.md');
+  // 手写的 CHANGELOG 不许碰：覆盖一次就是销毁一次人工工作（与 handleDevDocs 同一规矩）。
+  const existing = existsSync(changelogPath) ? readFileSync(changelogPath, 'utf-8') : '';
+  const { generated } = markerRange(existing);
+  if (existing !== '' && !generated) {
+    return {
+      status: 'skip',
+      reason: 'input-invalid',
+      message: 'CHANGELOG 未生成：docs/CHANGELOG.md 已存在且不像生成物（没有生成标记），不覆盖手写记录；确认要重新生成请先删掉那个文件',
+    };
+  }
 
   try {
     // since: "last_release" 或具体 tag/rev —— 决定从哪个点开始生成条目。
-    // release#5 声明了它，以前没人读：永远只取最近 50 条，上一个版本之前的
+    // specs 里声明了它，以前没人读：永远只取最近 50 条，上一个版本之前的
     // 提交也会被写进本版 CHANGELOG。
     const since = resolveSinceRev(params?.since, targetPath);
     const range = since ? `${since}..HEAD` : '';
@@ -154,32 +213,41 @@ export function handleChangelog(_action, params, targetPath, context) {
       `git log --oneline --no-decorate ${range ? `${range} ` : ''}-50`,
       targetPath, { stdio: 'pipe' }
     ).toString().trim();
+    const commits = parseCommitLines(log);
 
-    const commits = log.split('\n').map(line => {
-      const match = line.match(/^[a-f0-9]+\s(.+)$/);
-      return match ? match[1] : line;
-    });
-
-    const groups = parseConventionalCommits(commits);
-    const today = new Date().toISOString().split('T', 1)[0];
-    const version = params?.version || 'Unreleased';
-    let changelog = `# Changelog\n\n## ${version} (${today})\n\n`;
-
-    for (const [type, entries] of Object.entries(groups)) {
-      changelog += `## ${CONVENTIONAL_LABELS[type]}\n\n`;
-      for (const e of entries) changelog += `- ${e}\n`;
-      changelog += '\n';
+    // 零提交也产出一份只有标题的 CHANGELOG = 假绿。
+    if (commits.length === 0) {
+      return {
+        status: 'skip',
+        reason: 'input-missing',
+        message: `CHANGELOG 未生成：${range ? `${range} ` : ''}区间里没有任何提交`,
+      };
     }
 
-    const changelogPath = guardWrite(targetPath, 'docs/CHANGELOG.md');
-    const existing = existsSync(changelogPath) ? readFileSync(changelogPath, 'utf-8').split('\n').slice(1).join('\n') : '';
-    writeFileSync(changelogPath, changelog + existing, 'utf-8');
+    const today = new Date().toISOString().split('T', 1)[0];
+    const block = buildChangelogBlock(params?.version || 'Unreleased', today, parseConventionalCommits(commits));
+
+    ensureDocsDir(targetPath);
+    writeFileSync(changelogPath, generated ? mergeGeneratedBlock(existing, block) : `# Changelog\n\n${block}`, 'utf-8');
 
     if (context) context.changelogGenerated = true;
-    return `CHANGELOG 已生成 (${commits.length} 条提交${since ? `，范围 ${since}..HEAD` : ''})`;
+    return {
+      status: 'pass',
+      message: `CHANGELOG 已生成（${commits.length} 条提交${since ? `，范围 ${since}..HEAD` : ''}）`,
+    };
   } catch (e) {
-    // 裸 catch 写「跳过」= 把真错误（EPERM/无仓库）当无事发生。
-    return { status: 'warn', message: `CHANGELOG 未生成：${e.message}` };
+    const message = String(e?.message ?? e);
+    // 空仓库不是错误：还没有任何提交时 `git log` 会直接 throw。
+    // 这是「没东西可写」，不是「写失败了」—— 两者对上游的含义完全不同。
+    if (/does not have any commits|bad default revision 'HEAD'/iu.test(message)) {
+      return {
+        status: 'skip',
+        reason: 'input-missing',
+        message: `CHANGELOG 未生成：仓库里还没有任何提交（${message}）`,
+      };
+    }
+    // 其余（EPERM、不是 git 仓库…）才算真错误，不许写成「跳过」。
+    return { status: 'warn', message: `CHANGELOG 未生成：${message}` };
   }
 }
 

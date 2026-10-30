@@ -19,11 +19,25 @@ npm run scan:deadcode
 
 # scenes-stats.json 是「场景步骤数」的唯一中间产物；它由 scan-scenes 写，但以前没有任何
 # 门禁在提交前重跑它 —— 改了场景忘了重跑，stats 就悄悄过期，下游对齐全对着旧数字。
+# 第四道以前是**无条件**验：工作区里只要有人（另一个会话、或你自己上一轮的半成品）
+# 改了场景文件还没提交，这一次提交不管动了什么都会被判「stats 陈旧」——
+# 「本次提交不合格」和「工作区里有别人的改动」是两件事，门禁只该管前者。
 echo '[pre-commit] 4/4 scenes-stats.json 必须跟场景文件同步（陈旧产物不许提交）'
-node scripts/scan-scenes.cjs > /dev/null
-if ! git diff --quiet -- scripts/scenes-stats.json; then
-  echo '❌ scripts/scenes-stats.json 不是最新（上面已按场景文件重写），请 git add 后重新提交'
-  exit 1
+scenes_staged=$(git diff --cached --name-only --diff-filter=ACMR -- 'claude-scene/scenes/*.json')
+stats_staged=$(git diff --cached --name-only --diff-filter=ACMR -- scripts/scenes-stats.json)
+if [ -z "$scenes_staged" ] && [ -z "$stats_staged" ]; then
+  echo '  （本次提交没碰场景文件 / scenes-stats.json，跳过这一道）'
+else
+  if [ -n "$scenes_staged" ] && [ -z "$stats_staged" ]; then
+    echo '❌ 本次提交改了场景文件，却没把 scripts/scenes-stats.json 一起提交：'
+    echo "$scenes_staged"
+    exit 1
+  fi
+  node scripts/scan-scenes.cjs > /dev/null
+  if ! git diff --quiet -- scripts/scenes-stats.json; then
+    echo '❌ scripts/scenes-stats.json 不是最新（上面已按场景文件重写），请 git add 后重新提交'
+    exit 1
+  fi
 fi
 
 echo '[pre-commit] 全部通过'

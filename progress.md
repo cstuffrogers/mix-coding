@@ -4860,3 +4860,81 @@ doc-counts / action-stats / tool-steps）全绿；`audit-scenes` 26 场景 0 错
 **教训**：生成器的模板是一份「会被放大到所有用户项目」的文档。本仓库文档里写错一个数字，
 影响一个读者；模板里写错一个数字，影响每个跑过这条命令的项目 —— 而且它会以「自动生成」
 的名义，看起来最权威。
+
+### 订正（同一轮，交付后自查）
+
+上一节「遗留债务」我写的是「`.claude/reviews/` 有 20+ 份提交进仓库的运行产物」。核一下：
+`.gitignore:130` 就是这个目录，本地 94 份一份都没入库，`git ls-files .claude/reviews`
+只有 **4 份**（3 份 `huashu-expert-review-*.md` + `review-report-20260629.md`）。
+我把本地 gitignored 文件数当成了入库数 —— 本轮刚立的规矩（核不了的数字不写），自己先撞一次。
+已在 CHANGELOG 与 ADR-031 就地订正，并把实测命令写进 ADR，谁都能核。
+
+## 2026-10-30（续 8）门禁判的是本次提交，不是工作区（第四十二轮）
+
+开局是「还有问题吗？」—— 上一轮我列的开放问题里排第一的是 `handleChangelog`（零测试覆盖的
+破坏性合并），排第三的是活文档里两种过期快照句式。这轮按顺序做完，并顺手把自己卡住的那道
+门禁修了。
+
+### 1. `handleChangelog`（此前零测试覆盖）
+
+`readFileSync(...).split('\n').slice(1)` 只丢标题行，旧内容整段拼在新内容后面：跑一次顶部
+多一段 `## Unreleased (日期)` + 一组 `## Fixed`；`##` 层级还跟本仓库手写的 `###` 打架，
+跑一次就把 436 行压成一排平级章节。改法沿 ADR-031：
+
+- 首屏带 `<!-- generated-by: mix-coding /docs changelog -->`；没有标记的文件
+  `skip` + `input-invalid`，**一字节不动**。
+- 重写只动标记之间；分组改 `###`；版本标题仍是 `## <ver> (<date>)`。
+- 零提交 → `skip` + `input-missing`，不落地；`params.since` 现在真进 `git log <since>..HEAD`
+  （以前没人读，永远只取最近 50 条）。
+
+### 2. 两个只有现场才暴露的 bug
+
+单测绿着，现场跑真实 git 仓库立刻红：
+
+| 现场场景 | 结果 | 根因 |
+|---|---|---|
+| run2 连跑两次 | 幂等 `false` | `after.replace(/^\n+/u,'\n\n')` 每次多插一个换行：内容一样、字节不同 |
+| run5 空仓库 | `warn`（应为 `skip input-missing`） | 没有提交时 `git log` 是 **throw**，不是返回空串；mock 里只覆盖了「返回空串」 |
+
+两条都补了断言（`expect(text).toBe(once)` 这种字节级断言；空仓库用 mock 抛真实报错字符串）。
+**教训**：mock 能证明「分支存在」，不能证明「分支对得上真实世界的哪一种输入」。
+
+### 3. 活文档的过期快照
+
+- `docs/tool-versions.md`：删掉「生成日期 2026-07-24 / 最后核查 2026-07-25」，改成
+  「拿下表的上游链接自己比，真更新过的日期记在文末更新日志」。
+- `docs/audit-report.md` 退役：一次 `/audit` 的运行产物入库，91 行里 10 ✅ / 5 ⚠ / 5 🔴
+  都是 2026-06-24 那天的结论，没有代码会重写它；`docs/audit-phases.md` 的引用改成
+  「报告写在 `.claude/reports/`（gitignore），不入库」。
+- `docs/requirements.md` 退役：零代码引用、跟 `tool-versions.md` 抢同一个概念（ADR-024）、
+  跟 `INSTALL.md` 矛盾（Node `>= 18` vs `v20.x LTS`）、「负责工作流」还写着已退役的
+  audit / analyze。
+- `AUTO_CLAIMS` 拆成数组（单条正则复杂度顶到 sonarjs 上限 27 > 20），并加自检：直接喂
+  5 种真实写法断言都命中 —— 守卫窄成特例时仓库恰好没那种写法，扫描全绿就是假证据。
+
+### 4. 门禁（这才是我被卡住的那道）
+
+`.husky/pre-commit` 第 4 道无条件重跑 `scan-scenes` 再比 `git diff`：同一工作区里另一个会话
+改了场景文件没提交时，**任何人**的提交都判「scenes-stats.json 陈旧」。本轮被卡两次，
+四道分开跑全 `EXIT=0`，只有那一个文件有一行差异。
+
+改成只看本次提交：`git diff --cached --name-only --diff-filter=ACMR -- 'claude-scene/scenes/*.json'`
+与 `-- scripts/scenes-stats.json`；两个都空 → 明说跳过；改了场景没带 stats → 拦住并点名。
+配套 `gate-honesty.test.js` +2 例（跳过分支 / 拦截分支），并给 `runHook` 加
+`GIT_INDEX_FILE` 替身索引、新增 `stagedSceneEditIndex()` —— 否则测试红绿取决于宿主暂存区。
+详见 ADR-032。
+
+### 自证
+
+- 7 条自探针全红（逐条加回旧 bug）：手写覆盖保护失效 / 分组退回 `##` / 整块丢人写内容 /
+  零提交照写 / 守卫少拦一种写法 / 第四道退回无条件 / 删掉「没提 stats」拦截。
+  每条按字节复原并 `equals` 核对。
+- 现场五场景（真实 `git init` 仓库）：`run1 pass` / `run2 幂等 true` / `run3 手写还在 +
+  旧版本没了` / `run4 skip(input-invalid)` / `run5 skip(input-missing)`。
+
+### 验收
+
+`npx vitest run` **120 files / 1533 tests 全绿**；两套 eslint（根 + `claude-scene`
+`--max-warnings 0`）`EXIT=0`；6 个 checker 全 `EXIT=0`；`npm run scan:deadcode`
+`Total dead: 0`（Handlers 0/70、Scenes 0/26）；`node scripts/scan-scenes.cjs` 26 场景 /
+585 步、stats 无 diff。文档：CHANGELOG 第四十二轮 + ADR-032 + ADR-031 第 7 条。

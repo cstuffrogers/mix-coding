@@ -46,7 +46,7 @@
 
 ## Phase 4: Report & Follow-up (steps 9–15)
 - Quality gate aggregation
-- Audit report generation (docs/audit-report.md)
+- Audit report generation —— 报告写在 `.claude/reports/`（已 gitignore），**不入库**：一次审计的结论是那时的结论，进了仓库就成了冒充现状的快照
 - Huashu infographic (optional)
 - Architecture deep audit (optional)
 - Interactive report + auto-fix

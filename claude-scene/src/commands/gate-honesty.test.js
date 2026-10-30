@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,20 +39,46 @@ function stubBin(failing) {
   return bin;
 }
 
-function runHook(failing) {
+/**
+ * 跑门禁。`indexFile` 是给 `GIT_INDEX_FILE` 用的**替身暂存区**：
+ * 第四道现在按「本次提交动了什么」判断，若不隔离，测试就会读宿主真实的暂存区 ——
+ * 真实的提交过程本身就在跑这些测试，于是「谁刚好 staged 了场景文件」会决定测试红绿。
+ * 缺省给一个不存在的路径：等于空暂存区 → 第四道走「没碰场景文件」分支。
+ */
+function runHook(failing, indexFile = join(tmpdir(), 'hook-index-absent')) {
   const bin = stubBin(failing);
   try {
     // eslint-disable-next-line sonarjs/no-os-command-from-path -- 固定的 sh + 常量路径的脚本，PATH 前缀是测试替身目录
     const r = spawnSync('sh', [HOOK], {
       cwd: ROOT,
       encoding: 'utf8',
-      env: { ...process.env, PATH: bin + ':' + process.env.PATH },
+      env: { ...process.env, PATH: bin + ':' + process.env.PATH, GIT_INDEX_FILE: indexFile },
       timeout: 20_000,
     });
     return { status: r.status, out: `${r.stdout || ''}${r.stderr || ''}` };
   } finally {
     rmSync(bin, { recursive: true, force: true });
   }
+}
+
+/** 造一份「改了场景文件、但没提 scenes-stats.json」的替身暂存区（不碰真实 index 与工作区）。 */
+function stagedSceneEditIndex() {
+  const dir = mkdtempSync(join(tmpdir(), 'hook-index-'));
+  const indexFile = join(dir, 'index');
+  copyFileSync(join(ROOT, '.git', 'index'), indexFile);
+  // 不用展开 process.env：git 只需要多一个 GIT_INDEX_FILE，用 Object.assign 拼，
+  // 免得踩上「把 PATH 交出去」的告警（那告警这里本来也不成立）。
+  const env = Object.assign({}, process.env, { GIT_INDEX_FILE: indexFile });
+  // eslint-disable-next-line sonarjs/no-os-command-from-path -- env 只多带一个 GIT_INDEX_FILE，PATH 是宿主原值
+  const blob = spawnSync('git', ['hash-object', '-w', '--stdin'], {
+    cwd: ROOT, encoding: 'utf8', env, input: '{"scene":"probe","steps":[]}' + String.fromCodePoint(10),
+  });
+  const sha = (blob.stdout || '').trim();
+  // eslint-disable-next-line sonarjs/no-os-command-from-path -- env 只多带一个 GIT_INDEX_FILE，PATH 是宿主原值
+  spawnSync('git', ['update-index', '--cacheinfo', `100644,${sha},claude-scene/scenes/review.json`], {
+    cwd: ROOT, encoding: 'utf8', env,
+  });
+  return { dir, indexFile };
 }
 
 function mkFixture(extra) {
@@ -112,6 +138,9 @@ describe('pre-commit 门禁：失败必须拦住提交', () => {
     expect(joined).toContain('npm run scan:deadcode');
     expect(joined, 'stats 必须由门禁重跑，不能指望提交者记得').toContain('node scripts/scan-scenes.cjs');
     expect(joined).toContain('git diff --quiet -- scripts/scenes-stats.json');
+    // 判据必须是「本次提交」（--cached），不是「工作区」：后者会把别人的半成品算成你的错。
+    expect(joined).toContain('git diff --cached --name-only');
+    expect(joined).toContain('claude-scene/scenes/*.json');
   });
 
   it('每一步都自报名字（事后能核出到底验过什么）', () => {
@@ -149,6 +178,24 @@ describe('pre-commit 门禁：失败必须拦住提交', () => {
     expect(status).toBe(0);
     expect(out).toContain('4/4');
     expect(out).toContain('全部通过');
+  });
+
+  it.skipIf(!hasSh)('本次提交没碰场景文件：第四道明说跳过，不拿工作区的改动判人', () => {
+    const { status, out } = runHook([]);
+    expect(status).toBe(0);
+    expect(out).toContain('跳过这一道');
+  });
+
+  it.skipIf(!hasSh)('改了场景文件却没提 scenes-stats.json → 非零退出并点名', () => {
+    const { dir, indexFile } = stagedSceneEditIndex();
+    try {
+      const { status, out } = runHook([], indexFile);
+      expect(status).not.toBe(0);
+      expect(out).toContain('却没把 scripts/scenes-stats.json 一起提交');
+      expect(out).toContain('claude-scene/scenes/review.json');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
