@@ -11,6 +11,15 @@ import { PACKAGE_ROOT, USER_DATA_DIR } from '../lib/paths.js';
  */
 
 // Skill name → relative path from project root (.claude/skills/)
+// speckit 家族（11 个目录都在 .claude/skills/ 下）。场景 spec / feature / review 里
+// invokeSkill 直接点名它们，但以前没进这张表 → 一律 skip「本机没有它的 SKILL.md」。
+// 那句话是假的：文件在，只是名字没登记。
+const SPECKIT_SKILLS = [
+  'speckit-agent-context-update', 'speckit-analyze', 'speckit-checklist', 'speckit-clarify',
+  'speckit-constitution', 'speckit-converge', 'speckit-implement', 'speckit-plan',
+  'speckit-specify', 'speckit-tasks', 'speckit-taskstoissues',
+];
+
 const SKILL_PATHS = {
   'review-checklist': '.claude/skills/review-checklist/SKILL.md',
   'sec-bug-hunt': '.claude/skills/sec-bug-hunt/SKILL.md',
@@ -31,6 +40,11 @@ const SKILL_PATHS = {
   // MIT（非 CC BY-SA）：elayadesign/ai-design-skills 的落地页设计系统，
   // 署名与改动清单见目录内 NOTICE.md。
   'landing-page-design': '.claude/skills/landing-page-design/SKILL.md',
+  ...Object.fromEntries(SPECKIT_SKILLS.map((n) => [n, `.claude/skills/${n}/SKILL.md`])),
+  'repomix': '.claude/skills/repomix/SKILL.md',
+  // code-review-graph 一个目录里装着多个独立技能，各自一份 SKILL.md。
+  'refactor-safely': '.claude/skills/code-review-graph/refactor-safely/SKILL.md',
+  'review-delta': '.claude/skills/code-review-graph/review-delta/SKILL.md',
 };
 
 /**
@@ -162,6 +176,12 @@ export function handleInvokeSkill(_action, params, targetPath, context) {
   const displayName = getDisplayName(content, skillName);
   const checklist = printChecklist(content);
   const sections = printSections(content);
+  // 「0 项清单」不是信息。清单/章节哪个有就报哪个，两个都没有就说载入了正文
+  // （repomix / refactor-safely 这类步骤按节标题组织，本来就没有勾选框）。
+  const loaded = [
+    checklist.length ? `${checklist.length} 项清单` : '',
+    sections.length ? `${sections.length} 节` : '',
+  ].filter(Boolean).join(' / ') || '正文';
 
   if (context) {
     context[`skill_${skillName}_checklist`] = checklist;
@@ -178,6 +198,6 @@ export function handleInvokeSkill(_action, params, targetPath, context) {
     // 判定权在处理器：这句本来就写着「具体执行需对话模式」，那就把原因也声明出来，
     // 别让引擎只能记「处理器判为无事可做但没声明原因」。
     reason: 'conversation-mode',
-    message: `Skill "${displayName}" 参考内容已载入 context（${checklist.length} 项清单${modeNote ? `，${modeNote}` : ''}）— 具体执行需对话模式`,
+    message: `Skill "${displayName}" 参考内容已载入 context（${loaded}${modeNote ? `，${modeNote}` : ''}）— 具体执行需对话模式`,
   };
 }

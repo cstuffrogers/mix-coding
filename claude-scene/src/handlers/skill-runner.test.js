@@ -4,6 +4,7 @@ import { join, dirname, relative } from 'path';
 import { fileURLToPath, URL } from 'url';
 import { randomBytes } from 'crypto';
 import { handleInvokeSkill, resolveSkillCandidates } from './skill-runner.js';
+import { listSceneIds, resolveScenePath } from '../lib/paths.js';
 
 // 本文件在 <repo>/claude-scene/src/handlers/ 下，往上 3 层就是仓库根。
 const ENGINE_DIR = fileURLToPath(new URL('../../', import.meta.url)).replace(/[\\/]$/, '');
@@ -155,6 +156,32 @@ describe('vendored Trail of Bits skills', () => {
     expect(notice).toContain('CC BY-SA 4.0');
     expect(notice).toContain('trailofbits/skills');
     expect(notice).toContain('NOT covered by this repository');
+  });
+});
+
+describe('场景点名的技能都必须登记', () => {
+  // 以前 speckit-* / repomix / refactor-safely / review-delta 没进 SKILL_PATHS，
+  // 10 个步骤一律 skip「本机没有它的 SKILL.md」—— 文件明明在，这句话是假的。
+  const referenced = () => {
+    const names = new Set();
+    for (const id of listSceneIds()) {
+      const flow = JSON.parse(readFileSync(resolveScenePath(id), 'utf-8')).flow;
+      for (const step of Array.isArray(flow) ? flow : Object.values(flow)) {
+        if (step.action === 'invokeSkill' && step.params?.skill) names.add(step.params.skill);
+      }
+    }
+    return [...names].sort();
+  };
+
+  it('每个被点名的技能都能在仓库里解析到 SKILL.md', () => {
+    const missing = referenced().filter(
+      (n) => resolveSkillCandidates(n, REPO_ROOT).every((p) => !existsSync(p)),
+    );
+    expect(missing, '场景引用了没登记/不存在的技能（会 skip 成「本机没有它的 SKILL.md」）').toEqual([]);
+  });
+
+  it('扫描面不许塌（否则上面那条恒绿）', () => {
+    expect(referenced().length).toBeGreaterThan(20);
   });
 });
 

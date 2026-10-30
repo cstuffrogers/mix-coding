@@ -4594,3 +4594,44 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
   三项本身都跑过：eslint 两 root 0 error、deadcode 0、全量 1500 pass / 2 fail —— 两条都是同一原因：
   step-reasons 棘轮本身，加 gate-honesty「钩子四道全过」因为它会重跑整套测试而连带红）。
   并行会话把那个站点补上 `reason` 或把上限调到 132 之后，钩子即可恢复。
+
+---
+
+## 2026-10-30（续）· 场景点名的 10 个技能终于登记，`skip「本机没有它的 SKILL.md」` 这句假话消掉
+
+### 做了什么
+
+`skill-runner.js` 的 `SKILL_PATHS` 是白名单，不在表里的技能名一律
+`{ status:'skip', reason:'tool-missing', message:'本机没有它的 SKILL.md' }`。
+但 speckit 全家族（11 个目录）、`repomix`、`code-review-graph/{refactor-safely,review-delta}`
+的 SKILL.md **一直都在** `.claude/skills/` 下 —— 文件在，名字没登记，于是 10 个步骤
+（`spec 0.3/3`、`feature 1.3/2.56/10.7/10.8`、`review 1.5/2.97/3.3`、`refactor 6.4`、
+`new-project 2.51`）在 CLI 里全部 skip，且给出的原因是假的。
+
+- `SPECKIT_SKILLS` 常量 + `Object.fromEntries` 一次登记 11 个；另加 `repomix`、
+  `refactor-safely`、`review-delta` 三条（后者说明 code-review-graph 一个目录装多个技能）。
+- 顺带修掉 `（0 项清单）` 这种无信息量输出：清单/章节哪个有就报哪个，两个都没有就报
+  「正文」（`repomix`/`refactor-safely` 按节标题组织，本来没有勾选框）。
+- 新增不变式测试：**场景里每个 `invokeSkill` 名字都必须在仓库里解析得到 SKILL.md**，
+  外加一条「扫描面 > 20 个名字，否则上一条恒绿」。反向验证过：临时删掉 `repomix`
+  那一行 → `expected [ 'repomix' ] to deeply equal []`，恢复后 38 tests 全绿。
+
+### 效果
+
+10 个步骤从 `skip/tool-missing` 变成 `noop/conversation-mode`，并且真的把
+清单/章节灌进 `context.skill_<name>_checklist` / `_sections`（对话模式下 agent 读得到）。
+CLI 里仍然不会「自动执行」—— 那句话本来就写着「具体执行需对话模式」，现在原因也声明了。
+
+### 验收
+
+`skill-runner.test.js` 38 tests（+2）；全量 **1504 tests / 117 files 全绿**；两 root eslint 0 error；
+`scan:deadcode` Handlers 0/70、Skills 0/30、Total 0。
+
+### 发现但不属于本批（并行会话已提交的部分）
+
+`/check` 从 11/11 全绿变成 `pass 7 / warn 1`，Step 1 报「11 道检查完成: 10 个问题」——
+全部来自 Pass 7 knip 的 **10 个未用导出**：`start.js:flushAutoDecisionLog`、
+`step-reasons.js:{isWarnKind,isNoopReason}`、`engine-check.js:collectDeclaredChecks`、
+`ui-polish.js:UI_POLISH_INSTALL_PACKAGES`、`flag-stamp.js:FLAG_META_KEY`、
+`param-contract.js:{INTERACTION_LAYER,blockFrom,propertyReaders,GENERIC_READ}`。
+这些是第三十四～三十六轮新加/改动的模块，不属于本批改动；留给那一线收口。
