@@ -4640,3 +4640,88 @@ CLI 里仍然不会「自动执行」—— 那句话本来就写着「具体执
 0死文件 0未用依赖」、11 道全绿；全量 1506 tests 全绿；两 root eslint 0 error。
 （代价：`flushAutoDecisionLog` 这类只服务本模块的辅助函数不再进 Pass 3 的
 「导出的函数」逻辑密度统计，252 vs 253 —— 它们有各自的测试兜着。）
+
+---
+
+## 第三十七轮：会过期又核不了的数字不是事实
+
+### 起点
+
+第三十六轮把 skillspector 从「永远 warn」改成「冻结基线 + 只报增量」之后，回头审「还有哪些
+检查/文档在结构上给不出信息」。上一轮末尾留的候选债务就是 `ARCHITECTURE.md` 外面那行
+「40k+ Stars / 129 design systems」，顺着它一查，查出来的是一整类。
+
+### 取证（先数，再判）
+
+- 活的文档里 **45 处** GitHub star 数：`README.md` 17、`README_EN.md` 14、
+  `.claude/rules/conditional/security-toolchain.md` 9、`ARCHITECTURE.md` 2、`docs/补充.md` 1。
+- 同一上游 **两个互相矛盾的条数**：`ARCHITECTURE.md`「129 brand-level design systems」 vs
+  `.claude/commands/ui-polish.md`「152 品牌设计系统」；同一份 `ui-polish.md` 里还写着
+  111 模板 / 138 AI 技能 / 103 提示词模板（46+57）/ 3 演示框架 —— 而那些目录
+  躺在被 `.gitignore` 忽略的 `open-design/` 里，谁也没数过。
+- `docs/补充.md` 是一段粘进来的 AI 回答（46 行），全文靠 star 数、「2026 年 7 月开源后迅速爆发」、
+  「内置了数百万级真实缺陷样本训练」撑起；它还被两份代码注释当成事实来源引用。
+- 判定：**这两类数字既会过期、本机也核不了**，写进文档只是把「我记得当时是这样」冒充成事实 ——
+  与第三十四轮 ADR-026 同源，但那次只治了「点名不存在的命令」，没治数字。
+
+### 修
+
+- 41 处 star 数整段删掉，只留功能与许可（`（8k+ stars, MIT）` → `（MIT）`、
+  `（NVIDIA, 2.5k+ stars）` → `（NVIDIA）`、`(Rust, 50k+ stars)` → `(Rust)`）；
+  `ARCHITECTURE.md` 两张表的 `GitHub Stars` 列整列删除。
+- `ui-polish.md` 的 Open Design 选项改成「有多少用多少，不写死条数」+ 可自查的 `ls` 命令。
+- 删 `docs/补充.md`；`actions.js` / `deep-review-tools.js` 里两处引用改成直接述事。
+
+### 守卫
+
+- `doc-claims.test.js` 新增一例：活的文档（入口文档 + `docs/*.md` + `.claude/{commands,rules}/**.md`，
+  去掉台账与带「归档」横幅的历史提案）不许出现 star 数 / 上游品牌库条数；非空跑下限 40 个文件。
+- `retired-artifacts.test.js` 退役名单加 `docs/补充.md`。
+- **刻意不拦**「35 presets / 2000+ icons」：那是功能规模描述，一条正则分不清它和本仓库自己的真值，
+  拦了只会制造假红 —— 检测器扩大命中面也是噪声（上上轮刚踩过）。
+
+### 自探针
+
+8 条逐条弄红后按字节复原（`$TEMP/r37-probes.py`，`ALL_RED_AS_EXPECTED=True`，
+每条额外用 `cmp` 核对与探针前字节一致）：README 加回 star 数 / README_EN 加回 /
+`security-toolchain.md` 加回 / `ARCHITECTURE.md` 加回「129 brand-level」/
+`docs/architecture.md` 加「152 品牌设计系统」/ `docs/补充.md` 复活 /
+活文档点名 `docs/补充.md` / 守卫自己少扫（`const out = []`）—— 全部 `exit=1 restored=True`。
+
+### 踩到的坑
+
+- **heredoc 又把反斜杠吃了**（同类事故第 14 次）：我想写「把一个反斜杠字符替换成斜杠」的 `replaceAll`，
+  落盘后字符串里只剩一个反斜杠，JS 把它当成行连接符，vitest 当场 parse error。
+  修法：带反斜杠的代码走 `edit` 工具，路径分隔符用 `String.fromCodePoint(92)` 表达。
+- **`sonarjs/super-linear-regex`** 拦住我的两条守卫正则（`\d[\d.,]*\s*k?\+?\s*(?:Stars|stars)`）：
+  相邻无界量词。改成有界量词 + `i` 旗标（`/\d[\d.,]{0,16}\s{0,2}k?\+?\s{0,2}stars/i`），
+  改完**必须重跑全部 8 条探针**确认还能红 —— 正则一简化就可能悄悄变成永不命中。
+
+### 验收
+
+`npx vitest run` 117 files / 1506 tests 全绿；两套 eslint 干净；6 个 checker 全 `EXIT=0`；
+`scan:deadcode` Total dead 0。
+
+### 决策
+
+ADR-030：会过期又核不了的数字不许写成事实；守卫只拦 star 数与上游品牌库条数，
+不拦功能规模数字（会假红）。
+
+### 遗留
+
+- 「35 presets / 2000+ icons / 80+ presets」仍在表里（见 ADR-030 的边界）。
+- `docs/architecture.md` 是 `/docs arch` 的生成物，手提交，页头「自动生成于 2026-06-05」会一直躺着 ——
+  生成物该不该入库、要不要带 sha + 生成命令，下一轮。
+
+## 2026-10-30（续 2）· knip 的 6 条陈旧豁免全清，knip 现在一声不吭
+
+`npx knip` 以前退出码 0，但每次都吐 6 条 configuration hints —— hints 不进 Pass 7 的
+计数，所以是**看不见的债**：`package.json` 的 `knip.ignore` 里躺着 3 个测试文件
+（`src/actions.test.js`、`src/handlers/memory.test.js`、`src/lib/safe-exec.test.js`）
+和 `scripts/detector-sweep.cjs`，`knip.json` 的 `ignoreBinaries` 里躺着 `go` / `sqlite3`。
+
+逐条复核后全部删除（都已是历史陈述：测试文件早就能被正常识别，`go`/`sqlite3` 已不在
+任何 npm script 里）。`check-imports.js` **留着** —— 它是唯一 knip 自己不说「多余」的那条。
+
+结果：`npx knip` 零输出、退出码 0；`/check` 11 道全绿（Pass 7「0未解析 0未声明
+0死文件 0未用依赖」）。放宽的豁免只许变少，这跟 `step-reasons` 棘轮是同一个道理。
