@@ -17,7 +17,7 @@ A **three-layer architecture + Scene engine** intelligent development system:
 - ✅ **Database migration review**: scans migration files, detects 8 dangerous patterns (DROP TABLE / NOT NULL without DEFAULT, etc.), blocks high-risk changes
 - ✅ **Load testing**: Artillery integration — smoke/load/stress, 3-tier performance gates
 - ✅ **Security vulnerability scanning**: ESLint security rules + OWASP Top-10 + npm audit + security headers + build leak detection + dead link detection + open redirect detection + state management audit + ReDoS scanning + log sanitization + CORS check + sensitive file check + supply chain security
-- ✅ **External toolchain**: 26 tools (Critiq / Stagehand / mythos-agent / trivy / gitleaks / semgrep / commitlint / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / shellcheck / sqlfluff / bruno / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution) — container/filesystem/IaC security scanning + Git history secret detection + multi-language AST-level SAST + commit format validation + Shell script analysis + SQL lint + API interaction testing + deterministic security rules (1,243 rules, 9 languages) + AI browser functional testing + hypothesis-driven security reasoning + build leak blocking + dead link detection + log sanitization + CORS config + environment variable leaks + supply chain security + dead code detection + AI skill security + code smell + dependency architecture + performance gates + prototype pollution
+- ✅ **External security toolchain**: 33 tools (noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-var-leak / prototype-pollution / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / jscpd / size-limit / Stryker / Spectral / markdownlint / codeguardian / critiq / trivy / shellcheck / sqlfluff / bruno / gitleaks / semgrep / commitlint / biome / ruff / hurl) — container/filesystem/IaC security scanning + Git history secret detection + multi-language AST-level SAST + commit format validation + Shell script analysis + SQL lint + API interaction testing + deterministic security rules (1,243 rules, 9 languages) + build leak blocking + dead link detection + log sanitization + CORS config + environment variable leaks + supply chain security + dead code detection + AI skill security + code smell + dependency architecture + performance gates + prototype pollution
 - ✅ **Memory system**: 6 memory backends working in concert
 - ✅ **Competitive analysis**: OpenDigger data-driven decisions
 - ✅ **Zero-conflict architecture**: strict tool isolation and deduplication
@@ -231,7 +231,7 @@ node src/index.js start hunt --auto --target "E:\your\project"
 
 ---
 
-## 🛡️ External Toolchain
+## 🛡️ External Security Toolchain
 
 The "Workflows" column below lists only what the engine actually has: every `step N` after `/review` `/release` is a real `step` value in `claude-scene/scenes/<scene>.json` (verified by `scripts/check-tool-steps.cjs`). Tools marked "Not wired" are **not invoked by any scene step** — we do not pretend they run automatically:
 
@@ -245,7 +245,7 @@ The "Workflows" column below lists only what the engine actually has: every `ste
 | **recheck-cli** | npm CLI | `/review` (step 4.1) | ReDoS catastrophic backtracking scan | — |
 | **log-sanitizer** | built-in grep | `/review` (step 4.3) | Log sanitization: Token/password/PII/email leak detection | — |
 | **cors-checker** | built-in grep | `/review` (step 4.4) | CORS config: wildcard + credentials leak detection | — |
-| **env-leak-scanner** | built-in grep | `/review` (step 4.5) | Frontend env variable leak: Vite import.meta.env / process.env | — |
+| **env-var-leak** | built-in grep | `/review` (step 4.5) | Frontend env variable leak: Vite import.meta.env / process.env | — |
 | **sensitive-file-check** | built-in git | `/review` (step 4.55) | Sensitive file exposure: .env/*.pem/*.key/credentials.json | — |
 | **deprecated-deps** | npm CLI | `/deps` (step 3.5) | Deprecated/unmaintained dependency detection | — |
 | **knip** | npx CLI | `/review` (step 2.6) | AST-level dead code/dependency detection (11k+ stars) | — |
@@ -260,6 +260,16 @@ The "Workflows" column below lists only what the engine actually has: every `ste
 | **gitleaks** | Go binary | `/review` (step 4.551) | Git history secret leak detection: 120+ built-in rules, detect/describe/git subcommands (18k+ stars, MIT) | — |
 | **semgrep** | Python CLI | `/review` (step 4.6) | Multi-language AST-level SAST: 2,500+ community rules, custom rule support (11k+ stars, LGPL) | — |
 | **commitlint** | npm CLI | Not wired: no handler (install/version check only) | Conventional Commits format validation: `@commitlint/config-conventional` + extensible rules (18k+ stars, MIT) | — |
+| **jscpd** | npx CLI | `/review` (step 2.95) | Copy-paste detection: cross-file duplicated snippets (5 lines / 50 tokens by default) | — |
+| **size-limit** | npx CLI | `/review` (step 2.96) | Bundle size budget: fails when a bundle exceeds `.size-limit.json` limits (6.5k+ stars) | — |
+| **Stryker** | npx CLI | `/qa` (step 6.5) | Mutation testing: injects mutants to prove the tests actually catch bugs (mutation score) | — |
+| **Spectral** | npx CLI | Not wired: handler registered, no scene step calls it | API lint (OpenAPI/Swagger validation) | — |
+| **markdownlint** | npx CLI | Not wired: handler registered, no scene step calls it | Markdown formatting (heading levels / list indent / line length) | — |
+| **codeguardian** | Python MCP | `/loop` (step 4.2), `/optimize` (step 9.6), `/refactor` (step 13.5) | AI code-optimization guardian: complexity / duplication / readability advice | — |
+| **critiq** | npm CLI | `/review` enhancement (`critiq_security_scan`, needs `@critiq/cli` and must be ticked in the menu) | Deterministic security rules: 1,243 rules, 9 languages (SQLi/SSRF/path traversal/deserialization/hardcoded secrets) | — |
+| **biome** | npm CLI | Not wired: no handler (install/version check only) | Rust-powered JS/TS linter + formatter, replaces ESLint+Prettier (50k+ stars, MIT/Apache-2.0) | — |
+| **ruff** | Python CLI | Not wired: no handler (install/version check only) | Rust-powered Python linter + formatter, replaces Flake8+isort+black, 10-100x faster (35k+ stars, MIT) | — |
+| **hurl** | Rust binary | Not wired: no handler (install/version check only) | Plain-text API test CLI, Git-friendly, CI/CD native (13k+ stars, Apache-2.0) | — |
 
 ---
 
@@ -419,7 +429,7 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 Integration Overview
 
-> **81 external components, each counted in this repo**: 29 local skills + 3 active MCP servers + 23 npm packages + 26 external tools
+> **83 external components, each counted in this repo**: 29 local skills + 3 active MCP servers + 23 npm packages + 28 external tools
 
 ### Local Skills (29, `.claude/skills/`)
 
@@ -461,17 +471,17 @@ Only `context7` / `github` / `sentry` are switched on (`.mcp.json`); `npm run mc
 
 **dependencies (4)**: `chalk`, `commander`, `inquirer`, `ora`
 
-### External Tools (25, by type)
+### External Tools (28, by type)
 
 | Type | Count | Tools | Install |
 |------|-------|-------|---------|
-| **uv/Python** | 5 | `specify-cli` (spec-kit), `seraphim-audit`, `skillspector`, `sqlfluff`, `semgrep` | uv tool install / pip install |
-| **Rust binary** | 1 | `lychee` | brew / cargo / .exe |
+| **uv/Python** | 6 | `specify-cli` (spec-kit), `seraphim-audit`, `skillspector`, `sqlfluff`, `semgrep`, `ruff` | uv tool install / pip install |
+| **Rust binary** | 2 | `lychee`, `hurl` | brew / cargo / .exe |
 | **Go binary** | 4 | `act`, `restic`, `trivy`, `gitleaks` | winget / brew / download |
 | **Haskell binary** | 1 | `shellcheck` | winget / brew / download |
 | **npm global** | 1 | `bruno` (`@usebruno/cli`) | npm install -g |
-| **npx zero-install** | 9 | `aislop`, `dependency-cruiser`, `jscpd`, `size-limit`, `Stryker`, `Spectral`, `markdownlint`, `commitlint`, `knip` | None needed |
-| **Built-in grep** | 4 | `log-sanitizer`, `cors-checker`, `env-leak-scanner`, `sensitive-file-check` | Built-in |
+| **npx zero-install** | 10 | `biome`, `aislop`, `dependency-cruiser`, `jscpd`, `size-limit`, `Stryker`, `Spectral`, `markdownlint`, `commitlint`, `knip` | None needed |
+| **Built-in grep** | 4 | `log-sanitizer`, `cors-checker`, `env-var-leak`, `sensitive-file-check` | Built-in |
 
 ### Integrated GitHub Projects (25)
 
@@ -509,7 +519,7 @@ Covers **5 dimensions**:
 | **Python tools** (2) | `pip install --upgrade` reinstall | Full auto |
 | **Git repos** (6) | `git pull --ff-only` fast-forward | Full auto (skips if local changes) |
 | **Binary tools** (3) | Version check + manual upgrade hint | Semi-auto |
-| **npx zero-install** (8) | Latest pulled on each run | No action needed |
+| **npx zero-install** (10) | Latest pulled on each run | No action needed |
 
 ### Manual Per-dimension Update
 

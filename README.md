@@ -18,7 +18,7 @@
 - ✅ **负载测试**：Artillery 集成，smoke/load/stress 三级测试，性能门禁
 - ✅ **浏览器功能测试**：Stagehand 集成，act/extract/observe API + 自愈选择器，AI 驱动用户关键路径验证（10 个工作流可选增强）
 - ✅ **安全漏洞扫描**：ESLint 安全规则 + OWASP Top-10 + npm audit 依赖审计 + mythos-agent 假设驱动推理（变量分析 + PoC 生成，8 个工作流可选增强）+ 安全响应头扫描 + 构建泄露检测 + 死链检测 + 开放重定向检测 + 状态管理审计 + 正则 ReDoS 扫描 + 日志脱敏 + CORS 检查 + 敏感文件检查 + 供应链安全扫描
-- ✅ **外部工具链**：29 个工具（Biome / Ruff / Hurl / Critiq / Stagehand / mythos-agent / trivy / gitleaks / semgrep / commitlint / noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / shellcheck / sqlfluff / bruno / log-sanitizer / cors-checker / env-leak-scanner / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / prototype-pollution）— JS/TS lint+format / Python lint+format / API 测试 / 容器/文件系统/IaC 安全扫描 + Git 历史密钥检测 + 多语言 AST 级 SAST + Commit 规范校验 + Shell 脚本分析 + SQL lint + API 交互测试 + 确定性安全规则扫描（1,243 条规则 9 语言）、AI 浏览器功能测试、假设驱动安全推理、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
+- ✅ **外部安全工具链**：33 个工具（noleak / seraphim-audit / lychee / pa11y-ci / recheck-cli / log-sanitizer / cors-checker / env-var-leak / prototype-pollution / sensitive-file-check / deprecated-deps / knip / skillspector / aislop / dependency-cruiser / Lighthouse CI / jscpd / size-limit / Stryker / Spectral / markdownlint / codeguardian / critiq / trivy / shellcheck / sqlfluff / bruno / gitleaks / semgrep / commitlint / biome / ruff / hurl）— JS/TS lint+format / Python lint+format / API 测试 / 容器/文件系统/IaC 安全扫描 + Git 历史密钥检测 + 多语言 AST 级 SAST + Commit 规范校验 + Shell 脚本分析 + SQL lint + API 交互测试 + 确定性安全规则扫描（1,243 条规则 9 语言）、自动阻断构建泄露、安全响应头扫描、死链检测、日志脱敏、CORS 配置、环境变量泄露、恶意 install 脚本、供应链安全、敏感文件暴露、技术债务、lock 文件一致性、gitignore 最佳实践、废弃依赖、AST级死代码检测、AI技能安全、AI代码气味、依赖架构、性能门禁、原型链污染
 - ✅ **记忆组件组合**：6 种记忆工具协同工作
 - ✅ **竞品分析**：OpenDigger 数据驱动决策
 - ✅ **零冲突架构**：严格工具隔离与去重
@@ -447,7 +447,7 @@ node src/index.js start hunt --auto --target "./your-project"
 
 ---
 
-## 🛡️ 外部工具链
+## 🛡️ 外部安全工具链
 
 下表「负责工作流」列只写**引擎里真有的东西**：`/review` `/release` 之类后面跟的 `step N` 都是 `claude-scene/scenes/<场景>.json` 里 `flow` 条目的真实 `step` 值（`scripts/check-tool-steps.cjs` 校验）；标「未接入」的是**没有接进任何场景步骤**的工具——不假装它会自动跑：
 
@@ -461,7 +461,7 @@ node src/index.js start hunt --auto --target "./your-project"
 | **recheck-cli** | npm CLI | `/review` (step 4.1) | 正则 ReDoS 灾难性回溯扫描 | — |
 | **log-sanitizer** | 内置 grep | `/review` (step 4.3) | 日志脱敏扫描：Token/密码/身份证/手机号/邮箱泄露检测 | — |
 | **cors-checker** | 内置 grep | `/review` (step 4.4) | CORS 配置检测：通配符 + credentials 泄露 | — |
-| **env-leak-scanner** | 内置 grep | `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
+| **env-var-leak** | 内置 grep | `/review` (step 4.5) | 前端环境变量泄露：Vite import.meta.env / process.env 浏览器端泄露 | — |
 | **sensitive-file-check** | 内置 git | `/review` (step 4.55) | 敏感文件暴露检查：.env/*.pem/*.key/credentials.json | — |
 | **deprecated-deps** | npm CLI | `/deps` (step 3.5) | 废弃/未维护依赖检测：npm outdated 识别 deprecated 包 | — |
 | **knip** | npx CLI | `/review` (step 2.6) | AST 级死代码/依赖检测：未使用文件/未使用导出/未解析导入/未声明依赖/未使用依赖（11k+ stars） | — |
@@ -479,6 +479,13 @@ node src/index.js start hunt --auto --target "./your-project"
 | **biome** | npm CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 JS/TS linter + formatter，替代 ESLint+Prettier，零配置高性能（50k+ stars, MIT/Apache-2.0） | — |
 | **ruff** | Python CLI | 未接入引擎：没有 handler，只有安装与版本检查 | Rust 编写 Python linter + formatter，替代 Flake8+isort+black，10-100x 更快（35k+ stars, MIT） | — |
 | **hurl** | Rust 二进制 | 未接入引擎：没有 handler，只有安装与版本检查 | 纯文本 API 测试 CLI，Git 友好，CI/CD 原生支持（13k+ stars, Apache-2.0） | — |
+| **jscpd** | npx CLI | `/review` (step 2.95) | 代码重复检测：跨文件复制粘贴片段扫描（默认 5 行 / 50 token） | — |
+| **size-limit** | npx CLI | `/review` (step 2.96) | 包体积预算检查：超过 `.size-limit.json` 阈值即失败（6.5k+ stars） | — |
+| **Stryker** | npx CLI | `/qa` (step 6.5) | 变异测试：注入变异体验证测试是否真能抓住错误（mutation score） | — |
+| **Spectral** | npx CLI | 未接入场景：handler 已注册，没有任何场景步骤调用 | API lint（OpenAPI/Swagger 规范校验） | — |
+| **markdownlint** | npx CLI | 未接入场景：handler 已注册，没有任何场景步骤调用 | Markdown 格式检查（标题层级 / 列表缩进 / 行宽） | — |
+| **codeguardian** | Python MCP | `/loop` (step 4.2), `/optimize` (step 9.6), `/refactor` (step 13.5) | AI 代码优化守护者：复杂度/重复度/可读性建议 | — |
+| **critiq** | npm CLI | `/review` 增强项（`critiq_security_scan`，需装 `@critiq/cli` 并在增强菜单里勾选） | 确定性安全规则扫描：1,243 条规则 9 语言（SQLi/SSRF/路径遍历/反序列化/硬编码密钥） | — |
 
 ### 工具安装
 
@@ -725,7 +732,7 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **84 个外部组件，每一类都在本仓库里数得出来**：本地 Skills 29 个 + 启用的 MCP 3 个 + npm 包 23 个 + 外部工具 29 个
+> 共集成 **83 个外部组件，每一类都在本仓库里数得出来**：本地 Skills 29 个 + 启用的 MCP 3 个 + npm 包 23 个 + 外部工具 28 个
 
 ### 本地 Skills（29 个，`.claude/skills/`）
 
@@ -779,7 +786,7 @@ claude plugins install compound-engineering@anthropic
 | **Haskell 二进制** | 1 | `shellcheck` | winget / brew / 下载 |
 | **npm 全局** | 1 | `bruno`（`@usebruno/cli`） | npm install -g |
 | **npx 零安装** | 10 | `biome`、`aislop`、`dependency-cruiser`、`jscpd`、`size-limit`、`Stryker`、`Spectral`、`markdownlint`、`commitlint`、`knip` | 无需安装 |
-| **内置 grep** | 4 | `log-sanitizer`、`cors-checker`、`env-leak-scanner`、`sensitive-file-check` | 已内置 |
+| **内置 grep** | 4 | `log-sanitizer`、`cors-checker`、`env-var-leak`、`sensitive-file-check` | 已内置 |
 
 ### 集成 GitHub 项目（30 个）
 

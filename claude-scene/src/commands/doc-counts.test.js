@@ -12,6 +12,13 @@ import { fileURLToPath } from 'url';
  * README「37 个 .md」（实际 33）、「Skills 24 个」（实际 29）、「MCP 服务器 16 个，.mcp.json」
  * （实际 3 个）、「85+ 个外部组件：24 + 16 + 24 + 28」（加起来 92，且每一项都不对）、
  * 「集成 GitHub 项目（27 个）」（名单里 30 个）。
+ *
+ * 第三十二轮改了两处**契约**（不是为了让测试变绿，是因为旧判据本身是错的）：
+ *   1. 正文清单那一行改名为「外部安全工具链」—— 它跟「外部工具（按类型）」是两个概念，
+ *      同名会让人以为 33 和 28 是同一个数字的两种说法。
+ *   2. 「外部组件」算式的第 4 项改为**按类型表的 Count 列之和**（安装清单 28 个），
+ *      不再是正文清单的 33 个 —— 否则同一份文档里两个「外部工具数」各自成立。
+ *      夹具因此也必须让第 4 项等于按类型表之和，否则它测的是旧判据。
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -48,7 +55,8 @@ function docs(over = {}) {
   const o = { ...N, ...over };
   const toolList = names('tool', o.tools);
   const repos = names('owner/repo', o.rows);
-  const partTools = o.componentsTools ?? o.tools;
+  // 第 4 项取按类型表的 Count 列之和（fixture 里 = o.byType ?? o.rows），不是正文清单的条数
+  const partTools = o.componentsTools ?? o.byType ?? o.rows;
   const components = (o.componentsTotal ?? skills + o.mcpActive + npm + partTools);
   const en = [
     '# Project',
@@ -56,7 +64,7 @@ function docs(over = {}) {
     `│   ├── commands/             # Slash commands (${o.commands} .md files: ${o.scenes} workflows + 0 others)`,
     `│   ├── skills/               # Claude Skills (${o.skills ?? skills}: ${o.core} core + ${o.speckit} speckit)`,
     '',
-    `- ✅ **External toolchain**: ${o.tools} tools (${slash(toolList)})`,
+    `- ✅ **External security toolchain**: ${o.declaredTools ?? o.tools} tools (${slash(toolList)})`,
     '',
     `> **${components} external components, each counted**: ${o.skills ?? skills} local skills + ${o.mcpActive} active MCP servers + ${o.npm ?? npm} npm packages + ${partTools} external tools`,
     '',
@@ -92,7 +100,7 @@ function docs(over = {}) {
     `│   ├── commands/             # Slash commands（${o.commands} 个 .md：${o.scenes} 个工作流 + 0 个非场景命令）`,
     `│   ├── skills/               # Claude Skills（${o.skills ?? skills} 个：${o.core} 个通用 + ${o.speckit} 个 speckit）`,
     '',
-    `- ✅ **外部工具链**：${o.tools} 个工具（${toolList.join(' / ')}）`,
+    `- ✅ **外部安全工具链**：${o.declaredTools ?? o.tools} 个工具（${toolList.join(' / ')}）`,
     '',
     `> 共集成 **${components} 个外部组件，每一类都数得出来**：本地 Skills ${o.skills ?? skills} 个 + 启用的 MCP ${o.mcpActive} 个 + npm 包 ${o.npm ?? npm} 个 + 外部工具 ${partTools} 个`,
     '',
@@ -179,7 +187,8 @@ describe('check-doc-counts：README/CLAUDE.md 里数得出来的数字', () => {
     ['npm 包数写成 19', { npm: 19 }, 'npm 包总数：文档写 19，实际 24'],
     ['GitHub 项目数写老', { repos: N.rows + 3 }, '集成 GitHub 项目数'],
     ['外部组件总数与自己列的四项不符', { componentsTotal: 92 }, '外部组件总数：文档写 92'],
-    ['外部组件里的工具数与清单不符', { componentsTools: N.tools + 2 }, '外部组件第 4 项'],
+    ['外部组件里的工具数与按类型表不符', { componentsTools: N.rows + 2 }, '外部组件第 4 项'],
+    ['外部安全工具链清单声明数与点名数不符', { declaredTools: N.tools + 1 }, '外部安全工具链清单个数：文档写 13，实际 12'],
   ];
 
   for (const [title, over, needle] of drift) {

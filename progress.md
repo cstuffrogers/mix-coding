@@ -4124,3 +4124,99 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
 - **解释文案与探测器同权重**：`DETECTOR_HINTS` 不写就红。新加探测器只返回 `false` 的时代结束。
 - **文档不许记录会过期的机器状态**：这类句子不是「文档落后」，是**假的**，而且每次会话都会被读到。
   机器状态由运行期披露，文档只说「会有这段披露」。
+
+---
+
+## 第三十二轮：同一个概念 7 份名单，每份都跟自己自洽（2026-10-30）
+
+### 起因
+
+上一轮收尾时登记的候选 ②：「外部工具」三套名单。原本以为只是「数字对不上」，
+取证之后发现是**校验器的判据本身错了** —— 这比错数字严重一级。
+
+### 取证
+
+`scripts/check-doc-counts.cjs` 当时已经在核三件事：正文清单「声明的数字 vs 括号里点了几个名」、
+按类型表「Count 列之和 vs 列出的名字数」、外部组件算式的加法。**三者全绿**。而真实情况是：
+
+| 名单 | 位置 | 个数 | 问题 |
+|------|------|------|------|
+| 外部安全工具链（真值） | `security-toolchain.md` | 33 | — |
+| 正文清单 | `README.md:21` | 29 | 混进 Stagehand / mythos-agent；漏 6 个；`env-var-leak` 写成 `env-leak-scanner` |
+| 正文清单（EN） | `README_EN.md:20` | 26 | 同上；另漏 biome / ruff / hurl |
+| 逐工具表 | `README.md:~454` | 26 | 漏 jscpd / size-limit / Stryker / Spectral / markdownlint / codeguardian / critiq |
+| 逐工具表（EN） | `README_EN.md:~236` | 23 | 再漏 biome / ruff / hurl |
+| 外部工具（按类型） | `README.md:~772` | 28 | 含 act/restic/specify-cli，与安全工具链**不是同一概念** |
+| 外部工具（按类型，EN） | `README_EN.md:~464` | 25 | 少 ruff / hurl / biome |
+| 外部组件散文 | 两份 README | 84 / 81 | 算式末项用了正文清单的 29 / 26 |
+
+三份名单名字的并集 **36**，交集 17。29 与 26 这两行**各自完全自洽**，所以老 checker 无法发现。
+
+真名取证：`claude-scene/src/actions.js:347` 是 `'env-var-leak': handleEnvVarLeak`，
+`claude-scene/scenes/review.json:382` 是 `"action": "env-var-leak"`；
+`README.md:426` 的步骤清单写的也是 `env-var-leak` —— 同一份 README 自己跟自己打脸。
+
+### 修了什么
+
+- **判据搬到一处**：`scripts/lib/toolchain.cjs`（真值解析 / 三种名单解析 / 比对 / 总判）+ thin CLI
+  `scripts/check-toolchain-lists.cjs`（0 相等 / 1 漂移 / 2 塌面）。
+- **两份 README 集合对齐 33**：正文清单改名「外部安全工具链」并按真值顺序重排；逐工具表补 7 行（EN 10 行）；
+  删掉两处「AI 浏览器功能测试 / 假设驱动安全推理」散文（那是增强探测器，不是工具）；
+  `env-leak-scanner` → `env-var-leak` 三处（正文清单 / 逐工具表 / 按类型表 / 汇总段）。
+- **按类型表（安装清单）对齐 28**：EN 补 `ruff`(6) / `hurl`(2) / `biome`(10)，标题 25→28，
+  更新维度表里的 `(8)` 也改成 `(10)`。
+- **外部组件 84/81 → 83**，算式末项改用**按类型表之和**（28）——
+  `check-doc-counts.cjs` 同步改口径，否则同一份文档里两个「外部工具数」各自成立。
+- **`security-toolchain.md` 顶部写明它是唯一真值**，并说清 33 与 28 是两个概念。
+
+### 测试
+
+- 新增 `claude-scene/src/commands/toolchain-lists.test.js` **17 例**：真仓库 0 + 反空跑下限；
+  夹具对照组 0；6 类漂移各自红（少点名 / 写错名（同时报多与少）/ 声明数与点名数不符 /
+  逐工具表漏行 / 重复点名 / Count 与名字数不符 / 中英按类型表不是同一批 / 真值跌破下限 /
+  文档读不到 / 标题格式变了必须 2）；`normalize` 不做同义词映射；`compareNames` 三个结论都要给。
+- `doc-counts.test.js` 15 例：**首次为「契约变更」改既有夹具** —— 正文清单改名 + 外部组件第 4 项
+  改取按类型表之和，并在文件头写清为什么改（不是为了变绿，是旧判据本身错）。
+  另新增 1 例「清单声明数与点名数不符」。
+
+### 自探针（6 个，全部实测变红，全部按字节复原）
+
+1. 正文清单工具名写错（`seraphim-audit` → `seraphim-audti`）→ checker 1，测试红。
+2. 逐工具表删一行（`jscpd`）→ 1 / 红。
+3. 声明数 33 → 32 → 1 / 红。
+4. 真值表某行不再是 `| **hurl** |` → 1 / 红。
+5. 旧错名复活（`env-var-leak` → `env-leak-scanner`）→ 1 / 红（守卫另有一条 `not.toContain`）。
+6. 按类型标题格式改坏 → **2**（不是 1）/ 红。
+
+### 验证
+
+- **验证命令**：`npx vitest run` · `npx eslint claude-scene --max-warnings 0` · `npx eslint .` ·
+  6 个 checker（新增 `check-toolchain-lists`）· `npm run scan:deadcode` · 26 场景 `--dry-run --auto` ·
+  `node claude-scene/src/index.js start review --auto --skip-sweep`。
+- **验证结果**：114 files / **1462 tests 全绿**；两侧 eslint `LINT_EXIT=0`；6 个 checker 全 EXIT=0；
+  `Total dead: 0`；26/26 场景 EXIT=0；review EXIT=0（`pass 17 / fail 0 / warn 3 / skip 19 / noop 4`，与上轮一致）。
+
+### 坑
+
+- **`check-doc-counts` 的绿是「文件跟自己对齐」**：判据必须至少有一端来自真值（代码/真值表），
+  两端都来自同一份文档的检查，只能发现「打字时数错」，发现不了「整体写错」。
+- **夹具自洽会掩盖口径变化**：`doc-counts` 夹具里「外部组件第 4 项」和「正文清单条数」都取自
+  `o.tools`，所以口径一改，10 个用例同时红 —— 先修口径、再让夹具按新口径生成（不是改断言凑绿）。
+- **Windows + gbk 控制台**：python `subprocess(text=True)` 默认 gbk 解码 Node 的 UTF-8 输出会
+  `UnicodeDecodeError`，`stdout` 变 `None` → 探针脚本在半路炸掉，且**已经 patch 的文件没被复原**。
+  正确做法：`encoding="utf-8", errors="replace"` + `try/finally` 复原 + **只 print ASCII**。
+- **`npx` 在 Windows 不是可执行文件**：`subprocess.run(["npx", ...])` → `FileNotFoundError`，
+  用 `shell=True`。同理备份路径不能 `replace(os.sep, "_")`（rel 里是 `/`）。
+- **`sonarjs/super-linear-regex` 连 `/(\d+) 个工具/u` 也会红**：中文量词紧跟 `\d+` 被判回溯。
+  改成 `match(/\d+/u)[0]` + `parseInt`；`unicorn/max-nested-calls` 对
+  `expect(checkRoot(scaffold(x)).code)` 这种三层嵌套也红，先解构再断言。
+
+### 决策
+
+- **ADR-024**：同一个概念只允许一份名单真值；两个概念必须两个名字；不做同义词映射；
+  校验器必须能报三种结论（塌面不许降级成 1）；判据只写一处。
+- **增强探测器不是工具**：`Stagehand` / `mythos-agent` 从安全工具链清单里移除，可发现性交给
+  `enhancements.md` 与增强菜单 —— 它们本来就是「场景可选的增强」，不是「装的工具」。
+- **登记不修**：`docs/tools-inventory.md`（802 行）是 2026-06-14 快照，MCP 13 / Skills 37 /
+  命令 89 / 模块 16 全过期，工具矩阵里还有 `env-leak-scanner`，工作流列写着已退役的 `hunt` / `audit`；
+  它不在任何校验器覆盖内，整份要么接生成器要么删，下一轮再做。

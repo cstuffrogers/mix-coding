@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-30（第三十二轮：「外部工具」三套名单，每份都跟自己自洽）
+
+### Fixed
+
+- **同一个概念 7 份名单 / 5 个数字，而且每份都能通过当时的校验**：真值 `security-toolchain.md` 是 33 个工具，两份 README 的正文清单写 29 和 26，逐工具表列 26 行和 23 行，按类型表（安装清单）列 28 和 25，外部组件散文写「84 = 29+3+23+29」和「81 = 29+3+23+26」。`check-doc-counts` 一路绿灯，因为它只比「声明的数字 vs 括号里点了几个名」—— **文件跟自己对齐**被当成了「跟真值对齐」。现两份 README 的正文清单与逐工具表**集合等于**真值表（33），中英按类型表对齐为 28，外部组件 84/81 → **83 = 29+3+23+28**。
+- **真工具名被写成不存在的名字**：引擎里的动作名是 `env-var-leak`（`actions.js:347`、`review.json:382`、`flow` 的 `step 4.5`），README 的正文清单 / 逐工具表 / 按类型表 / 汇总段却写 `env-leak-scanner`——同一份 README 的另一段（步骤清单）写的又是 `env-var-leak`，自己跟自己都对不上。现统一为 `env-var-leak`。
+- **两个「不是安全工具」的东西混进了安全工具链清单**：`Stagehand`（增强探测器）与 `mythos-agent`（增强探测器）出现在正文清单里，各自的说明在 `enhancements.md`。现从安全工具链清单移除，散文里对应的「AI 浏览器功能测试、假设驱动安全推理」两处能力描述同步删掉。
+- **逐工具表漏了 7 个真在跑的步骤**：`jscpd`（step 2.95）、`size-limit`（2.96）、`Stryker`（`/qa` step 6.5）、`codeguardian`（`/loop` 4.2 / `/optimize` 9.6 / `/refactor` 13.5）、`critiq`（`/review` 增强项）在真值表里都有、README 表里没有；`Spectral` / `markdownlint`（handler 已注册但无场景步骤）漏得更彻底。现补齐 7 行，英文表另补 `biome` / `ruff` / `hurl` 共 10 行。
+
+### Added
+
+- **`scripts/lib/toolchain.cjs`：名单判据只此一份**。真值解析（`parseCanonical`）、正文清单解析（`parseToolchainBullet`）、逐工具表解析（`parseSecurityTable`）、按类型表解析（`parseByTypeTable`）、比对（`compareNames` → 缺 / 多 / 重复）、总判（`checkRoot` → 0 / 1 / 2）。比名一律走 `normalize()`（大小写、空格、连字符、下划线不算差异），**不做同义词映射**——名字写错就该红，映射表只会把错写合法化。
+- **`scripts/check-toolchain-lists.cjs`：三种结论**。0 = 全部相等；1 = 有名单跟真值对不上（逐条打印「真值里有、这里没有 —— xxx」/「真值里没有，这里写了 —— xxx」/「写 32 个，实际点名 33 个」）；2 = 扫描面塌了（真值少于 30 个、文档读不到、标题格式变了）—— 塌面不许降级成 1，否则「格式变了」会被当成「名单错了」。
+- **`toolchain-lists.test.js` 17 例**：真仓库 0 + 反空跑下限；夹具对照组 0；6 种漂移各自红（少点名 / 写错名（同时报多与少）/ 声明数与点名数不符 / 逐工具表漏行 / 重复点名 / Count 与名字数不符 / 中英按类型表不是同一批 / 真值跌破下限 / 文档读不到 / 标题格式变了必须 2）；`normalize` 不做同义词映射；`compareNames` 三个结论都要给。
+- **`check-doc-counts.cjs` 口径收紧**：「外部组件」算式的第 4 项改取**按类型表的 Count 列之和**，不再是正文清单的条数——否则同一份文档里两个「外部工具数」各自成立。正文清单正则改名 `外部安全工具链` / `External security toolchain`。
+- **`security-toolchain.md` 顶部写明它是唯一真值**，并说清「外部安全工具链 33」与「外部工具（按类型）28」是两个概念（安装清单含 act/restic/specify-cli，不含 codeguardian/critiq）。
+
+### Known issues（本轮不修，登记在此免得下次又从零发现）
+
+- `docs/tools-inventory.md`（802 行，README 两份都有链接）仍是 2026-06-14 的快照：MCP 13 / Skills 37 / 命令 89 / 模块 16 全部过期，工具矩阵里还是 `env-leak-scanner`，工作流列还写着已退役的 `hunt` / `audit`。`sync-docs.js` 只更新它的场景计数。它现在不在任何校验器的覆盖范围内。
+
 ## 2026-10-30（第三十一轮：增强项「根本没出现」也要说为什么）
 
 ### Fixed

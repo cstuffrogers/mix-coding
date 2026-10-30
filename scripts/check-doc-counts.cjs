@@ -22,9 +22,12 @@
  *   Skills 数  = .claude/skills/* 目录数（`speckit-` 前缀算 speckit）
  *   MCP 数     = .mcp.json 的 mcpServers 键数（启用）/ .mcp.json.full 的键数（完整档）
  *   npm 包数   = claude-scene/package.json 的 dependencies + devDependencies
- *   工具数     = 正文工具链括号里点名的个数；按类型表另算（Count 列之和 = 列出的工具个数）
+ *   工具数     = 正文安全工具链括号里点名的个数；另由 check-toolchain-lists.cjs 核「名字集合」
+ *                （本脚本只管「声明数 vs 点名数」，集合是否等于真值归那个脚本）
  *   GitHub 数  = 该段里列出的 `owner/repo` 个数
  *   外部组件数 = Skills + 启用的 MCP + npm 包 + 外部工具（公式写进文档，脚本核对算术与每一项）
+ *                其中「外部工具」取**按类型表的 Count 列之和**（安装清单 28 个）——
+ *                不是正文安全工具链那一行（33 个）：两者是不同概念，混用会得到两个总数。
  */
 const fs = require('fs');
 const path = require('path');
@@ -218,20 +221,20 @@ function checkDoc(name, t) {
   if (!ghNames) collapsed.push(`${name}：GitHub 项目名单没认出来`);
   if (gh && ghNames) cmp('集成 GitHub 项目数', gh[1], ghNames.length, problems);
 
-  const toolchain = need('外部工具链清单个数', isZh
-    ? new RegExp(`\\*\\*外部工具链\\*\\*：(\\d+) 个工具（([^）]*)）`)
-    : new RegExp(`\\*\\*External toolchain\\*\\*: (\\d+) tools \\(([^)]*)\\)`));
+  const toolchain = need('外部安全工具链清单个数', isZh
+    ? new RegExp(`\\*\\*外部安全工具链\\*\\*：(\\d+) 个工具（([^）]*)）`)
+    : new RegExp(`\\*\\*External security toolchain\\*\\*: (\\d+) tools \\(([^)]*)\\)`));
   const toolchainNames = toolchain
     ? toolchain[2].split('/').map((s) => s.trim()).filter(Boolean).length
     : null;
-  if (toolchain) cmp('外部工具链清单个数', toolchain[1], toolchainNames, problems);
+  if (toolchain) cmp('外部安全工具链清单个数', toolchain[1], toolchainNames, problems);
 
   const components = need('外部组件总数', isZh
     ? /\*\*(\d+) 个外部组件[^*]*\*\*：本地 Skills (\d+) 个 \+ 启用的 MCP (\d+) 个 \+ npm 包 (\d+) 个 \+ 外部工具 (\d+) 个/
     : /\*\*(\d+) external components[^*]*\*\*: (\d+) local skills \+ (\d+) active MCP servers \+ (\d+) npm packages \+ (\d+) external tools/);
   if (components) {
     const parts = components.slice(2, 6).map(Number);
-    const want = [t.skills, t.mcpActive.length, npmTotal, toolchainNames ?? byType?.names.length ?? -1];
+    const want = [t.skills, t.mcpActive.length, npmTotal, byType?.sum ?? -1];
     cmp('外部组件总数', components[1], parts.reduce((a, b) => a + b, 0), problems);
     parts.forEach((p, i) => cmp(`外部组件第 ${i + 1} 项`, p, want[i], problems));
   }
