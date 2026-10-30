@@ -4536,7 +4536,8 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
 
 ### 修
 
-- 冻结基线 `claude-scene/src/data/skillspector-baseline.json`（105 条 / 16 规则 + `note` 写清接受理由与重生成命令）。
+- 冻结基线 `claude-scene/src/data/skillspector-baseline.json`（最终 107 条 / 16 规则 + `note` 写清接受理由与重生成命令；
+  取证时是全仓 105 条，多出来的 2 条是并发会话刚落地的 `landing-page-design` 技能）。
 - `compareSkillspectorFindings()` 按 `pattern` 比基线：涨 → warn 点名 `规则 基线→现在`；
   一致 → pass（数字照写）；下降 → pass + 可下调；基线读不到/形状坏 → skip(`input-missing`)。
 - 仍不写 `skillspectorPassed`（第三方内容，判 fail 是假红）。
@@ -4545,12 +4546,19 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
 
 ### 自探针
 
-6 条逐条弄红后按字节复原（`$TEMP/r36-probes.py`，`ALL_RED_AS_EXPECTED=True`）：
+7 条逐条弄红后按字节复原（`$TEMP/r36-probes.py`，`ALL_RED_AS_EXPECTED=True`）：
 丢掉基线比对 / `dropped` 恒 0 / 不声明 `warnKind` / 基线读不到时假装空基线 /
-比对时忽略 `byRule` / 把基线 `total` 改 104 —— 全部 `exit=1 restored=True`。
+比对时忽略 `byRule` / `reason:` 写回 `skipReason:`（错键名）/ 把基线 `total` 改 106 ——
+全部 `exit=1 restored=True`。
 
-### 踩到的坑
+### 踩到的坑（最值钱的一个）
 
+- **`skipReason` 不是引擎读的键**：skip 分支我先写成 `{ status: 'skip', skipReason: 'input-missing' }`，
+  而 `skipReasonFrom()` 只读 `result.reason` —— 声明了但没人听见，日志里依旧记成
+  「原因只在 message 里」。**是我自己的单测（断言 `result.skipReason`）给它背的书**：
+  用自己写的键做断言，等于让单测给一个假声明背书。第三十轮的债务棘轮（131 上限）先红，
+  才把这条翻出来。修法：改用 `reason:`，断言改成 `skipReasonFrom(result).reason` /
+  `warnKindFrom(result).kind` —— 断言必须走**引擎实际读的那条路**。
 - **`URL` 在 `claude-scene` 的 eslint 里是未定义全局** → 基线路径改用
   `join(dirname(fileURLToPath(import.meta.url)), '..', 'data', ...)`。
 - **基线必须在 `src/` 下**（`package.json` 的 `files` 只发 `src/`、`scenes/`）。
@@ -4571,13 +4579,13 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
 
 因此：
 
-- 全量 `npx vitest run` 红 2 个：`gate-honesty`（`scripts/scenes-stats.json` 工作区脏 →
-  hook 第 4 步 `git diff --quiet` 必红）与 `step-reasons`（债务棘轮 132 > 131）；
-  **两条都不是本轮引入的**（本轮没碰场景、没新增 skip/noop 站点）。
-- 本轮验收只做在改动范围内：目标用例 32 绿、`npx eslint claude-scene --max-warnings 0` 与 `npx eslint .` 干净、
-  6 个 checker 全 `EXIT=0`。
-- pre-commit 会跑全量测试 + `scenes-stats.json` 同步检查，**它挡住提交是对的**：
-  等那份 WIP 落地后本轮再提交，不用 `--no-verify` 绕过（绕过等于把「门禁能红」这件事自己关掉）。
+- 全量 `npx vitest run` 一度红 2 个：`gate-honesty`（`scripts/scenes-stats.json` 工作区脏 →
+  hook 第 4 步 `git diff --quiet` 必红，随派生文件同步后消失）与 `step-reasons`
+  （债务棘轮 132 > 131 —— **这条最终查出来是本轮自己的锅**，见上面「踩到的坑」）。
+- 那份 WIP 已提交为 `f4e5eb4` / `e44e44a`（`landing-page-design` 技能接入 + 条件侧找错目录的真修复，
+  写了自己的 ADR-028）。它的提交没带 `scripts/scenes-stats.json`（583 → 585 步），本轮一并补上 ——
+  派生文件必须跟场景同步，否则 pre-commit 第 4 步会红。
+- 全程**没有**用 `--no-verify` 绕过门禁：等它落地，不绕过它。
 - **当前 `npm test` 有 1 条红，不是本批引入**：`step-reasons.test.js` 的债务棘轮
   `没布 reason 的站点 ≤ 131` 实测 132，差额来自并行会话改的
   `src/handlers/external-tool-checks.js`（skip/noop 站点 24 → 25，新站点只写了

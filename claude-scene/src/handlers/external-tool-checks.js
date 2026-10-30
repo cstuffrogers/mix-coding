@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { safeExec, escapeArg } from '../lib/safe-exec.js';
 import { scanDir } from '../lib/scan-dir.js';
@@ -436,29 +437,115 @@ function scanSingleTarget(cmd, targetPath, allFindings) {
   }
 }
 
-function reportSkillspectorFindings(allFindings) {
-  const critical = allFindings.filter(f => f.severity === 'CRITICAL' || f.severity === 'critical');
-  const high = allFindings.filter(f => f.severity === 'HIGH' || f.severity === 'high');
-  const total = allFindings.length;
+// ── SkillSpector 冻结基线 ──
+// 它扫的是技能/命令的 markdown 与 skill 指令，命中率 100%（本仓库实测 105 条：
+// 22 条「Autonomous Decision Making」、17 条「Credential Access」……外加 1 条 CRITICAL —
+// sharp-edges/references/lang-php.md 里那句 eval(base64_decode()) 反例）。
+// 以前 >0 就 warn（statusForFindings 的默认档），于是**每一次 review 都挂同一条 warn**，
+// 数字从不变化、没人会去看 —— 那不是「有发现」，那是噪声地板，等于把这条检查变成
+// 「结构上永远给不出新信息」的假证据（与第二十二轮「永远为真的门禁」同一类）。
+// 现在按**冻结基线**判增量：与基线一致 → pass 并写明数字；超出 → warn 并点名涨了的规则。
+const SKILLSPECTOR_UNCLASSIFIED = '未分类';
+const SKILLSPECTOR_BASELINE_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'skillspector-baseline.json');
 
-  if (total > 0) {
-    for (const f of critical.slice(0, 5)) {
-      console.log(chalk.red(`    🔴 ${f.pattern || f.rule || f.type}: ${f.location?.file || f.file || f.path}`));
-    }
-    for (const f of high.slice(0, 3)) {
-      console.log(chalk.yellow(`    🟡 ${f.pattern || f.rule || f.type}: ${f.location?.file || f.file || f.path}`));
-    }
-    // 不写 skillspectorPassed：扫的是文档（技能/命令的 markdown），
-    // 里面的反例代码会被 YARA 命中 —— 本仓库的 CRITICAL 就是
-    // sharp-edges/references/lang-php.md 里那句 preg_replace('/.*/e') 反例。
-    // 这种发现只能人工复核：判 fail 是假红，写「通过」的旗标是假绿。
+// SKILLSPECTOR_BASELINE 只为了测试能把「基线文件坏了」这一条路真的跑一遍
+// （生效时机在调用时而不是 import 时，否则 import 后再改 env 就没用了）。
+function skillspectorBaselinePath() {
+  return process.env.SKILLSPECTOR_BASELINE || SKILLSPECTOR_BASELINE_PATH;
+}
+
+/**
+ * 读冻结基线。读不到 / 形状不对 → `{ ok: false }`：
+ * 没有基线时既不能说「通过」（那是把 105 条当 0 条），也不能说「有问题」（那是替人下结论）。
+ */
+export function loadSkillspectorBaseline(path = skillspectorBaselinePath()) {
+  try {
+    const data = JSON.parse(readFileSync(path, 'utf-8'));
+    const usable = Number.isSafeInteger(data?.total) && data.total >= 0
+      && data.byRule && typeof data.byRule === 'object' && !Array.isArray(data.byRule);
+    if (!usable) return { ok: false, reason: '基线文件缺 total / byRule' };
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, reason: e.code === 'ENOENT' ? '基线文件不存在' : String(e.message || e) };
+  }
+}
+
+function skillspectorRuleOf(finding) {
+  return String(finding?.pattern || finding?.rule || finding?.type || SKILLSPECTOR_UNCLASSIFIED);
+}
+
+function severityCounts(findings) {
+  let critical = 0;
+  let high = 0;
+  for (const f of findings) {
+    const sev = String(f?.severity || '').toUpperCase();
+    if (sev === 'CRITICAL') critical += 1;
+    else if (sev === 'HIGH') high += 1;
+  }
+  return { critical, high };
+}
+
+/**
+ * 按规则名比基线：每条规则涨了的都点名（基线里没有的规则 base 记 0，也算涨），
+ * 条数下降单独记，免得「少扫到 5 条」被静默。
+ */
+export function compareSkillspectorFindings(findings, baseline) {
+  const byRule = new Map();
+  for (const f of findings) {
+    const rule = skillspectorRuleOf(f);
+    byRule.set(rule, (byRule.get(rule) || 0) + 1);
+  }
+  const risen = [];
+  for (const [rule, now] of byRule) {
+    const base = Number(baseline.byRule[rule]) || 0;
+    if (now > base) risen.push({ rule, now, base });
+  }
+  risen.sort((a, b) => (b.now - b.base) - (a.now - a.base) || a.rule.localeCompare(b.rule));
+  return {
+    total: findings.length,
+    byRule,
+    risen,
+    dropped: Math.max(0, baseline.total - findings.length),
+  };
+}
+
+function reportSkillspectorFindings(allFindings) {
+  const total = allFindings.length;
+  if (total === 0) return { status: 'pass', message: 'SkillSpector 扫描完成: 无问题' };
+
+  const { critical, high } = severityCounts(allFindings);
+  for (const f of allFindings.filter(f => String(f?.severity).toUpperCase() === 'CRITICAL').slice(0, 5)) {
+    console.log(chalk.red(`    🔴 ${skillspectorRuleOf(f)}: ${f.location?.file || f.file || f.path}`));
+  }
+
+  const loaded = loadSkillspectorBaseline();
+  if (!loaded.ok) {
     return {
-      status: statusForFindings(total),
-      message: `SkillSpector 扫描完成: ${total} 个问题（CRITICAL ${critical.length} / HIGH ${high.length}）—— 扫描对象是文档，示例代码会被当成漏洞，需人工复核`,
+      status: 'skip',
+      reason: 'input-missing',
+      message: `SkillSpector 扫到 ${total} 个问题（CRITICAL ${critical} / HIGH ${high}），但读不到冻结基线（${loaded.reason}）—— 没有基线就分不清「已接受」和「新增」，修好 claude-scene/src/data/skillspector-baseline.json 后重跑`,
     };
   }
 
-  return { status: 'pass', message: 'SkillSpector 扫描完成: 无问题' };
+  const diff = compareSkillspectorFindings(allFindings, loaded.data);
+  const tally = `共 ${total} 个（CRITICAL ${critical} / HIGH ${high}）`;
+  // 不写 skillspectorPassed：发现项是第三方 skill 的指令模式与文档反例，
+  // 判 fail 是假红，写「通过」的旗标是假绿（见 gate-flags.js 的同一条注释）。
+  if (diff.risen.length > 0) {
+    const named = diff.risen.slice(0, 3).map(r => `${r.rule} ${r.base}→${r.now}`).join('；');
+    const more = diff.risen.length > 3 ? ` 等 ${diff.risen.length} 条规则` : '';
+    return {
+      status: 'warn',
+      warnKind: 'findings',
+      message: `SkillSpector 有超出冻结基线的新发现：${named}${more}，${tally} —— 新增的指令模式需人工复核，确认接受后更新 claude-scene/src/data/skillspector-baseline.json`,
+    };
+  }
+
+  const slack = diff.dropped > 0 ? `；比基线少 ${diff.dropped} 条，可下调基线` : '';
+  return {
+    status: 'pass',
+    message: `SkillSpector ${tally} 与冻结基线一致（${loaded.data.total} 条已接受的第三方 skill 指令模式 / 文档反例），没有新增${slack}`,
+  };
 }
 
 /** 扫描抛错时归类：工具根本不存 / 真正的失败原因。 */

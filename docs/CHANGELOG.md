@@ -1,5 +1,65 @@
 # Changelog
 
+## 2026-10-30（第三十六轮：永远为真的 warn 不是信息）
+
+### Fixed
+
+- **`skillspector` 那条检查结构上永远 warn**：`reportSkillspectorFindings` 用的是
+  `statusForFindings(total)`，>0 就 `warn` —— 本仓库实测 105 条（CRITICAL 1 是
+  `sharp-edges/references/lang-php.md` 里那句 `eval(base64_decode())` 反例），
+  **每一次 review 都挂同一条、数字从不变化**，没人会去看。一条永远给同一个答案的检查
+  不是「有发现」，是噪声地板 —— 和第二十二轮那个「永远为真的门禁」是同一类东西，只是反过来。
+- **改判增量**：新增冻结基线 `claude-scene/src/data/skillspector-baseline.json`
+  （107 条 / 16 条规则，`note` 里写了重生成命令），`compareSkillspectorFindings()` 按
+  `pattern` 计数比基线：
+  - 某条规则涨了（基线里没有的规则 base 记 0，也算涨）→ `warn` + `warnKind: 'findings'`，
+    消息点名 `规则 基线→现在`，让人知道涨的是哪一类，而不是一个总数；
+  - 与基线一致 → `pass`，但**数字照样写进消息**（「共 105 个（CRITICAL 1 / HIGH 66）与冻结基线一致」）——
+    pass 不等于「无问题」，这句必须说清；
+  - 比基线少 → `pass` + 「比基线少 N 条，可下调基线」，不许静默；
+  - 基线读不到 / 形状坏（缺 `total`/`byRule`）→ `skip` + `skipReason: 'input-missing'`：
+    没有基线时既不能说通过（那是把 105 条当 0 条），也不能替人下结论。
+- **仍然不写 `skillspectorPassed`**：发现项是第三方 skill 的指令模式与文档反例，判 fail 是假红，
+  拿它当门禁只会恒报 failed（`gate-flags.js` 里那条注释保留）。
+- **顺带被同一轮的门禁抓出来的真 bug**：skip 分支原本写的是 `skipReason: 'input-missing'`，
+  而引擎只读 `result.reason`（`skipReasonFrom`）—— **声明了但没人听见**，日志里仍然记成
+  「原因只在 message 里」。第三十轮的债务棘轮先报红（132 > 131）才暴露出来。
+  改回 `reason:`，并把断言从「读我自己写的那个键」改成「走引擎的分类函数」
+  （`skipReasonFrom(result).reason` / `warnKindFrom(result).kind`）——
+  用自己写的键做断言，等于让单测给假声明背书。
+
+### Added
+
+- `external-tool-verdicts.test.js` 21 → 32 例：基线自身完整性（`total === ΣbyRule`）、
+  一致 → pass（且不含「无问题」）、涨 1 条 → warn 点名、新规则 → warn 且 base 记 0、
+  下降 → pass + 可下调、空结果 → pass、基线不存在 → skip(`input-missing`)、
+  基线缺 `byRule` → skip、`compareSkillspectorFindings` 纯函数两条。
+  其中「基线自身完整性」用例顺带钉死一条隐性依赖：老的「有 CRITICAL 也只 warn」用例
+  靠 **`PHPshell` 不在基线里** 成立，基线一重生成就可能变成「与基线一致 → pass」，
+  所以显式断言基线里没有这个规则名，改基线时先红。
+
+### Self-audit
+
+7 条自探针逐条弄红后按字节复原（`$TEMP/r36-probes.py`，`ALL_RED_AS_EXPECTED=True`）：
+丢掉基线比对（`if (true)`）→ 红；`dropped` 恒 0 → 红；不声明 `warnKind` → 红；
+基线读不到时假装基线为空 → 红；比对时忽略 `byRule` → 红；
+把 `reason:` 写回引擎不读的 `skipReason:` → 红；把基线 `total` 改 106 → 红。
+
+### 验收
+
+- `npx vitest run claude-scene/src/handlers/external-tool-verdicts.test.js`：**32 例全绿**；
+  两套 eslint 干净；6 个 checker 全 `EXIT=0`。
+- **现场跑出来的第一条真实增量**：取证时基线是全仓 105 条；跑 review 的中途另一个会话提交了
+  `landing-page-design` skill（自带 `NOTICE.md`，已在 `e44e44a` 落地），于是库里 29 个 skill
+  实测 107 条，这条检查第一次真的说话：
+  `SkillSpector 有超出冻结基线的新发现：Scope Creep 2→4，共 107 个（CRITICAL 1 / HIGH 66）`。
+  **这正是冻结基线该有的行为**：新增技能 = 新的第三方内容 = 要有人看一眼再接受。
+  本轮接受它（2 条都是 LOW、都是文档示例命中），基线 105 → 107 并注明捕获于 `e44e44a`。
+- 同步更新 `scripts/scenes-stats.json`（583 → 585 步）：它是 `scan-scenes` 的产物，
+  那份技能接入提交里没带上，pre-commit 第 4 步会红 —— 派生文件跟着场景走，不是「顺手带的」。
+
+---
+
 ## 2026-10-30（第三十五轮：自检记录里的「那时干净」不是「现在干净」）
 
 ### Fixed

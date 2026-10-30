@@ -2,8 +2,8 @@
   "ui-polish": {
     "file": "ui-polish.json",
     "name": "前端美化 + 设计",
-    "steps": 72,
-    "desc": "前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统"
+    "steps": 74,
+    "desc": "前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统 / Impeccable 打磨 / 落地页设计"
   },
   "new-project": {
     "file": "new-project.json",

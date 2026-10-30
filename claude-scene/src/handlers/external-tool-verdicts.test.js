@@ -19,7 +19,11 @@ const {
   handleSpectral,
   handleMarkdownlint,
   handleSizeLimit,
+  loadSkillspectorBaseline,
+  compareSkillspectorFindings,
 } = await import('./external-tool-checks.js');
+// 分类是引擎侧的函数：断言要用「引擎实际读到的那个字段」，不是自己写的那个键。
+const { skipReasonFrom, warnKindFrom } = await import('../data/step-reasons.js');
 
 // claude-scene 的 eslint 没开 node globals，别用 Buffer；handler 只调 .toString()
 const out = (s) => ({ toString: () => s });
@@ -197,6 +201,133 @@ describe('skillspector：扫文档必然命中示例代码 → 只 warn，且不
     expect(result.message).toContain('人工复核');
     // 「扫描对象是文档」的判定：写 passed 旗标 = 恒 false 的假门禁
     expect(context.skillspectorPassed).toBeUndefined();
+  });
+});
+
+// 第三十六轮：这条检查以前 >0 就 warn —— 每次 review 都挂同一条、数字从不变化，
+// 没人会去看。“有发现”一旦恒为真，就不再是信息。改成对**冻结基线**判增量：
+// 一致 → pass（数字照样写在消息里）；超出 → warn 并点名涨了的规则；
+// 读不到基线 → skip（既不能说通过，也不能替人下结论）。
+const BASELINE = loadSkillspectorBaseline();
+
+/** 按基线的 byRule 造一批命中（默认 MEDIUM），用来造“与基线一致”的场景。 */
+function seedFromBaseline(byRule) {
+  return Object.entries(byRule).flatMap(([rule, n]) =>
+    Array.from({ length: n }, () => ({ severity: 'MEDIUM', pattern: rule, location: { file: 'skills/x/SKILL.md' } })));
+}
+
+function scanOnce(findings) {
+  mockSafeExec
+    .mockReturnValueOnce(out('SkillSpector 2.1.4'))
+    .mockReturnValueOnce(out(JSON.stringify({ issues: findings })));
+  return handleSkillspectorScan('skillspector', { targets: ['.claude/skills/'] }, root, {});
+}
+
+describe('skillspector 冻结基线：噪声地板变成增量信号', () => {
+  it('基线文件自身成立：total 等于 byRule 之和', () => {
+    expect(BASELINE.ok).toBe(true);
+    const sum = Object.values(BASELINE.data.byRule).reduce((a, b) => a + b, 0);
+    expect(sum).toBe(BASELINE.data.total);
+    // 上面那条「有 CRITICAL 也只 warn」的用例靠『PHPshell 不在基线里』成立：
+    // 基线一重生成就可能变成「与基线一致 → pass」。这里把依赖写死，改基线时先红。
+    expect(Object.keys(BASELINE.data.byRule)).not.toContain('PHPshell');
+  });
+
+  it('与基线一致 → pass，但数字照样写清楚（不是「无问题」）', () => {
+    const result = scanOnce(seedFromBaseline(BASELINE.data.byRule));
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('与冻结基线一致');
+    expect(result.message).toContain(`共 ${BASELINE.data.total} 个`);
+    expect(result.message).not.toContain('无问题');
+  });
+
+  it('某条规则涨了 1 条 → warn 并点名规则与「基线→现在」', () => {
+    const [rule, base] = Object.entries(BASELINE.data.byRule)[0];
+    const findings = [
+      ...seedFromBaseline(BASELINE.data.byRule),
+      { severity: 'MEDIUM', pattern: rule, location: { file: 'skills/x/SKILL.md' } },
+    ];
+    const result = scanOnce(findings);
+    expect(result.status).toBe('warn');
+    expect(warnKindFrom(result).kind).toBe('findings');
+    expect(result.message).toContain(`${rule} ${base}→${base + 1}`);
+    expect(result.message).toContain('需人工复核');
+  });
+
+  it('基线里没有的规则（新规则）→ warn，base 记 0', () => {
+    const findings = [
+      ...seedFromBaseline(BASELINE.data.byRule),
+      { severity: 'CRITICAL', pattern: 'YARA rule my-new-rule', location: { file: 'skills/y/SKILL.md' } },
+      { severity: 'HIGH', pattern: 'YARA rule my-new-rule', location: { file: 'skills/y/SKILL.md' } },
+    ];
+    const result = scanOnce(findings);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('YARA rule my-new-rule 0→2');
+  });
+
+  it('扫出来比基线少 → pass，并提醒可以下调基线（不许静默）', () => {
+    const entries = Object.entries(BASELINE.data.byRule);
+    const trimmed = Object.fromEntries(entries.slice(1));
+    const dropped = entries[0][1];
+    const result = scanOnce(seedFromBaseline(trimmed));
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain(`比基线少 ${dropped} 条`);
+    expect(result.message).toContain('可下调基线');
+  });
+
+  it('一条都没扫到 → pass「无问题」', () => {
+    const result = scanOnce([]);
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('无问题');
+  });
+
+  it('基线文件不存在 → skip（不许把 105 条当 0 条，也不许替人下结论）', () => {
+    const prev = process.env.SKILLSPECTOR_BASELINE;
+    process.env.SKILLSPECTOR_BASELINE = join(root, 'no-such-baseline.json');
+    try {
+      const result = scanOnce(seedFromBaseline(BASELINE.data.byRule));
+      expect(result.status).toBe('skip');
+      // 第三十六轮：这里原本断言的是 `skipReason`，而引擎读的是 `reason` ——
+      // 写错键等于「声明了但没人听见」，单测还是绿的。断言走引擎的分类函数。
+      expect(skipReasonFrom(result).reason).toBe('input-missing');
+      expect(result.message).toContain('读不到冻结基线');
+      expect(result.message).toContain('基线文件不存在');
+    } finally {
+      if (prev === undefined) delete process.env.SKILLSPECTOR_BASELINE;
+      else process.env.SKILLSPECTOR_BASELINE = prev;
+    }
+  });
+
+  it('基线文件形状不对（缺 byRule）→ skip，理由写的是「缺 total / byRule」', () => {
+    const prev = process.env.SKILLSPECTOR_BASELINE;
+    const broken = join(root, 'shape-baseline.json');
+    writeFileSync(broken, JSON.stringify({ total: 105 }), 'utf-8');
+    process.env.SKILLSPECTOR_BASELINE = broken;
+    try {
+      const result = scanOnce(seedFromBaseline(BASELINE.data.byRule));
+      expect(result.status).toBe('skip');
+      expect(result.message).toContain('缺 total / byRule');
+    } finally {
+      if (prev === undefined) delete process.env.SKILLSPECTOR_BASELINE;
+      else process.env.SKILLSPECTOR_BASELINE = prev;
+    }
+  });
+});
+
+describe('compareSkillspectorFindings：纯函数层面', () => {
+  it('同一规则多一条就点名，与规则顺序无关', () => {
+    const diff = compareSkillspectorFindings(
+      [{ pattern: 'B' }, { pattern: 'A' }, { pattern: 'A' }],
+      { total: 2, byRule: { A: 1, B: 1 } },
+    );
+    expect(diff.risen).toHaveLength(1);
+    expect(diff.risen[0]).toEqual({ rule: 'A', now: 2, base: 1 });
+  });
+
+  it('缺 pattern/rule/type 的命中归到「未分类」，不许静默丢弃', () => {
+    const diff = compareSkillspectorFindings([{ severity: 'HIGH' }], { total: 0, byRule: {} });
+    expect(diff.byRule.get('未分类')).toBe(1);
+    expect(diff.risen[0].rule).toBe('未分类');
   });
 });
 

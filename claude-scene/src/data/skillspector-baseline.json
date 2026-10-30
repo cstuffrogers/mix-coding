@@ -1,0 +1,37 @@
+{
+  "note": "SkillSpector 冻结基线：这批命中是「已接受、未修复」的第三方 skill 指令模式与参考文档里的反例代码，不是本项目的漏洞。命中数上升=有新的指令模式需要人看（review 报 warn 并点名涨了的规则）；下降=可以下调这份基线。重生成（在仓库根目录）：`skillspector scan .claude/skills --format json --no-llm` 与 `skillspector scan .claude/commands --format json --no-llm`，把两份输出里的 issues 按 pattern 合并计数，写回 total / byRule / bySeverity。",
+  "tool": "skillspector",
+  "targets": [
+    ".claude/skills/",
+    ".claude/commands/"
+  ],
+  "flags": "--format json --no-llm",
+  "capturedAt": "2026-10-30",
+  "total": 107,
+  "bySeverity": {
+    "CRITICAL": 1,
+    "HIGH": 66,
+    "LOW": 4,
+    "MEDIUM": 36
+  },
+  "byRule": {
+    "Autonomous Decision Making": 22,
+    "Chaining Abuse": 4,
+    "Context Window Stuffing": 1,
+    "Credential Access": 17,
+    "Direct Prompt Extraction": 9,
+    "Env Variable Harvesting": 3,
+    "External Transmission": 4,
+    "Hidden Instructions": 11,
+    "Instruction Override": 3,
+    "Scope Creep": 4,
+    "Self-Modification": 1,
+    "Tool Parameter Abuse": 17,
+    "Unbounded Resource Access": 2,
+    "Unsafe Defaults": 7,
+    "YARA rule 'exploit_framework': Exploit framework components and payloads [hacktools]": 1,
+    "YARA rule 'php_webshell_obfuscated': Obfuscated PHP webshell — eval(base64_decode/gzinflate/str_rot13) [webshells]": 1
+  },
+  "capturedAtCommit": "e44e44a",
+  "capturedTree": "29 个 skill + 7 个 command"
+}
