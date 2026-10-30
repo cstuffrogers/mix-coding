@@ -1,10 +1,10 @@
 ---
-description: Safe dependency update: check outdated → update one-by-one → test → verify breaking changes → update lockfile. 16-step workflow.
+description: Safe dependency update: check outdated → update one-by-one → test → verify breaking changes → update lockfile. 17-step workflow.
 ---
 
 # /deps — 依赖更新
 
-16 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → 策略选择 → 逐项更新 → 验证**
+17 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → 策略选择 → 逐项更新 → 验证**
 
 ## Usage
 

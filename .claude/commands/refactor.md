@@ -5,7 +5,7 @@ argument-hint: "[目标模块]"
 
 # /refactor — 代码重构
 
-24 步混合工作流：**Pre-flight 审查清单（对话模式）→ Skill 审查 → 重构分析 → 执行 → 验证**
+30 步混合工作流：**Pre-flight 审查清单（对话模式）→ Skill 审查 → 重构分析 → 执行 → 验证**
 
 ## Usage
 

@@ -1,10 +1,10 @@
 ---
-description: Configure local CI/CD pipeline: validate GitHub Actions workflows with Act + generate Taskfile.yml task runner. 11-step workflow.
+description: Configure local CI/CD pipeline: validate GitHub Actions workflows with Act + generate Taskfile.yml task runner. 12-step workflow.
 ---
 
 # /cicd — CI/CD 配置
 
-11 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → Workflow 验证 → Taskfile 生成**
+12 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → Workflow 验证 → Taskfile 生成**
 
 ## Usage
 

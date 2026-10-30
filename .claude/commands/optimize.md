@@ -4,7 +4,7 @@ description: Measure-based performance optimization: profile baseline → locate
 
 # /optimize — 性能优化
 
-16 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → 基线测量 → 瓶颈定位 → 优化 → 验证**
+17 步混合工作流：**Pre-flight 审查清单（对话模式）→ 上下文收集 → 基线测量 → 瓶颈定位 → 优化 → 验证**
 
 ## Usage
 

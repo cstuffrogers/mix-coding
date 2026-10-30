@@ -4,7 +4,7 @@ description: Engine self-audit — detect dead actions, undeclared gate names, s
 
 # /check — 引擎自检
 
-7 步工作流：**Pre-flight 记忆召回 → 检测（handler 验证 / 冒烟测试 / 门禁实现）→ 报告**
+8 步工作流：**Pre-flight 记忆召回 → 检测（handler 验证 / 冒烟测试 / 门禁实现）→ 报告**
 
 > 这一步只做检测，不自动改引擎源码。
 > 早先有两个「自愈」步骤（补 action message 表、补 gate flag 映射），都是把猜出来的名字

@@ -1,5 +1,5 @@
 ---
-description: Mobile release: quality gate → cert check → version bump → CHANGELOG → TestFlight/Google Play. 17-step workflow.
+description: Mobile release: quality gate → cert check → version bump → CHANGELOG → TestFlight/Google Play. 18-step workflow.
 argument-hint: "[patch|minor|major]"
 ---
 

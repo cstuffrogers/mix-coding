@@ -1,5 +1,5 @@
 ---
-description: Mobile E2E test setup: auto-detect framework → select best tool (Detox/Patrol) → generate config + examples → CI integration. 12-step workflow.
+description: Mobile E2E test setup: auto-detect framework → select best tool (Detox/Patrol) → generate config + examples → CI integration. 13-step workflow.
 argument-hint: "[测试范围]"
 ---
 

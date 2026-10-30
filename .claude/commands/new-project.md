@@ -5,7 +5,7 @@ argument-hint: "[项目描述]"
 
 # /new-project — 新项目创建
 
-65 步全对话模式工作流：**Pre-flight 设计基准（对话模式）→ shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Git guardrails → Open Design → Impeccable 全维度打磨（Huashu 基线 → critique 检测 → polish+layout+colorize+bolder+typeset+animate+delight+harden+distill+clarify+adapt+optimize → critique 验证 → 3 项精准残留修复 → Huashu 验证，双轮品控+残留修复）+ AI-Friendly 可访问性审查（对话模式，⚠️ 前端项目必须执行）→ 实现 → 审查 → CE 沉淀**
+70 步全对话模式工作流：**Pre-flight 设计基准（对话模式）→ shape 设计简报确立品味方向 → 上下文收集 → Skill 规划 → 脚手架 → Git guardrails → Open Design → Impeccable 全维度打磨（Huashu 基线 → critique 检测 → polish+layout+colorize+bolder+typeset+animate+delight+harden+distill+clarify+adapt+optimize → critique 验证 → 3 项精准残留修复 → Huashu 验证，双轮品控+残留修复）+ AI-Friendly 可访问性审查（对话模式，⚠️ 前端项目必须执行）→ 实现 → 审查 → CE 沉淀**
 
 ## Usage
 

@@ -1,10 +1,10 @@
 ---
-description: Scaffold quality-observability facilities — E2E tests (MSW + Supertest + Schemathesis), uptime monitoring (Upptime + GitHub Actions), or property-based tests. 9-step workflow, branch chosen by --kind.
+description: Scaffold quality-observability facilities — E2E tests (MSW + Supertest + Schemathesis), uptime monitoring (Upptime + GitHub Actions), or property-based tests. 14-step workflow, branch chosen by --kind.
 ---
 
 # /setup — 测试/监控/属性测试设施搭建
 
-9 步工作流：**分支选择（e2e / monitor / property）→ 记忆召回 → 设施搭建 → 门禁检查 → 自动修复 → 通知**
+14 步工作流：**分支选择（e2e / monitor / property）→ 记忆召回 → 设施搭建 → 门禁检查 → 自动修复 → 通知**
 
 引擎场景：`.claude/scenes/setup.json`（`selectSetupKind` 把选择写成 `context.setup_kind`，
 后续步骤按 `setup_kind === 'e2e' | 'monitor' | 'property'` 条件分支，三者同构）。
