@@ -35,10 +35,17 @@ function sceneIds() {
   return new Set(readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.replace('.json', '')));
 }
 
-/** frontmatter 里的 description（可能跨行，取到下一个 `key:` 或 `---` 为止）。 */
+/** frontmatter 里的 description（逐行取，避免回溯型正则：`[\s\S]*?` + 后置断言会 O(n²)）。 */
 function description(text) {
-  const match = /^description:\s*([\s\S]*?)(?:\n[a-z_]+:|\n---)/m.exec(text);
-  return match ? match[1] : '';
+  const lines = text.split('\n');
+  const start = lines.findIndex((line) => line.startsWith('description:'));
+  if (start === -1) return '';
+  const out = [lines[start].slice('description:'.length).trim()];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    if (lines[i] === '---' || /^[a-z_]+:/.test(lines[i])) break;
+    out.push(lines[i]);
+  }
+  return out.join('\n').trim();
 }
 
 describe('scene-runner 的触发面（description）', () => {
@@ -86,5 +93,22 @@ describe('scene-runner 的触发面（description）', () => {
     expect(zh).toContain('bugfix');
     // 英文副本同样是触发面（pi 按副本加载，只改一份等于一半失效）
     expect(en).toMatch(/visual design[^.]*ui-polish/i);
+  });
+
+  // 宿主硬约束（`pi-package/docs/skills.md`）：description 最长 1024 字符，超了这份 SKILL.md
+  // 会被当成不合规文件**整份丢掉**；丢掉是静默的 —— 症状是「技能突然不出现」，而不是报错。
+  // 所以「再多加几个触发词」这种看起来无害的编辑，必须有东西拦着。
+  it('description 守宿主上限（1024 字符）、单行、与目录同名', () => {
+    const offenders = [];
+    for (const copy of SKILL_COPIES) {
+      const text = readFileSync(copy.path, 'utf-8');
+      const desc = description(text);
+      const chars = [...desc].length;
+      if (chars > 1024) offenders.push(`${copy.label}: description ${chars} 字符，超过 1024`);
+      if (desc.includes('\n')) offenders.push(`${copy.label}: description 不是单行（YAML 折叠会走样）`);
+      const name = /^name:\s*(\S+)/m.exec(text)?.[1];
+      if (name !== 'scene-runner') offenders.push(`${copy.label}: name 是 ${name}，与目录名不一致`);
+    }
+    expect(offenders).toEqual([]);
   });
 });
