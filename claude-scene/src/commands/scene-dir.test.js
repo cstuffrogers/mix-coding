@@ -157,13 +157,19 @@ describe('真仓库：两份场景副本必须一模一样', () => {
     expect(overlay).toEqual(builtin);
   });
 
-  it('逐字节相同（覆盖层是内置的完整副本，分叉就说明有人只改了一边）', () => {
+  it('内容逐行相同（行尾不计：core.autocrlf 会把同内容检出成不同字节）', () => {
+    // 为什么不论字节：本仓库 `.gitattributes` 没锁场景 JSON，开发机开着
+    // core.autocrlf=true 时同一份内容会检出成 CRLF，blob 里已经带 CR 的文件
+    // 还会被再转一次（CRCRLF）—— 拿字节比随时假红（第二十八轮结尾就踩了一次）。
+    // 场景 JSON 的语义与行尾无关，所以比的是归一化后的内容；
+    // 真要分叉（改了一边没改另一边）依然会在这里红。
+    const norm = (file) => readFileSync(file, 'utf-8').replaceAll('\r\n', '\n');
     const drifted = jsonFiles(OVERLAY).filter(
-      (f) => readFileSync(join(OVERLAY, f), 'utf-8') !== readFileSync(join(BUILTIN, f), 'utf-8'),
+      (f) => norm(join(OVERLAY, f)) !== norm(join(BUILTIN, f)),
     );
     expect(
       drifted,
-      `这些场景两份不一样：${drifted.join(', ')} —— 运行时会用 .claude/scenes，`
+      `这些场景两份内容不一样：${drifted.join(', ')} —— 运行时会用 .claude/scenes，`
       + '请把改动同步到另一边（或删掉覆盖层副本），不要只改一边',
     ).toEqual([]);
   });

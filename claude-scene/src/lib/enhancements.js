@@ -11,12 +11,17 @@ import { execSync } from 'child_process';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { scanDir } from './scan-dir.js';
+import { resolveScenePath } from './paths.js';
 
 /**
  * Feature detectors. Each returns true if the project has the feature.
  * Cached per project root.
  */
-const DETECTORS = {
+/**
+ * 探测器表。**导出是为了让文档能被对账**：`.claude/rules/conditional/enhancements*.md`
+ * 里写了「用到 5 个、另外 4 个无人引用」—— 那两串名字得能跟这里比，不能靠手抄。
+ */
+export const DETECTORS = {
   webFrontend: (root) => {
     if (!existsSync(join(root, 'package.json'))) return false;
     const hits = scanDir(root, { filter: f => /\.(tsx|jsx|html?)$/i.test(f) });
@@ -242,6 +247,79 @@ const REGISTRY = {
 const DEFAULT_TIMEOUT_MS = 3000;
 
 /**
+ * 这个场景真正会「用上」的增强键 —— 即有没有某个步骤的 `condition` 里写了 `enh_<key>`。
+ *
+ * 为什么需要：`REGISTRY` 21 项里只有 3 项被场景条件消费（`release` 的两项 +
+ * `ui-polish` 的 `huashu_expert_review`）。其余 18 项勾了只是往 context 里放一个没人读的
+ * flag —— 用户以为选了「Stagehand 行为验证」，跑起来一个字都不会变。
+ * 引擎不许替用户假装这件事发生过，所以选定之后要如实分成「有步骤消费」和「仅建议」两栏。
+ *
+ * @param {string} sceneId
+ * @returns {Set<string>} 被 `condition: "enh_*"` 引用的键；读不到场景就当空集
+ */
+export function consumedEnhKeys(sceneId) {
+  const used = new Set();
+  let file;
+  try {
+    file = resolveScenePath(sceneId);
+  } catch {
+    return used;
+  }
+  if (!file || !existsSync(file)) return used;
+
+  let scene;
+  try {
+    scene = JSON.parse(readFileSync(file, 'utf-8'));
+  } catch {
+    return used;
+  }
+
+  const flow = scene.flow || {};
+  const steps = Array.isArray(flow) ? flow : Object.values(flow);
+  for (const step of steps) {
+    if (typeof step?.condition !== 'string') continue;
+    for (const hit of step.condition.matchAll(/\benh_([a-z0-9_]+)\b/gu)) used.add(hit[1]);
+  }
+  return used;
+}
+
+/**
+ * 把选中的增强项分成「有步骤消费」与「只是建议」。纯函数，便于测试。
+ * @param {string[]} selected 选中的 key
+ * @param {Set<string>} consumed `consumedEnhKeys()` 的结果
+ * @returns {{live: string[], inert: string[]}}
+ */
+export function partitionSelection(selected, consumed) {
+  const live = [];
+  const inert = [];
+  for (const key of selected) {
+    (consumed.has(key) ? live : inert).push(key);
+  }
+  return { live, inert };
+}
+
+/**
+ * 如实披露这次启用了什么：分两栏，且「仅建议」那一栏要说清 CLI 下不会执行。
+ * 没有这一行，用户看到的只有菜单勾选，跑完什么也没发生。
+ */
+function discloseSelection(selected, consumed, how) {
+  const { live, inert } = partitionSelection(selected, consumed);
+  if (selected.length === 0) {
+    console.log(chalk.dim(`  ⚙ 没有启用任何增强项（${how}）`));
+    return;
+  }
+  if (live.length > 0) {
+    console.log(chalk.dim(`  ⚙ 增强已选（${how}，场景里有步骤消费）: ${live.join(', ')}`));
+  }
+  if (inert.length > 0) {
+    console.log(chalk.yellow(
+      `  ⚠ 增强已选但没有场景步骤消费（${how}）: ${inert.join(', ')}`
+      + ' —— 只是给对话模式 agent 的建议，CLI 下不会执行任何步骤',
+    ));
+  }
+}
+
+/**
  * @returns {Promise<void>} mutates context with enh_* flags
  */
 export async function applyEnhancements(sceneId, context, options = {}) {
@@ -250,27 +328,27 @@ export async function applyEnhancements(sceneId, context, options = {}) {
   });
   if (enhancements.length === 0) return;
 
+  const consumed = consumedEnhKeys(sceneId);
+
   // Parse --enh flag: comma-separated keys to ADDITIVELY enable beyond defaults
   const enhanceOverrides = options.enh
     ? new Set(options.enh.split(',').map(s => s.trim()).filter(Boolean))
     : new Set();
 
-  // Non-TTY: take defaults + overrides silently (no interactive menu possible)
+  // Non-TTY: take defaults + overrides (no interactive menu possible), but never silently:
+  // 打印分成两栏，让「勾了但没有步骤执行」这件事当场可见。
   if (!process.stdout.isTTY) {
-    for (const e of enhancements) {
-      if (e.default || enhanceOverrides.has(e.key)) context[`enh_${e.key}`] = true;
-    }
-    const selected = enhancements.filter(e => e.default || enhanceOverrides.has(e.key)).map(e => e.key);
-    if (selected.length > 0) {
-      console.log(chalk.dim(`  ⚙ 增强已选（非交互模式）: ${selected.join(', ')}`));
-    }
+    const chosen = enhancements.filter(e => e.default || enhanceOverrides.has(e.key));
+    for (const e of chosen) context[`enh_${e.key}`] = true;
+    discloseSelection(chosen.map(e => e.key), consumed, '非交互模式，按默认值 + --enh');
     return;
   }
 
   // Always show the menu (even in --auto), 3-second timeout falls back to defaults.
   // --auto only controls step confirmation, not enhancement selection.
+  // 菜单里就写明「没有步骤消费」，别等用户勾完才说。
   const choices = enhancements.map(e => ({
-    name: e.label,
+    name: consumed.has(e.key) ? e.label : `${e.label}（无场景步骤消费，仅建议）`,
     value: e.key,
     checked: e.default || enhanceOverrides.has(e.key),
   }));
@@ -290,7 +368,11 @@ export async function applyEnhancements(sceneId, context, options = {}) {
 
   const selected = result.selected || [];
   for (const k of selected) context[`enh_${k}`] = true;
-
+  discloseSelection(
+    selected,
+    consumed,
+    result._timeout ? `交互选择：${String(DEFAULT_TIMEOUT_MS / 1000)} 秒无操作，已按默认值` : '交互选择',
+  );
 }
 
 /**
@@ -302,3 +384,6 @@ export async function applyEnhancements(sceneId, context, options = {}) {
 export const ENHANCEMENT_KEYS = Object.fromEntries(
   Object.entries(REGISTRY).map(([scene, list]) => [scene, list.map(e => `enh_${e.key}`)]),
 );
+
+/** 原样的登记表（带 `default` / `label` / `when`）。文档对账与菜单审计都用它。 */
+export const ENHANCEMENT_REGISTRY = REGISTRY;

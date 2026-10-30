@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-30（第二十九轮：增强项的「勾了会不会真执行」）
+
+### Fixed
+
+- **增强菜单在承诺一件不会发生的事**：`REGISTRY` 里 21 个增强键只有 3 个被场景的 `condition: "enh_<key>"` 消费（`release` 的 step 13.4 / 13.6、`ui-polish` 的 step 9.7），其余 18 个勾上只是往 context 放一个没人读的 `enh_*` flag。此前非交互模式只打印一行 `⚙ 增强已选（非交互模式）: …`，等于告诉用户「已启用」——跑完却一个字都不变（`review` 场景的 4 项全是这种：`huashu_expert_review` / `critiq_security_scan` 默认勾选，却没有任何步骤消费）。现在选定后按「场景里有步骤消费」/「没有场景步骤消费（仅给对话模式 agent 的建议，CLI 下不会执行任何步骤）」分两栏打印，交互菜单里也直接给无消费项加后缀；`--auto` 不再被当作「你确认过了」。
+- **3 秒超时静默替用户选了默认值**：`Promise.race` 超时分支只回一个 `_timeout` 标记，选定结果不打任何字。现在超时会出现在同一行披露里（`交互选择：3 秒无操作，已按默认值`）。
+- **`.claude/rules/conditional/enhancements-summary.md` 整份是假的**（CLAUDE.md 让每个 session 都读它）：它给 `review` 列了「无障碍✓ · i18n · QA验证✓ · 迁移审查✓」四项——`REGISTRY['review']` 里一个都没有；给 `audit` `hunt` `e2e` `monitor` `design` 这些已退役场景列了完整菜单；`无增强场景` 里又列着已删的 `analyze` `simplify`。现按 `REGISTRY` + `consumedEnhKeys()` 重写成「一行一场景」的生成视图（`✓` = 默认勾选、`step N` = 真有步骤消费、`⌾` = 勾了不执行），并由测试逐字对账。
+- **`enhancements.md` 的探测器数量也是假的**：写着「只有 4 个探测器被 `REGISTRY` 用到」，实际是 5 个（漏了 GEPA，`optimize`/`loop` 在用），而「没有任何增强项引用」的死探测器是 5 个不是 4 个（`i18n` 连场景都没引用过）。表格补齐 GEPA 行，死探测器点名 5 个。CHANGELOG 里「探测器表只留真正被引用的 4 个」这句同错，一并订正。
+- **场景副本守卫在 autocrlf 机器上会假红**：第二十八轮那条守卫比的是工作区字节，而 `.gitattributes` 没锁场景 JSON —— `core.autocrlf=true` 下同一份内容会被检出成不同字节（blob 里已带 CR 的还会变成 CRCRLF，`check.json` 实测 2635 → 2722）。现改为比较归一化行尾后的内容：真分叉（改了一边没改另一边）依然会红。
+
+### Added
+
+- **`claude-scene/src/lib/enhancements.test.js`（15 例）**：`consumedEnhKeys()` 三态（ui-polish 一项 / review 零项 / release 两项 / 场景不存在返回空集）、`partitionSelection()` 纯函数边界、幽灵增强键守卫（场景里写的 `enh_xxx` 必须在 `REGISTRY` 名单里，扫全部 26 个场景）、非交互披露两栏文本 + flag 仍要设上、`enhancements.md` 21 行 「场景步骤」列对账、`enhancements-summary.md` 逐行对账 + 无人场景清单 + 退役场景名 + 探测器数量与名单。
+- `lib/enhancements.js` 导出 `ENHANCEMENT_REGISTRY` 与 `DETECTORS`（文档对账需要真值，不能靠手抄）。
+- `DECISIONS.md` 新增 ADR-023（菜单里承诺的能力必须有步骤消费，否则当场披露；文档中的「一行一场景」视图必须与代码对账）。
+
 ## 2026-07-01
 
 ### Fixed

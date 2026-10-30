@@ -1,55 +1,46 @@
 # 可选增强规则（精简版）
 
-执行工作流前自动检测项目特征，弹可选增强菜单。3秒无操作默认勾选，未检测到不展示。完整版见 `enhancements.md`。
+执行工作流前自动检测项目特征，弹可选增强菜单；3 秒无操作按**默认值**（并把「超时」这件事打印出来），
+未检测到不展示。完整版见 `enhancements.md`。
 
-> **mythos-agent 已卸载**（2026-10-27 工具清理，`npm i -g mythos-agent` 可装回）。
-> 它的探测器是 `mythos-agent --version`，装不回来就恒为 false，下面 8 处 mythos 增强项
-> 不会出现在菜单里 —— 这不是配置漏了，是工具不在。其余增强不受影响。
+> **探测器依赖外部工具。** 本机 `mythos-agent`（2026-10-27 工具清理时移除，`npm i -g mythos-agent` 可装回）
+> 与 `gepa`（python 模块）都没装 → 相关项不会出现在菜单里，不是配置漏了。
 
-## 检测→场景映射
+> **勾了不等于会执行。** 增强项只往 context 放一个 `enh_<key>` flag，**只有场景里存在
+> `condition: "enh_<key>"` 的步骤时才真的多走一步**。没步骤消费的项在菜单里带「（无场景步骤消费，仅建议）」，
+> 选定后还会打印一行 `⚠ 增强已选但没有场景步骤消费` —— 这是给对话模式 agent 的建议，CLI 下什么都不发生。
 
-| 检测项 | 方式 | 场景 |
-|--------|------|------|
-| Web前端 | `*.tsx`/`*.jsx`+`package.json` | review, ui-polish |
-| 前端变更 | git diff含.tsx/.jsx/.vue | review |
-| 数据库 | `migrations/`/`prisma/`/`*.sql` | feature, release, review |
-| 需求>50字 | — | feature, new-project |
-| i18n | i18n配置/locale/ | review |
-| Stagehand | `@browserbasehq/stagehand` | 10场景 |
-| mythos-agent | CLI可用 | 8场景 |
-| GEPA | `import gepa` | optimize, loop |
-| Critiq | `@critiq/cli` | review, audit, hunt |
+> **本文件是「生成视图」，真值来源是 `lib/enhancements.js` 的 `REGISTRY` + `consumedEnhKeys()`。**
+> `enhancements.test.js` 会把下面每一行与代码逐项对账（场景集合、勾选默认值、`step N`、`⌾` 标记、无人场景清单），
+> 改了代码不改这里会红。
 
-## 各场景增强菜单（选项/默认/条件）
+## 图例
 
-**feature/new-project**: jvn多Agent审查✓(>50字) · 迁移审查✓(DB) · CEO策略审查✓(>50字) · Stagehand功能验收✓(Stagehand) · Stagehand E2E脚手架(Stagehand+new-project) · mythos安全审计✓(mythos)
+- `✓` = `default: true`，非交互模式（`--auto` / 聊天界面）会替你勾上
+- `step N` = 场景里真有这个步骤读 `enh_<key>`，勾上就多执行一步
+- `⌾` = 没有任何步骤消费它：勾了只有 flag，CLI 下什么都不发生
 
-**review**: 无障碍✓(Web) · i18n(i18n) · QA验证✓(前端变更) · Stagehand行为(Stagehand) · 迁移审查✓(DB) · mythos安全推理(mythos) · Critiq✓(Critiq)
+## 各场景增强菜单
 
-**release**: 迁移审查✓(DB) · 上线清单 · 变更日志✓ · Stagehand冒烟(Stagehand) · mythos发布门禁(mythos)
+- **ui-polish**: `huashu_expert_review` ✓ step 9.7 · `impeccable_audit` ✓ ⌾ · `stagehand_interaction` ✓ ⌾
+- **review**: `huashu_expert_review` ✓ ⌾ · `stagehand_behavior` ⌾ · `mythos_agent_review` ⌾ · `critiq_security_scan` ✓ ⌾
+- **release**: `huashu_release_deck` step 13.4 · `huashu_release_animation` step 13.6 · `stagehand_smoke` ⌾ · `mythos_agent_release` ⌾
+- **bugfix**: `stagehand_reproduce` ✓ ⌾ · `mythos_agent_variants` ✓ ⌾
+- **deps**: `mythos_agent_cve` ⌾
+- **feature**: `stagehand_acceptance` ✓ ⌾ · `mythos_agent_feature` ✓ ⌾
+- **new-project**: `stagehand_scaffold` ⌾
+- **optimize**: `gepa_evolve` ✓ ⌾
+- **loop**: `gepa_self_evolve` ✓ ⌾
+- **refactor**: `stagehand_regression` ✓ ⌾ · `mythos_agent_refactor` ✓ ⌾
 
-**cicd**: Docker化 · 备份配置
+## 探测器
 
-**deps**: SBOM生成 · mythos CVE分析(mythos)
+`REGISTRY` 用到 5 个：UI 文件（`uiFiles`）、Stagehand 依赖、`mythos-agent --version`、`@critiq/cli` 依赖、
+`import gepa`。`DETECTORS` 里另外 5 个（`webFrontend` `database` `i18n` `brandLikelyMentioned`
+`complexRequirement`）已无人引用，属于死代码。
 
-**monitor**: 日志配置 · Incident Runbook · Stagehand合成监控(Stagehand)
+## 没有增强项的场景
 
-**hunt**: LLM代理审计✓ · mythos假设驱动扫描✓(mythos) · Critiq漏洞扫描✓(Critiq)
+check cicd mobile-audit mobile-e2e mobile-onboard mobile-optimize mobile-release mobile-review onboard plan plan-ceo-review qa rollback setup spec update
 
-**optimize**: GEPA prompt进化✓(GEPA)
-
-**loop**: GEPA自进化✓(GEPA)
-
-**e2e**: 负载测试 · Stagehand功能测试✓(Stagehand)
-
-**audit/refactor**: 架构深度审计 · Stagehand行为回归✓(Stagehand) · mythos安全审计✓(mythos) · Critiq全量审计✓(Critiq)
-
-**bugfix**: Stagehand浏览器复现✓(Stagehand) · mythos同根因排查✓(mythos)
-
-**ui-polish**: Impeccable打磨✓ · Huashu评审✓(Web) · Stagehand交互校验(Stagehand)
-
-**design**: Huashu Brand Protocol✓(品牌提及) · Huashu评审✓(Web) · Impeccable打磨✓ · Stagehand响应式(Stagehand)
-
-## 无增强场景
-
-`analyze` `check` `mobile-audit` `mobile-e2e` `mobile-onboard` `mobile-optimize` `mobile-release` `mobile-review` `onboard` `plan-ceo-review` `qa` `rollback` `simplify`
+（共 26 个场景，其中 10 个有增强项。）

@@ -3772,3 +3772,76 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
   所以可以断言；将来若要分叉，应该删副本或显式豁免，而不是放宽守卫。
 - **中间产物也要有门禁**：`scenes-stats.json` 以前「有人记得才重跑」，现在提交前必跑，
   不一致就拦 —— 与第二十六轮「陈旧产物要么删、要么接上生成器」同一条原则。
+
+---
+
+## 第二十九轮：增强项「勾了会不会真执行」——菜单、日志、文档三处都在替用户假定（2026-10-30）
+
+**问题**：`REGISTRY` 里 21 个增强键，只有 3 个被场景步骤消费。其余 18 个勾上只是往 context
+放一个没人读的 `enh_*` flag。而三处输出都在暗示「已启用」：非交互模式打一行
+`⚙ 增强已选（非交互模式）: …`；交互模式 3 秒超时替用户选了默认值且不吭声；
+`enhancements-summary.md`（CLAUDE.md 要求每个 session 都读）给已退役场景写着完整菜单。
+
+### 取证
+
+| 假设 | 实测 |
+|------|------|
+| 「勾了就会执行」 | `consumedEnhKeys('review')` = 空集 —— 本仓库 `review` 的 4 项（`huashu_expert_review` ✓、`critiq_security_scan` ✓ 默认勾选）没有任何步骤读它们 |
+| 哪些项真的会多走一步 | `ui-polish` step 9.7（`huashu_expert_review`）、`release` step 13.4 / 13.6（`huashu_release_deck` / `huashu_release_animation`）；合计 3/21 |
+| `enhancements-summary.md` 可信吗 | 给 `review` 列了「无障碍✓ · i18n · QA验证✓ · 迁移审查✓」——`REGISTRY['review']` 里一个都没有；`hunt` `audit` `e2e` `monitor` `design` 这些已退役场景还整节留着 |
+| `enhancements.md` 的探测器数量 | 写「只有 4 个被 `REGISTRY` 用到」，实际 5 个（漏了 GEPA）；死探测器是 5 个不是 4 个（`i18n` 也在） |
+
+### 三维度修复
+
+1. **代码（`lib/enhancements.js`）**：新增 `consumedEnhKeys(sceneId)`（从场景 JSON 的 `condition`
+   里提取 `enh_<key>`）、`partitionSelection(selected, consumed)`（纯函数，保序）、
+   `discloseSelection(selected, consumed, how)`（两栏打印）。非交互模式与交互模式都走它；
+   交互菜单给无消费项加「（无场景步骤消费，仅建议）」后缀；超时在披露行里明写「3 秒无操作，已按默认值」。
+2. **文档（`enhancements.md`）**：21 行表格加「场景步骤」列（`✓ step N` / `仅建议（勾了不触发步骤）`）；
+   探测器 4 → 5，补 GEPA 行，点名 5 个死探测器；「菜单规则」写明「勾了不等于会执行」+ 超时披露要求。
+3. **文档（`enhancements-summary.md`）**：整份重写成生成视图 —— 一行一场景、
+   `✓` = 默认勾选、`step N` = 真有步骤消费、`⌾` = 勾了不执行；`无增强场景` 按 `listSceneIds() − REGISTRY` 真值；
+   共 26 场景 / 10 个有增强项。
+
+### 验收三元组
+
+| 改动 | 验证命令 | 结果 |
+|------|----------|------|
+| 披露逻辑 + 文档对账 | `npx vitest run claude-scene/src/lib/enhancements.test.js` | **15 passed** |
+| 全量测试 | `npx vitest run` | **113 files / 1431 tests 全绿**（+15） |
+| 双 eslint | `npx eslint .` + `(cd claude-scene && npx eslint . --max-warnings 0)` | 0 error / 0 warning |
+| 真跑一次 | `node claude-scene/src/index.js start review --auto --skip-sweep` | EXIT=0；首行变成 `⚠ 增强已选但没有场景步骤消费（非交互模式，按默认值 + --enh）: huashu_expert_review, critiq_security_scan —— 只是给对话模式 agent 的建议，CLI 下不会执行任何步骤`；17 pass / 0 fail / 3 warn / 19 skip / 4 noop |
+| 5 个校验器 | `node scripts/check-{readme-stats,action-stats,doc-counts,tool-steps,dead-actions}.cjs` | 全 EXIT=0 |
+| 死代码 / 场景真值 | `npm run scan:deadcode` / `scan-scenes.cjs` + `git diff --quiet` | `Total dead: 0`；同步 |
+
+### 自探针（每条新守卫都先证明它会红）
+
+1. 把 `discloseSelection` 改成空实现 → 「非交互披露两栏」「没有增强项」2 例红。
+2. 把 `release:huashu_release_deck` 的表格单元从 `✓ step 13.4` 改成 `仅建议` → 文档对账红并点名 `release:huashu_release_deck`。
+3. 往 `.claude/scenes/qa.json` 的 `condition` 里塞 `enh_typo_key ||` → 幽灵键守卫红：
+   `qa: enh_typo_key（REGISTRY 里没这一项，该步骤永远不会跑）`。（**第一次探针没红**：守卫只扫 `REGISTRY` 里的场景，改成扫 `listSceneIds()` 才抓到。）
+4. 精简版文档同时改三处（`step 13.4` → `13.5`、`用到 5 个` → `用到 4 个`、插一行已退役的 `audit`）→ 3 例同时红。
+
+### 坑
+
+- **「探针没红」本身就是发现**：幽灵键守卫第一版只遍历 `REGISTRY` 的场景 —— 而那些场景的 `condition`
+  本来就只写自己的键，等于永远查不出东西。改成遍历 `listSceneIds()`（全部 26 个场景）才有意义。
+- **生成器拼字符串时别把反引号塞进模板字面量**：用 node 脚本改「生成出来的 Markdown」时，
+  替换串里的 `` ` `` 直接把模板字面量截断（`SyntaxError: Unexpected identifier 'i18n'`）。
+  改文档就老实改文档，别拿代码去改「代码生成的文本」。
+- **`DETECTORS` 数量又会算错**：用 `/^  ([a-zA-Z]+): /` 从源码数探测器名，`i18n` 带数字 → 漏掉 →
+  「4 个死探测器」这种假数字就是从这儿来的。**真值要 import 进来数，不要用正则数源码。**
+- **上一轮修好的守卫在 autocrlf 机器上假红**：`scene-dir.test.js` 比的是字节，`cp` 回来的覆盖层
+  是 LF、内置副本是 CRLF → 全量测试 1 failed。守卫改成比归一化内容；但**根因是「探针复原」**：
+  `git cat-file -p HEAD:<path>` 落的是 blob 字节（LF），而工作区是 CRLF。以后改探针过的文件，
+  用**同目录的兄弟文件做字节副本**，别用 git blob。
+
+### 决策
+
+- **「已选」不等于「已生效」**：菜单产物是 flag，flag 有没有人读是另一回事。所有「已启用」类文案
+  都得先回答「谁消费它」。
+- **超时是「替你选了默认值」，必须当场说**：静默默认与「你确认过」在日志里长得一模一样，
+  这是同一个「假绿」家族。
+- **文档里的一行一场景也必须生成 + 对账**：真正危险的不是正文（没人读），而是 agent 每次会话
+  都会 Read 的精简版。
+- **不删 18 个死项**：它们是对话模式 agent 的建议清单；这一轮只保证「说了实话」，接不接步骤是功能开发。
