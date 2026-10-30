@@ -850,7 +850,8 @@ brew upgrade lychee                          # macOS
 |------|------|
 | 🔧 完整安装配置指南 | [INSTALL.md](./INSTALL.md) |
 | 完整架构文档 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
-| 📋 完整工具清单与使用矩阵 | [docs/tools-inventory.md](./docs/tools-inventory.md) |
+| 🛡️ 外部安全工具链清单（33 个，唯一真值） | [.claude/rules/conditional/security-toolchain.md](./.claude/rules/conditional/security-toolchain.md) |
+| 🎬 场景定义与场景表 | [.claude/scenes/README.md](./.claude/scenes/README.md) |
 | Open Design | [github.com/nexu-io/open-design](https://github.com/nexu-io/open-design) |
 | Claude Code SDK | [docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code-sdk/claude-code-headless) |
 | **CodeGraph文档** | 已安装：`codegraph init -i` → `codegraph --help` |

@@ -820,3 +820,54 @@ ADR-023 原文只管「出现了但没执行」。另一半当时没人管：`wh
 - 不修（登记为债务）：`docs/tools-inventory.md` 是 2026-06-14 的快照（MCP 13 / Skills 37 /
   命令 89 全过期、工具矩阵里还有 `env-leak-scanner`、工作流列写着已退役的 `hunt` / `audit`），
   它不在任何校验器覆盖范围内，整份要么接生成器要么删，不适合混在本轮里改。
+
+---
+
+## ADR-025：死配置与死文档必须死透（删掉 `.claude/mcp-enable.json` 与 `docs/tools-inventory.md`）
+
+**背景**：
+
+第三十二轮把「外部工具」三套名单收成一份真值之后，同一类病还剩两处，都在「文档描述的东西其实不存在」上：
+
+1. `.claude/mcp-enable.json`（`mcp_mappings` 24 条 / `server_definitions` 18 个 / `activation_strategy` 按工作流给 token 预算）
+   被 **4 份文档**写成生效机制（`ARCHITECTURE.md` 有整节 + 配置表行、`.claude/scenes/README.md`、`docs/MULTIPLATFORM.md`、
+   两份移动端提案），而 `grep -rln "mcp-enable"` 在 `*.js|*.cjs|*.json` 里**一个命中都没有** —— 没有代码读它。
+   映射本身也早就烂了：24 条里 6 条指向已退役场景（`design`/`simplify`/`hunt`/`analyze`/`audit`/`prototype`），
+   8 个现存场景（`check`/`cicd`/`plan`/`plan-ceo-review`/`qa`/`setup`/`spec`/`update`）没有映射。
+2. `docs/tools-inventory.md`（802 行，两份 README 都链它）是 2026-06-14 的手写快照，**自己跟自己都对不上**：
+   文件头 MCP 13 / Skills 37 / 命令 89 / 模块 16，目录写 14 MCP，汇总统计写 18 MCP / 39 skills / 95 命令 /
+   27–28 场景 / 18 个 Scene JSON（238 步）/ 280+ actions；还引用不存在的 `.claude/mcp.json`、
+   已退役的 `simplify`/`hunt`/`analyze`/`design`/`audit`、已删除的 `env-leak-scanner`。
+
+**决策**：
+
+1. **没人读的配置就是死配置，删掉，不「留着以后用」**。`mcp-enable.json` 整份删除；
+   真正生效的只有 `.mcp.json`（light，3 个）/ `.mcp.json.full`（full，14 个），
+   切换靠 `npm run mcp:switch` 整文件替换（可逆，退出码 0/1/2）。
+2. **手写机器状态要么接生成器、要么删，不允许「半同步」**。`sync-docs.js` 只更新 `tools-inventory.md` 的
+   场景计数，于是那份 802 行的假清单看起来「还在维护」。整份删除；同步目标只剩活着的
+   `.claude/scenes/README.md`。README 两处链接改指向真值（`security-toolchain.md` / 场景表）。
+3. **删掉的东西要有守卫**，而且守卫要能区分「历史记录」与「活着的主张」：
+   `retired-artifacts.test.js` — 文件不存在 / 没有代码读它（注释里交代历史不算读）/
+   活文档零提及；白名单只放台账（`progress.md` / `DECISIONS.md` / `docs/CHANGELOG.md`）
+   与带 `> **归档**` 横幅的历史提案。历史文档靠**加归档横幅**获得豁免，而不是靠再加一条路径白名单。
+4. **文档点名的文件必须存在**。同一条测试顺手堵住另外两类：
+   活文档里 `.claude/rules/*.md` 的引用必须可解析（本轮修好 `docs/harness-engineering/12-principles.md`
+   3 处搬到 `conditional/` 的路径 + `karpathy-principles.md` → `conditional/core-rules.md`、
+   `memory-auto-save.md` 里指向不存在 `.bak` 的「详细规则见原文件」）；
+   入口文档（README/README_EN/ARCHITECTURE/INSTALL/CLAUDE/AGENTS）的相对链接必须能解析。
+5. **同步只覆盖一段，不等于那一段的数字是对的**。`.claude/scenes/README.md` 标题写「27 个」而表里 26 行 ——
+   AUTO-SYNC 只换标记之间的表格。`check-doc-counts` 增加第 4 份文档：标题数字 + 表行数**都**要对上场景数。
+
+**取舍**：
+
+- 正向：4 份把死机制写成活的文档改口；802 行自相矛盾的清单消失；新增 6 条守卫 + 3 条 checker 断言。
+- 负向：`docs/tools-inventory.md` 的「使用矩阵」（哪个工具在哪个工作流里用）没有等价的活文档，
+  只在 `security-toolchain.md` 与各场景 JSON 里分散可见 —— 但那份矩阵本身早就是假的（写着已退役工作流），
+  留一份假矩阵比没有更糟；下一次要的话必须从场景 JSON 生成。
+- 负向：`retired-artifacts.test.js` 需要一份台账白名单。它的失效方式是「新加一个文件就顺手进白名单」——
+  所以白名单只按**文件**枚举并逐个写明理由，不按路径通配。
+- 不修（登记为债务，本轮发现）：`ARCHITECTURE.md` 的开头部分整体仍陈旧（Prerequisites 写 `Claude Code CLI`、
+  Open Design 克隆、`.env.example`、ASCII 架构图里还有 `/design` `/simplify`）。本轮只改了与死机制相关的那一段。
+- 不修（登记为债务）：`detector-report.js` 的 `workingTreeDirty` 读的是自检**记录里**的字段，
+  不是现场 `git status` —— 「记录跑的时候工作区是干净的」不等于「现在干净」。

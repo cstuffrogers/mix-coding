@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-10-30（第三十三轮：死配置与死文档必须死透）
+
+### Fixed
+
+- **`docs/tools-inventory.md`（802 行）自己跟自己都对不上，而且没有任何校验器管它**：文件头写 MCP 13 / Skills 37 / 命令 89 / 模块 16，目录写 14 MCP，汇总统计写 18 MCP / 39 skills / 95 命令 / 27–28 场景 / 18 个 Scene JSON（238 步）/ 280+ actions；还引用不存在的 `.claude/mcp.json`、已退役的 `simplify`/`hunt`/`analyze`/`design`/`audit`、已删除的 `env-leak-scanner`。两份 README 都链它。**整份删除**；`README.md` / `README_EN.md` 两处链接改指向真值（`security-toolchain.md` 与 `.claude/scenes/README.md`）。
+- **手写快照「看起来还在维护」是因为同步只覆盖了一段**：`sync-docs.js` 每次只刷新 `tools-inventory.md` 的场景计数，那 802 行里的其余数字永远更新不了 —— 读者看到「场景数是新的」，就以为整份是新的。现同步目标只剩活着的 `.claude/scenes/README.md`，对着已删文件调 `updateSceneCounts` 只会静默返回空列表（「同步了」和「没同步」又长得一样）。
+- **`.claude/mcp-enable.json` 是死配置，却有 4 份文档把它写成生效机制**：`ARCHITECTURE.md` 有整节「MCP Dynamic Enablement」+ 配置表行、`.claude/scenes/README.md`、`docs/MULTIPLATFORM.md`、两份移动端提案。实际上 `grep` 在 `*.js|*.cjs|*.json` 里**一个命中都没有**，没有任何代码读它；24 条 `mcp_mappings` 里 6 条指向已退役场景（`design`/`simplify`/`hunt`/`analyze`/`audit`/`prototype`），8 个现存场景（`check`/`cicd`/`plan`/`plan-ceo-review`/`qa`/`setup`/`spec`/`update`）没有映射。现整份删除，文档改口为真实情况：只有 `.mcp.json`（light，3 个）/ `.mcp.json.full`（full，14 个）+ `npm run mcp:switch` 整文件切换，**没有**「按场景自动启用」。
+- **`.claude/scenes/README.md` 标题写「27 个」，表里 26 行**：AUTO-SYNC 只替换标记之间的表格，标题里的数字靠手改。现改为 26，并把「标题数字 + 表行数」纳入 `check-doc-counts`（第 4 份文档）。
+- **`docs/MULTIPLATFORM.md` 的目录树在描述不存在的结构**：`.claude/mcp.json`（早已删除）、重复两行 `settings.json`（其中一行写「项目级设置」）、`.codex/mcp/`（实际是 `.codex/config.toml` + `agents/`）。现按真实结构重写，并把 `.mcp.json` / `.mcp.json.full` 放到仓库根的位置。
+- **活文档点名了不存在的规则文件**：`docs/harness-engineering/12-principles.md` 三处 `.claude/rules/{coding,react-doctor,visual-standards}.md`（早已搬进 `conditional/`）、`karpathy-principles.md`（已并入 `conditional/core-rules.md`）；`.claude/rules/conditional/memory-auto-save.md` 的「详细规则见原文件 `.bak`」指向一份既不存在、也无法重新生成的备份。现全部指向真实文件（`core-rules.md` 写明含 Karpathy 三诫），`.bak` 指针换成实现目录 `claude-scene/src/handlers/memory/`。
+- **两份移动端提案在写「要改 `mcp-enable.json`」**：它们是 2026-06-10 的方案，但没有任何归档标记，读起来像现行计划。现各加一条 `> **归档**` 横幅，说清「未按本文落地 × 该映射表与 `mobile-check` 场景今天都不存在」。
+
+### Added
+
+- **`retired-artifacts.test.js`（6 例）**：退役文件不存在；没有代码去读退役文件（注释里交代历史不算「读」，本测试自己持有名单因此跳过自身并写明理由）；活文档零提及（白名单只放台账 `progress.md` / `DECISIONS.md` / `docs/CHANGELOG.md`，以及带 `> **归档**` 横幅的历史提案）；活文档点名的 `.claude/rules/*.md` 必须存在（`x.md.bak` 这类备份名用负向先行断言排除）；入口文档相对链接必须可解析。每条都有「自证非空跑」下限（源码 ≥ 80 个文件、活文档 ≥ 40 份、规则引用 ≥ 3 处、链接 ≥ 20 个）。
+- **`check-doc-counts.cjs` 第 4 份文档 `.claude/scenes/README.md`**：`## 当前场景（N 个）` 的 N 与 AUTO-SYNC 表行数**都**必须等于场景数；文件读不到、标题格式变了、表一行都认不出 → exit 2（塌面不许降级成漂移）。
+- **`doc-counts.test.js` +3 例**（15 → 18）：标题数字写老 → exit 1；表少一行 → exit 1；整个 README 不见了 → exit 2。
+
+### Self-audit 顺带修掉的两个「探测器自检用例过期」
+
+跑 `npm run detector:sweep` 时发现 12 个用例里有 **2 个注入点已经匹配不到**（`注入点没匹配到（用例过期）`）——
+它们校验的是引擎最核心的两条假绿守卫，却因为后来的重构改了源码文案而**静默失效**：自检记录照样写着「10/12 有效」，
+`/review` 只能说「记录过期」，没人知道那 2 条验的是「空结果记 pass」和「裸字符串 + 本轮未执行」。
+
+- **空结果记 pass**：`start.js` 的那条 warn 后来补了 `warnKind: 'silent'`，注入点跟丢。现按当前文案重新锚定。
+- **裸字符串 + 本轮未执行**：`handlers/mobile/audit.js` 已改成「场景声明的工具名就是真去查的那个」+ 返回对象，
+  原文案不复存在。现按当前写法注入（仍是「裸字符串 + 本轮未执行」的违规形态）。
+
+修完 `detector:sweep` 为 **12/12 个探测器有效**。
+
+### Known issues（本轮不修，登记在此免得下次又从零发现）
+
+- `ARCHITECTURE.md` 的整体正文仍陈旧：Prerequisites 写 `Claude Code CLI`、Open Design 克隆、`.env.example`，ASCII 架构图里还有 `/design` `/simplify`。本轮只改了与死机制相关的那一段。
+- `README.md:11` 的「25 个自动化工作流」与真值 26 场景不一致，`check-doc-counts` 目前不查这一行。
+- `detector-report.js` 的 `workingTreeDirty` 读的是自检**记录里**的字段，不是现场 `git status` —— 「记录跑的时候工作区干净」被当成了「现在干净」。
+- 本轮复跑 `detector:sweep` 后 `/review` 稳定在 `pass 19 / fail 0 / warn 1 / skip 19 / noop 4`（上一轮 17/0/3/19/4）：
+  `证据过期` 那条 warn 消失，是因为过期注入点修好了、自检记录也在干净工作区按当前 HEAD 重跑过；
+  剩下的 1 条是 `sec-bug-hunt` 的「npm audit 接口不可用，依赖漏洞未知」—— 环境事实。
+
+
 ## 2026-10-30（第三十二轮：「外部工具」三套名单，每份都跟自己自洽）
 
 ### Fixed

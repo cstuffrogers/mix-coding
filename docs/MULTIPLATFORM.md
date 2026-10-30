@@ -39,21 +39,24 @@ auto-coding/
 │   ├── plugins/          ★ 引擎插件
 │   ├── commands/         ★ 工作流源文件 (33 个 .md, 所有平台共用)
 │   ├── agents/           Claude Code 专属子代理
-│   ├── mcp.json          MCP 配置定义
-│   ├── mcp-enable.json   工作流-MCP 动态启用映射
-│   ├── settings.json     Claude Code 专属设置
-│   └── (运行产物: logs/ reviews/ designs/ 等)
+│   └── settings.json     Claude Code 专属设置 + 项目级设置
+│
+├── .mcp.json             ← MCP 当前生效配置（light 档）
+├── .mcp.json.full        ← MCP 完整档
 │
 ├── .codex/               ← Codex 专属
 │   ├── AGENTS.md         项目指令
-│   ├── mcp/              MCP 配置
-│   └── prompts/          自定义提示
+│   ├── config.toml       Codex 配置
+│   └── agents/           子代理
 │
 ├── .zcode/               ← ZCode 专属
 │   └── AGENTS.md         项目指令
 │
 ├── .pi/                  ← pi 专属（percho 桌面端共享此目录）
-│   └── AGENTS.md         项目指令
+│   ├── AGENTS.md         项目指令
+│   ├── mcp.json          MCP 配置
+│   ├── skills/           技能
+│   └── prompts/          提示
 │
 ├── CLAUDE.md             ← Claude Code 入口 (所有平台源文档)
 ├── AGENTS.md             ← Codex / ZCode / pi 入口 (指向 CLAUDE.md)

@@ -23,21 +23,17 @@ function tableSection(name, body) {
   ].join(LF);
 }
 
-function buildProject({ readmeEol = LF, withReadmeMarkers = true, claudeMd, inventory } = {}) {
+function buildProject({ readmeEol = LF, withReadmeMarkers = true, claudeMd, readmeExtra } = {}) {
   mkdirSync(join(root, '.claude', 'scenes'), { recursive: true });
   writeFileSync(join(root, '.claude', 'scenes', 'a-scene.json'), scene('a-scene', '甲场景'));
   writeFileSync(join(root, '.claude', 'scenes', 'b-scene.json'), scene('b-scene', '乙场景'));
 
   const readmeBody = withReadmeMarkers
-    ? `# 场景表${LF}${LF}${tableSection('SCENE-TABLE', '| 旧 | 旧 | 旧 |')}${LF}`
+    ? `# 场景表${LF}${LF}${readmeExtra ?? ''}${tableSection('SCENE-TABLE', '| 旧 | 旧 | 旧 |')}${LF}`
     : `# 场景表${LF}${LF}| 旧 | 旧 | 旧 |${LF}`;
   writeFileSync(join(root, '.claude', 'scenes', 'README.md'), readmeBody.split(LF).join(readmeEol));
 
   if (claudeMd !== undefined) writeFileSync(join(root, 'CLAUDE.md'), claudeMd.split(LF).join(readmeEol));
-  if (inventory !== undefined) {
-    mkdirSync(join(root, 'docs'), { recursive: true });
-    writeFileSync(join(root, 'docs', 'tools-inventory.md'), inventory.split(LF).join(LF));
-  }
 }
 
 const allBuckets = (report) => [
@@ -119,7 +115,7 @@ describe('syncAllDocs —— 人工托管桶', () => {
 
 describe('syncAllDocs —— 不留僵尸目标', () => {
   it('不会再报 .claude/rules/workflows.md 缺失（那个文件早就不存在）', () => {
-    buildProject({ claudeMd: `# 项目${LF}`, inventory: `# 清单${LF}${LF}共 25 个场景${LF}` });
+    buildProject({ claudeMd: `# 项目${LF}` });
     const report = syncAllDocs(root);
 
     const targets = allBuckets(report);
@@ -128,27 +124,28 @@ describe('syncAllDocs —— 不留僵尸目标', () => {
     expect(report.missingFile).toEqual([]);
   });
 
-  it('场景计数按实际数量刷新', () => {
-    buildProject({ inventory: `# 清单${LF}${LF}共 25 个场景${LF}` });
+  it('场景计数按实际数量刷新（同步目标只剩 .claude/scenes/README.md）', () => {
+    // docs/tools-inventory.md 第三十三轮已整份删除：那 802 行手写快照里的数字
+    // 没有一个跟代码对得上，唯一「还在维护」的就是这一行场景计数 —— 为它保留一份 802 行的假清单，
+    // 代价远大于收益。计数同步仍在，目标换成活着的那份文件。
+    buildProject({ readmeExtra: `共 25 个场景${LF}${LF}` });
     const report = syncAllDocs(root);
 
-    expect(report.updated).toContain('tools-inventory.md#场景计数');
-    expect(readFileSync(join(root, 'docs', 'tools-inventory.md'), 'utf8')).toContain('2 个场景');
+    expect(report.updated).toContain('README.md#场景计数');
+    expect(readFileSync(join(root, '.claude', 'scenes', 'README.md'), 'utf8')).toContain('2 个场景');
   });
 
   it('目录锚点里的场景数也会跟着改（#25-个场景 这种写法以前漏掉，链接静默失效）', () => {
     // 正文数字已经是对的，错的只有目录锚点 —— 旧实现看到正文数字相等就早退，
     // 这种「半对」的文件永远修不了。
-    const inventory = [
-      '# 清单',
-      '',
+    const readmeExtra = [
       '5. [2 个场景工作流](#25-个场景工作流scene-json--command-markdown)',
       '',
     ].join(LF);
-    buildProject({ inventory });
+    buildProject({ readmeExtra });
     syncAllDocs(root);
 
-    const content = readFileSync(join(root, 'docs', 'tools-inventory.md'), 'utf8');
+    const content = readFileSync(join(root, '.claude', 'scenes', 'README.md'), 'utf8');
     expect(content).toContain('[2 个场景工作流](#2-个场景工作流');
     expect(content).not.toContain('#25-个场景');
   });

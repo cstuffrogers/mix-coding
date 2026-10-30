@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync } from 'child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -31,6 +31,7 @@ function run(root) {
   return { code: res.status, out: `${res.stdout}${res.stderr}` };
 }
 
+const LF = String.fromCodePoint(10);
 const N = { commands: 26, scenes: 26, core: 14, speckit: 11, mcpActive: 3, mcpFull: 5, deps: 20, devDeps: 4, tools: 12, rows: 3 };
 const skills = N.core + N.speckit;
 const npm = N.deps + N.devDeps;
@@ -138,7 +139,21 @@ function scaffold(over = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'doc-counts-'));
   mkdirSync(join(dir, '.claude', 'commands'), { recursive: true });
   mkdirSync(join(dir, '.claude', 'skills'), { recursive: true });
+  mkdirSync(join(dir, '.claude', 'scenes'), { recursive: true });
   mkdirSync(join(dir, 'claude-scene', 'scenes'), { recursive: true });
+
+  // 第三十三轮新增的第四份文档：表由 sync-docs 生成，标题里的数字**没有**生成器。
+  // 真仓库里两者就各说各的（标题 27 / 表 26 行），所以两份都要能单独弄坏。
+  writeFileSync(join(dir, '.claude', 'scenes', 'README.md'), [
+    '# .claude/scenes/ - 场景定义',
+    '',
+    `## 当前场景（${over.scenesTitle ?? N.scenes} 个）`,
+    '',
+    '| 场景 ID | 指令 | 描述 |',
+    '|---------|------|------|',
+    ...names('scene', over.scenesRows ?? N.scenes).map((n) => `| \`${n}\` | /${n} | x |`),
+    '',
+  ].join(LF));
 
   for (const n of names('cmd', N.commands)) writeFileSync(join(dir, '.claude', 'commands', `${n}.md`), '# cmd\n');
   for (const n of names('scene', over.sceneFiles ?? N.scenes)) writeFileSync(join(dir, 'claude-scene', 'scenes', `${n}.json`), '{}');
@@ -171,12 +186,13 @@ function patchDoc(over, target = 'README.md') {
 }
 
 describe('check-doc-counts：README/CLAUDE.md 里数得出来的数字', () => {
-  it('全部对得上 → exit 0，三份文档各报一句', () => {
+  it('全部对得上 → exit 0，四份文档各报一句', () => {
     const { code, out } = run(scaffold());
     expect(code, out).toBe(0);
     expect(out).toContain('✅ README.md');
     expect(out).toContain('✅ README_EN.md');
     expect(out).toContain('✅ CLAUDE.md');
+    expect(out).toContain('✅ .claude/scenes/README.md');
   });
 
   const drift = [
@@ -189,6 +205,8 @@ describe('check-doc-counts：README/CLAUDE.md 里数得出来的数字', () => {
     ['外部组件总数与自己列的四项不符', { componentsTotal: 92 }, '外部组件总数：文档写 92'],
     ['外部组件里的工具数与按类型表不符', { componentsTools: N.rows + 2 }, '外部组件第 4 项'],
     ['外部安全工具链清单声明数与点名数不符', { declaredTools: N.tools + 1 }, '外部安全工具链清单个数：文档写 13，实际 12'],
+    ['场景定义 README 的标题数字写老', { scenesTitle: N.scenes - 1 }, '场景 README 标题里的场景数：文档写 25，实际 26'],
+    ['场景定义 README 的表少一行（同步只覆盖了标记之间的一半）', { scenesRows: N.scenes - 1 }, '场景表的行数：文档写 25，实际 26'],
   ];
 
   for (const [title, over, needle] of drift) {
@@ -222,12 +240,21 @@ describe('check-doc-counts：README/CLAUDE.md 里数得出来的数字', () => {
     expect(out).toContain('只读到 5 个场景（下限 20）');
   });
 
-  it('真仓库：三份文档都对得上（漂移守卫）', () => {
+  it('场景定义 README 整个不见了 → exit 2（读不到不等于对得上）', () => {
+    const dir = scaffold();
+    rmSync(join(dir, '.claude', 'scenes', 'README.md'));
+    const { code, out } = run(dir);
+    expect(code, out).toBe(2);
+    expect(out).toContain('读不到 .claude/scenes/README.md');
+  });
+
+  it('真仓库：四份文档都对得上（漂移守卫）', () => {
     const { code, out } = run();
     expect(code, out).toBe(0);
     expect(out).toContain('✅ README.md');
     expect(out).toContain('✅ README_EN.md');
     expect(out).toContain('✅ CLAUDE.md');
+    expect(out).toContain('✅ .claude/scenes/README.md');
   });
 
   it('switch-mcp.cjs 不许再写死 MCP 个数', () => {

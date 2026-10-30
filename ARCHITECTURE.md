@@ -325,26 +325,21 @@ Simplified to single CLI invocation:
 
 ---
 
-## MCP Dynamic Enablement
+## MCP Configuration
 
-**File**: `.claude/mcp-enable.json`
+MCP servers are configured by **exactly two files**, and the engine only ever sees the first one:
 
-Maps workflows to MCP servers with token budget:
+| File | Role |
+|------|------|
+| `.mcp.json` | 当前生效的配置（light 档，3 个无需凭据的 server） |
+| `.mcp.json.full` | 完整档（14 个，含需要凭据/首次会下载的） |
 
-```json
-{
-  "mcp_mappings": {
-    "new-project": {
-      "enabled_servers": ["github", "tavily", "context7", "supabase", "stripe", "resend"],
-      "token_estimate": 2200
-    },
-    "design": {
-      "enabled_servers": [],
-      "token_estimate": 0
-    }
-  }
-}
-```
+切换是**整文件替换**，可逆：`npm run mcp:switch -- full` / `npm run mcp:switch -- light`。
+
+**没有实现「按场景自动启用 MCP」**。以前这里挂着这样一份配置（场景 → server 映射 + token 预算），
+但它**没有任何代码读取**：24 条映射里 6 条指向已退役场景（`design`/`simplify`/`hunt`/`analyze`/`audit`/`prototype`），
+8 个现存场景没有映射。第三十三轮整份删除 —— 描述一个不存在的机制，比不描述更糟。
+`tests`: `claude-scene/src/commands/retired-artifacts.test.js` 守着它不许复活。
 
 ---
 
@@ -428,7 +423,6 @@ node src/index.js start new-project --auto
 
 | File | Purpose |
 |------|---------|
-| `.claude/mcp-enable.json` | MCP server mapping per workflow |
 | `.env.example` | Environment variables template |
 | `react-doctor.config.json` | ESLint/react-doctor dedup |
 | `playwright.config.ts` | Visual regression config |

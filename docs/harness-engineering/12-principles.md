@@ -73,9 +73,9 @@
 **核心观点**: 给 Agent 一张地图，而不是百科全书。按需披露，渐进加载。
 
 **本系统实践**:
-- ✅ `.claude/rules/coding.md` — 编码规范
-- ✅ `.claude/rules/react-doctor.md` — React 专科规则
-- ✅ `.claude/rules/visual-standards.md` — 视觉标准
+- ✅ `.claude/rules/conditional/core-rules.md` — 核心编码规则（Ponytail + Karpathy + CodeGuardian 三合一）
+- ✅ `.claude/rules/conditional/react-doctor.md` — React 专科规则
+- ✅ `.claude/rules/conditional/visual-standards.md` — 视觉标准
 - ✅ `.claude/scenes/*.json` — 场景模板
 - ⚠️ 注意：`Claude_Code_全自动驾驶系统_融合版.md` 过大，建议拆分
 
@@ -199,7 +199,7 @@
 ## 附录：Karpathy 编码四诫
 
 > 以下 4 条原则基于 Andrej Karpathy 对 LLM 编程行为的观察，与 Harness Engineering 互补。
-> 完整文档见 `../../.claude/rules/karpathy-principles.md`
+> 完整文档见 `../../.claude/rules/conditional/core-rules.md`（Karpathy 三诫已合并进核心规则）
 > 来源: https://github.com/multica-ai/andrej-karpathy-skills
 
 | 原则 | 核心观点 | 本系统对应 |

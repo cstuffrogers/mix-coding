@@ -4220,3 +4220,116 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
 - **登记不修**：`docs/tools-inventory.md`（802 行）是 2026-06-14 快照，MCP 13 / Skills 37 /
   命令 89 / 模块 16 全过期，工具矩阵里还有 `env-leak-scanner`，工作流列写着已退役的 `hunt` / `audit`；
   它不在任何校验器覆盖内，整份要么接生成器要么删，下一轮再做。
+
+---
+
+## 第三十三轮（2026-10-30）：死配置与死文档必须死透
+
+### 起因
+
+第三十二轮把「外部工具」三套名单收成一份真值后，剩在 Next Steps 里的第一项债务是
+`docs/tools-inventory.md`（802 行、2026-06-14 快照、两份 README 都链它、没有任何校验器管它）。
+动手前先做了一次全仓库取证，顺带发现同一类病还有第二处：`.claude/mcp-enable.json` 是**没有任何代码读**的配置，
+却被 4 份文档写成生效机制。于是本轮的主题定为「文档里写的东西必须真的存在」。
+
+### 取证
+
+- `docs/tools-inventory.md`：文件头 MCP 13 / Skills 37 / 命令 89 / 模块 16；目录写 14 MCP；
+  汇总统计写 18 MCP / 39 skills / 95 命令 / 27–28 场景 / 18 个 Scene JSON（238 步）/ 280+ actions ——
+  **三处自己跟自己矛盾**。引用不存在的 `.claude/mcp.json`、已退役 `simplify`/`hunt`/`analyze`/`design`/`audit`、
+  已删除的 `env-leak-scanner`。`sync-docs.js:122` 只刷它的场景计数，所以「场景数是新的」掩盖了整份是旧的。
+- `.claude/mcp-enable.json`：`mcp_mappings` 24 条（6 条已退役场景、8 个现存场景没有）、`server_definitions` 18 个、
+  `activation_strategy` 按工作流给 token 预算（2000 警告 / 5000 硬限）。`grep -rln "mcp-enable"` 在
+  `*.js|*.cjs|*.json|*.md` 里只命中 md。真正生效的只有 `.mcp.json` + `.mcp.json.full` + `scripts/switch-mcp.cjs`。
+- `.claude/scenes/README.md`：标题「当前场景（27 个）」，AUTO-SYNC 表 26 行 —— 同步只换标记之间。
+- 路径漂移：`docs/harness-engineering/12-principles.md` 三处 `.claude/rules/{coding,react-doctor,visual-standards}.md`
+  （实际在 `conditional/`）、`karpathy-principles.md`（已并入 `conditional/core-rules.md`）、
+  `.claude/rules/conditional/memory-auto-save.md` 的 `.bak` 指针（既不存在也无人能重新生成）。
+- `docs/MULTIPLATFORM.md` 目录树：`.claude/mcp.json`（不存在）、两行 `settings.json`（其中一行自称「项目级设置」）、
+  `.codex/mcp/`（实际是 `config.toml` + `agents/`）。
+- 两份移动端提案（2026-06-10）在写「要改 `mcp-enable.json` 的 `server_definitions`」+「新增 `mobile-check` 场景」，
+  但没有任何归档标记，读起来像现行计划。
+
+### 修了什么
+
+1. 删 `docs/tools-inventory.md`、删 `.claude/mcp-enable.json`。
+2. `sync-docs.js` 去掉对已删文件的 `updateSceneCounts` 调用（对着死文件调只会静默返回空），
+   `sync-docs.test.js` 的计数夹具改指向 `.claude/scenes/README.md`（同步能力保留，目标换成活的）。
+3. `README.md` / `README_EN.md` 的「工具清单与使用矩阵」行改指向 `security-toolchain.md` 与 `.claude/scenes/README.md`。
+4. `ARCHITECTURE.md`：整节「MCP Dynamic Enablement」改成真实的「两份文件 + `mcp:switch` 整文件切换」，
+   并删掉配置表里的 `mcp-enable.json` 行；`.claude/scenes/README.md`、`docs/MULTIPLATFORM.md` 同步改口。
+5. `docs/MULTIPLATFORM.md` 目录树按真实结构重写（含 `.codex/config.toml` / `.pi/{skills,prompts}` / 根 `.mcp.json*`）。
+6. `docs/harness-engineering/12-principles.md` 三处规则路径 + Karpathy 指针改到真实文件；
+   `memory-auto-save.md` 的 `.bak` 指针换成实现目录。
+7. 两份移动端提案加 `> **归档**` 横幅。
+8. `.claude/scenes/README.md` 标题 27 → 26，并写明「表由 sync-docs 生成、数字由 checker 校对」。
+9. `check-doc-counts.cjs` 增加第 4 份文档：标题数字 + AUTO-SYNC 表行数都等于场景数；读不到 / 格式变了 → exit 2。
+10. 新增 `retired-artifacts.test.js`（6 例）。
+
+### 测试
+
+- 新增 `retired-artifacts.test.js` 6 例；`doc-counts.test.js` 15 → 18 例（标题数字错 / 表少一行 / 文件缺失 exit 2）；
+  `sync-docs.test.js` 10 例保留（夹具目标改成活文件）。
+- 基线：114 files / 1462 tests → **115 files / 1471 tests**（+1 file / +9 tests）。
+
+### 自检用例过期（本轮发现并修）
+
+`npm run detector:sweep` 报 `10/12 个探测器有效`：两条最核心的假绿守卫用例**注入点匹配不到**了 ——
+`start.js` 那条 warn 后来补了 `warnKind: 'silent'`、`handlers/mobile/audit.js` 改成了「声明的工具名就是真去查的那个」+
+返回对象，两处原文案都不复存在。自检本身正确地报了 `stale`（没有把「注入点没匹配到」算成通过），
+但这也意味着这两条守卫**从改动那天起就没再被验过**。现按当前文案重新锚定两处注入点，`detector:sweep` **12/12**。
+教训：变异测试的「过期」必须当成红来处理 —— 一旦容忍 `stale`，守卫失效就再也看不见了。
+
+### 自探针（7/7 全红，全部字节复原）
+
+1. 复活 `.claude/mcp-enable.json` → 「必须不存在」红；
+2. 在 `scripts/switch-mcp.cjs` 里真去读它 → 「没有代码去读」红并点出文件名；
+3. 在 `docs/MULTIPLATFORM.md` 写一句「MCP 按场景启用见 …」→ 「活文档不许再把退役机制写成生效」红；
+4. 把 `.claude/rules/conditional/core-rules.md` 改回 `.claude/rules/coding.md` → 规则引用红并点名 `coding.md`；
+5. README 里加一行死链 `./docs/tools-inventory.md` → 链接解析红；
+6. 把 `DOC_DIRS` 缩成只剩 `.claude/scenes` → 「自证非空跑」下限红（下限不是装饰）；
+7. `.claude/scenes/README.md` 标题改回 27 → checker exit 1，「文档写 27，实际 26」。
+
+### 验证
+
+- **验证命令**：`npx vitest run` · `npx eslint claude-scene --max-warnings 0` · `npx eslint .` ·
+  6 个 checker（`check-action-stats` / `check-dead-actions` / `check-doc-counts` / `check-readme-stats` /
+  `check-tool-steps` / `check-toolchain-lists`）· `npm run scan:deadcode` · 26 场景 `--dry-run --auto` ·
+  `node claude-scene/src/index.js start review --auto --skip-sweep`。
+- **验证结果**：115 files / **1471 tests 全绿**；两侧 eslint 无输出（`--max-warnings 0`）；6 个 checker 全 EXIT=0；
+  `Total dead: 0`（Commands 0/33、Skills 0/29、MCP 0/3）；`detector:sweep` **12/12 个探测器有效**；
+  26/26 场景 EXIT=0；review EXIT=0（`pass 19 / fail 0 / warn **1** / skip 19 / noop 4`，
+  唯一一条 warn 是 `sec-bug-hunt` 的「npm audit 接口不可用，依赖漏洞未知」—— 环境事实，不是假红）。
+
+### 坑
+
+- **「有同步」不等于「同步到的部分是对的」**：`sync-docs` 只换 AUTO-SYNC 标记之间的表格，
+  标题里的「27 个」永远没人碰。凡是被生成器覆盖的文件，生成器没覆盖到的部分要有独立判据。
+- **对着已删文件调用「同步」函数返回空列表**，与「没有需要同步的内容」长得一样 ——
+  删除文件时必须同时删掉指向它的调用，否则读者会以为还在维护。
+- **测试文件自己持有退役名单**：`retired-artifacts.test.js` 的 `RETIRED` 里写着死路径，
+  「代码不许读退役文件」这条会把它自己判红。跳过自身并在注释里写明理由，
+  而不是放宽成「路径里带 test 就跳过」（那会让真测试里的读法逃掉）。
+- **`rel()` 产出正斜杠、`join()` 产出反斜杠**：白名单 `HISTORY` 用 `join('docs','CHANGELOG.md')` 会永远不匹配，
+  台账文件被当成活文档 → 假红。路径比对统一用 `/`。
+- **引用可能带 `../../` 前缀**（`docs/harness-engineering/` 里的写法）：按仓库根解析前要先截到 `.claude/`，
+  否则 `join(ROOT,'../../.claude/...')` 指到仓库外，变成假红。
+- **`x.md.bak` 不是文件引用**：正则收尾加 `(?![.\w-])`，既避免把备份名当引用，也避免把 `.md.bak` 判成缺文件。
+- **eslint 两条新规**：`unicorn/prefer-set-has`（白名单用 `new Set`）、
+  `unicorn/no-array-callback-reference`（`.flatMap(docsIn)` 要写成 `.flatMap((d) => docsIn(d))`）。
+
+### 决策
+
+- **ADR-025**：没人读的配置就是死配置，删掉不「留着以后用」；手写机器状态要么接生成器、要么删，
+  不允许「半同步」；删掉的东西要有守卫，且守卫必须能区分「历史记录」与「活着的主张」——
+  历史文档靠**加归档横幅**获得豁免，而不是往白名单里再塞一条路径；
+  文档点名的文件必须存在；「同步只覆盖一段」不等于「那一段是对的」。
+- **删而不是生成 `tools-inventory.md`**：它的「使用矩阵」价值看着高，但那份矩阵本身就写着已退役工作流，
+  是假的；真要的话应当从场景 JSON 生成，而不是复活一份手写快照。
+- **台账白名单按文件枚举、逐个写理由**：不按路径通配，新增文件提到死名字就会红，逼着人当场决定它是历史还是又是假文档。
+- **登记不修**：① `ARCHITECTURE.md` 整体仍陈旧（Prerequisites / Open Design / `.env.example` / ASCII 图里的 `/design` `/simplify`）；
+  ② `README.md:11` 「25 个自动化工作流」 vs 真值 26；③ `detector-report.js` 的 `workingTreeDirty` 读的是记录里的字段而非现场 `git status`。
+- **review 的 warn 从 3 降到 1 是修出来的，不是按出来的**：上一轮 17/0/3/19/4 里的两条 `证据过期` 一条来自
+  「自检记录来自 048e12f，HEAD 已是 af840c3」，另一条是那 2 个过期用例。本轮把注入点重新锚定、
+  在干净工作区重跑自检（记录 sha 与 HEAD 一致、`workingTreeDirty=false`）之后，`证据过期` 归零，
+  剩下的 1 条 warn 是环境事实（npm registry 不支持 audit API）。

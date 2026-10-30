@@ -118,8 +118,11 @@ export function syncAllDocs(projectRoot) {
   run(join(projectRoot, '.claude', 'scenes', 'README.md'), 'SCENE-TABLE', generateSceneTable(scenes));
 
   // 5. 场景计数
+  //    以前这里还顺手刷 docs/tools-inventory.md —— 那份 802 行的手写快照第三十三轮已整份删除
+  //    （MCP 13/14/18、命令 89/95、skills 37/39 自相矛盾，还写着已退役场景与死机制）。
+  //    同步的目标必须是**活着的**文件；对着已删文件 updateSceneCounts 只会静默返回 []，
+  //    「同步了」和「没同步」又长得一样了。
   report.updated.push(...updateSceneCounts(join(projectRoot, '.claude', 'scenes', 'README.md'), scenes.length));
-  report.updated.push(...updateSceneCounts(join(projectRoot, 'docs', 'tools-inventory.md'), scenes.length));
 
   return report;
 }

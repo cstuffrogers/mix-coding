@@ -38,5 +38,10 @@ realpath 展开短名与符号链接）。召回默认只取本项目 + 标记�
 - 纯文件路径
 
 ## 详细规则按需读取
-CLI 命令模板、数据去重逻辑见原文件：
-`.claude/rules/memory-auto-save.md.bak`（如不存在可重新生成）
+命令模板与数据去重逻辑看实现，不在规则文件里：
+- 各后端 CLI 调用：`claude-scene/src/handlers/memory/`（`agentmemory.js` / `claude-mem.js` / `nexo.js` / `codegraph.js`）
+- 写入去重（内容指纹）：`claude-scene/src/handlers/memory/agentmemory.js`
+
+> 第三十三轮删掉了这里原来的 `.claude/rules/memory-auto-save.md.bak` 指针 ——
+> 那份备份早就没了，也没有任何东西能重新生成它。「按需读取」指向一个不存在的文件，
+> 等于让人以为自己读到了完整规则。

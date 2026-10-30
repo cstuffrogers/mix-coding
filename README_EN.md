@@ -545,7 +545,8 @@ brew upgrade lychee                          # macOS
 |----------|------|
 | 🔧 Complete Install Guide | [INSTALL.md](./INSTALL.md) |
 | Full Architecture Docs | [ARCHITECTURE.md](./ARCHITECTURE.md) |
-| 📋 Complete Tool Inventory | [docs/tools-inventory.md](./docs/tools-inventory.md) |
+| 🛡️ External security toolchain (33, single source of truth) | [.claude/rules/conditional/security-toolchain.md](./.claude/rules/conditional/security-toolchain.md) |
+| 🎬 Scene definitions and scene table | [.claude/scenes/README.md](./.claude/scenes/README.md) |
 | Open Design | [github.com/nexu-io/open-design](https://github.com/nexu-io/open-design) |
 | Claude Code SDK | [docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code-sdk/claude-code-headless) |
 | CodeGraph Docs | Installed: `codegraph init -i` → `codegraph --help` |

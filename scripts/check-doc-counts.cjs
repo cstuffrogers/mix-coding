@@ -24,6 +24,8 @@
  *   npm 包数   = claude-scene/package.json 的 dependencies + devDependencies
  *   工具数     = 正文安全工具链括号里点名的个数；另由 check-toolchain-lists.cjs 核「名字集合」
  *                （本脚本只管「声明数 vs 点名数」，集合是否等于真值归那个脚本）
+ *   场景表行数 = `.claude/scenes/README.md` AUTO-SYNC 表里 `| \`id\` |` 的行数
+ *                （表由 sync-docs 生成，标题里的数字没有生成器 → 第三十三轮发现写着 27、实际 26）
  *   GitHub 数  = 该段里列出的 `owner/repo` 个数
  *   外部组件数 = Skills + 启用的 MCP + npm 包 + 外部工具（公式写进文档，脚本核对算术与每一项）
  *                其中「外部工具」取**按类型表的 Count 列之和**（安装清单 28 个）——
@@ -242,6 +244,32 @@ function checkDoc(name, t) {
   return { problems, collapsed };
 }
 
+/** 场景定义目录的 README：标题数字与表行数都得跟场景数一致。 */
+function checkScenesReadme(t) {
+  const name = '.claude/scenes/README.md';
+  const doc = readOrNull(path.join(ROOT, name));
+  if (!doc) return { problems: [], collapsed: [`读不到 ${name}`] };
+
+  const problems = [];
+  const collapsed = [];
+  const heading = /^## 当前场景（(\d+) 个）$/m.exec(doc);
+  if (!heading) {
+    collapsed.push(`${name}：「## 当前场景（N 个）」标题没认出来（格式变了？）`);
+  } else {
+    cmp('场景 README 标题里的场景数', heading[1], t.scenes, problems);
+  }
+
+  // 表由 sync-docs 生成，但生成只覆盖标记之间 —— 少一行就是「以为同步过了」。
+  const rows = doc.split('\n').filter((line) => /^\| `/.test(line.trim()));
+  if (rows.length === 0) {
+    collapsed.push(`${name}：场景表一行都没认出来`);
+  } else {
+    cmp('场景表的行数', rows.length, t.scenes, problems);
+  }
+
+  return { problems, collapsed };
+}
+
 function checkClaudeMd(t) {
   const doc = readOrNull(path.join(ROOT, 'CLAUDE.md'));
   if (!doc) return { problems: [], collapsed: ['读不到 CLAUDE.md'] };
@@ -291,6 +319,14 @@ function main() {
     failures.push(...claude.problems.map((p) => `❌ ${p}`));
   } else if (claude.collapsed.length === 0) {
     console.log('✅ CLAUDE.md：场景数对得上');
+  }
+
+  const scenesReadme = checkScenesReadme(t);
+  collapsed.push(...scenesReadme.collapsed);
+  if (scenesReadme.problems.length > 0) {
+    failures.push(...scenesReadme.problems.map((p) => `❌ .claude/scenes/README.md：${p}`));
+  } else if (scenesReadme.collapsed.length === 0) {
+    console.log('✅ .claude/scenes/README.md：标题数字与表行数都对得上');
   }
 
   if (collapsed.length > 0) fail(collapsed);

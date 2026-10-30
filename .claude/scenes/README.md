@@ -2,7 +2,7 @@
 
 此目录包含 `claude-scene` CLI 工具使用的 JSON 场景定义文件（start/list/show/fork 命令）。
 
-## 当前场景（27 个）
+## 当前场景（26 个）
 
 | 场景 ID | 指令 | 描述 |
 |---------|------|------|
@@ -39,5 +39,13 @@
 
 - `.claude/commands/` - 各场景的 CLI 指令定义（26 个 .md）
 - `.claude/skills/` - 可集成到审查/设计流程的 AI 技能
-- `.claude/mcp-enable.json` - 按工作流的 MCP 服务器启用映射
+- `.mcp.json` - 真正生效的 MCP 配置（`npm run mcp:switch -- light|full` 在 light/full 两档间切换）
 - `claude-scene/src/` - CLI 工具源码
+
+> 上面的场景表由 `sync-docs` 从 JSON 生成，标题里的场景数由 `scripts/check-doc-counts.cjs` 校对 ——
+> 手改表会被告警，手改数字会变红。
+>
+> 「MCP 按场景自动启用」这件事**没有实现**：引擎与脚本都不读任何「场景 → server」映射表。
+> 第三十三轮删掉了一份这样的映射配置 —— 没有任何代码引用它，映射里 6 个场景早已退役、
+> 8 个现存场景没有映射，而 4 份文档把它写成「每次启动场景时自动启用」。现在只有两份真文件：
+> `.mcp.json`（当前生效）与 `.mcp.json.full`（完整档），切换靠 `npm run mcp:switch`。

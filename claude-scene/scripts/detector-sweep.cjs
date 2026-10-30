@@ -41,7 +41,9 @@ const CASES = [
     test: 'src/commands/false-green-guard.test.js',
     mutations: [{
       file: path.join(ENGINE, 'src/commands/start.js'),
-      from: "return { resultStr: '（处理器没有返回任何结果，检查该动作是否真的执行了）', stepStatus: 'warn' };",
+      // 第三十三轮修：start.js 后来给这条 warn 补了 warnKind: 'silent'，注入点跟着走，
+      // 否则用例一直「注入点没匹配到（用例过期）」—— 守卫是否还灵，就没人验过了
+      from: "return { resultStr: '（处理器没有返回任何结果，检查该动作是否真的执行了）', stepStatus: 'warn', warnKind: 'silent' };",
       to: "return { resultStr: '', stepStatus: 'pass' };",
     }],
   },
@@ -66,8 +68,10 @@ const CASES = [
     test: 'src/lib/not-run-status.test.js',
     mutations: [{
       file: path.join(ENGINE, 'src/handlers/mobile/audit.js'),
-      from: "if (!installed) return 'mobsfscan 未安装，源代码 SAST 未执行（不计为通过）';",
-      to: "if (!installed) return 'mobsfscan 未安装，本轮未执行';",
+      // 第三十三轮修：这个处理器后来改成「声明的工具名就是真去查的那个」+ 返回对象，
+      // 原文案已不存在。注入点跟着改成当前写法，注入后仍是「裸字符串 + 本轮未执行」
+      from: "if (!installed) return { status: 'skip', message: `${tool} 未安装，源代码 SAST 未执行（不计为通过）` };",
+      to: "if (!installed) return `${tool} 未安装，本轮未执行`;",
     }],
   },
   {
