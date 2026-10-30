@@ -4,9 +4,11 @@
 // 其余 18 个勾上以后只是往 context 里放一个没人读的 flag：菜单说「Stagehand 行为验证」，
 // 跑起来一个字都不变，界面和日志都不提这件事。第二十九轮把它拆成两栏披露。
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  DETECTOR_HINTS,
   DETECTORS,
   ENHANCEMENT_KEYS,
   ENHANCEMENT_REGISTRY,
@@ -182,9 +184,10 @@ function expectedLine(scene) {
 
 /** 实际被 REGISTRY 引用的探测器名（按函数源码里的 `DETECTORS.x` 判定） */
 function usedDetectors() {
+  // 第 31 轮起读 `needs`，不再用正则猜 `when` 的函数体 —— `when` 已从 `needs` 派生，
+  // 源码里没有 `DETECTORS.xxx` 字样了，旧写法会判出「被用到 0 个」。
   const all = Object.values(ENHANCEMENT_REGISTRY).flat();
-  return Object.keys(DETECTORS).filter((name) =>
-    all.some((e) => new RegExp(`DETECTORS\\.${name}\\b`, 'u').test(String(e.when))));
+  return Object.keys(DETECTORS).filter((name) => all.some((e) => e.needs === name));
 }
 
 describe('文档对账：enhancements-summary.md 的每行 = REGISTRY + 场景 JSON', () => {
@@ -221,5 +224,125 @@ describe('文档对账：enhancements-summary.md 的每行 = REGISTRY + 场景 J
     expect(body, '文档写的探测器个数与代码不符').toContain(`用到 ${used.length} 个`);
     expect(body, '文档写的死探测器个数与代码不符').toContain(`另外 ${dead.length} 个`);
     for (const name of dead) expect(body).toContain(`\`${name}\``);
+  });
+});
+
+// ── 第三十一轮：缺席也要说为什么 ──────────────────────────────────
+//
+// 上一轮解决的是「勾了会不会执行」，这一轮解决「**根本没出现**」：
+// `when(ctx)` 返回 false 时这一项被 `filter` 静默丢掉 —— 菜单里少了几项，
+// 而 CLI 一个字都不说。用户只能猜「是不是配置漏了」。
+// 现在探测器不满足的项会单独披露，并给出「依赖哪个探测器 + 它到底缺什么」。
+
+describe('缺席也要披露：探测器不满足的增强项不许默默消失', () => {
+  /** 造一个空项目目录（哪些探测器命中完全由这个目录决定，不吃宿主环境） */
+  function mkProject(files = {}) {
+    const dir = mkdtempSync(join(tmpdir(), 'enh-unavailable-'));
+    for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), body);
+    return dir;
+  }
+
+  /** 收一份 applyEnhancements 的输出（不许漏 mockRestore，否则后面所有用例的日志都被吞） */
+  async function capture(scene, context, options) {
+    const out = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((...args) => out.push(args.join(' ')));
+    try {
+      await applyEnhancements(scene, context, options);
+    } finally {
+      spy.mockRestore();
+    }
+    return out.join('\n');
+  }
+
+  it('每个探测器都有一句人话解释（新探测器不许只带回一个 false）', () => {
+    const missing = Object.keys(DETECTORS).filter((name) => !DETECTOR_HINTS[name]?.trim());
+    expect(missing).toEqual([]);
+    // 反空跑：提示表不许塌成一个空对象
+    expect(Object.keys(DETECTOR_HINTS).length).toBeGreaterThanOrEqual(5);
+  });
+
+  /** 单项自检：needs 指向真探测器、有解释文案；没 needs 的必须无条件可用 */
+  function entryProblems(scene, entry) {
+    const where = `${scene}:${entry.key}`;
+    if (typeof entry.when !== 'function') return [`${where} 没有派生 when`];
+    if (!entry.needs) return entry.when() === true ? [] : [`${where} 没声明 needs 却探测为 false`];
+    const problems = [];
+    if (typeof DETECTORS[entry.needs] !== 'function') problems.push(`${where} 依赖不存在的探测器 ${entry.needs}`);
+    if (!DETECTOR_HINTS[entry.needs]) problems.push(`${where} 依赖的探测器没有解释文案`);
+    return problems;
+  }
+
+  it('每项声明的 needs 都在探测器表里；没声明 needs 的必须无条件可用', () => {
+    const flat = Object.entries(ENHANCEMENT_REGISTRY).flatMap(([scene, list]) => list.map((e) => [scene, e]));
+    const bad = flat.flatMap(([scene, entry]) => entryProblems(scene, entry));
+    expect(flat).toHaveLength(21); // 防空跑
+    expect(bad).toEqual([]);
+  });
+
+  it('空项目里 ui-polish 的两项不可用 → 逐项点名原因，且 flag 不设', async () => {
+    const context = { targetPath: mkProject() };
+    const text = await capture('ui-polish', context, {});
+    expect(text).toContain('未提供的增强项（本机不满足条件，既不进菜单也不会执行）');
+    expect(text).toContain(`huashu_expert_review —— ${DETECTOR_HINTS.uiFiles}`);
+    expect(text).toContain(`stagehand_interaction —— ${DETECTOR_HINTS.stagehand}`);
+    expect(context.enh_huashu_expert_review).toBeUndefined();
+    // 可用且默认勾选的那项照旧生效 —— 披露缺席不能顺手把在场的也灭了
+    expect(context.enh_impeccable_audit).toBe(true);
+  });
+
+  it('--enh 点名了不可用项 → 明说没启用（这比默认项缺席更该说）', async () => {
+    const context = { targetPath: mkProject() };
+    const text = await capture('ui-polish', context, { enh: 'huashu_expert_review' });
+    expect(text).toContain('--enh 里这些增强项本机不满足条件，没有启用: huashu_expert_review');
+    expect(context.enh_huashu_expert_review).toBeUndefined();
+  });
+
+  it('整个场景一项都不可用 → 仍然说话（以前 early return，一个字都没有）', async () => {
+    const context = { targetPath: mkProject() };
+    const text = await capture('new-project', context, {});
+    expect(text).toContain(`stagehand_scaffold —— ${DETECTOR_HINTS.stagehand}`);
+    expect(text).toContain('没有启用任何增强项');
+  });
+
+  it('条件满足时不冒充「未提供」：给了 stagehand 依赖就回到菜单里', async () => {
+    const context = {
+      targetPath: mkProject({ 'package.json': JSON.stringify({ dependencies: { '@browserbasehq/stagehand': '^3' } }) }),
+    };
+    const text = await capture('new-project', context, {});
+    expect(text).not.toContain('未提供的增强项');
+    // 该项 default 是 false，没 --enh 就不勾 —— 但它是「可提供」，所以不出现在缺席清单里
+    expect(context.enh_stagehand_scaffold).toBeUndefined();
+  });
+});
+
+// ── 第三十一轮（续）：文档不许写会过期的机器状态 ────────────────────
+//
+// `enhancements.md` 与 `enhancements-summary.md` 都曾写死「本机 mythos-agent 与 gepa
+// 均未安装 → 相关项不会出现在菜单里」。这句话在 gepa 装上之后就变成了假话，
+// 而它恰好是 agent 每次会话都会读的那两份文件。
+// 现在机器状态由运行期披露，文档只说明「会有这段披露」。
+
+describe('两份增强文档不许记录机器状态', () => {
+  const DOCS = [
+    join(PROJECT_ROOT, '.claude', 'rules', 'conditional', 'enhancements.md'),
+    join(PROJECT_ROOT, '.claude', 'rules', 'conditional', 'enhancements-summary.md'),
+  ];
+
+  it('不许再断言某个工具「未安装 / 没装」（会过期的事实不进文档）', () => {
+    const claims = [];
+    for (const file of DOCS) {
+      for (const [i, line] of readFileSync(file, 'utf-8').split(/\r?\n/u).entries()) {
+        if (/(?:mythos-agent|gepa|stagehand|critiq)[^。\n]{0,24}(?:未安装|没装)/iu.test(line)) {
+          claims.push(`${file.split(/[\\/]/u).pop()}:${i + 1}`);
+        }
+      }
+    }
+    expect(claims).toEqual([]);
+  });
+
+  it('两份文档都要指向「运行期披露」这段输出（不然读者不知道去哪看）', () => {
+    for (const file of DOCS) {
+      expect(readFileSync(file, 'utf-8'), `${file} 没写运行期披露`).toContain('未提供的增强项');
+    }
   });
 });

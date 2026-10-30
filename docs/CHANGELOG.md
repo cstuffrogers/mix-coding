@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-30（第三十一轮：增强项「根本没出现」也要说为什么）
+
+### Fixed
+
+- **条件不满足的增强项被静默过滤，一个字都不说**：`applyEnhancements` 第一行就是 `(REGISTRY[sceneId] || []).filter(e => e.when(context))` —— `when` 返回 false 的项直接从菜单消失，CLI 从头到尾没有一句解释。用户看到的只是「文档里写的菜单少了几个」，只能猜是不是配置漏了。`review` 场景 4 项里的 `mythos_agent_review` 就是这样消失的（本机没有 mythos-agent CLI）。现改为**先探测再分流**：可用项进菜单，不可用项打印 `⚙ 未提供的增强项（本机不满足条件，既不进菜单也不会执行）: N 项` + 逐项一行原因，交互与非交互两条路径都打。
+- **「依赖哪个探测器」以前只活在函数体里**：21 项每项手写 `when: (ctx) => DETECTORS.xxx(ctx.targetPath)`，于是缺席时既说不出原因、也没法静态对账。现改为声明式 `needs: '<探测器名>'`，由 `withWhen()` 派生 `when`（路径型探测器收 `ctx.targetPath`，工具型无参）；`needs` 写了不存在的探测器名 → **加载期**抛 `TypeError`，不让错别字退化成运行期静默 `false`。
+- **`--enh` 点名了不可用项也没人管**：`--enh mythos_agent_review` 在没装 mythos-agent 的机器上什么都不会发生，日志也看不出来（用户只会觉得「我加了 flag，跑完一个字没变」）。现打印 `⚠ --enh 里这些增强项本机不满足条件，没有启用: …`。
+- **整个场景一项都不可用时静默返回**：`if (enhancements.length === 0) return;` 连「本场景没有增强项」都不打。现在只要 `REGISTRY[sceneId]` 非空就一定会说话（`没有启用任何增强项` + 缺席清单）。
+- **两份增强文档写死了会过期的机器状态**：`enhancements.md` 与 `enhancements-summary.md` 都断言「本机 `mythos-agent` 与 `gepa` 均未安装 → 相关项不会出现在菜单里」。实测 `python -c "import gepa"` **成功**（Python 3.14 用户 site-packages 里就有），这句话已是假话，而它正是 agent 每次会话都要读的两份文件。现改为指向运行期披露，并加守卫：文档里不许再出现「工具名 + 未安装 / 没装」的断言。
+
+### Added
+
+- **`DETECTOR_HINTS`：每个探测器一句人话**（「没装 mythos-agent CLI（PATH 里找不到）」「项目依赖里没有 @browserbasehq/stagehand」…）。缺席披露的原因只从这张表读，不现场编；守卫强制 `DETECTORS` 每个键都有解释，**新加探测器不许只带回一个 `false`**。
+- `lib/enhancements.js` 导出 `DETECTOR_HINTS`；`usedDetectors()` 改读 `needs` 字段（旧写法用正则去 `String(e.when)` 里找 `DETECTORS.xxx`，派生之后源码里已无此字样，会判出「被用到 0 个」）。
+- `enhancements.test.js` 15 → **23 例**：解释表全覆盖 + 反空跑下限；21 项 `needs` 全部指向真探测器、无 `needs` 的必须无条件可用；空项目下 `ui-polish` 缺席披露逐项点名且在场项照旧设 flag；`--enh` 点名不可用项的警告；整场景不可用仍要说话；条件满足时不冒充「未提供」；两份文档不许记录机器状态 + 必须指向运行期披露。
+
 ## 2026-10-30（第三十轮：skip/noop 的「原因」分类曾经在说谎）
 
 ### Fixed

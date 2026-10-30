@@ -95,25 +95,62 @@ export const DETECTORS = {
  * default: whether checked by default
  * when: () => bool — only show if detector returns true
  */
-const REGISTRY = {
+/**
+ * 增强项依赖哪个探测器 → **必须同时有一句人话解释**。
+ *
+ * 为什么需要：`when(ctx)` 返回 false 时这一项从菜单里直接消失，用户看到的只是
+ * 「菜单比文档里写的少了几项」。第 31 轮之前引擎一个字都不说 —— 又一次「替你
+ * 决定了，但没告诉你」。有了这张表，`applyEnhancements` 才能打印
+ * 「未提供的增强项: mythos_agent_review —— 没装 mythos-agent CLI（PATH 里找不到）」。
+ *
+ * 守卫：`DETECTORS` 里每个键都必须在这张表里有一句解释（`enhancements.test.js`），
+ * 新加探测器不许只带回一个 false。
+ */
+export const DETECTOR_HINTS = {
+  uiFiles: '项目里没扫到 UI 文件（css/scss/sass/less/tsx/jsx/vue/svelte/html）',
+  stagehand: '项目依赖里没有 @browserbasehq/stagehand',
+  critiq: '项目依赖里没有 @critiq/cli',
+  mythosAgent: '没装 mythos-agent CLI（PATH 里找不到）',
+  gepa: 'python 里 import 不到 gepa 模块',
+  webFrontend: '没有 package.json，或项目里没有前端文件（死探测器，无增强项引用）',
+  database: '没有 migrations / prisma / drizzle / schema.sql（死探测器，无增强项引用）',
+  i18n: '没有 locale / locales / src/locales 目录（死探测器，无增强项引用）',
+  brandLikelyMentioned: '需求里没提到已知品牌（死探测器，无增强项引用）',
+  complexRequirement: '需求描述不超过 50 字（死探测器，无增强项引用）',
+};
+
+/** 需要项目路径的探测器（其余的是「本机有没有这个工具」，不带参数） */
+const PATH_DETECTORS = new Set(['uiFiles', 'stagehand', 'critiq']);
+
+/**
+ * 场景 → 增强项登记表。
+ * key: context flag 名（变成 context.enh_<key>）
+ * label: 菜单文案
+ * default: 是否默认勾选
+ * needs: 依赖哪个探测器（省略 = 无条件提供）；`when` 由 `withWhen` 派生
+ *
+ * 以前每项都手写 `when: (ctx) => DETECTORS.xxx(ctx.targetPath)`，于是
+ * 「依赖谁」这件事只活在函数体里：既没法在缺席时说出原因，也没法静态对账。
+ */
+const RAW_REGISTRY = {
+
   'ui-polish': [
     {
       key: 'huashu_expert_review',
       label: 'Huashu 5 维度专家评审 — philosophy/hierarchy/craft/functionality/originality',
       default: true,
-      when: (ctx) => DETECTORS.uiFiles(ctx.targetPath),
+      needs: 'uiFiles',
     },
     {
       key: 'impeccable_audit',
       label: 'Impeccable 设计打磨 — 27 条反模式规则 + 12 条 LLM 批判规则，去 AI 塑料感',
       default: true,
-      when: () => true,
     },
     {
       key: 'stagehand_interaction',
       label: 'Stagehand 交互完整性校验 — 美化后确认 hover/click/focus/modal 未损坏',
       default: true,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+      needs: 'stagehand',
     },
   ],
   review: [
@@ -121,25 +158,25 @@ const REGISTRY = {
       key: 'huashu_expert_review',
       label: 'Huashu 5 维度专家评审 (Layer 6) — UI 设计质量评分',
       default: true,
-      when: (ctx) => DETECTORS.uiFiles(ctx.targetPath),
+      needs: 'uiFiles',
     },
     {
       key: 'stagehand_behavior',
       label: 'Stagehand 行为验证 — git diff → 受影响页面自动操作验证（自愈选择器）',
       default: false,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+      needs: 'stagehand',
     },
     {
       key: 'mythos_agent_review',
       label: 'mythos-agent 安全深度推理 — 基于 diff 推理新攻击面',
       default: false,
-      when: () => DETECTORS.mythosAgent(),
+      needs: 'mythosAgent',
     },
     {
       key: 'critiq_security_scan',
       label: 'Critiq 确定性安全扫描 — 1,243 条规则 (SQLi/SSRF/路径遍历/反序列化)，零成本秒级',
       default: true,
-      when: (ctx) => DETECTORS.critiq(ctx.targetPath),
+      needs: 'critiq',
     },
   ],
   release: [
@@ -147,25 +184,23 @@ const REGISTRY = {
       key: 'huashu_release_deck',
       label: 'Huashu Release Deck — HTML deck → 可编辑 PPTX',
       default: false,
-      when: () => true,
     },
     {
       key: 'huashu_release_animation',
       label: 'Huashu Release Animation — MP4/GIF 发布动画 (需 sharp+playwright)',
       default: false,
-      when: () => true,
     },
     {
       key: 'stagehand_smoke',
       label: 'Stagehand 发布前冒烟 — 关键路径浏览器验证，任一失败阻断发布',
       default: false,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+      needs: 'stagehand',
     },
     {
       key: 'mythos_agent_release',
       label: 'mythos-agent 发布安全门禁 — 假设驱动全量扫描，不通过则阻断',
       default: false,
-      when: () => DETECTORS.mythosAgent(),
+      needs: 'mythosAgent',
     },
   ],
   bugfix: [
@@ -173,13 +208,13 @@ const REGISTRY = {
       key: 'stagehand_reproduce',
       label: 'Stagehand 浏览器复现闭环 — 自然语言 → 复现 → 修复 → 验证',
       default: true,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+      needs: 'stagehand',
     },
     {
       key: 'mythos_agent_variants',
       label: 'mythos-agent 同根因排查 — 修一个漏洞，全库扫描同类模式',
       default: true,
-      when: () => DETECTORS.mythosAgent(),
+      needs: 'mythosAgent',
     },
   ],
   deps: [
@@ -187,7 +222,7 @@ const REGISTRY = {
       key: 'mythos_agent_cve',
       label: 'mythos-agent CVE 可利用性分析 — 判断 CVE 是否真正到达受影响代码路径',
       default: false,
-      when: () => DETECTORS.mythosAgent(),
+      needs: 'mythosAgent',
     },
   ],
   feature: [
@@ -195,13 +230,13 @@ const REGISTRY = {
       key: 'stagehand_acceptance',
       label: 'Stagehand 功能验收 — 新功能完整用户流程浏览器自动化验证',
       default: true,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+      needs: 'stagehand',
     },
     {
       key: 'mythos_agent_feature',
       label: 'mythos-agent 新功能安全审计 — API 端点/文件上传/数据流安全推理',
       default: true,
-      when: () => DETECTORS.mythosAgent(),
+      needs: 'mythosAgent',
     },
   ],
   'new-project': [
@@ -209,7 +244,7 @@ const REGISTRY = {
       key: 'stagehand_scaffold',
       label: 'Stagehand E2E 脚手架 — 自动生成 Stagehand 测试模板 + CI 配置',
       default: false,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+      needs: 'stagehand',
     },
   ],
   optimize: [
@@ -217,7 +252,7 @@ const REGISTRY = {
       key: 'gepa_evolve',
       label: 'GEPA prompt 进化 — LLM 反思执行轨迹 → Pareto 进化搜索 → 自动优化场景 prompt',
       default: true,
-      when: () => DETECTORS.gepa(),
+      needs: 'gepa',
     },
   ],
   loop: [
@@ -225,7 +260,7 @@ const REGISTRY = {
       key: 'gepa_self_evolve',
       label: 'GEPA 自进化模式 — 每轮自动评估 → GEPA 优化 prompt → 循环至收敛',
       default: true,
-      when: () => DETECTORS.gepa(),
+      needs: 'gepa',
     },
   ],
   refactor: [
@@ -233,16 +268,40 @@ const REGISTRY = {
       key: 'stagehand_regression',
       label: 'Stagehand 行为回归 — 重构前后浏览器功能一致性验证',
       default: true,
-      when: (ctx) => DETECTORS.stagehand(ctx.targetPath),
+      needs: 'stagehand',
     },
     {
       key: 'mythos_agent_refactor',
       label: 'mythos-agent 安全审计 — 假设驱动全库扫描 + 数据流变化推理',
       default: true,
-      when: () => DETECTORS.mythosAgent(),
+      needs: 'mythosAgent',
     },
-  ],
-};
+  ],};
+
+/**
+ * 把 `needs` 派生成 `when`：依赖谁只有一处真值，缺席时也就能说出原因。
+ * `needs` 写了图里的名字（错别字）→ 加载期直接抛，别等运行时静默 false。
+ */
+function withWhen(raw) {
+  const out = {};
+  for (const [scene, list] of Object.entries(raw)) {
+    out[scene] = list.map((entry) => {
+      if (!entry.needs) return { ...entry, when: () => true };
+      const detector = DETECTORS[entry.needs];
+      if (typeof detector !== 'function') {
+        throw new TypeError(`增强项 ${scene}:${entry.key} 依赖了不存在的探测器 "${entry.needs}"`);
+      }
+      const when = PATH_DETECTORS.has(entry.needs)
+        ? (ctx) => detector(ctx?.targetPath)
+        : () => detector();
+      return { ...entry, when };
+    });
+  }
+  return out;
+}
+
+const REGISTRY = withWhen(RAW_REGISTRY);
+
 
 const DEFAULT_TIMEOUT_MS = 3000;
 
@@ -320,13 +379,39 @@ function discloseSelection(selected, consumed, how) {
 }
 
 /**
+ * 探测一项增强是否可用。探测器抛错 = 不可用（原因写 hint），不吞成静默 false。
+ * @returns {boolean}
+ */
+function probeEnhancement(entry, context) {
+  try { return Boolean(entry.when(context)); } catch { return false; }
+}
+
+/**
+ * 缺席也要披露：这些项**不进菜单**，不说一句的话，用户只会觉得「文档里写的菜单
+ * 少了几个」。原因取自 `DETECTOR_HINTS`（依赖谁 → 人话），绝不现场猜。
+ */
+function discloseUnavailable(unavailable) {
+  if (unavailable.length === 0) return;
+  console.log(chalk.yellow(
+    `  ⚙ 未提供的增强项（本机不满足条件，既不进菜单也不会执行）: ${unavailable.length} 项`,
+  ));
+  for (const entry of unavailable) {
+    console.log(chalk.yellow(`     ${entry.key} —— ${DETECTOR_HINTS[entry.needs] || `依赖 ${entry.needs} 不满足`}`));
+  }
+}
+
+/**
  * @returns {Promise<void>} mutates context with enh_* flags
  */
 export async function applyEnhancements(sceneId, context, options = {}) {
-  const enhancements = (REGISTRY[sceneId] || []).filter(e => {
-    try { return e.when(context); } catch { return false; }
-  });
-  if (enhancements.length === 0) return;
+  const all = REGISTRY[sceneId] || [];
+  if (all.length === 0) return;
+  // 先分「能提供 / 不能提供」，再决定菜单：不能提供的过去被 filter 静默吃掉，
+  // 于是「这一项为什么没出现」在 CLI 里永远没有答案。探测器只跑一次（`mythos-agent
+  // --version` 这种要起进程）。
+  const probed = all.map(e => ({ entry: e, ok: probeEnhancement(e, context) }));
+  const unavailable = probed.filter(p => !p.ok).map(p => p.entry);
+  const enhancements = probed.filter(p => p.ok).map(p => p.entry);
 
   const consumed = consumedEnhKeys(sceneId);
 
@@ -334,6 +419,14 @@ export async function applyEnhancements(sceneId, context, options = {}) {
   const enhanceOverrides = options.enh
     ? new Set(options.enh.split(',').map(s => s.trim()).filter(Boolean))
     : new Set();
+  // 用户明确点名要的项却不满足条件 —— 这比「默认项没出现」更该说，不然后果是
+  // 「我加了 --enh，跑完一个字没变」。
+  const ignored = unavailable.filter(e => enhanceOverrides.has(e.key));
+  if (ignored.length > 0) {
+    console.log(chalk.yellow(
+      `  ⚠ --enh 里这些增强项本机不满足条件，没有启用: ${ignored.map(e => e.key).join(', ')}`,
+    ));
+  }
 
   // Non-TTY: take defaults + overrides (no interactive menu possible), but never silently:
   // 打印分成两栏，让「勾了但没有步骤执行」这件事当场可见。
@@ -341,6 +434,7 @@ export async function applyEnhancements(sceneId, context, options = {}) {
     const chosen = enhancements.filter(e => e.default || enhanceOverrides.has(e.key));
     for (const e of chosen) context[`enh_${e.key}`] = true;
     discloseSelection(chosen.map(e => e.key), consumed, '非交互模式，按默认值 + --enh');
+    discloseUnavailable(unavailable);
     return;
   }
 
@@ -373,6 +467,7 @@ export async function applyEnhancements(sceneId, context, options = {}) {
     consumed,
     result._timeout ? `交互选择：${String(DEFAULT_TIMEOUT_MS / 1000)} 秒无操作，已按默认值` : '交互选择',
   );
+  discloseUnavailable(unavailable);
 }
 
 /**

@@ -3976,3 +3976,151 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
   把 131 个处理器逐个判断成因是另一件事（且每个都要人判断），混在一起做两头都不清。
 - **显示字段不是声明**：`base` / `tail` 是拼接给人看的文案，写在那里的原因
   分类器看不见 —— 那就承认看不见（`handler-skip`），而不是假装能看见。
+
+---
+
+## 第三十一轮：增强项「根本没出现」也要说为什么
+
+**时间**：2026-10-30 · **起点** `43abc32`（第三十轮）
+
+第三十轮把 `skip`/`noop` 的「原因」标签修诚了；这一轮修的是另一个更早的分岔：
+**增强菜单里那些「根本没出现」的项**。第二十九轮解决的是「勾了会不会真执行」，
+本轮解决「连出现都没有，也没人说为什么」。
+
+### 取证（先证明它在说谎）
+
+1. `lib/enhancements.js` 的 `applyEnhancements` 第一行：
+
+   ```js
+   const enhancements = (REGISTRY[sceneId] || []).filter(e => {
+     try { return e.when(context); } catch { return false; }
+   });
+   if (enhancements.length === 0) return;
+   ```
+
+   `when` 返回 false 的项**不进菜单、不进日志、不进任何一行输出**。整段代码里没有
+   一处把「有这一项，但本机不满足条件」说出来。
+
+2. 真跑 `start review --auto --skip-sweep`（改之前）开头只有一行
+   `⚙ 增强已选（非交互模式，按默认值 + --enh）`——`REGISTRY.review` 有 4 项，
+   这里只出现 3 项，第 4 项 `mythos_agent_review` 无声消失。
+
+3. 顺着查「为什么会不满足」才发现更硬的证据：**「依赖哪个探测器」只写在函数体里**
+   （21 项各自手写 `when: (ctx) => DETECTORS.xxx(...)` 或 `() => true`）。
+   数据里没有依赖关系，所以即使想解释也解释不出来 —— 更别说静态对账。
+
+4. 顺手把两份增强文档的「机器状态」断言拿出来核了一遍：
+
+   ```
+   python -c "import gepa"  →  gepa ok  C:\...\Roaming\Python\Python314\site-packages\gepa\__init__.py
+   ```
+
+   而 `enhancements.md` / `enhancements-summary.md` 都写着「本机 `mythos-agent` 与
+   `gepa` **均未安装** → 相关项不会出现在菜单里」。**这句话已经是假的**，而它正是
+   `CLAUDE.md` 要求每个 session 读的两份文件。（`mythos-agent` 确实不在 PATH。）
+
+### 修法
+
+- **声明式依赖**：21 项从 `when: (ctx) => DETECTORS.xxx(ctx.targetPath)` 改成
+  `needs: '<探测器名>'`（无条件的项不写 `needs`）。新增 `PATH_DETECTORS`
+  （`uiFiles` `stagehand` `critiq` 收项目路径）与 `withWhen()`：
+
+  ```js
+  function withWhen(raw) { … 无 needs → when: () => true
+    const detector = DETECTORS[entry.needs];
+    if (typeof detector !== 'function') throw new TypeError(`增强项 ${scene}:${entry.key} 依赖了不存在的探测器 "${entry.needs}"`);
+    const when = PATH_DETECTORS.has(entry.needs) ? (ctx) => detector(ctx?.targetPath) : () => detector(); }
+  ```
+
+  错别字现在在**加载期**炸，而不是变成运行期静默 `false`。
+
+- **`DETECTOR_HINTS`（10 条，与 `DETECTORS` 一一对应）**：把「缺什么」写成一句人话。
+  缺席披露只从这张表读原因（`mythosAgent: '没装 mythos-agent CLI（PATH 里找不到）'`、
+  `uiFiles: '项目里没扫到 UI 文件（…）'`…），不现场编。
+
+- **探测一次、分流两支**：
+
+  ```js
+  const probed = all.map(e => ({ entry: e, ok: probeEnhancement(e, context) }));
+  const unavailable = probed.filter(p => !p.ok).map(p => p.entry);
+  const enhancements = probed.filter(p => p.ok).map(p => p.entry);
+  ```
+
+  （探测器要起进程 —— `mythos-agent --version`，不能两遍。）
+
+- **三条新输出**：
+  - `⚙ 未提供的增强项（本机不满足条件，既不进菜单也不会执行）: N 项` + 每项 `key —— hint`；
+  - `⚠ --enh 里这些增强项本机不满足条件，没有启用: …`（用户明确点名却没生效，比默认项缺席更该说）；
+  - 删除 early return：`REGISTRY[scene]` 非空就必然说话（整场景全不可用时靠
+    `没有启用任何增强项` + 缺席清单）。
+
+- **两份文档不再记录机器状态**，改成「会打印这段披露」，具体名单交给每次运行。
+
+### 契约变更
+
+- `usedDetectors()`（测试内）从「用正则去 `String(e.when)` 里找 `DETECTORS.xxx`」改成读 `needs`。
+  派生之后 `when` 源码里已经没有探测器名字样，旧写法会判出「被用到 0 个」，把文档对账测试
+  连坐成假红。**这是本轮唯一改动的既有断言**（同类改动均有理由注释）。
+
+### 自探针（四次都真红了）
+
+| 探针 | 手法 | 结果 |
+|------|------|------|
+| A | 删掉非交互路径的 `discloseUnavailable(unavailable)` | 2 例红（空项目 ui-polish / 整场景不可用） |
+| B | 把某处 `needs: 'stagehand'` 改成 `'stagehnad'` | 加载期 `TypeError: 增强项 ui-polish:stagehand_interaction 依赖了不存在的探测器 "stagehnad"`，整文件 no tests |
+| C | 删掉 `DETECTOR_HINTS.gepa` 一行 | 2 例红（解释表全覆盖 / needs 自检） |
+| D | 往 `enhancements.md` 塞回「本机 mythos-agent 与 gepa 均未安装」 | 1 例红（文档不许记录机器状态） |
+
+探针改过的文件都按字节用同目录副本还原并 `cmp` 验证一致（不 `git cat-file`，那条路会落 LF）。
+
+### 真跑证据
+
+`node claude-scene/src/index.js start review --auto --skip-sweep` → **EXIT=0**，开头：
+
+```
+  ⚠ 增强已选但没有场景步骤消费（非交互模式，按默认值 + --enh）: huashu_expert_review, critiq_security_scan —— …
+  ⚙ 未提供的增强项（本机不满足条件，既不进菜单也不会执行）: 1 项
+     mythos_agent_review —— 没装 mythos-agent CLI（PATH 里找不到）
+```
+
+汇总与基线一致：`✓ 17 / ✗ 0 / ⚡ 3 / ⏭ 19 / ⚠ 4`，`warn 细分: 证据过期 1 / 有发现 2`，
+`skip 细分: 条件不满足 16 / 缺工具或依赖 3`，`noop 细分: 需要对话模式 4`。
+
+本机探测器实测：`uiFiles true / stagehand true / critiq true / gepa true / mythosAgent false`
+（仓库 `package.json` 里真有 `@browserbasehq/stagehand`、`@critiq/cli`，所以 review 只有 1 项缺席）。
+
+### 验收三元组
+
+- **变更**：`claude-scene/src/lib/enhancements.js`、`claude-scene/src/lib/enhancements.test.js`、
+  `.claude/rules/conditional/enhancements.md`、`.claude/rules/conditional/enhancements-summary.md`、
+  `docs/CHANGELOG.md`、`DECISIONS.md`、`progress.md`。
+- **验证命令**：`npx vitest run` · `npx eslint claude-scene --max-warnings 0` · `npx eslint .` ·
+  5 个 checker（`check-readme-stats` / `check-action-stats` / `check-doc-counts` / `check-tool-steps` /
+  `check-dead-actions`）· `npm run scan:deadcode` · 26 场景 `--dry-run --auto` ·
+  `node claude-scene/src/index.js start review --auto --skip-sweep`。
+- **验证结果**：113 files / **1444 tests 全绿**；两侧 eslint 0 error / 0 warning；5 个 checker +
+  `scan:deadcode` 全 EXIT=0（`Total dead: 0`）；26/26 场景 EXIT=0；review EXIT=0（17/0/3/19/4）。
+
+### 坑
+
+- **`check-opencode-config.cjs` 已经不存在**（第二十七轮 opencode 退役时删了）。我照旧清单跑
+  `node scripts/check-opencode-config.cjs` 得到 `Cannot find module` —— 而 `tail` 的退出码
+  把它盖成了 `EXIT=0`。**「5 个 checker 全绿」这句话必须用 `> out 2>&1; echo $?` 逐个取码**，
+  管道后面的 `$?` 是 `tail` 的。现在的 5 个是
+  `check-readme-stats` / `check-action-stats` / `check-doc-counts` / `check-tool-steps` / `check-dead-actions`。
+- **正则找函数体这条路又踩一次**：`String(e.when)` 里找 `DETECTORS.xxx` 属于「拿代码形状当事实」，
+  一旦把依赖挪进数据，守卫就变成假红。真值字段能读就别用正则猜。
+- **`edit` 工具匹配含反斜杠的 `oldText` 仍会失败**（本轮 2 次）：退回「按行号 Python patch」
+  或「换整段（`write` 到临时文件 → Python 按行号替换）」，别硬刚转义。
+- **写文档时引用了自己的反例**：说明「不许记录机器状态」的段落里若写「gepa 没装」，
+  会被自己的守卫命中 —— 改成「上一版写死过『均未安装』」，用引号把反例隔离在工具名 24 字之外。
+
+### 决策
+
+- **缺席也要有结论**：`absent` 不是「什么都没发生」，而是「有这一项、本机不满足、原因如下」。
+  静默过滤等于替用户把「不适用」和「不存在」混成一个 —— 与第二十九轮同一条原则的延伸。
+- **依赖关系必须是数据，不能是函数体**：`needs: '<探测器名>'` 能被静态核对（守卫扫 21 项）、
+  能在缺席时变成一句话、拼错能在加载期炸；`when: (ctx) => DETECTORS.x(...)` 三者都做不到。
+- **解释文案与探测器同权重**：`DETECTOR_HINTS` 不写就红。新加探测器只返回 `false` 的时代结束。
+- **文档不许记录会过期的机器状态**：这类句子不是「文档落后」，是**假的**，而且每次会话都会被读到。
+  机器状态由运行期披露，文档只说「会有这段披露」。
