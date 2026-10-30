@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-10-30（第四十三轮：`/docs api` 也是同一个病）
+
+### Fixed
+
+- **`handleApiDocs` 无条件覆盖 `docs/api/<mod>.md`**：手写一份同名文档，跑一次 `/docs api`
+  就销毁一次人工工作 —— 与 `architecture.md` / `CHANGELOG.md` 同一个病，只是这个 handler
+  此前只有一条测试（「没有 src 目录 → skip」），缺陷全在那条测试的盲区外。现在首屏带
+  `<!-- generated-by: mix-coding /docs api -->`；**同名的没有标记 → 跳过并点名**，一个字节不动；
+  一份都没能写出来时 `skip`(`input-invalid`)，而不是记 pass。
+- **过期产物永不回收**：模块删了/改名了，`docs/api/` 里那份描述已不存在模块的文档会一直躺着
+  （没人会手动删生成物，它只会慢慢变假，且没有任何测试会因为它变假而红）。现在写完按
+  「带标记 + 本次没产出」回收，并在返回值里报「清理 N 份过期产物」——**包括本次是 skip 的时候**。
+  手写文件不在回收面内。
+- **不认识的导出写法被当成「没有导出」**：只匹配 `export function|class|const|interface|type NAME`，
+  于是 `export default` / `export { … }` / `export * from` 一律静默丢弃，文档照样标 `## 导出`
+  并记 pass。现在它们被计数，写进该模块文档的 `## 未收录`（「不是它们不存在，是这个正则认不出来」）；
+  一条声明都提取不到时 `skip` 消息里也说清有几处。
+- **出错报成 skip，成功分支返回裸字符串**：`catch` 里只 `console.log` 一句然后落到 `skip`
+  （「读写炸了」与「没输入」混成一件事）；成功分支返回的是字符串，不带 `{status}`。
+  现在读写失败 → `fail`，四个分支统一返回显式 `{status, reason?, message}`。
+
+### Added
+
+- 新增 `claude-scene/src/handlers/docs-api.test.js` 11 例（`handleApiDocs` 此前只有
+  `false-green.test.js` 里一条「没有 src 目录 → skip」）。
+
+### Self-audit
+
+6 条探针逐条把旧 bug 放回去（无条件覆盖 / 不回收 / 不披露 / 出错报 skip / 零导出照走 /
+零产出报 pass）：全红 + 按字节复原。现场四场景（真实临时项目、无 mock）：手写文件未动、
+生成物带标记、两次跑字节相等、删模块后过期产物被删而手写还在。
+
+### 验收
+
+`npx vitest run` → **123 files / 1560 tests 全绿**（含并发会话本轮新增的 sync-prompts 测试）；
+`claude-scene` eslint（`--max-warnings 0`）`EXIT=0`。
+
+### 遗留
+
+- `.claude/reviews/` 里 4 份入库残留仍未处理（别人的评审产物，删不删由人定）。
+
 ## 2026-10-30（第四十二轮：门禁判的是本次提交，不是工作区）
 
 ### Fixed

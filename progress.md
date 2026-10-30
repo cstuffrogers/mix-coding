@@ -4938,3 +4938,55 @@ doc-counts / action-stats / tool-steps）全绿；`audit-scenes` 26 场景 0 错
 `--max-warnings 0`）`EXIT=0`；6 个 checker 全 `EXIT=0`；`npm run scan:deadcode`
 `Total dead: 0`（Handlers 0/70、Scenes 0/26）；`node scripts/scan-scenes.cjs` 26 场景 /
 585 步、stats 无 diff。文档：CHANGELOG 第四十二轮 + ADR-032 + ADR-031 第 7 条。
+
+## 2026-10-30（第四十三轮：`/docs api` 是同一个病，只是最后一个被发现）
+
+上一轮收尾时我把「`handleApiDocs` 无条件覆盖」列成了开放问题 (b)。这轮做掉。
+
+### 它烂在哪
+
+四条，全都在「看起来在工作」的状态下：
+
+1. **无条件覆盖 `docs/api/<mod>.md`** —— 手写一份同名文档，跑一次 `/docs api` 就没。
+   和 `architecture.md` / `CHANGELOG.md` 一个病，只是这个 handler 此前只有一条测试
+   （「没有 src 目录 → skip」），四个缺陷全在那条测试的盲区外。
+2. **过期产物永不回收** —— 模块删了/改名了，`docs/api/` 里那份描述已不存在模块的文档
+   一直躺着。没人会手动删生成物，它只会慢慢变假，且没有任何测试会因为它变假而红。
+3. **不认识的写法被当成「没有」** —— 只匹配 `export function|class|const|interface|type NAME`；
+   `export default` / `export { … }` / `export * from` 静默丢弃，文档照样写 `## 导出`
+   并记 pass。**一个看起来完整的文档比没有文档更糟**：人会照着它判断「这模块没啥东西」。
+4. **出错报成 skip，成功返回裸字符串** —— `catch` 里 `console.log` 一句然后落到 `skip`，
+   于是「读写炸了」和「没有输入」成了同一件事；成功分支 `return \`API 文档已生成…\``
+   连 `{status}` 都没有。
+
+### 怎么修的
+
+- 生成标记 `<!-- generated-by: mix-coding /docs api -->` 进首屏；**没标记的同名文件跳过并点名**，
+  一字节不动；一份都没写成 → `skip`(`input-invalid`)。
+- 写完回收「带标记 + 本次未产出」的 `docs/api/*.md`，并把「清理 N 份过期产物」写进返回值 ——
+  **包括本次是 skip 的时候**（清理掉了却不报，等于下次没人知道那份文件去哪了）。
+- 不认识的写法被计数，进该模块文档的 `## 未收录`；一条声明都没有时 `skip` 里也说清有几处。
+- 读写异常 → `fail`；四个分支统一返回显式 `{status, reason?, message}`。
+
+拆了三个小函数（`writeApiDocs` / `pruneStaleApiDocs` / `summarizeApiDocs`）把
+`handleApiDocs` 的复杂度从 17 拉回 ≤15；`pruneStaleApiDocs` 里 `let text = ''` 触发
+`no-useless-assignment`，改成 `let text;` + `try` 内赋值。
+
+### 自证
+
+- **6 条探针**逐条把旧 bug 放回去：无条件覆盖 / 不回收 / 不披露 / 出错报 skip /
+  零导出照走 / 零产出报 pass → **全红 + 按字节复原**（`restored=true`）。
+- **现场四场景**（真实临时项目，无 mock）：手写文件未动、生成物带标记、
+  两次跑字节相等、删模块后过期产物被删而手写还在。
+- 单测 11 例（此前该 handler 只有 1 条）。其中一条是现场跑完才想到的补强：
+  顺手清理发生在 skip 分支里时，也必须出现在消息里。
+
+### 验收
+
+`npx vitest run` → **123 files / 1560 tests 全绿**（含并发会话本轮新增的 sync-prompts 测试）；
+`claude-scene` eslint `--max-warnings 0` `EXIT=0`。
+
+### 遗留
+
+`.claude/reviews/` 里 4 份入库残留（3 份 `huashu-expert-review-*.md` + `review-report-20260629.md`）
+仍未处理 —— 那是别人的评审产物，删不删该由人定。

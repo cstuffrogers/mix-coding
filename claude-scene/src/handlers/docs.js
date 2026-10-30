@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { join, relative, extname } from 'path';
 import chalk from 'chalk';
 import { safeExec } from '../lib/safe-exec.js';
@@ -43,66 +43,163 @@ function walkDir(dir, extensions, maxDepth = 5) {
   return results;
 }
 
+/**
+ * 只识别「`export <kind> <name>`」这一种声明写法。其余写法
+ * （`export default` / `export { … }` / `export * from`）以前是「扫不到就当你没有」——
+ * 生成的文档看起来很完整，其实少了一大截还标着「## 导出」。
+ * 现在它们被计数，并写进那份文档的「## 未收录」里。
+ */
+const EXPORT_DECL = /^\s*export\s+(?:async\s+)?(function|class|const|interface|type)\s+(\w+)/u;
+const EXPORT_OTHER = /^\s*export\s+(?:default|\{|\*)/u;
+
+const API_DOCS_MARKER = '<!-- generated-by: mix-coding /docs api -->';
+
 function scanExports(targetPath, srcDir) {
   const files = walkDir(srcDir, ['.ts', '.tsx', '.js', '.jsx']);
   const moduleMap = {};
   let totalExports = 0;
+  let unlistedTotal = 0;
 
   for (const filePath of files) {
     const lines = readFileSync(filePath, 'utf-8').split('\n');
     const exports = [];
+    let unlisted = 0;
     for (const line of lines) {
-      const match = line.match(/^\s*export\s+(async\s+)?(function|class|const|interface|type)\s+(\w+)/);
-      if (match) exports.push({ name: match[3], kind: match[2] });
+      const match = line.match(EXPORT_DECL);
+      if (match) { exports.push({ name: match[2], kind: match[1] }); continue; }
+      if (EXPORT_OTHER.test(line)) unlisted += 1;
     }
-    if (exports.length > 0) {
-      moduleMap[relative(targetPath, filePath).replace(/\\/g, '/')] = exports;
+    if (exports.length > 0 || unlisted > 0) {
+      moduleMap[relative(targetPath, filePath).replace(/\\/g, '/')] = { exports, unlisted };
       totalExports += exports.length;
+      unlistedTotal += unlisted;
     }
   }
-  return { moduleMap, totalExports };
+  return { moduleMap, totalExports, unlistedTotal };
+}
+
+/** `src/a/b.ts` → `a-b`（第一段是 includeDir，去掉；扩展名去掉）。 */
+function apiDocName(modPath) {
+  const parts = modPath.split('/');
+  const last = (parts.pop() || '').replace(/\.(?:ts|tsx|js|jsx)$/u, '');
+  return [...parts.slice(1), last].join('-');
+}
+
+function renderApiDoc(name, modPath, mod) {
+  let content = `${API_DOCS_MARKER}
+# ${name}
+
+**本文件由 \`/docs api\` 生成。** 手改会在下一次生成时被覆盖；想留住手写版本就删掉首行
+那行生成标记，生成器从此不再碰这份文件。
+
+> 源文件: \`${modPath}\`
+
+## 导出
+
+`;
+  for (const exp of mod.exports) {
+    content += `### \`${exp.name}\`\n\n- 类型: ${exp.kind}\n- 描述: 未从源码注释提取，请补充\n\n`;
+  }
+  if (mod.unlisted > 0) {
+    content += `## 未收录
+
+> 该源文件里还有 **${mod.unlisted}** 处本工具不认识的导出写法（\`export default\` /
+> \`export { … }\` / \`export * from\`），**没有写进上面那一节**。
+> 不是它们不存在，是这个提取正则认不出来 —— 需要的话请手写补充。
+`;
+  }
+  return content;
+}
+
+/**
+ * 回收过期产物：模块被删/改名后，旧文档没人会手动删，于是 docs/api 里长期躺着
+ * 描述一个已经不存在模块的文件。只回收**带生成标记**的（手写文件可能是人的资产）。
+ */
+function pruneStaleApiDocs(apiDir, keep) {
+  const removed = [];
+  for (const entry of readdirSync(apiDir)) {
+    if (!entry.endsWith('.md') || keep.has(entry)) continue;
+    const full = join(apiDir, entry);
+    let text;
+    try { text = readFileSync(full, 'utf-8'); } catch { continue; }
+    if (!text.includes(API_DOCS_MARKER)) continue;
+    unlinkSync(full);
+    removed.push(entry);
+  }
+  return removed;
+}
+
+/** 逐个模块落盘；返回写成功与「同名的却是手写文件」两张名单。 */
+function writeApiDocs(targetPath, moduleMap) {
+  const written = new Set();
+  const handWritten = [];
+  for (const [modPath, mod] of Object.entries(moduleMap)) {
+    const fileName = `${apiDocName(modPath)}.md`;
+    const docPath = guardWrite(targetPath, `docs/api/${fileName}`);
+    if (existsSync(docPath) && !readFileSync(docPath, 'utf-8').includes(API_DOCS_MARKER)) {
+      // 手写的文档覆盖一次就是销毁一次人工工作（与 architecture / changelog 同一规矩）。
+      handWritten.push(fileName);
+      continue;
+    }
+    writeFileSync(docPath, renderApiDoc(apiDocName(modPath), modPath, mod), 'utf-8');
+    written.add(fileName);
+  }
+  return { written, handWritten };
+}
+
+function summarizeApiDocs(written, removed, handWritten) {
+  const parts = [`${written} 个模块`];
+  if (removed > 0) parts.push(`清理 ${removed} 份过期产物`);
+  if (handWritten.length > 0) parts.push(`跳过 ${handWritten.length} 份手写文件：${handWritten.join('、')}`);
+  return `API 文档已生成（${parts.join('，')}）`;
 }
 
 export function handleApiDocs(_action, params, targetPath, context) {
   const includeDir = params?.include || 'src';
-  ensureDocsDir(targetPath);
-  let docEntries = 0;
-
-  try {
-    const srcDir = join(targetPath, includeDir);
-    if (!existsSync(srcDir)) {
-      return { status: 'skip', message: `API 文档生成跳过：没有源文件目录 ${includeDir}` };
-    }
-
-    const { moduleMap, totalExports } = scanExports(targetPath, srcDir);
-
-    if (totalExports === 0) {
-      return { status: 'skip', message: 'API 文档生成跳过：源文件里没有可提取的导出' };
-    }
-
-    const apiDir = join(targetPath, 'docs', 'api');
-    if (!existsSync(apiDir)) mkdirSync(apiDir, { recursive: true });
-
-    for (const [modPath, modExports] of Object.entries(moduleMap)) {
-      const modName = modPath.replace(/^src\//, '').replace(/\//g, '-').replace(/\.(ts|tsx|js|jsx)$/, '');
-      const docPath = guardWrite(targetPath, `docs/api/${modName}.md`);
-      let content = `# ${modName}\n\n> 源文件: \`${modPath}\`\n\n## 导出\n\n`;
-      for (const exp of modExports) {
-        content += `### \`${exp.name}\`\n\n- 类型: ${exp.kind}\n- 描述: 自动生成，详见源码注释\n\n`;
-      }
-      writeFileSync(docPath, content, 'utf-8');
-      docEntries++;
-    }
-
-  } catch (e) {
-    console.log(chalk.yellow(`  ⚠ API 文档提取失败: ${e.message}`));
+  const srcDir = join(targetPath, includeDir);
+  if (!existsSync(srcDir)) {
+    return {
+      status: 'skip',
+      reason: 'input-missing',
+      message: `API 文档生成跳过：没有源文件目录 ${includeDir}`,
+    };
   }
 
-  if (context) context.apiDocsGenerated = docEntries;
-  // docEntries 为 0 说明一份文档都没写出来（提取报错或没导出），以前照样记 ✓ pass。
-  return docEntries > 0
-    ? `API 文档已生成 (${docEntries} 个模块)`
-    : { status: 'skip', message: 'API 文档未生成：没有写出任何模块文档（提取失败或无可提取内容）' };
+  try {
+    const { moduleMap, totalExports, unlistedTotal } = scanExports(targetPath, srcDir);
+    if (totalExports === 0) {
+      const extra = unlistedTotal > 0
+        ? `（另有 ${unlistedTotal} 处 export default / export {…} / export * 写法，本工具不识别）`
+        : '';
+      return {
+        status: 'skip',
+        reason: 'input-missing',
+        message: `API 文档未生成：${includeDir} 里没有可提取的导出声明${extra}`,
+      };
+    }
+
+    ensureDocsDir(targetPath);
+    const apiDir = guardWrite(targetPath, 'docs/api');
+    if (!existsSync(apiDir)) mkdirSync(apiDir, { recursive: true });
+
+    const { written, handWritten } = writeApiDocs(targetPath, moduleMap);
+    const removed = pruneStaleApiDocs(apiDir, written);
+
+    if (written.size === 0) {
+      // 已经回收掉的过期产物也是本次做的事，不能因为「没生成」就不报。
+      const cleaned = removed.length > 0 ? `；已清理 ${removed.length} 份过期产物` : '';
+      return {
+        status: 'skip',
+        reason: 'input-invalid',
+        message: `API 文档未生成：${handWritten.length} 份同名文档是手写的（没有生成标记），一份都没覆盖${cleaned}`,
+      };
+    }
+    if (context) context.apiDocsGenerated = written.size;
+    return { status: 'pass', message: summarizeApiDocs(written.size, removed.length, handWritten) };
+  } catch (e) {
+    // 读写炸了 = 跑了但失败（fail）。以前是 console.log 一句然后报 skip —— 出错了说「跳过」。
+    return { status: 'fail', message: `API 文档生成失败：${e.message}` };
+  }
 }
 
 // ── Changelog helpers ──
