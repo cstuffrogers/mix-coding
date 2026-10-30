@@ -325,7 +325,7 @@ node src/index.js start ui-polish --auto --theme animal-island --target "./your-
 4. installDeps    → 安装 daisyui, animate.css, lucide-react, playwright
 5. checkConsistency → 检查 UI 一致性，输出评分
 5.8-6.44. Open Design 资源加载 → 品牌选择 + 模板预览 + Skill 加载 + 设备框 + 演示文稿 + 提示词
-6. confirm        → 用户选择主题（DaisyUI/Animal Island/Custom/Huashu/Open Design 152 品牌）
+6. confirm        → 用户选择主题（DaisyUI/Animal Island/Custom/Huashu/Open Design 品牌库）
 6.5. awm-brand-import → Open Design: 直接读取 `open-design/design-systems/<brand>/` DESIGN.md + tokens.css → 注入 CSS 变量（条件触发）
 6.7. reconcileDesignTokens → 设计 Token 调和：已有值优先，新主题填充缺失
 7. applyDaisyUI   → 整合应用主题（on_error: abort）
@@ -399,7 +399,7 @@ node src/index.js start new-project --auto --prompt "创建一个 React 电商�
 | **Phase 0: Pre-flight** | web-design-engineer → review-checklist → recall → shape 设计简报 | 设计基准声明 + 品味方向确立 |
 | **Phase 1: 上下文收集** | GitHub/Tavily/Context7/Supabase/Stripe/Resend MCP + OpenDigger 竞品分析 | 自动搜索最佳实践、文档、模板 |
 | **Phase 2: 规划** | ce-plan → Skill review（PRD 合成 + Issue 拆解） | CE 详细规划 + Issue Tracker 集成 |
-| **Phase 3: 脚手架** | applyTemplate → askUser(Open Design) → Open Design 152 品牌资源加载 → brand-import → generateDesign | 项目创建 + 品牌选择 + AI 设计生成 |
+| **Phase 3: 脚手架** | applyTemplate → askUser(Open Design) → Open Design 品牌库资源加载 → brand-import → generateDesign | 项目创建 + 品牌选择 + AI 设计生成 |
 | **Phase 3.5: Impeccable 打磨** | Huashu 基线 → critique(检测) → polish → layout → colorize → bolder → typeset → animate → delight → harden → distill → clarify → adapt → optimize → critique(验证) → polish+bolder+delight(精准修复) → Huashu 验证 → AI-Friendly 可访问性 | 双轮品控+3项残留修复，所有关键步骤 on_error: abort |
 | **Phase 4: 实现+审查** | implementLogic → checkAPI → runReview → aislop → sec-bug-hunt → runSuite | 业务逻辑 + 代码质量 + 安全基线 |
 | **Phase 5: 沉淀** | review(git-guardrails) → ce-compound → remember → consolidate → notify | 知识沉淀 + 记忆保存 |
@@ -724,7 +724,7 @@ claude plugins install compound-engineering@anthropic
 | **Impeccable Skill** | `echo Y \| npx --yes impeccable@2.3.2 skills install` | AI 设计词汇 + 27 反模式规则 + 12 LLM 批判规则，自动修正 UI 塑料感 |
 | **Web Design Skill** | 复制 `SKILL.md` 到 `.claude/skills/web-design-engineer/`（注意：前序元数据仅保留 name/description/user-invocable） | ConardLi: 反AI套路设计系统，OKLCH 色彩 + 6步工作流 + 预交付检查清单 |
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: 语义HTML/ARIA可访问性 |
-| **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md`（同上，注意前序元数据格式） | 5 精选品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为 Open Design 152 品牌库直接文件读取 |
+| **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md`（同上，注意前序元数据格式） | 5 精选品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为直接读 Open Design 品牌库文件 |
 | **MCP服务器** | `claude mcp install github playwright supabase` | AI上下文增强扩展 |
 | **记忆工具** | `git clone https://github.com/claude-mem \`%USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 5种记忆组件组合使用（project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph） |
 | **安全工具链** | `npm install -D noleak pa11y-ci recheck-cli @lhci/cli knip` + `pip install seraphim-audit` + Socket.dev API Key 配置 | 构建泄露检测 / 安全响应头 / 死链 / 无障碍 / ReDoS / 性能门禁 / AST 死代码检测 / 日志脱敏 / CORS / 敏感文件 / 供应链安全 / 技术债务 |
@@ -746,7 +746,7 @@ claude plugins install compound-engineering@anthropic
 | `impeccable` | — | 27 反模式规则 + 12 LLM 批判规则，去塑料感 |
 | `landing-page-design` | elayadesign（MIT） | 落地页完整系统：A 部分结构/版式/转化文案/SEO + B 部分字号刻度/间距表/圆角公式/hero/图标/动效曲线/交付清单。`ui-polish` 的 `landing_page` 模式调用 |
 | `ai-friendly-web-design` | ianho7 | 语义 HTML / ARIA 可访问性 |
-| `awesome-design-md` | VoltAgent | 5 品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为 Open Design 152 品牌库直接文件读取 |
+| `awesome-design-md` | VoltAgent | 5 品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为直接读 Open Design 品牌库文件 |
 | `mattpocock` | Matt Pocock | 含 29 个子技能（TS/工程/生产力） |
 | `code-review-graph` | tirth8205 | 7 个 skills：review-delta / refactor-safely / review-changes / review-pr / build-graph / debug-issue / explore-codebase。Tree-sitter 知识图谱，blast-radius 审查+死代码+架构社区（CLI 驱动，与 codegraph 共存） |
 | `review-checklist` | — | 23 项审查清单 |

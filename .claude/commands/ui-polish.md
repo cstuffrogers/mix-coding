@@ -1,5 +1,5 @@
 ---
-description: Polish frontend projects with DaisyUI/Animal Island UI/Liquid Glass themes, custom keyframe animations, lucide-react icon upgrade, micro-interactions, and Impeccable/web-design-engineer/Huashu design intelligence. 59-step hybrid workflow with dual-critique quality control + residual repair. Open Design 全资源集成：152品牌+111模板+138技能+11craft规则+8Huashu模块+5设备框+103提示词模板+3演示框架+8吉祥物.
+description: Polish frontend projects with DaisyUI/Animal Island UI/Liquid Glass themes, custom keyframe animations, lucide-react icon upgrade, micro-interactions, and Impeccable/web-design-engineer/Huashu design intelligence. 5-mode hybrid workflow (ui_polish / impeccable / design_only / brand_system / landing_page) with dual-critique quality control + residual repair. Open Design 全资源集成（品牌库 / 模板 / 技能 / craft 规则 / Huashu 模块 / 设备框 / 提示词模板 / 演示框架 / 吉祥物；目录里有多少用多少，不写死条数）.
 argument-hint: "[target-path]"
 ---
 
@@ -29,6 +29,27 @@ argument-hint: "[target-path]"
 step 5.9（品牌选择）/ step 6（美化方案与主题确认）需要人工回答。没有 TTY 也没传表态时，引擎会**停在该步并 exit 2**（不会替你取默认值）。
 此时先把问题问用户，再按答案重跑：`--yes` / `--decline`，品牌与主题按用户要求写进需求（`-p`）。真终端里用户自己跑时引擎会弹确认。
 
+## 模式（`--mode`，逗号分隔）
+
+```bash
+claude-scene start ui-polish --auto --mode ui_polish,impeccable,landing_page
+```
+
+`--mode` 一旦传了就**替换**场景声明的默认值（默认只有 `ui_polish` + `impeccable`），
+所以「加一个模式」必须把默认的也写全。可用模式用 `claude-scene show ui-polish` 看
+（`模式:` 那一行，带「(默认)」标记）。
+
+| 模式 | 干什么 | 默认 |
+|------|--------|------|
+| `ui_polish` | 主流程：主题 / 动画 / 图标 / 微交互 / 打磨 | ✅ |
+| `impeccable` | Skill 深度批判两轮 + CLI 反「AI 塑料感」修复 | ✅ |
+| `design_only` | 只出设计，不改代码 | — |
+| `brand_system` | 从品牌预设（`awesome-design-md`）出设计系统 | — |
+| `landing_page` | 落地页专项：A 部分结构/转化文案 + B 部分视觉基线 + 交付清单（Phase 0 第 10 步 / Step 9.53） | — |
+
+`landing_page` 的裁决顺序：用户当轮说的 > 落地页专项数值 > 品牌预设调色板/字体/材质 >
+`impeccable` 只保留批判 > 上游禁止项（禁 Inter/Roboto、禁背景渐变、字号必须落刻度）。
+
 ## Phase 0: Pre-flight 设计智能
 
 设计系统声明和现状审计在修改代码前完成：
@@ -36,21 +57,22 @@ step 5.9（品牌选择）/ step 6（美化方案与主题确认）需要人工�
 1. **web-design-engineer Skill** — 声明设计系统基线：检测已有 Token（Palette/Typography/Spacing/Motion/Radius/Shadows），写入 `.claude/designs/design-baseline.md`
 2. **review-checklist Skill** — 加载审查清单，建立结构化审查基准
 3. **Impeccable audit** — 技术质量基线扫描（a11y/perf/responsive），为后续对比建立基准
-4. **Open Design 资源清单** — Bash `ls open-design/design-systems/` + `ls open-design/design-templates/` + `ls open-design/skills/` + `ls open-design/prompt-templates/image/` + `ls open-design/prompt-templates/video/` + `ls open-design/templates/` + `ls open-design/assets/community-pets/` 列出 152 品牌 + 111 设计模板 + 138 技能 + 103 提示词模板（46 图片 + 57 视频）+ 3 演示框架 + 8 吉祥物
+4. **Open Design 资源清单** — Bash `ls open-design/design-systems/` + `ls open-design/design-templates/` + `ls open-design/skills/` + `ls open-design/prompt-templates/image/` + `ls open-design/prompt-templates/video/` + `ls open-design/templates/` + `ls open-design/assets/community-pets/` 列出各目录当前有哪些资源（品牌 / 设计模板 / 技能 / 图片与视频提示词模板 / 演示框架 / 吉祥物 —— 以 ls 输出为准不要写死条数）
 5. **craft 规则加载** — Read `open-design/craft/` 全部 11 个规则文件（accessibility-baseline / animation-discipline / anti-ai-slop / color / form-validation / laws-of-ux / rtl-and-bidi / state-coverage / typography / typography-hierarchy / typography-hierarchy-editorial），建立完整设计约束基准。后续所有步骤必须遵守这些规则。
 6. **Open Design 插件系统** — 🆕 Bash `ls open-design/plugins/_official/scenarios/` 列出 11 个场景插件（`od-react-export` / `od-nextjs-export` / `od-vue-export` 框架导出；`od-design-refine` 设计迭代；`od-new-generation` 设计生成）。`ls open-design/plugins/_official/atoms/` 列出 13 个原子插件（`critique-theater` / `direction-picker` / `design-extract` / `token-map` 等）。`ls open-design/plugins/_official/examples/` 列出 140 个示例模板。
 7. **Huashu brand-protocol** — 检测用户需求中是否提及品牌名 → 5 步品牌资产清单（品牌色/字体/logo/语调/目标受众）→ 输出 brand-spec.md 到 `.claude/designs/`，后续所有步骤以 brand-spec 为权威约束：
    ```bash
    node -e "import('./src/lib/huashu/brand-protocol.js').then(m => m.runProtocol({ targetPath: '<目标路径>', requirement: '<用户原始需求>' }))"
    ```
-7. **Huashu expert-review 基线** — 打磨前 5 维度设计基线测量（philosophy/hierarchy/craft/functionality/originality），为 Phase 2 对比建立评分基线：
+8. **Huashu expert-review 基线** — 打磨前 5 维度设计基线测量（philosophy/hierarchy/craft/functionality/originality），为 Phase 2 对比建立评分基线：
    ```bash
    node -e "import('./src/lib/huashu/expert-review.js').then(m => m.review({ targetPath: '<目标路径>' }))"
    ```
-8. **Huashu html-direction-advisor** — 3 方向提案（Conservative / Balanced / Bold），各含布局骨架 + 设计 token 声明 + 占位符，用户选定方向后进入 Phase 1：
+9. **Huashu html-direction-advisor** — 3 方向提案（Conservative / Balanced / Bold），各含布局骨架 + 设计 token 声明 + 占位符，用户选定方向后进入 Phase 1：
    ```bash
    node -e "import('./src/lib/huashu/html-direction-advisor.js').then(m => m.proposeThreeDirections({ category: 'web', requirement: '<用户原始需求>' }))"
    ```
+10. **landing-page-design Skill（仅 `landing_page` 模式）** — 声明落地页的 A 部分（结构 / 版式类型 / 转化文案）与 B 部分（字号刻度 / 间距表 / 嵌套圆角公式 / hero 680px / 动效基准曲线）基线，并给出与品牌预设的裁决顺序。场景内为 Step 0.07，交付前由 Step 9.53 逐条核对清单。
 
 ---
 
@@ -78,15 +100,15 @@ AskUserQuestion 交互式选择：
 - `npx @google/design.md lint` 校验注入后的 DESIGN.md 格式 + WCAG 对比度，失败输出报告到 `.claude/designs/lint-report.md`
 
 选择设计模板时：
-- Bash `ls open-design/design-templates/` 列出 111 模板
+- Bash `ls open-design/design-templates/` 看当前有哪些模板
 - Read 选中模板的 HTML/CSS，提取布局结构和组件模式
 
 选择 Skills 时：
-- Bash `ls open-design/skills/` 列出 138 技能
+- Bash `ls open-design/skills/` 看当前有哪些技能
 - Read 选中技能的 markdown，将其设计约束注入到后续打磨步骤
 
 选择提示词模板时：
-- Bash `ls open-design/prompt-templates/image/` + `ls open-design/prompt-templates/video/` 列出 103 模板
+- Bash `ls open-design/prompt-templates/image/` + `ls open-design/prompt-templates/video/` 看当前有哪些提示词模板
 - Read 选中的提示词模板，用于 AI 图片/视频素材生成（如 hero 背景图、OG 图片、产品演示视频）
 
 选择演示框架时：
@@ -515,9 +537,13 @@ deck-exporter 输出：
 
 ## 执行模式
 
-此工作流**完全在对话内执行**，不通过 CLI 子进程。
+同一份场景两种跑法，别混着说：
 
-CLI 子进程（`node src/index.js start ui-polish --auto`）仅用于 CI/CD 等非对话场景的纯机械步骤，会跳过所有 Skill 步骤。
+- **对话内（默认）**：agent 按下面各 Phase 逐条执行。`invokeSkill` 步骤会把技能正文 / 清单
+  载入 context（引擎侧状态是 `noop / conversation-mode`，**不代表没做**），真正动手的是 agent。
+- **CLI（`claude-scene start ui-polish --auto`）**：机械步骤（依赖安装、颜色替换、动画注入、
+  Impeccable CLI 规则等）真跑；Skill 步骤只把参考内容写进 `context.skill_*`，不会改代码。
+  适合 CI / 脚本化，或先跑机械部分再进对话收尾。
 
 ## 完成标准
 
@@ -531,7 +557,7 @@ CLI 子进程（`node src/index.js start ui-polish --auto`）仅用于 CI/CD 等
 - [ ] 微交互类（hover-lift/hover-glow/active-press）在交互组件中出现（不含 transition-all）
 - [ ] 硬编码 indigo 色（#6366f1/#4f46e5/#8b5cf6 等）在项目源码中为 0
 - [ ] animate.css 库未安装、未引用（@import "animate.css" / animate__animated 类名出现次数为 0）
-- [ ] Phase 0 全部 8 步已执行（web-design-engineer → review-checklist → impeccable audit → Open Design 资源清单 → craft 规则加载 → brand-protocol → expert-review 基线 → html-direction-advisor）
+- [ ] Phase 0 全部 10 步已执行（web-design-engineer → review-checklist → impeccable audit → Open Design 资源清单 → craft 规则加载 → Open Design 插件系统 → brand-protocol → expert-review 基线 → html-direction-advisor → landing-page-design（仅 landing_page 模式））
 - [ ] Phase 2 Impeccable 打磨链全部 23 步已执行（Huashu→critique→polish→layout→colorize→bolder→typeset→animate→delight→community-pets→harden→distill→clarify→adapt→optimize→quieter→onboard→critique→3精准修复→Huashu→AI-Friendly a11y→设备框→deck-exporter）
 - [ ] Huashu 第二轮评分 ≥ 第一轮评分 + 15
 - [ ] Impeccable quieter 已执行：无过度加粗/过度阴影/装饰性模糊

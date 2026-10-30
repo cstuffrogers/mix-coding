@@ -80,14 +80,14 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 | Scene | Steps | Description | Command |
 |-------|-------|-------------|---------|
-| **ui-polish** | 74 | Frontend polish (full conversation mode, Open Design 152 brands → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
+| **ui-polish** | 74 | Frontend polish (full conversation mode, Open Design brand library → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
 | **feature** | 31 | New feature development (CE plan + TDD + multi-Agent review) | `/feature` |
 | **bugfix** | 34 | Bug fix (repro → root cause → fix → PR → regression test) | `/bugfix` |
 | **review** | 43 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic) + migration/QA/i18n/a11y enhancements | `/review` |
 | **refactor** | 30 | Code refactoring (metrics + anti-patterns + incremental refactor + test verification) | `/refactor` |
 | **optimize** | 17 | Performance optimization (bottleneck → baseline → anti-patterns → measure → fix) | `/optimize` |
 | **loop** | 18 | Auto iteration loop (unattended: review → fix → verify) | `/loop` |
-| **new-project** | 70 | Project from scratch (full conversation mode, Pre-flight design baseline → shape design brief → context gathering → CE plan → Open Design 152 brands + Impeccable full-suite polish (dual-round QC + 3 precision fixes) + AI-Friendly a11y + review + retention) | `/new-project` |
+| **new-project** | 70 | Project from scratch (full conversation mode, Pre-flight design baseline → shape design brief → context gathering → CE plan → Open Design brand library + Impeccable full-suite polish (dual-round QC + 3 precision fixes) + AI-Friendly a11y + review + retention) | `/new-project` |
 | **release** | 24 | Release deployment (quality gates + version bump + build + leak check + tag + health check + monitoring) + CHANGELOG enhancement | `/release` |
 | **deps** | 17 | Safe dependency updates (scan outdated → update one-by-one → breaking changes check → test) + SBOM enhancement | `/deps` |
 | **rollback** | 16 | Emergency rollback (version selection → rollback → build → health check → monitor restoration) | `/rollback` |
@@ -159,7 +159,7 @@ node src/index.js start ui-polish --auto --theme animal-island --target "E:\your
 4. installDeps    → Install daisyui, animate.css, lucide-react, playwright
 5. checkConsistency → Check UI consistency, output score
 5.8-6.44. Open Design resources → Brand selection + template preview + skill loading + frames + decks + prompts
-6. confirm        → User selects theme (DaisyUI/Animal Island/Custom/Huashu/Open Design 152 brands)
+6. confirm        → User selects theme (DaisyUI/Animal Island/Custom/Huashu/Open Design brand library)
 6.5. awm-brand-import → Open Design: read `open-design/design-systems/<brand>/` DESIGN.md + tokens.css → inject CSS variables (conditional)
 6.7. reconcileDesignTokens → Protect existing tokens, fill gaps from new theme
 7. applyDaisyUI   → Merge theme (on_error: abort)
@@ -416,7 +416,7 @@ claude plugins install compound-engineering@anthropic
 | **Impeccable Skill** | `echo Y | npx --yes impeccable@2.3.2 skills install` | AI design vocabulary + 27 anti-pattern rules +| **mobile-e2e** | 13 LLM critique rules |
 | **Web Design Skill** | Copy `SKILL.md` to `.claude/skills/web-design-engineer/` | ConardLi: anti-AI-template design system |
 | **AI-Friendly Design** | `npx ai-friendly-web-design-skill --local` | ianho7: semantic HTML/ARIA accessibility |
-| **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 curated brand DESIGN.md files (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
+| **Awesome Design MD** | `git clone https://github.com/VoltAgent/awesome-design-md .claude/skills/awesome-design-md` | 5 curated brand DESIGN.md files (Vercel/Linear/Stripe/Notion/Apple), upgraded to direct reads from the Open Design brand library |
 | **MCP Servers** | `claude mcp install github playwright supabase` | AI context enhancement extensions |
 | **Spec-Kit** | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` | GitHub spec-driven development engine (11 speckit skills) |
 | **Memory Tools** | `git clone https://github.com/claude-mem %USERPROFILE%\.claude\skills\claude-mem` + `npx nexo-brain@latest init` | 5 memory backends (project-memory / Claude-Mem / agentmemory / NEXO / CodeGraph) |
@@ -439,7 +439,7 @@ claude plugins install compound-engineering@anthropic
 | `impeccable` | — | 27 anti-pattern rules + 12 LLM critique rules |
 | `landing-page-design` | elayadesign (MIT) | Full landing-page system: Part A structure/layout/conversion copy/SEO + Part B type scale/spacing table/radius formula/hero/icons/motion curve/ship checklist. Invoked by `ui-polish` `landing_page` mode |
 | `ai-friendly-web-design` | ianho7 | Semantic HTML / ARIA accessibility |
-| `awesome-design-md` | VoltAgent | 5 brand DESIGN.md (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
+| `awesome-design-md` | VoltAgent | 5 brand DESIGN.md (Vercel/Linear/Stripe/Notion/Apple), upgraded to direct reads from the Open Design brand library |
 | `mattpocock` | Matt Pocock | 26 sub-skills (TS/engineering/productivity) |
 | `review-checklist` | — | 23 review checklist items |
 | `sec-bug-hunt` | — | 5-vector security scan rules |

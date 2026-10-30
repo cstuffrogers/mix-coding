@@ -293,7 +293,20 @@ describe('「哪些功能并进了哪个场景」必须双向可验', () => {
  */
 describe('易变的外部热度数字不进活的文档', () => {
   const STAR_COUNT = /\d[\d.,]{0,16}\s{0,2}k?\+?\s{0,2}stars/i;
-  const CATALOGUE_SIZE = /\d{1,6}\s{0,2}(?:brand-level design systems?|品牌设计系统)/iu;
+  // 同一个毛病不止「品牌设计系统」一种写法：`152 品牌` / `111 模板` / `138 技能` /
+  // `11 场景插件` / `5 设备框` / `8 吉祥物` / `103 提示词模板` 全是从没数过的上游目录条数。
+  // 只拦「品牌设计系统」时，同一份 ui-polish.md 的其它七处照样冒充事实。
+  // 只拦两位数以上：`5 品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple）` 这种
+  // 把名字列全了的条数是核得住的，`3 插件` 同理；100+ 的上游目录条数才是没人数过的那种。
+  const CATALOGUE_SIZE = new RegExp([
+    String.raw`\d{2,6}\s{0,2}(?:brand-level design systems?|品牌(?:设计系统|系统|库|资产)?)`,
+    String.raw`\d{2,6}\s{0,2}(?:设计|示例|提示词)?模板`,
+    String.raw`\d{2,6}\s{0,2}(?:AI\s*)?技能(?:库)?`,
+    String.raw`\d{2,6}\s{0,2}(?:场景|原子)?插件`,
+    String.raw`\d{2,6}\s{0,2}(?:设备框|吉祥物|craft\s*规则)`,
+    // 英文侧同一件事：`152 brands`。三位起才拦 —— `5 curated brands` 把名字列全了，核得住。
+    String.raw`\d{3,6}\s{0,2}(?:brands?|design templates?|AI skills?|plugins?)`,
+  ].join('|'), 'iu');
   const ARCHIVED_MARK = '> **归档**';
 
   /** 活的 markdown：入口文档 + docs/*.md（去掉台账与带「归档」横幅的历史提案）+ 命令/规则正文。 */
