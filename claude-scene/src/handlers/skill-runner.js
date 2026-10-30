@@ -28,6 +28,9 @@ const SKILL_PATHS = {
   'variant-analysis': '.claude/skills/variant-analysis/SKILL.md',
   'sharp-edges': '.claude/skills/sharp-edges/SKILL.md',
   'insecure-defaults': '.claude/skills/insecure-defaults/SKILL.md',
+  // MIT（非 CC BY-SA）：elayadesign/ai-design-skills 的落地页设计系统，
+  // 署名与改动清单见目录内 NOTICE.md。
+  'landing-page-design': '.claude/skills/landing-page-design/SKILL.md',
 };
 
 /**

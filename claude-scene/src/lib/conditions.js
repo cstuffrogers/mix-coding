@@ -52,6 +52,10 @@ const SIMPLE_CONDITIONS = {
   analyze_only: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('analyze_only'),
   quality_tools: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('quality_tools'),
   security_deep: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('security_deep'),
+  // ui-polish 的「落地页设计」模式：选了才跑 0.07 / 9.53 两个 landing-page-design 步骤。
+  // 不默认开：该技能会接管文案与具体数值，与品牌预设有正面冲突，
+  // 裁决规则写在 .claude/skills/landing-page-design/SKILL.md 文末附录。
+  landing_page: (ctx) => Array.isArray(ctx?.selected_modes) && ctx.selected_modes.includes('landing_page'),
 
   user_confirmed_open_design: (ctx) =>
     ctx.user_confirmed_open_design === true,
@@ -100,6 +104,10 @@ const SIMPLE_CONDITIONS = {
 
   awesome_design_md_available: () => {
     return existsSync(join(findResourceDir('skills', 'awesome-design-md'), 'SKILL.md'));
+  },
+
+  landing_page_design_available: () => {
+    return existsSync(join(findResourceDir('skills', 'landing-page-design'), 'SKILL.md'));
   },
 
   mobile_ui_review_available: () => {

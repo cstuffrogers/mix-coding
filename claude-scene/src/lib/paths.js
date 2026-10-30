@@ -85,11 +85,21 @@ export const CODEGRAPH_DB = join(PROJECT_ROOT, '.codegraph', 'codegraph.db');
 
 /**
  * 查找随包/随项目分发的资源目录（skills、rules、templates 等）。
- * 顺序：项目级 → 用户级 → 包级。返回首个存在者，全不存在返回项目级路径。
+ * 顺序：项目级(.claude → .agents) → 用户级(.claude → 根) → 包级。
+ *
+ * 用户级必须带上 `.claude` 子目录：全局安装脚本把引擎技能装到
+ * `~/.mix-coding/.claude/skills`（和 skill-runner 的候选目录一致），而这里
+ * 以前只查 `~/.mix-coding/skills` —— 于是 `--target/任意项目目录` 下
+ * `impeccable_available` 等条件恒为 false，ui-polish 的 18 个 impeccable
+ * 步骤全部静默跳过，而下一条 invokeSkill 明明读得到文件。条件与执行器
+ * 必须看同一批目录。
+ * `.agents` 是 pi 侧的项目技能目录（.agents/skills/<name>/SKILL.md）。
  */
 export function findResourceDir(...segments) {
   const candidates = [
     join(PROJECT_ROOT, '.claude', ...segments),
+    join(PROJECT_ROOT, '.agents', ...segments),
+    join(USER_DATA_DIR, '.claude', ...segments),
     join(USER_DATA_DIR, ...segments),
     join(PACKAGE_ROOT, ...segments),
   ];

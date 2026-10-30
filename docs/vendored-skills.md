@@ -1,4 +1,9 @@
-# Vendored skills (Trail of Bits, CC BY-SA 4.0)
+# Vendored skills（第三方技能落地记录）
+
+两条互不相干的许可线，别混：
+
+- **Trail of Bits 四个**（`property-based-testing` / `variant-analysis` / `sharp-edges` / `insecure-defaults`）—— **CC BY-SA 4.0**
+- **`landing-page-design`** —— **MIT**（elayadesign/ai-design-skills）
 
 Four skills from [trailofbits/skills](https://github.com/trailofbits/skills) are
 vendored under `.claude/skills/`. They fill the **logic / IO** detection
@@ -76,7 +81,7 @@ and can hallucinate, semgrep is deterministic in two seconds. They sit at the
 same layer as the existing `sec-bug-hunt` / `mp-review` / `review-checklist`
 skills.
 
-## License
+## License（以下为 Trail of Bits 四个）
 
 **CC BY-SA 4.0**, © Trail of Bits. These files are **not** covered by this
 repository's Elastic License 2.0. Each directory carries a `NOTICE.md` with the
@@ -104,6 +109,42 @@ reference sibling `.md` files; copy every reference and keep the relative layout
 otherwise links dangle. `.claude/skills/*` has no dangling-link allowance: the
 test suite fails if a reference is missing.
 
+## 设计侧：`landing-page-design`（MIT，另一条许可线）
+
+前端工作流里唯一一个「既管结构又管数值」的设计技能，来自
+[elayadesign/ai-design-skills](https://github.com/elayadesign/ai-design-skills)
+（commit `ded7efc`，**MIT**，作者 Elaya；其内容部分改编自 MIT 的
+[Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill)，署名在上游 SKILL.md
+的 Credits 段）。
+
+| 层 | 内容 | 接进哪里 |
+|---|---|---|
+| Part A | intake 问题 → 页面结构 → 版式选择（A/B/C/D）→ 转化规则 → 文案公式 → 构建顺序 → SEO/AEO → 8 个坑 | `ui-polish` **0.07** |
+| Part B | 字体/字号刻度吸附/间距表/嵌套圆角公式/边框与背景/hero 680px/图标/动效曲线/内容真实感/状态集/交付要求（B10）/tagline reveal（B11） | `ui-polish` **0.07** |
+| Quick checklist + B10 | 交付前逐条核对（首屏不抢 CTA、字号全落刻度、无单边边框与背景渐变、404/法务/meta/alt…） | `ui-polish` **9.53** |
+
+两步都挂在 `landing_page && landing_page_design_available`：这个模式**默认不开**。
+它和已有四个设计技能（`web-design-engineer` 的 oklch 基线、`impeccable` 的 27 条反
+AI 模式、`awesome-design-md` 的 5 品牌预设、Liquid Glass 主题）在同一批维度上给值，
+上游原文是「this file wins，任何时候都先查它」——直接用会把这些预设整套压掉。
+
+所以 vendored 副本做了两处、且**只有**两处改动（`NOTICE.md` 里逐条列全）：
+
+1. frontmatter `description` 收窄成「构建/审查落地页时使用」；
+2. 文末追加「本项目集成约定」附录，给出五方冲突的裁决顺序：用户当轮明说的 > 落地页
+   专项数值 > 品牌预设（调色板/字体/材质）> `impeccable`（只保留批判职责）> 禁止项。
+
+正文（Part A / Part B / Output format / Quick checklist / Credits）逐字节未改，
+`skill-runner.test.js` 断言：三件套（SKILL.md / NOTICE.md / LICENSE）都在、NOTICE 写的是
+MIT 而不是 CC BY-SA、文末附录仍在、目录内无悬空链接、`invokeSkill` 能把清单载进
+context。
+
+```bash
+# 取法（本机 github 时通时不通，jsDelivr 亦可）
+git clone --depth 1 https://github.com/elayadesign/ai-design-skills.git /tmp/aids
+# 上游 SKILL.md 是 LF；Windows clone 会是 CRLF，抄进来前统一成 LF
+```
+
 ## Where they load from
 
 `invokeSkill` resolves a skill name through this chain, first hit wins
@@ -122,6 +163,10 @@ make the same scenes work from any directory.
 
 - **Claude Code** reads `.claude/skills/` directly.
 - **pi / percho** discover from `.agents/skills/`, which is git-ignored and
-  local-only. `scripts/pi-setup.sh` mirrors the vendored four into it, so they
+  local-only. `scripts/pi-setup.sh` mirrors the vendored skills into it, so they
   appear in the skill list rather than only being reachable through
   `invokeSkill`.
+- **`findResourceDir` 与 `resolveSkillCandidates` 看同一批目录**（`<project>/.claude`、
+  `<project>/.agents`、`~/.mix-coding/.claude`、`~/.mix-coding`、包内）。条件与执行器
+  一旦看不同目录，就会重演「条件恒假 → 步骤静默跳过，而下一条 invokeSkill 明明读得到
+  文件」——`src/lib/paths.test.js` 锁这条不变式。

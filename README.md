@@ -92,7 +92,7 @@ node src/index.js start ui-polish --auto    # 执行工作流
 
 | 场景 | 步骤数 | 描述 | 命令 |
 |------|--------|------|------|
-| **ui-polish** | 72 步 | 前端美化 + 设计（交互式模式：UI美化/仅设计/品牌系统/Impeccable） | `/ui-polish` |
+| **ui-polish** | 74 步 | 前端美化 + 设计（交互式模式：UI美化/仅设计/品牌系统/Impeccable/落地页） | `/ui-polish` |
 | **new-project** | 70 步 | 从零开始新项目（设计基准 → shape 简报 → Open Design + Impeccable） | `/new-project` |
 | **review** | 43 步 | 代码审查 + 安全审计（交互式模式：代码审查/全量审计/仅分析/安全深度/质量工具链/AI设计）。安全深度模式含响应头/SkillSpector/ReDoS/CORS/日志脱敏/密钥/敏感文件 | `/review` |
 | **bugfix** | 34 步 | Bug 修复（问题复现 → 根因定位 → 修复 → PR → 回归测试） | `/bugfix` |
@@ -585,7 +585,7 @@ mix-coding/
 │   ├── scenes/               # 场景定义（26 个 JSON；本层优先于 claude-scene/scenes）
 │   ├── commands/             # Slash commands（33 个 .md：26 个工作流 + 7 个非场景命令）
 │   ├── rules/                # 项目规则（conditional/ 按需加载，含 anti-slop 反套娃设计标准 + baton-loop 多页站点接力模式）
-│   ├── skills/               # Claude Skills（29 个：18 个通用 + 11 个 speckit）
+│   ├── skills/               # Claude Skills（30 个：19 个通用 + 11 个 speckit）
 │   ├── agents/               # 12 个 Agent
 │   ├── reports/              # 审计报告（含 harness-audit 12 维评分）
 │   ├── knowledge/            # 知识索引
@@ -734,9 +734,9 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 集成全景
 
-> 共集成 **83 个外部组件，每一类都在本仓库里数得出来**：本地 Skills 29 个 + 启用的 MCP 3 个 + npm 包 23 个 + 外部工具 28 个
+> 共集成 **84 个外部组件，每一类都在本仓库里数得出来**：本地 Skills 30 个 + 启用的 MCP 3 个 + npm 包 23 个 + 外部工具 28 个
 
-### 本地 Skills（29 个，`.claude/skills/`）
+### 本地 Skills（30 个，`.claude/skills/`)
 
 | Skill | 来源 | 功能 |
 |-------|------|------|
@@ -744,6 +744,7 @@ claude plugins install compound-engineering@anthropic
 | `hallmark` | Nutlope / Together AI | 20 主题 + 57 slop-test 门禁 + 9 宏观结构 + 4 动词（build/audit/redesign/study） |
 | `web-design-engineer` | ConardLi | OKLCH 色彩 + 6步工作流 + 反 AI 套路 |
 | `impeccable` | — | 27 反模式规则 + 12 LLM 批判规则，去塑料感 |
+| `landing-page-design` | elayadesign（MIT） | 落地页完整系统：A 部分结构/版式/转化文案/SEO + B 部分字号刻度/间距表/圆角公式/hero/图标/动效曲线/交付清单。`ui-polish` 的 `landing_page` 模式调用 |
 | `ai-friendly-web-design` | ianho7 | 语义 HTML / ARIA 可访问性 |
 | `awesome-design-md` | VoltAgent | 5 品牌 DESIGN.md（Vercel/Linear/Stripe/Notion/Apple），已升级为 Open Design 152 品牌库直接文件读取 |
 | `mattpocock` | Matt Pocock | 含 29 个子技能（TS/工程/生产力） |

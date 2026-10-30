@@ -158,6 +158,57 @@ describe('vendored Trail of Bits skills', () => {
   });
 });
 
+describe('landing-page-design（MIT，elayadesign/ai-design-skills）', () => {
+  const DIR = join(REPO_ROOT, '.claude', 'skills', 'landing-page-design');
+
+  it('署名不断裂：NOTICE/LICENSE/SKILL.md 三件都在，且声明的是 MIT 而非 CC BY-SA', () => {
+    for (const f of ['SKILL.md', 'NOTICE.md', 'LICENSE']) {
+      expect(existsSync(join(DIR, f)), `${f} 缺失`).toBe(true);
+    }
+    const notice = readFileSync(join(DIR, 'NOTICE.md'), 'utf-8');
+    expect(notice).toContain('elayadesign/ai-design-skills');
+    expect(notice).toContain('MIT');
+    // 两个许可边界不能互相同化：MIT 目录不能被写成 CC BY-SA，反之亦然。
+    expect(notice).toContain('MIT 不是 CC BY-SA');
+    expect(notice).not.toContain('CC BY-SA 4.0，© Trail of Bits');
+    expect(readFileSync(join(DIR, 'LICENSE'), 'utf-8')).toContain('MIT License');
+  });
+
+  it('正文包含 A/B 两部分、交付清单和本地冲突裁决附录', () => {
+    const text = readFileSync(join(DIR, 'SKILL.md'), 'utf-8');
+    expect(text.startsWith('---\nname: landing-page-design\n')).toBe(true);
+    for (const marker of ['# Landing Page Design', '# PART A', '# PART B', '# Quick checklist', '## B10. Ship requirements']) {
+      expect(text, marker).toContain(marker);
+    }
+    // 上游写着「this file wins」，本项目有品牌预设，必须给出裁决顺序。
+    expect(text).toContain('本项目集成约定');
+    expect(text).toContain('awesome-design-md');
+    expect(text).toContain('Liquid Glass');
+  });
+
+  it('无悬空相对链接（目录内自包含）', () => {
+    const dangling = [];
+    for (const entry of readdirSync(DIR, { withFileTypes: true })) {
+      if (!entry.name.endsWith('.md')) continue;
+      const text = readFileSync(join(DIR, entry.name), 'utf-8');
+      for (const m of text.matchAll(/\]\(([^)\s]+)\)/g)) {
+        const href = m[1];
+        if (/^(https?:|mailto:|#)/.test(href)) continue;
+        if (!existsSync(join(DIR, href.split('#')[0]))) dangling.push(`${entry.name} -> ${href}`);
+      }
+    }
+    expect(dangling).toEqual([]);
+  });
+
+  it('invokeSkill 能解析到它并把清单载入 context（不起子进程）', () => {
+    const context = {};
+    const result = handleInvokeSkill('invokeSkill', { skill: 'landing-page-design' }, ENGINE_DIR, context);
+    expect(result.status).not.toBe('skip');
+    expect(result.message).toContain('参考内容已载入 context');
+    expect(Array.isArray(context['skill_landing-page-design_checklist'])).toBe(true);
+  });
+});
+
 describe('skill resolution from an arbitrary project directory', () => {
   it('lists a target-project skill as the highest-priority candidate', () => {
     const target = join(tmp, 'some-other-project');

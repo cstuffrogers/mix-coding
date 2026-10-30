@@ -102,7 +102,7 @@ hdr "5. 接入文件确认"
 
 # pi 的技能发现目录是 .agents/skills/（Claude Code 读 .claude/skills/）。
 # .agents 被 git 忽略，所以要在这里补同步，否则新抄进来的技能不会进 pi 的清单。
-VENDORED_SKILLS="property-based-testing variant-analysis sharp-edges insecure-defaults"
+VENDORED_SKILLS="property-based-testing variant-analysis sharp-edges insecure-defaults landing-page-design"
 if [ -d ".agents/skills" ]; then
   synced=0
   for s in $VENDORED_SKILLS; do

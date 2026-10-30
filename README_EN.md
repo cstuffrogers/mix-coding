@@ -74,13 +74,13 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ---
 
-## 📋 26 Workflow Scenes (583 Steps Total)
+## 📋 26 Workflow Scenes (585 Steps Total)
 
 > 9 historical features are no longer standalone workflows: `changelog` was merged into `/release` (and `/mobile-release`), log sanitization into `/review`. backup / docker / sbom / loadtest / incident / migration / llm-proxy-audit are registered actions only — no scene step calls them (**unreachable**, tracked as debt; see round 34 in `docs/CHANGELOG.md`).
 
 | Scene | Steps | Description | Command |
 |-------|-------|-------------|---------|
-| **ui-polish** | 72 | Frontend polish (full conversation mode, Open Design 152 brands → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
+| **ui-polish** | 74 | Frontend polish (full conversation mode, Open Design 152 brands → shape design brief → DaisyUI/Animal Island → icons → animations → micro-interactions → Impeccable full-suite polish (dual-round QC + 3 precision fixes) + Huashu + AI-Friendly) | `/ui-polish` |
 | **feature** | 31 | New feature development (CE plan + TDD + multi-Agent review) | `/feature` |
 | **bugfix** | 34 | Bug fix (repro → root cause → fix → PR → regression test) | `/bugfix` |
 | **review** | 43 | Comprehensive code review (ESLint + TypeScript + Security + AI semantic) + migration/QA/i18n/a11y enhancements | `/review` |
@@ -147,7 +147,7 @@ The system registers **428 action names** (the keys of `ACTION_REGISTRY` in `cla
 # CLI command
 node src/index.js start ui-polish --auto --theme animal-island --target "E:\your\project"
 
-# Execution steps (72-step full conversation mode workflow)
+# Execution steps (74-step full conversation mode workflow)
 # Phase 0: Pre-flight Design Intelligence
 0. web-design-engineer → Declare design system baseline (Palette/Typography/Spacing/Motion/Radius/Shadows)
 0.05. review-checklist → Load 23-item review checklist
@@ -330,7 +330,7 @@ mix-coding/
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
 │   ├── commands/             # Slash commands (33 .md files: 26 workflows + 7 non-scene entries: /build /docs /loop-start /loop-status /others /report /report-fix)
 │   ├── rules/                # Project rules (conditional/ on-demand: core-rules / workflows / enhancements / 13 files)
-│   ├── skills/               # Claude Skills (29: 18 core + 11 speckit)
+│   ├── skills/               # Claude Skills (30: 19 core + 11 speckit)
 │   └── agents/               # 12 Agents (PM/Architect/UX/Reviewer/Constitutional-validator/test-engineer/security-engineer/database-architect/devops-engineer + mobile-reviewer/mobile-security/mobile-perf)
 │
 ├── .specify/                 # Spec-Kit config (templates / scripts / memory)
@@ -428,15 +428,16 @@ claude plugins install compound-engineering@anthropic
 
 ## 📊 Integration Overview
 
-> **83 external components, each counted in this repo**: 29 local skills + 3 active MCP servers + 23 npm packages + 28 external tools
+> **84 external components, each counted in this repo**: 30 local skills + 3 active MCP servers + 23 npm packages + 28 external tools
 
-### Local Skills (29, `.claude/skills/`)
+### Local Skills (30, `.claude/skills/`)
 
 | Skill | Source | Purpose |
 |-------|--------|---------|
 | `speckit-specify` & 10 others | GitHub Spec-Kit | Full spec → plan → tasks → implement SDD pipeline |
 | `web-design-engineer` | ConardLi | OKLCH color + 6-step workflow + anti-AI-template |
 | `impeccable` | — | 27 anti-pattern rules + 12 LLM critique rules |
+| `landing-page-design` | elayadesign (MIT) | Full landing-page system: Part A structure/layout/conversion copy/SEO + Part B type scale/spacing table/radius formula/hero/icons/motion curve/ship checklist. Invoked by `ui-polish` `landing_page` mode |
 | `ai-friendly-web-design` | ianho7 | Semantic HTML / ARIA accessibility |
 | `awesome-design-md` | VoltAgent | 5 brand DESIGN.md (Vercel/Linear/Stripe/Notion/Apple), upgraded to Open Design 152 brands direct file reads |
 | `mattpocock` | Matt Pocock | 26 sub-skills (TS/engineering/productivity) |

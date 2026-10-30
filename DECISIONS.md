@@ -974,3 +974,102 @@ dirty: data.workingTreeDirty === true
   不是噪声：那一轮的注入点确实没验过新改的文件。要消掉它只有两条路 —— 提交后重跑自检，或 `--with-sweep`。
 - 不做：不把 `dirtyNow` 升级成 `fail`。脏工作区不等于守卫失效，只等于**证据没覆盖到当前改动**，
   所以仍是 `warn/stale-evidence`；把它算成失败会让「提交前跑一次 review」变成习惯性红。
+
+## ADR-028：设计技能接入按「模式」开关，并且正文只允许两处本地改动
+
+**Status**: ACCEPTED
+**Date**: 2026-10-30
+**Decided By**: 用户要求把 `elayadesign/ai-design-skills` 加进前端开发工作流（`/ui-polish`）
+
+### Context
+
+上游 `landing-page-design`（MIT）是目前唯一「既管页面结构与转化文案、又给死数值」
+（字号刻度吸附、间距表、嵌套圆角公式、hero 680px、动效基准曲线）的设计技能。
+三件事实让它不能像 Trail of Bits 那四个一样直接原样塞进 `.claude/skills/` 就完事：
+
+1. 上游 frontmatter 明写「**Use this skill whenever** building… ANY landing page,
+   marketing site, web UI… **Always consult it before choosing** fonts, font sizes,
+   spacing values…」—— 这是「全局接管」语气。
+2. Part B 有硬性禁止项（禁 Inter/Roboto、禁背景渐变、字号必须落刻度、间距必须出表），
+   与仓库已有的 5 品牌预设（`awesome-design-md`：Vercel=Vercel Sans/Geist、
+   Linear=Inter…）、Liquid Glass 主题、`web-design-engineer` 的 oklch 声明**正面冲突**。
+3. 正文里写着「this file wins」，而本项目的实际优先级是「用户当轮说的 > 品牌预设」。
+
+直接 vendored 会让 `/ui-polish` 的既有设计维度互相打架，且冲突不可见。
+
+### Decision
+
+1. **只收一个技能，作为 `ui-polish` 的模式 `landing_page`（默认关）**，两步接线：
+   `0.07` 声明 A/B 基线（`subcommand: declare-system`）、`9.53` 交付清单核对
+   （`subcommand: ship-checklist`）。条件 `landing_page && landing_page_design_available`。
+2. **vendored 副本只允许两处本地改动**，全部写进 `NOTICE.md`：frontmatter `description`
+   收窄；文末追加「本项目集成约定」附录给出五方裁决顺序。**正文逐字节不动**，
+   由 `skill-runner.test.js` 锁（三件套齐全 / NOTICE 写 MIT 不是 CC BY-SA / 附录仍在 /
+   无悬空链接 / `invokeSkill` 能载入清单）。
+3. **许可边界分开断言**：MIT 目录不得被写成 CC BY-SA，Trail of Bits 目录不得被写成 MIT。
+   两个 `NOTICE.md` 各自的措辞都被测试锁住。
+4. **顺带修正一处执行器/条件不一致**：`findResourceDir`（条件侧）以前只查
+   `~/.mix-coding/skills`，而全局安装脚本把技能装到 `~/.mix-coding/.claude/skills`，
+   于是**任何非本仓库目录**下 `impeccable_available` 等条件恒为 false —— `ui-polish`
+   的 18 个 impeccable 步骤静默跳过，而下一条 `invokeSkill` 明明读得到同一个文件。
+   现在条件侧与 `resolveSkillCandidates` 看同一批目录（`<project>/.claude`、
+   `<project>/.agents`、`~/.mix-coding/.claude`、`~/.mix-coding`、包内）。
+
+### Consequences
+
+- 正向：落地页有了「结构 + 文案 + 数值 + 交付清单」的可执行条目，且不再与品牌预设抢
+  同一批维度（裁决顺序写在 agent 真正会读的那份文件里，不是写在别处当文档）。
+- 正向：跨项目 `impeccable` / `awesome-design-md` / `mobile-ui-review` 三个条件从恒假
+  变成真实探测（`paths.test.js` 五条用例锁住）。
+- 负向：多了一处 19 KB 的第三方文件需要跟上游同步；`NOTICE.md` 记了 commit 与改动清单，
+  但**没有**逐文件 SHA-256（上游是单文件，正文一致性靠测试的 marker 断言）。
+- 负向：`landing_page` 默认关 —— 用户不选就完全没有落地页规则。取舍理由：错误地全局
+  接管比「没有」更贵；已把它写进 `ui-polish` 的模式菜单与 `.claude/scenes/README.md`。
+- 不做：不把这个技能拆成「结构」和「视觉」两个技能分别挂到不同步骤 —— 上游的 A/B 是
+  同一套方法论，拆开会丢失 A3「版式选择决定 B 段取哪几条」的耦合。
+
+---
+
+## ADR-029：一条永远给出同一个答案的检查不是信息 —— 冻结基线 + 只报增量
+
+**状态**：已采纳（2026-10-30）
+
+**背景**：
+
+`review` 的外部工具层里，`skillspector`（NVIDIA 的技能安全扫描器）扫 `.claude/skills/` 与
+`.claude/commands/` 的提示注入模式。输出形状是 `{ issues: [...] }`，处理器
+`reportSkillspectorFindings` 用 `statusForFindings(total)` 判状态 —— 也就是 **`total > 0` 就 `warn`**。
+
+本仓库实测 **105 条**（`Autonomous Decision Making` 22 / `Credential Access` 17 /
+`Tool Parameter Abuse` 17 / `Hidden Instructions` 11 …；唯一的 CRITICAL 是
+`sharp-edges/references/lang-php.md` 里 `eval(base64_decode())` 那句**反例** ——
+扫描对象是技能与命令的 markdown，反例代码被 YARA `php_webshell_obfuscated` 命中是规则在正常工作）。
+
+后果：**每一次 review 都挂同一条 warn、同一个数字**，没人会去看。warn 的意义是「有人得看一眼」；
+一条永远为真的 warn 把注意力预算花光，等于把这条检查变成「结构上不可能给出新信息」的假证据 ——
+与第二十二轮那个「永远为真的门禁」是同一类缺陷，只是方向相反：那边永远绿，这边永远黄。
+
+**决策**：
+
+1. **冻结基线代替绝对值**。新增 `claude-scene/src/data/skillspector-baseline.json`：
+   `total` + `byRule`（按 `pattern` 计数）+ `bySeverity` + `note`（这批命中为什么已接受、怎么重生成）。
+   基线进版本库，跟着 `files: ['src/']` 一起分包（放根目录或 `claude-scene/data/` 会发不出去）。
+2. **只报增量**：某条规则计数高于基线（基线里没有的规则 base 记 0）→ `warn` + `warnKind: 'findings'`，
+   消息点名 `规则 基线→现在`；与基线一致 → `pass`，但**数字照样写进消息**（pass ≠ 无问题）；
+   低于基线 → `pass` + 「比基线少 N 条，可下调基线」（下降也要说，不许静默）。
+3. **基线读不到 ≠ 没问题**：缺文件 / 形状不对（`total` 非非负整数、`byRule` 不是对象）→
+   `skip` + `skipReason: 'input-missing'`。没有基线时把 105 条当 0 条是假绿，
+   拿 105 条去判 warn 又是替人下结论 —— 只能说自己判不了。
+4. **判定权在处理器**：`warnKind` / `skipReason` 由处理器声明（词表值），不靠引擎按文案猜。
+5. **仍然不写 `skillspectorPassed` 门禁旗标**：发现项是第三方 skill 的指令模式与文档反例，
+   本项目改不了。判 fail 是假红，写「通过」的旗标是假绿（`gate-flags.js` 里那条注释保留）。
+
+**取舍**：
+
+- 正向：这条检查从「每次都黄」变成「变了才黄」，涨的是哪条规则、涨几条一目了然。
+  本轮现场就撞上第一次真实增量：另一个会话引入 `landing-page-design` skill → `Scope Creep 2→4`。
+- 负向：新增技能必然先红一次，要有人**重生成基线**（接受）才回到 pass。这不是噪声 ——
+  「新的第三方内容需要人看一眼」这件事被写进了流程。机器上没装 skillspector 时仍是 `skip`。
+- 不做：不按 `references/` 路径白名单排除。那会把「反例被 YARA 命中」这个唯一的上下文移走，
+  而它恰恰说明规则在工作。基线保留全部 105 条，快照性质写进 `note`。
+- 不做：基线不自动更新。自动上调/下调等于替人接受第三方风险（同第二十九轮「超时是替你选了默认值」）。

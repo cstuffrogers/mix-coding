@@ -2,7 +2,7 @@
   "scene_id": "ui-polish",
   "workflow": "ui-polish",
   "name": "前端美化 + 设计",
-  "description": "前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统",
+  "description": "前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统 / Impeccable 打磨 / 落地页设计",
   "trigger_keywords": [
     "美化",
     "UI优化",
@@ -12,7 +12,11 @@
     "DaisyUI",
     "设计",
     "design",
-    "品牌"
+    "品牌",
+    "落地页",
+    "landing page",
+    "营销页",
+    "转化率"
   ],
   "mode_selection": {
     "prompt": "选择美化/设计模式（可多选）：",
@@ -40,6 +44,12 @@
         "label": "Impeccable 打磨",
         "description": "27 条反 AI 模式 + 12 条 LLM 批判",
         "default": true
+      },
+      {
+        "id": "landing_page",
+        "label": "落地页设计",
+        "description": "landing-page-design（MIT）：页面结构 + 转化文案 + 字号/间距/圆角/动效数值裁决 + 交付清单",
+        "default": false
       }
     ],
     "multi_select": true,
@@ -73,6 +83,11 @@
             "id": "impeccable",
             "label": "Impeccable 打磨",
             "default": true
+          },
+          {
+            "id": "landing_page",
+            "label": "落地页设计",
+            "default": false
           }
         ]
       },
@@ -85,7 +100,7 @@
       "action": "invokeSkill",
       "params": {
         "skill": "web-design-engineer",
-        "mode": "declare-system"
+        "subcommand": "declare-system"
       },
       "description": "Pre-flight: web-design-engineer 声明设计系统基线（Palette/Typography/Spacing/Motion/Radius/Shadows）",
       "condition": "web_design_engineer_available && conversation_mode",
@@ -101,6 +116,20 @@
       },
       "description": "Pre-flight: 加载 23 项审查清单（正确性/类型安全/安全/性能/测试/可维护性），建立结构化审查基准",
       "condition": "conversation_mode"
+    },
+    {
+      "step": 0.07,
+      "layer": "design-intelligence",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "landing-page-design",
+        "subcommand": "declare-system",
+        "dimensions": ["strategy", "copy", "visual", "motion"]
+      },
+      "description": "Pre-flight（落地页模式）: 声明 A 部分结构/文案与 B 部分视觉系统基线 —— 版式类型、hero 文案公式、字号刻度、间距表、圆角公式、动效曲线，并给出与品牌预设的裁决顺序",
+      "condition": "landing_page && landing_page_design_available",
+      "timeout": 240
     },
     {
       "step": 1,
@@ -492,6 +521,21 @@
       "action": "web-design-verify",
       "params": {},
       "description": "Web Design Engineer: 设计交付检查（无控制台错误/无破损布局/对比度合格/无AI套路）"
+    },
+    {
+      "step": 9.53,
+      "layer": "design-intelligence",
+      "service": "SkillRunner",
+      "action": "invokeSkill",
+      "params": {
+        "skill": "landing-page-design",
+        "subcommand": "ship-checklist",
+        "command": "quick-checklist",
+        "dimensions": ["strategy", "visual", "content", "ship"]
+      },
+      "description": "落地页交付清单核对：一提案一受众一主行动 / 首屏不抢 CTA / 字号全落刻度 / 间距全出表 / 嵌套圆角公式 / 无单边边框与背景渐变 / tagline reveal / 状态集 / 404+法务+表单校验+favicon+meta+alt",
+      "condition": "landing_page && landing_page_design_available",
+      "timeout": 240
     },
     {
       "step": 9.55,

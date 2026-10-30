@@ -31,7 +31,7 @@
 | `rollback` | `/rollback` | 紧急回滚流程：识别目标版本 → 验证回滚安全性 → 执行回滚 → 验证服务恢复 |
 | `setup` | `/setup` | 一键搭建质量观测设施：E2E 测试（MSW + Supertest + Schemathesis）或网站监控（Upptime + GitHub Actions）。两者流程同构，仅第 2 步动作不同，用 kind 参数区分。 |
 | `spec` | `/spec` | 把需求变成可实施的规格：speckit-specify 建 feature → product-manager 补用户故事/验收标准 → ux-designer 补交互与状态 → （可选）clarify 澄清歧义 → 规格落地门禁。产出 specs/NNN-*/spec.md。 |
-| `ui-polish` | `/ui-polish <主题> <路径>` | 前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统 |
+| `ui-polish` | `/ui-polish <主题> <路径>` | 前端美化与 AI 辅助设计合并。可选模式：UI 美化 / 仅设计 / 品牌系统 / Impeccable 打磨 / 落地页设计（`landing_page`，走 `landing-page-design`） |
 | `update` | `/update` | 全量扫描 MCP/Skill/CLI/npm 四类资源 → 检测冲突 → 自动更新无冲突 patch/minor → major 待确认 → 写日期日志 |
 <!-- AUTO-SYNC:SCENE-TABLE-END -->
 

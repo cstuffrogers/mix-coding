@@ -17,6 +17,11 @@ import {
   partitionSelection,
 } from './enhancements.js';
 import { PROJECT_ROOT, listSceneIds, resolveScenePath } from './paths.js';
+import { fileURLToPath, URL } from 'node:url';
+
+// 文档在仓库根，按本文件位置定位。用 PROJECT_ROOT 会在 cwd=claude-scene 时
+// 解析成 claude-scene/.claude/...（ENOENT）—— check 场景的冒烟步骤正是那样跑的。
+const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url)).slice(0, -1);
 
 /** 场景里 `enh_*` 条件 → 触发它的那个 step（独立重算一遍，用于和文档对账） */
 function liveSteps(scene) {
@@ -124,7 +129,7 @@ describe('非交互模式：选了什么必须当场分成两栏打印出来', (
   });
 });
 
-const DOC = join(PROJECT_ROOT, '.claude', 'rules', 'conditional', 'enhancements.md');
+const DOC = join(REPO_ROOT, '.claude', 'rules', 'conditional', 'enhancements.md');
 
 /** 从文档表格里取出 `${scene}:${key}` → 第 4 列（「场景步骤」） */
 function docClaims() {
@@ -191,7 +196,7 @@ function usedDetectors() {
 }
 
 describe('文档对账：enhancements-summary.md 的每行 = REGISTRY + 场景 JSON', () => {
-  const DOC = join(PROJECT_ROOT, '.claude', 'rules', 'conditional', 'enhancements-summary.md');
+  const DOC = join(REPO_ROOT, '.claude', 'rules', 'conditional', 'enhancements-summary.md');
   const text = () => readFileSync(DOC, 'utf-8').replaceAll('\r\n', '\n');
 
   it('每行菜单都跟代码逐字对上（场景集合、默认勾选、step N、⌾）', () => {
@@ -324,8 +329,8 @@ describe('缺席也要披露：探测器不满足的增强项不许默默消失'
 
 describe('两份增强文档不许记录机器状态', () => {
   const DOCS = [
-    join(PROJECT_ROOT, '.claude', 'rules', 'conditional', 'enhancements.md'),
-    join(PROJECT_ROOT, '.claude', 'rules', 'conditional', 'enhancements-summary.md'),
+    join(REPO_ROOT, '.claude', 'rules', 'conditional', 'enhancements.md'),
+    join(REPO_ROOT, '.claude', 'rules', 'conditional', 'enhancements-summary.md'),
   ];
 
   it('不许再断言某个工具「未安装 / 没装」（会过期的事实不进文档）', () => {
