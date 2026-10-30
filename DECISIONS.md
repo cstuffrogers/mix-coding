@@ -929,3 +929,48 @@ ADR-023 原文只管「出现了但没执行」。另一半当时没人管：`wh
   `skills/*/references/*.md` 的示例代码会被 `skillspector` 当漏洞报（105 条，CRITICAL 1）—— 探测器把文档当源码扫，
   结果里已写明「需人工复核」，属工具设计问题，不在本轮范围。
 - 不修（登记为债务）：`detector-report.js` 的 `workingTreeDirty` 读的是自检记录里的字段，不是现场 `git status`。
+
+---
+
+## ADR-027：「记录跑的时候干净」和「现在干净」是两个事实，必须各取各的
+
+**状态**：已采纳（2026-10-30，第三十五轮）
+
+**背景**：
+
+`detector-report.js` 的职责是消费 `npm run detector:sweep` 落盘的记录，判断「守卫是否真的会红」。
+记录里有 `gitSha` 与 `workingTreeDirty` 两位，是 **sweep 那一刻**的快照。处理器原来的写法是：
+
+```js
+dirty: data.workingTreeDirty === true
+```
+
+也就是说，判定「当前工作区的证据还作不作数」用的是**跑的时候**的事实。后果：
+自检在干净工作区跑完（`workingTreeDirty: false`），之后有人改了三个文件但没提交（HEAD 不变），
+`freshnessOf` 的 sha 比对照样相等 —— 整条判 pass。而注入点针对的是跑那一刻的代码，
+改过的文件它一次都没验过。「那时干净」被当成了「现在干净」，与第三十三轮 `workingTreeDirty` 那条债务是同一类。
+
+顺带发现的第二个漏洞：`checkShape` 不校验 `workingTreeDirty` 是否存在。缺字段时
+`undefined === true` 为 `false`，等于**缺证据当成干净**。
+
+**决策**：
+
+1. **快照字段与现场状态分开取、分开说**。`dirtyThen = data.workingTreeDirty`（记录里）、
+   `dirtyNow = workingTreeDirty(root)`（现场 `git status --porcelain`）。
+   两句话不一样：「自检是在有未提交改动的工作区跑的」vs「自检之后工作区又有未提交改动（HEAD 没变）——
+   注入点针对的是 <sha> 那份代码，改过的文件本轮没验过」。
+2. **判定顺序**：`stale` / `failed` / `passed≠total`（记录自身的问题）→ `dirtyThen` → `gitSha` 不符 →
+   `dirtyNow`。先报「记录本身不可信」，再报「记录之后代码变了」；`git` 不可用时 `gitHead` 为 null
+   会在 `freshnessOf` 就断下，不会把「查不到」洗成「干净」。
+3. **`workingTreeDirty` 进 `checkShape`**：缺这一位 → `input-invalid` → `skip`。
+   与 `total/passed/failed/stale` 同一契约：**形状不对等于没有产物**，不许用默认值补齐。
+4. **新增现场 `git` 调用是允许的**：`detector-report` 本来就是只读消费者，`git status --porcelain`
+   不写工作区；`--with-sweep` 的 `maybeRunSweep` 早就在用同一个函数判「能不能跑」。
+
+**取舍**：
+
+- 正向：一条能真实发生的假绿（自检后又改文件）现在会红；缺字段不再等于干净。
+- 负向：开发中途跑 `/review` 会更常见地看到 `stale-evidence`（工作区本来就脏）。这是**真话**，
+  不是噪声：那一轮的注入点确实没验过新改的文件。要消掉它只有两条路 —— 提交后重跑自检，或 `--with-sweep`。
+- 不做：不把 `dirtyNow` 升级成 `fail`。脏工作区不等于守卫失效，只等于**证据没覆盖到当前改动**，
+  所以仍是 `warn/stale-evidence`；把它算成失败会让「提交前跑一次 review」变成习惯性红。

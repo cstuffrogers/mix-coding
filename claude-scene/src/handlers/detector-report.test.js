@@ -71,6 +71,14 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
     expect(result.message).toContain('total');
   });
 
+  it('产物缺 workingTreeDirty → skip（不知道自检时脏不脏，不许当成干净）', () => {
+    writeReport({ ...clean, workingTreeDirty: undefined });
+    const result = handleDetectorReport('detectorReport', {}, root, {});
+
+    expect(result.status).toBe('skip');
+    expect(result.message).toContain('workingTreeDirty');
+  });
+
   it('12/12 且 HEAD 一致、工作区干净 → pass', () => {
     writeReport(clean);
     const context = {};
@@ -131,6 +139,30 @@ describe('detectorReport —— 只消费产物，不在 review 里跑变异测�
     expect(result.status).toBe('warn');
     expect(result.warnKind).toBe('stale-evidence');
     expect(result.message).toContain('未提交改动');
+  });
+
+  // 第三十五轮：记录里的 workingTreeDirty 只说明「**跑的时候**工作区干不干净」。
+  // 以前直接拿它判定现在，于是「跑的时候干净、之后改了文件」这条被当成 pass ——
+  // 而注入点针对的是跑那一刻的代码，改过的文件它根本没验过。
+  it('记录写「跑的时候干净」但现在工作区脏了 → warn（自检之后又改了代码）', () => {
+    mockGit({ status: ' M src/x.js' });
+    writeReport(clean);
+    const result = handleDetectorReport('detectorReport', {}, root, {});
+
+    expect(result.status).toBe('warn');
+    expect(result.warnKind).toBe('stale-evidence');
+    expect(result.message).toContain('自检之后');
+    expect(result.message).toContain('npm run detector:sweep');
+  });
+
+  it('记录写脏 + 现在也脏 → 报「自检时脏」（两件事不许混成一句）', () => {
+    mockGit({ status: ' M src/x.js' });
+    writeReport({ ...clean, workingTreeDirty: true });
+    const result = handleDetectorReport('detectorReport', {}, root, {});
+
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('自检是在有未提交改动的工作区跑的');
+    expect(result.message).not.toContain('自检之后');
   });
 
   // 第十一轮：新鲜度不可证明时不许当通过。以前 `head && data.gitSha &&` 两个条件

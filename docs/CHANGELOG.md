@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-10-30（第三十五轮：自检记录里的「那时干净」不是「现在干净」）
+
+### Fixed
+
+- **`detector-report.js` 用记录里的字段判定现在的工作区**：`verdictOf` 收到的 `dirty` 是
+  `data.workingTreeDirty === true` —— 那是 detector-sweep **跑的那一刻**写进记录的事实。
+  于是「自检时工作区干净、之后又改了 3 个文件」被判成 pass，而注入点针对的是跑那一刻的代码，
+  改过的文件它根本没验过。现在两个事实分开取：`dirtyThen`（记录里）+ `dirtyNow`（现场 `git status --porcelain`），
+  两种成因说两句不同的话 —— 「自检是在有未提交改动的工作区跑的」vs「自检之后工作区又有未提交改动（HEAD 没变）」。
+- **产物缺 `workingTreeDirty` 时以前等于「干净」**：`checkShape` 不查这一位，`undefined === true` 为 false，
+  缺字段就默默走了「干净」分支。现在缺这一位 → `skip`（形状不对等于没有产物），与 `total/passed/failed/stale` 同一契约。
+
+### Added
+
+- `detector-report.test.js` 18 → 21 例：记录写干净但现场脏 → warn `stale-evidence` 且文案是「自检之后」；
+  记录写脏 + 现场也脏 → 报「自检时脏」（两件事不许混成一句）；产物缺 `workingTreeDirty` → skip。
+
+### Self-audit
+
+4 条自探针全部把守卫弄红再按字节复原（`$TEMP/r35-probe.py`，`ALL_RED_AS_EXPECTED=True`）：
+`dirtyNow` 恒为 false → 红；`checkShape` 去掉这一位 → 红；`if (dirtyNow)` 改成 `if (false)` → 红；
+`if (dirtyThen)` 改成 `if (false)` → 红。
+
+**现场验证（不是 mock）**：干净工作区重跑 `npm run detector:sweep`（记录 sha = 当前 HEAD、`workingTreeDirty: false`、12/12），
+然后往仓库放一个未跟踪文件再跑 `/review` —— 新分支真的说话：
+`自检之后工作区又有未提交改动（HEAD 没变）—— 注入点针对的是 59c4546 那份代码…`（`warn 3`）；
+删掉该文件再跑，回到 `pass 18 / warn 2`（只有 `sec-bug-hunt` + `skillspector` 两条环境/工具事实）。
+
+### 验收
+
+- `npx vitest run`：**116 files / 1483 tests 全绿**。
+- `npx eslint claude-scene --max-warnings 0`、`npx eslint .`：干净；6 个 checker 全 `EXIT=0`。
+- `/review --auto --skip-sweep`：`EXIT=0`，`pass 17 / fail 0 / warn 3 / skip 19 / noop 4` ——
+  多出来的那条正是本轮要的效果：`自检记录来自 b42572b，当前 HEAD 是 8ac3f7a —— 记录已过期`（`stale-evidence`）。
+
+---
+
 ## 2026-10-30（第三十四轮：入口文档承诺的系统不是这个系统）
 
 第三十三轮把「死配置 / 死文档」清完了，但留了一条 Known issue：「README 的工作流数字不对，没有检查器查这一行」。

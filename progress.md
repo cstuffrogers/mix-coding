@@ -4394,7 +4394,8 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
 - **认知复杂度 20 > 15**：把「读目录树 → 取 token → 校验」抽成模块级函数 `treeJsonNames()`，回调里只剩累加。
 - **python heredoc 把 `
 ` 写成了真的换行**，生成的 JS 变成 `split('` + 换行 + `')`，报 `Unterminated string constant`；
-  用 `edit` 工具改回 `/?
+  用 `edit` 工具改回 `/
+?
 /u`。**老规矩：能不动 heredoc 就不动。**
 - **`node src/index.js review` 不是命令**：`review` 是场景，要 `start review`。湿跑对着空目录会得到 7 条
   「扫描范围为 0 个源码文件（结果不可信，按失败处理）」—— 这是假绿守卫在正常工作，不是回归。
@@ -4410,3 +4411,54 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
   ③ `detector-report.js` 的 `workingTreeDirty` 读记录而非现场。
 - **review 本轮 `pass 18 / warn 2`**：warn 是 `sec-bug-hunt`（npm audit 接口不可用，环境事实）+ `skillspector`（105 条文档误报，
   上一轮日志里同样 105 条，不是本轮引入）。`fail 0 / skip 19 / noop 4` 与上轮一致。
+
+---
+
+## 第三十五轮（2026-10-30）：自检记录里的「那时干净」不是「现在干净」
+
+### 起点
+
+上一轮登记了三笔债务，挑最像「假绿」的那笔：`detector-report.js` 的 `workingTreeDirty`
+读的是自检**记录里**的字段，不是现场 `git status`。
+
+### 取证
+
+- `verdictOf(data, { head, dirty })` 的 `dirty` 实参是 `data.workingTreeDirty === true` —— 记录里的快照。
+- 记录由 `detector-sweep.cjs:gitState()` 在**跑的那一刻**写入（`git rev-parse HEAD` + `git status --porcelain`）。
+- 于是能构造出一条真实假绿：干净工作区跑完自检（`dirty=false`，`sha=HEAD`）→ 改 3 个文件不提交
+  → `/review` 的 `freshnessOf` sha 相等、`dirtyThen` 为 false → **pass**，而那 3 个文件从没被注入验证过。
+- 顺带发现第二个洞：`checkShape` 不查 `workingTreeDirty` 是否存在；`undefined === true` 为 false
+  → **缺证据 = 干净**。与第三十四轮「句子被改写认不出来 → exit 2」是同一个思路的另一面。
+
+### 修
+
+- 三个事实分开取：`dirtyThen`（记录里）、`head`（现场）、`dirtyNow`（现场）。
+- 新增一句只有「自检之后脏了」才说的话：`自检之后工作区又有未提交改动（HEAD 没变）——
+  注入点针对的是 <sha> 那份代码，改过的文件本轮没验过`。
+- `workingTreeDirty` 进 `checkShape`：缺这一位 → `input-invalid` → `skip`。
+- 判定顺序固定为：记录自身问题（stale/failed/passed≠total）→ dirtyThen → sha 不符 → dirtyNow。
+- 用例 18 → 21：新增「记录干净但现场脏」「两边都脏时说的是哪一句」「缺字段 skip」。
+
+### 踩到的坑
+
+- **`dirtyNow` 不能放在 `freshnessOf` 之前**：git 不可用时 `workingTreeDirty()` 返回 `true`（保守），
+  提前判就会把「git 不可用」说成「工作区脏」，第 11 轮那条用例会红。**保守默认值的顺序也是契约**。
+- **缺字段的默认值就是假绿**：`undefined === true` 为 false，校验器不查这一位，缺字段就默默走「干净」分支。
+
+### 决策
+
+- **ADR-027**：「记录跑的时候干净」与「现在干净」是两个事实，各取各的；快照字段进 `checkShape`，
+  缺了就是 `skip` 不是「按干净处理」；脏工作区只算 `warn/stale-evidence`，不升级成 `fail`
+  （脏 ≠ 守卫失效，只等于证据没覆盖当前改动）。
+- 剩两笔债务顺延：`ARCHITECTURE.md` 外部件表里会过期的 Open Design 数字；`skillspector` 把 skill 文档示例代码当漏洞报。
+
+### 验收
+
+116 files / 1483 tests 全绿；两套 eslint 干净；6 个 checker `EXIT=0`；`scan:deadcode` Total dead 0；
+`/review --auto --skip-sweep`：提交前 `pass 17 / fail 0 / warn 3 / skip 19 / noop 4`
+（`自检记录来自 b42572b，当前 HEAD 是 8ac3f7a —— 记录已过期`）。
+
+**现场验证新分支**：提交后在干净工作区重跑 `npm run detector:sweep`（记录 sha=HEAD、dirty=false、12/12），
+再放一个未跟踪文件跑 `/review` → `自检之后工作区又有未提交改动（HEAD 没变）…`（warn 3）；
+删掉后 `pass 18 / fail 0 / warn 2 / skip 19 / noop 4`。
+**这条假绿以前是判 pass 的** —— 现在它会自己说出来。

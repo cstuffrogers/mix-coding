@@ -31,6 +31,9 @@ function latestReportFile(targetPath) {
 function checkShape(data) {
   if (typeof data?.total !== 'number' || typeof data?.passed !== 'number') return '产物缺 total/passed';
   if (!Array.isArray(data?.failed) || !Array.isArray(data?.stale)) return '产物缺 failed/stale 明细';
+  // 第三十五轮：这一位是「自检当时工作区干不干净」的唯一证据。缺了它，下面
+  // verdictOf 只能把「不知道」当成「干净」—— 正是这里本该防的事。
+  if (typeof data?.workingTreeDirty !== 'boolean') return '产物缺 workingTreeDirty（自检当时的工作区状态）';
   return null;
 }
 
@@ -88,7 +91,7 @@ function freshnessOf(data, head) {
  * abc123，当前 HEAD 是 def456」不是发现，是要人重跑一次自检；算成发现，
  * 读者会跑去报告里找那 0 条。判定权在处理器，不在引擎按文案猜。
  */
-function verdictOf(data, { head, dirty }) {
+function verdictOf(data, { head, dirtyThen, dirtyNow }) {
   if (data.stale.length > 0) {
     return { status: 'warn', warnKind: 'findings', message: `${data.stale.length} 条用例的注入点已过期（守卫可能和代码脱节）：${data.stale.join('；')}` };
   }
@@ -98,11 +101,22 @@ function verdictOf(data, { head, dirty }) {
   if (data.passed !== data.total) {
     return { status: 'warn', warnKind: 'inconsistent-evidence', message: `自检记录自相矛盾：passed=${data.passed} / total=${data.total}` };
   }
-  if (dirty) {
+  // 「自检时脏」和「自检之后脏了」是两件事，要分开说。
+  // 第三十五轮以前只看记录里的那一份：记录写着「跑的时候干净」，就被当成「现在干净」——
+  // 而注入点针对的是跑那一刻的代码，之后改过的文件它根本没验过。
+  if (dirtyThen) {
     return { status: 'warn', warnKind: 'stale-evidence', message: `自检是在有未提交改动的工作区跑的（${data.passed}/${data.total} 有效），结论未必对应当前代码` };
   }
   const stale = freshnessOf(data, head);
-  return stale ? { status: 'warn', warnKind: 'stale-evidence', message: stale } : null;
+  if (stale) return { status: 'warn', warnKind: 'stale-evidence', message: stale };
+  if (dirtyNow) {
+    return {
+      status: 'warn',
+      warnKind: 'stale-evidence',
+      message: `自检之后工作区又有未提交改动（HEAD 没变）—— 注入点针对的是 ${shortSha(data.gitSha)} 那份代码，改过的文件本轮没验过；提交或 git stash 后重跑 npm run detector:sweep`,
+    };
+  }
+  return null;
 }
 
 function workingTreeDirty(targetPath) {
@@ -162,7 +176,8 @@ export function handleDetectorReport(_action, _params, targetPath, context) {
 
   const issue = verdictOf(data, {
     head: gitHead(root),
-    dirty: data.workingTreeDirty === true,
+    dirtyThen: data.workingTreeDirty,
+    dirtyNow: workingTreeDirty(root),
   });
 
   if (context) {
