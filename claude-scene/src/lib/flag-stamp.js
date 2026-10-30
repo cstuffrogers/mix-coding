@@ -13,7 +13,7 @@
  * 记账只写 `__flagMeta`（下划线开头，报告/序列化会跳过）。
  */
 
-export const FLAG_META_KEY = '__flagMeta';
+const FLAG_META_KEY = '__flagMeta';
 
 /** 步骤执行前的浅快照：只需判断「这个键有没有被这一步动过」。 */
 export function snapshotFlags(context) {

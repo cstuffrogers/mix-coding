@@ -38,7 +38,7 @@ const COMPONENT_MAP = {
 // 以前这里无条件 `npm install lucide-react animate.css`：非 React 工程也会去装，
 // 一旦 npm 因为和美化毫无关系的 peer 冲突报错，整步就记 fail —— 美化还没开始就红了，
 // 真正的原因（本项目就不是 React 工程）反而没人说出来。
-export const UI_POLISH_INSTALL_PACKAGES = [
+const UI_POLISH_INSTALL_PACKAGES = [
   { pkg: 'animate.css', react: false },
   { pkg: 'lucide-react', react: true },
   { pkg: 'animal-island-ui', react: true, theme: 'animal-island' },

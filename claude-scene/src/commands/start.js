@@ -1644,7 +1644,7 @@ export function noteAutoDecision(context, step, id, decided) {
  * 启动时补写一次 —— 否则「--auto 挑的目标路径」只在屏幕上出现过一次，
  * 日志里查不到就等于没有。
  */
-export function flushAutoDecisionLog(context) {
+function flushAutoDecisionLog(context) {
   for (const row of context?._autoDecisions || []) {
     if (row.logged) continue;
     const logged = appendLog({

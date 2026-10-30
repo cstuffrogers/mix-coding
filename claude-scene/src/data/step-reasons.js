@@ -95,7 +95,7 @@ export function skipReasonLabel(reason) {
   return SKIP_REASONS.get(reason) || `未登记的跳过原因（${reason}）`;
 }
 
-export function isWarnKind(kind) {
+function isWarnKind(kind) {
   return typeof kind === 'string' && WARN_KINDS.has(kind);
 }
 
@@ -108,7 +108,7 @@ export function noopReasonLabel(reason) {
   return NOOP_REASONS.get(reason) || `未登记的空转原因（${reason}）`;
 }
 
-export function isNoopReason(reason) {
+function isNoopReason(reason) {
   return typeof reason === 'string' && NOOP_REASONS.has(reason);
 }
 

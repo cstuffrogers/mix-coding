@@ -15,7 +15,7 @@ import { join, relative, sep } from 'node:path';
  * 为什么不能「全仓库有人读过就算」：`.format` 这种键名在 20 个文件里都有，
  * 只要在别处出现一次就判活 —— 场景里写 `format: "json"` 而报告根本不认，也不会被发现。
  */
-export const INTERACTION_LAYER = 'commands/';
+const INTERACTION_LAYER = 'commands/';
 
 /** 引用字符串（`'`/`"`/`` ` ``，含转义），返回收尾引号下标 */
 function skipQuoted(src, start) {
@@ -56,7 +56,7 @@ function matchPair(src, openIdx) {
 }
 
 /** 单个文件的 `{` 配对（字符串/注释感知），用于切出函数体 */
-export function blockFrom(src, startIdx) {
+function blockFrom(src, startIdx) {
   const open = src.indexOf('{', startIdx);
   if (open === -1) return '';
   const close = matchPair(src, open);
@@ -109,7 +109,7 @@ export function oneHopBodies(sources, body, selfName) {
 const escapeRe = (text) => text.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
 
 /** 属性读取：`params.key` / `.key` / `['key']`（带词边界，防子串误命中） */
-export const propertyReaders = (key) => new RegExp(`(?:\\?\\.|\\.)${escapeRe(key)}\\b|\\[\\s*['"]${escapeRe(key)}['"]\\s*\\]`);
+const propertyReaders = (key) => new RegExp(`(?:\\?\\.|\\.)${escapeRe(key)}\\b|\\[\\s*['"]${escapeRe(key)}['"]\\s*\\]`);
 
 /** 前缀读取：`k.startsWith('block_')` 能读到 `block_release`（任一前缀都算） */
 export function readByPrefix(texts, key) {
@@ -123,7 +123,7 @@ export function readByPrefix(texts, key) {
 }
 
 /** 泛读整包 params：`Object.entries(params)` / `JSON.stringify(params)` / `...params` */
-export const GENERIC_READ = /(?:Object\.(?:entries|keys|values)|JSON\.stringify)\(\s*_?params\s*\)|\.\.\._?params\b/;
+const GENERIC_READ = /(?:Object\.(?:entries|keys|values)|JSON\.stringify)\(\s*_?params\s*\)|\.\.\._?params\b/;
 
 /** 从 actions.js 解析 `ACTION_REGISTRY`：值像标识符 = 走 handler，其余 = 内联实现（null） */
 export function parseHandlerMap(actionsSource) {

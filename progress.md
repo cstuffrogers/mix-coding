@@ -4627,11 +4627,16 @@ CLI 里仍然不会「自动执行」—— 那句话本来就写着「具体执
 `skill-runner.test.js` 38 tests（+2）；全量 **1504 tests / 117 files 全绿**；两 root eslint 0 error；
 `scan:deadcode` Handlers 0/70、Skills 0/30、Total 0。
 
-### 发现但不属于本批（并行会话已提交的部分）
+### 顺手收掉 Pass 7 的 10 个未用导出（`/check` 回到 11/11）
 
-`/check` 从 11/11 全绿变成 `pass 7 / warn 1`，Step 1 报「11 道检查完成: 10 个问题」——
-全部来自 Pass 7 knip 的 **10 个未用导出**：`start.js:flushAutoDecisionLog`、
+`/check` 之前从 11/11 全绿掉成 `pass 7 / warn 1`，Step 1 报「11 道检查完成: 10 个问题」，
+全部来自 knip 的未用导出：`start.js:flushAutoDecisionLog`、
 `step-reasons.js:{isWarnKind,isNoopReason}`、`engine-check.js:collectDeclaredChecks`、
 `ui-polish.js:UI_POLISH_INSTALL_PACKAGES`、`flag-stamp.js:FLAG_META_KEY`、
 `param-contract.js:{INTERACTION_LAYER,blockFrom,propertyReaders,GENERIC_READ}`。
-这些是第三十四～三十六轮新加/改动的模块，不属于本批改动；留给那一线收口。
+
+复核结论：**10 个全都只在自己文件里用，一个都不死** —— 所以正确修法是去掉多余的
+`export`，不是删函数。改完 `npx knip` 退出码 0、`/check` Pass 7「0未解析 0未声明
+0死文件 0未用依赖」、11 道全绿；全量 1506 tests 全绿；两 root eslint 0 error。
+（代价：`flushAutoDecisionLog` 这类只服务本模块的辅助函数不再进 Pass 3 的
+「导出的函数」逻辑密度统计，252 vs 253 —— 它们有各自的测试兜着。）

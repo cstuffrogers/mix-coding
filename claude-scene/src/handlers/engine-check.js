@@ -31,7 +31,7 @@ function sceneGateNames(scene) {
  * 场景声明的门禁名 → 声明它的场景列表。
  * @param {string} [scenesDir] 默认引擎自带 scenes/（测试可传临时目录）
  */
-export function collectDeclaredChecks(scenesDir = SCENE_DIR) {
+function collectDeclaredChecks(scenesDir = SCENE_DIR) {
   const declared = new Map();
   if (!existsSync(scenesDir)) return declared;
   for (const f of readdirSync(scenesDir)) {
