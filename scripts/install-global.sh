@@ -49,6 +49,9 @@ case "${1:-}" in
 esac
 
 SRC_PROMPTS=".pi/prompts"
+# 模板同步器：拷 + **删**（退役命令名）。只拷不删的话，仓库里删掉的 `/hunt` 会在用户机上
+# 永远活着 —— 本机实测目标 34 个 / 源 33 个，多出来的正是它，而旧安装器只打印这两个数字。
+SYNC_PROMPTS="scripts/sync-prompts.mjs"
 SRC_SKILLS=".pi/skills"
 SRC_CLAUDE_CMDS=".claude/commands"
 # 引擎技能（review-checklist、vendored 的 Trail of Bits 等）。全局安装（npm i -g）
@@ -127,6 +130,7 @@ if [ "$MODE" = "uninstall" ]; then
     dst="$CLAUDE_CMDS_DST/$(basename "$f")"
     [ -f "$dst" ] && rm -f "$dst" && REMOVED=$((REMOVED+1))
   done
+  rm -f "$PI_PROMPTS_DST/.mix-coding-installed.json"
   while IFS= read -r -d '' f; do
     rel="${f#"$SRC_SKILLS"/}"
     dst="$PI_SKILLS_DST/$rel"
@@ -141,17 +145,30 @@ if [ "$MODE" = "uninstall" ]; then
 else
   if [ "$MODE" = "check" ]; then
     hdr "3. 现状"
-    HAVE_P=$([ -d "$PI_PROMPTS_DST" ] && ls "$PI_PROMPTS_DST"/*.md 2>/dev/null | wc -l | tr -d ' ' || echo 0)
     HAVE_C=$([ -d "$CLAUDE_CMDS_DST" ] && ls "$CLAUDE_CMDS_DST"/*.md 2>/dev/null | wc -l | tr -d ' ' || echo 0)
-    echo "  pi 个人模板   $PI_PROMPTS_DST: $HAVE_P 个（源 $PROMPT_N）"
+    # 用同步器的 `--check` 判「一致」，不再比大小：目标比源**多**（退役残留）时
+    # 旧判据 `HAVE_P >= PROMPT_N` 会给出「已全局可用」—— 那正是 hunt.md 活下来的原因。
+    # `--check` 只打 ASCII、用退出码报结论（同一个脚本还要给 GBK 的 .bat 用）。
+    SYNC_OUT=$(node "$SYNC_PROMPTS" --src "$SRC_PROMPTS" --dst "$PI_PROMPTS_DST" --check 2>&1)
+    SYNC_EXIT=$?
+    echo "$SYNC_OUT" | sed 's/^/    /'
+    if [ "$SYNC_EXIT" -ne 0 ]; then
+      warn "pi 模板与仓库不一致（或存在退役残留）— 执行 bash scripts/install-global.sh"
+    else
+      ok "pi 命令已全局可用，且无退役残留"
+    fi
     echo "  pi skills     $PI_SKILLS_DST: $([ -d "$PI_SKILLS_DST" ] && echo 存在 || echo 缺失)"
     echo "  Claude 全局   $CLAUDE_CMDS_DST: $HAVE_C 个（源 $CMD_N）"
-    [ "$HAVE_P" -ge "$PROMPT_N" ] && ok "pi 命令已全局可用" || warn "pi 命令未全部安装 — 执行 bash scripts/install-global.sh"
   else
     hdr "3. 安装 pi / percho 命令模板"
-    [ "$MODE" = "dry" ] && dim "目标: $PI_PROMPTS_DST"
-    install_tree "$SRC_PROMPTS" "$PI_PROMPTS_DST" "*.md"
-    ok "$PROMPT_N 个模板 → $PI_PROMPTS_DST"
+    command -v node &> /dev/null || fail "需要 node 才能同步模板（退役清理逻辑在 $SYNC_PROMPTS）"
+    if [ "$MODE" = "dry" ]; then
+      node "$SYNC_PROMPTS" --src "$SRC_PROMPTS" --dst "$PI_PROMPTS_DST" --dry-run | sed 's/^/    /'
+      dim "目标: $PI_PROMPTS_DST"
+    else
+      node "$SYNC_PROMPTS" --src "$SRC_PROMPTS" --dst "$PI_PROMPTS_DST" | sed 's/^/    /' || fail "模板同步失败"
+      ok "$PROMPT_N 个模板 → $PI_PROMPTS_DST（含退役清理）"
+    fi
 
     hdr "4. 安装 pi skills"
     if [ "$SKILL_N" -gt 0 ]; then

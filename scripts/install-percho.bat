@@ -158,8 +158,16 @@ goto :do_install
 echo.
 echo  -- 5/6 安装到用户目录 --
 echo    目标: %PI_DIR%
-robocopy "%PROJECT%\.pi\prompts" "%PI_DIR%\prompts" *.md /NFL /NDL /NJH /NJS /NP >nul
-call :robocopy_step "pi 命令模板 → %PI_DIR%\prompts"
+rem 模板同步 = 拷 + 删。仓库里退役的命令名（如 /hunt 已并入 /review）不会自己消失，
+rem 只拷不删的话它们会在用户机上永远活着 —— 所以交给 scripts/sync-prompts.mjs。
+rem --quiet 只打 ASCII：本文件是 GBK 且不 chcp，node 的 UTF-8 中文会是乱码
+node "%PROJECT%\scripts\sync-prompts.mjs" --src "%PROJECT%\.pi\prompts" --dst "%PI_DIR%\prompts" --quiet
+if errorlevel 1 (
+    echo    [X] pi 命令模板同步失败
+    set /a ERR+=1
+) else (
+    echo    [OK] pi 命令模板 -^> %PI_DIR%\prompts  ^(含退役清理^)
+)
 robocopy "%PROJECT%\.pi\skills" "%PI_DIR%\skills" /E /NFL /NDL /NJH /NJS /NP >nul
 call :robocopy_step "scene-runner skill → %PI_DIR%\skills"
 where claude >nul 2>&1
@@ -181,10 +189,12 @@ for /f "delims=" %%f in ('dir /b "%PI_DIR%\prompts\*.md" 2^>nul') do set /a HAVE
 for /f "delims=" %%f in ('dir /b "%CLAUDE_DIR%\commands\*.md" 2^>nul') do set /a HAVE_C+=1
 echo    pi 个人模板 %PI_DIR%\prompts : %HAVE_P% 个（源 %PROMPT_N%）
 echo    Claude 全局 %CLAUDE_DIR%\commands : %HAVE_C% 个（源 %CMD_N%）
-if %HAVE_P% GEQ %PROMPT_N% (
-    echo    [OK] pi 命令已全局可用
+rem 一致与否只看退出码（--check 只打 ASCII，本文件是 GBK 且不 chcp）
+node "%PROJECT%\scripts\sync-prompts.mjs" --src "%PROJECT%\.pi\prompts" --dst "%PI_DIR%\prompts" --check
+if errorlevel 1 (
+    echo    [!] pi 模板与仓库不一致 ^(或存在退役残留^) - 执行 install-percho.bat
 ) else (
-    echo    [!] pi 命令未全部安装，执行 install-percho.bat
+    echo    [OK] pi 命令已全局可用，且无退役残留
 )
 goto :smoke
 
@@ -195,6 +205,8 @@ set /a REMOVED=0
 for %%f in ("%PROJECT%\.pi\prompts\*.md") do (
     if exist "%PI_DIR%\prompts\%%~nxf" del /q "%PI_DIR%\prompts\%%~nxf" && set /a REMOVED+=1
 )
+rem 同步清单也一并清掉，否则下次安装会以为这些模板是「上一轮自己装的」
+if exist "%PI_DIR%\prompts\.mix-coding-installed.json" del /q "%PI_DIR%\prompts\.mix-coding-installed.json"
 for %%f in ("%PROJECT%\.claude\commands\*.md") do (
     if exist "%CLAUDE_DIR%\commands\%%~nxf" del /q "%CLAUDE_DIR%\commands\%%~nxf" && set /a REMOVED+=1
 )

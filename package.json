@@ -20,6 +20,8 @@
     "scan:deadcode": "node scripts/find-deadcode-full.cjs",
     "scan:all": "node scripts/find-deadcode-full.cjs",
     "mcp:switch": "node scripts/switch-mcp.cjs",
+    "sync:prompts": "node scripts/sync-prompts.mjs",
+    "check:prompts": "node scripts/sync-prompts.mjs --check",
     "prepare": "husky"
   },
   "devDependencies": {
