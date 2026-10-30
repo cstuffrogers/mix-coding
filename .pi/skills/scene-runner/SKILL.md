@@ -1,6 +1,6 @@
 ---
 name: scene-runner
-description: 执行 Mix-Coding System 工作流场景。当用户输入 /review、/feature、/bugfix、/refactor、/plan、/optimize、/ui-polish、/release、/deps、/check、/qa、/new-project、/onboard、/cicd、/setup、/rollback、/loop、/spec、/plan-ceo-review、/mobile-* 等命令，或要求运行工作流/场景时使用。
+description: 执行 Mix-Coding System 工作流场景。用户敲 /review、/feature、/bugfix、/refactor、/plan、/optimize、/ui-polish、/release、/deps、/check、/qa、/new-project、/onboard、/cicd、/setup、/rollback、/loop、/spec、/plan-ceo-review、/mobile-* 时用；用户没敲命令、只是用中文或英文说这类活时也用 —— 代码审查/安全审计→review，加功能→feature，修 bug→bugfix，重构/简化→refactor，性能优化→optimize，依赖升级→deps，发布部署→release，视觉设计/美化界面/UI 打磨/落地页设计→ui-polish，搭测试或监控设施→setup。
 ---
 
 # Scene Runner
@@ -36,6 +36,19 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 | /mobile-onboard | mobile-onboard | 移动端环境搭建 |
 | /mobile-optimize | mobile-optimize | 移动端性能优化 |
 | /mobile-release | mobile-release | 移动端发布 |
+
+## 用户没敲命令时：先判断要不要走场景
+
+用户说人话也要能落到场景上（「帮我做视觉设计」→ `ui-polish`），但**不是每个请求都值得
+开一条几十步的工作流**。先分两类：
+
+- **走场景**：改动能横跨多个阶段、有明确交付标准、要留证据（审查报告 / 门禁结果 / 计分卡），
+  或者用户明确说「按流程跑一遍」。
+- **直接做**：单点小改（改个颜色、一行文案、一个 typo）和只读问答。拿 74 步的 ui-polish 去回答
+  「这个按钮用蓝色好不好看」，用户要的是答案，不是流水线。
+
+决定要走之后，用表里第二列的场景名，先 `claude-scene show <场景>` 看清步数与可用模式，再
+`claude-scene start <场景> --auto`（人话请求同样适用）。模式见下一节 —— 用户没提就别自己加。
 
 ## 已合并命令（旧命令 → 新命令）
 
