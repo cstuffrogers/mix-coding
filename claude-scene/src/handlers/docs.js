@@ -185,10 +185,26 @@ export function handleChangelog(_action, params, targetPath, context) {
 
 // ── Dev Docs (architecture.md) ──
 
+/**
+ * 生成标记：`handleDevDocs` 靠它区分「我上次生成的产物」和「人写的文档」。
+ * 没有它的 docs/architecture.md 一律不覆盖 —— 覆盖一次就是销毁一次人工工作。
+ */
+const DEV_DOCS_MARKER = '<!-- generated-by: mix-coding /docs arch -->';
+const TREE_MAX_LINES = 80;
+const TREE_MAX_DEPTH = 3;
+const DEP_MAX_LINES = 30;
+
+/**
+ * 目录树最多保留 TREE_MAX_LINES 行，**省略了多少必须写出来**。
+ *
+ * 以前是静默 `slice(0, 80)`：生成的文档看起来完整，其实只有第一段 ——
+ * 仓库里那份退役的 `docs/architecture.md` 就只写出了 `Archon-dev/` 一棵子树，
+ * 正文却像模像样地写着「目录结构」，谁也看不出它少算了 99%。
+ */
 function buildDirectoryTree(targetPath) {
-  const treeLines = [];
-  function walk(dir, depth = 0, maxDepth = 3) {
-    if (depth > maxDepth) return;
+  const all = [];
+  function walk(dir, depth = 0) {
+    if (depth > TREE_MAX_DEPTH) return;
     try {
       for (const entry of readdirSync(dir)) {
         if (entry.startsWith('.') || entry === 'node_modules' || entry === 'dist' || entry === 'coverage') continue;
@@ -197,17 +213,20 @@ function buildDirectoryTree(targetPath) {
           const st = statSync(full);
           const indent = '  '.repeat(depth);
           if (st.isDirectory()) {
-            treeLines.push(`${indent}${entry}/`);
-            walk(full, depth + 1, maxDepth);
+            all.push(`${indent}${entry}/`);
+            walk(full, depth + 1);
           } else {
-            treeLines.push(`${indent}${entry}`);
+            all.push(`${indent}${entry}`);
           }
         } catch { /* skip unreadable */ }
       }
     } catch { /* skip unreadable dir */ }
   }
   walk(targetPath);
-  return treeLines.slice(0, 80).join('\n');
+  return {
+    lines: all.slice(0, TREE_MAX_LINES),
+    omitted: Math.max(0, all.length - TREE_MAX_LINES),
+  };
 }
 
 function detectStack(targetPath, deps) {
@@ -222,67 +241,98 @@ function detectStack(targetPath, deps) {
   return stack;
 }
 
+function readDepKeys(targetPath) {
+  const pkgPath = join(targetPath, 'package.json');
+  if (!existsSync(pkgPath)) return [];
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+  return Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
+}
+
+function describeStack(stack) {
+  // 「待补充」不是结论：它让读者以为再跑一次就有了。探测不到就直说探测不到。
+  if (stack.length === 0) {
+    return '- 未识别：没有 next.config / src/App.tsx / vite.config / express 依赖，技术栈请手写补充';
+  }
+  return stack.map((s) => `- ${s}`).join('\n');
+}
+
+function describeDeps(depKeys) {
+  if (depKeys.length === 0) return '- 未识别：package.json 里没有 dependencies / devDependencies';
+  const shown = depKeys.slice(0, DEP_MAX_LINES).map((d) => `- \`${d}\``).join('\n');
+  // 截断同样要写在脸上：40 个依赖只列 30 个却说「核心依赖」，读者会以为就这些。
+  return depKeys.length > DEP_MAX_LINES
+    ? `（前 ${DEP_MAX_LINES} 个，共 ${depKeys.length} 个）\n\n${shown}`
+    : shown;
+}
+
+function describeTree(tree) {
+  const body = tree.lines.length > 0 ? tree.lines.join('\n') : '（空）';
+  const note = tree.omitted > 0
+    ? `\n\n…（已省略 ${tree.omitted} 项：本表最多 ${TREE_MAX_LINES} 行 / ${TREE_MAX_DEPTH} 层，完整列表请用 ls 或 tree）`
+    : '';
+  return body + note;
+}
+
 export function handleDevDocs(_action, _params, targetPath, context) {
-  ensureDocsDir(targetPath);
+  // 先看目标里有没有可写的结构：空目录也产出一份「架构文档」= 假绿。
+  const tree = buildDirectoryTree(targetPath);
+  if (tree.lines.length === 0) {
+    return {
+      status: 'skip',
+      reason: 'input-missing',
+      message: '开发者文档未生成：目标目录里没有任何可扫描的结构（只有隐藏文件，或不可读）',
+    };
+  }
+
+  const archPath = guardWrite(targetPath, 'docs/architecture.md');
+  if (existsSync(archPath)) {
+    const existing = readFileSync(archPath, 'utf-8');
+    if (!existing.includes(DEV_DOCS_MARKER)) {
+      return {
+        status: 'skip',
+        reason: 'input-invalid',
+        message: '开发者文档未生成：docs/architecture.md 已存在且不像生成物（没有生成标记），不覆盖手写内容；确认要重新生成请先删掉那个文件',
+      };
+    }
+  }
 
   try {
-    const tree = buildDirectoryTree(targetPath);
-
-    let deps = '';
-    const pkgPath = join(targetPath, 'package.json');
-    if (existsSync(pkgPath)) {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
-      const depList = Object.keys(allDeps).slice(0, 30);
-      deps = depList.map(d => `- \`${d}\``).join('\n');
-    }
-
-    const stack = detectStack(targetPath, deps);
-
-    const archPath = guardWrite(targetPath, 'docs/architecture.md');
+    const depKeys = readDepKeys(targetPath);
+    const stack = detectStack(targetPath, depKeys.join(' '));
+    const today = new Date().toISOString().split('T', 1)[0];
+    // 只写「读者在这个目录里能自己核」的东西。本仓库的模块说明 / 数据流 / 工作流条数
+    // 以前就硬编码在这段模板里 —— 在别人的项目里写我们的自传，而且是错的条数。
     const content = `# 项目架构
 
-> 自动生成于 ${new Date().toISOString().split('T', 1)[0]}
+${DEV_DOCS_MARKER}
+> 自动生成于 ${today}。本文件由 \`/docs arch\` 生成，手改会在下次生成时被覆盖；
+> 想手写请先删掉上面那行生成标记（生成器见到没标记的文件会拒绝覆盖）。
 
 ## 技术栈
 
-${stack.length ? stack.map(s => `- ${s}`).join('\n') : '- 待补充'}
+${describeStack(stack)}
 
 ## 目录结构
 
 \`\`\`
-${tree || '待补充'}
+${describeTree(tree)}
 \`\`\`
 
 ## 核心依赖
 
-${deps || '待补充'}
+${describeDeps(depKeys)}
 
-## 模块说明
+## 编码规范 / 工作流
 
-| 目录 | 职责 |
-|------|------|
-| \`src/commands/\` | CLI 命令入口（list/start/show/fork） |
-| \`src/handlers/\` | Action 处理器（安全/性能/文档/审计/流程控制等） |
-| \`src/lib/\` | 共享库（代码分析/条件评估/增强选择/文档同步） |
-| \`src/data/\` | 配置常量（Action 消息/场景标签/门禁标志） |
-
-## 数据流
-
-CLI 命令 → Commander 解析参数 → \`commands/start.js\` 加载场景 JSON → \`actions.js\` 分发到 handler → handler 执行并更新 context → 质量门禁检查 → 通知完成
-
-## 编码规范
-
-详见 \`CLAUDE.md\` 和 \`.claude/rules/\` 目录。
-
-## 工作流
-
-本项目使用 mix-coding 系统，支持 28 个自动化工作流。详见 \`CLAUDE.md\`。
+本项目使用的编码规范、场景工作流以仓库里的 \`CLAUDE.md\` / \`AGENTS.md\` 与
+\`.claude/\` 目录为准 —— 那是活的配置，不在这里抄一遍。
 `;
 
+    ensureDocsDir(targetPath);
     writeFileSync(archPath, content, 'utf-8');
     if (context) context.devDocsGenerated = true;
-    return '开发者文档已生成';
+    const truncated = tree.omitted > 0 ? `，目录树省略 ${tree.omitted} 项` : '';
+    return { status: 'pass', message: `开发者文档已生成（目录树 ${tree.lines.length} 行${truncated}）` };
   } catch (e) {
     return { status: 'warn', message: `开发者文档未生成：${e.message}` };
   }

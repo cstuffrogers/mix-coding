@@ -15,6 +15,7 @@ This project implements a **three-layer architecture** following the **12-factor
 7. [CI/CD Integration](#cicd-integration)
 8. [MCP Dynamic Enablement](#mcp-dynamic-enablement)
 9. [Quick Start](#quick-start)
+10. [报告产物契约（engine ↔ agent）](#报告产物契约engine--agent)
 
 ---
 
@@ -241,6 +242,33 @@ Deploy
 | **Animate.css** | Animations | CSS import (zero runtime) |
 | **Lucide React** | Icons | React component (tree-shakeable) |
 | **Critiq** | Security | `npx critiq check .` — 1,243 条确定性安全规则 |
+
+---
+
+## 报告产物契约（engine ↔ agent）
+
+> 第三十八轮从 `docs/architecture.md` 迁来 —— 那份文件是 `/docs arch` 的一次生成结果
+> （页头自报一个生成日期）又被手改了一半，现已退役。这一节是它里面
+> **唯一有活的读者**的部分：契约被 `impactReport` / `fenceVerify` / `aislop-fix` 真的读。
+
+引擎不直接调 MCP（`codegraph_impact` 等在图能力上是桩），真正的图查询/测试明细由
+agent 侧完成并落盘成产物，引擎只**消费产物 + 记账**。所有产物写在 `.claude/reports/`
+（已 gitignore）。
+
+| 产物 | 谁写 | 形状 | 引擎读取方 | 缺失时 |
+|---|---|---|---|---|
+| `impact-<stamp>.json` | agent（`mcp__codegraph__*` 查询后） | `{ changedFiles: string[], callers: string[], riskLevel: 'low'\|'medium'\|'high' }` | `impactReport` | `warn`「修复范围未评估」（不阻断） |
+| `fence-<stamp>.json` | `fenceCapture` | `{ stamp, targetPath, snapshotSha, restoreBase, testCount, passed, failed, tests }` | `fenceVerify` / `fenceRestore` | `skip`（拿不到明细就不动手） |
+| `aislop-<stamp>.json` | `aislop` handler | aislop 原始 findings | `aislop-fix` | `skip` |
+
+要点：
+
+- **产物优先于推断**：有逐条明细就只信明细，不用文本正则猜「跑没跑成」
+  （JSON 里本来就可能出现 `Cannot find module` 这种被测试断言的字符串）。
+- **围栏只保护已有测试覆盖的行为**。未被测试覆盖的改动，围栏给不了安全感 ——
+  不要把它当全覆盖。
+- 围栏回滚只碰**已跟踪的改动文件**：`??` 未跟踪文件、`node_modules/`、
+  `.claude/reports/` 一律不碰，且先 `git cat-file -e` 确认路径在快照里。
 
 ---
 
