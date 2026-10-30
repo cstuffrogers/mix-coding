@@ -530,7 +530,6 @@
       "params": {
         "skill": "landing-page-design",
         "subcommand": "ship-checklist",
-        "command": "quick-checklist",
         "dimensions": ["strategy", "visual", "content", "ship"]
       },
       "description": "落地页交付清单核对：一提案一受众一主行动 / 首屏不抢 CTA / 字号全落刻度 / 间距全出表 / 嵌套圆角公式 / 无单边边框与背景渐变 / tagline reveal / 状态集 / 404+法务+表单校验+favicon+meta+alt",

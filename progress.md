@@ -4725,3 +4725,33 @@ ADR-030：会过期又核不了的数字不许写成事实；守卫只拦 star �
 
 结果：`npx knip` 零输出、退出码 0；`/check` 11 道全绿（Pass 7「0未解析 0未声明
 0死文件 0未用依赖」）。放宽的豁免只许变少，这跟 `step-reasons` 棘轮是同一个道理。
+
+## 2026-10-30（续 3）· 落地页模式「接得进但用不上」的问题补掉 + 9.53 的装饰参数
+
+`ui-polish` 的 `landing_page` 模式虽然接线完成，但从对话/命令侧根本摸不到：
+
+- `--mode` **一旦传了就替换掉场景默认值**（默认只有 `ui_polish` + `impeccable`），
+  所以「只想加落地页」的人写 `--mode landing_page` 会静默失去默认那两套 —— 引擎会打印
+  `⚙ 模式：按--mode → …`，但没人告诉你该把默认的也写上。
+- `.pi/prompts/ui-polish.md` 只有一行 `claude-scene start ui-polish --auto $ARGUMENTS`，
+  既不列模式，也不提这个坑。agent 在对话里根本不会主动加 `--mode landing_page`。
+
+做法：把模式表 + 4 条常用调用 + 落地页模式的五级裁决顺序写进 `.pi/prompts/ui-polish.md`
+（同一个文件同步到 `~/.pi/agent/prompts/`，跨项目可用）。这是门禁文件 —— 改完
+`audit-scenes.mjs` 仍 26/0/0、`check-doc-counts` 四份文档全绿。
+
+顺带修掉 `9.53` 的装饰参数：它同时写着 `subcommand: "ship-checklist"` 和
+`command: "quick-checklist"`，而 handler 只取 subcommand（优先）—— `command` 一个字节
+都没人读。两份场景文件同步删除，`diff` 验证 identical。
+
+实测（直接调 handler 与条件求值，不走 dry-run —— dry-run 不评估模式条件）：
+
+```
+evaluateCondition('landing_page', {selected_modes:['landing_page']})  → true
+evaluateCondition('landing_page', {selected_modes:['ui_polish']})     → false
+evaluateCondition('landing_page_design_available')                    → true
+handleInvokeSkill(skill:'landing-page-design', subcommand:'declare-system')
+  → noop | 参考内容已载入 context（20 项清单 / 22 节，维度 strategy/copy/visual/motion）
+      载入章节 A1–A7（Intake / Page structure / Layout selection / Conversion rules /
+      Copywriting / Build order / SEO and AEO）
+```
