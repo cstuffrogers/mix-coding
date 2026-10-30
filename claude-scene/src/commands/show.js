@@ -38,6 +38,29 @@ function printWorkflow(scene) {
   console.log(`   ${chalk.gray(parts.join(' · '))}`);
 }
 
+// 模式以前只藏在 step 0 的 params JSON 里，而 `--mode` 是**替换**语义（传了就丢掉
+// 场景声明的默认值）。两件事都不打印时，用户/agent 只能靠翻 JSON 才知道有哪些模式、
+// 也不知道「加一个模式」为什么把默认那两套弄没了。
+export function collectModes(scene) {
+  const steps = scene.flow || scene.steps || [];
+  const step = steps.find((s) => s.action === 'selectModes' && Array.isArray(s.params?.options));
+  if (!step) return [];
+  return step.params.options
+    .map((o) => (typeof o === 'string'
+      ? { id: o, isDefault: false }
+      : { id: o.id, isDefault: Boolean(o.default) }))
+    .filter((m) => m.id);
+}
+
+function printModes(scene) {
+  const modes = collectModes(scene);
+  if (modes.length === 0) return;
+  console.log(`   ${chalk.gray('模式:')} ${modes.map((m) => (m.isDefault ? `${m.id}(默认)` : m.id)).join(' · ')}`);
+  if (modes.some((m) => m.isDefault)) {
+    console.log(`   ${chalk.yellow('⚠ --mode 是替换语义:')} ${chalk.gray('传了就只用列出的，默认的也要一并写全')}`);
+  }
+}
+
 function printConditionFlags(step) {
   const lines = [];
   if (step.condition) lines.push(`${chalk.gray('条件:')} ${step.condition}`);
@@ -126,6 +149,7 @@ export async function showScene(sceneId) {
   printSemanticTrigger(scene);
   printPriority(scene);
   printWorkflow(scene);
+  printModes(scene);
   printMCPServers(scene);
   printHooks(scene);
   printGuardrails(scene);

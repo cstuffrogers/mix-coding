@@ -101,6 +101,21 @@ description: 执行 Mix-Coding System 工作流场景。当用户输入 /review�
 > 场景里 `default: true` 的模式（如 review 的 code_review + security_deep）、`setup` 默认 e2e。
 > 引擎会把这些默认值**打印出来**（`⏭ ... 按场景声明的默认值`），不会静默。
 
+## `--mode` 是替换语义，不是叠加
+
+`--mode` 一传，场景里 `default: true` 的模式就被**整个丢掉**，只留列出的那些。
+所以「加一个模式」必须把默认的也写全：
+
+```bash
+claude-scene start ui-polish --auto --mode ui_polish,impeccable,landing_page   # 默认两套 + 落地页
+claude-scene start ui-polish --auto --mode landing_page                        # 只跑落地页方法论
+```
+
+- 可用模式：`claude-scene show <场景>` 里 `模式:` 那一行（带「(默认)」标记）。
+- 写错 id：引擎会打印可用列表并回落到场景默认值，不会静默改计划。
+- **模式属于用户的决策**：用户没提就别加 `--mode`（走场景默认）；不要自己替用户开一个模式，
+  也不要把默认的弄丢后再解释为什么少了几个步骤。
+
 ## review 的 sweep 提问（必须转达，不能自己猜）
 
 review 场景 Step 2.68 要问「是否现在现场跑一次探测器自检（detector-sweep）」。三种情形：

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { showScene } from './show.js';
+import { showScene, collectModes } from './show.js';
 
 // `show` 曾经是一批空函数：触发词/优先级/MCP/hooks 全被静默吞掉，
 // 只留下一串没有编号的描述。这些断言就是防止它再退化回去。
@@ -37,5 +37,33 @@ describe('show 命令', () => {
     expect(out).toContain('harness hooks');
     expect(out).toContain('本引擎不执行');
     expect(out).toContain('pre_tool_use');
+  });
+
+  it('打印模式清单，默认模式标记出来', async () => {
+    const { text } = capture();
+    await showScene('ui-polish');
+    const out = text();
+    expect(out).toContain('模式:');
+    expect(out).toContain('ui_polish(默认)');
+    expect(out).toContain('landing_page');
+  });
+
+  it('声明了默认模式的场景必须提示 --mode 是替换语义', async () => {
+    const { text } = capture();
+    await showScene('ui-polish');
+    expect(text()).toContain('替换语义');
+  });
+
+  it('没有 selectModes 步骤的场景不打印模式行', async () => {
+    const { text } = capture();
+    await showScene('loop');
+    const out = text();
+    expect(out).not.toContain('替换语义');
+    expect(collectModes({ flow: [] })).toEqual([]);
+  });
+
+  it('collectModes 同时接受字符串与对象形式的选项', () => {
+    const scene = { flow: [{ action: 'selectModes', params: { options: ['a', { id: 'b', default: true }, { label: '无 id' }] } }] };
+    expect(collectModes(scene)).toEqual([{ id: 'a', isDefault: false }, { id: 'b', isDefault: true }]);
   });
 });

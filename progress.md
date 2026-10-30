@@ -4755,3 +4755,29 @@ handleInvokeSkill(skill:'landing-page-design', subcommand:'declare-system')
       载入章节 A1–A7（Intake / Page structure / Layout selection / Conversion rules /
       Copywriting / Build order / SEO and AEO）
 ```
+
+## 2026-10-30（续 4）· 「有哪些模式」和「为什么默认的没了」现在两条都有地方看
+
+上一节把 `landing_page` 的用法写进了 `ui-polish` 提示词，但那只是**一个场景**的补丁。
+`--mode` 的替换语义和模式清单是**所有带 `selectModes` 的场景**（review / refactor /
+ui-polish）共有的坑：`show <场景>` 只在 step 0 的 `参数:` 里塞一坨 JSON，默认模式没有
+标记，替换语义一个字没提。
+
+两处一起补：
+
+1. **`show` 增 `模式:` 摘要行**（`src/commands/show.js` 新增 `collectModes()`）：
+   `模式: ui_polish(默认) · design_only · brand_system · impeccable(默认) · landing_page`
+   —— 只要场景声明了 `default: true`，紧跟一行
+   `⚠ --mode 是替换语义: 传了就只用列出的，默认的也要一并写全`。
+   没有 `selectModes` 步骤的场景不打印（不制造空行）。`collectModes` 同时吃字符串和
+   对象两种 option 写法。
+2. **`scene-runner` skill 增「`--mode` 是替换语义，不是叠加」一节**：
+   默认模式会被整个丢掉、可用模式看 `show` 的 `模式:` 行、写错 id 会回落、
+   以及「模式属于用户的决策，用户没提就别加 `--mode`」。同步进
+   `~/.pi/agent/skills/scene-runner/SKILL.md`。
+
+`show.test.js` +4：模式行含 `ui_polish(默认)` / `landing_page`；有默认模式必提示替换语义；
+`loop` 这类无模式场景不打印；`collectModes` 兼容两种 option 形态。
+
+验证：`show.test.js` 7 tests；全量 **1510 tests / 117 files 全绿**；`npx knip` 零输出；
+`audit-scenes` 26 场景 0/0；claude-scene eslint 0 error。
