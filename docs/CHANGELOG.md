@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-30（第三十轮：skip/noop 的「原因」分类曾经在说谎）
+
+### Fixed
+
+- **「处理器没声明原因」这个标签在 129 处是假的**：`step-reasons.js` 第二十轮的注释写的是「处理器返回 `{ status:'skip' }` 的那一百多处连一个字的原因都没有」，第三十轮逐站点点过 196 处 `status:'skip'|'noop'` 才发现：**62 处布了结构化 `reason`、129 处把原因写在了 `message` 里**（“未安装 semgrep，跳过”“无 OpenAPI 规范，未测量”这种），真正一字未说的只有 2 处 —— 而它们把原因塞进了显示字段 `base:`。于是汇总行会一边数着「没声明原因 19」、一边在同一屏里打印着原因。
+  现分三档，只按「它到底说了什么」分，不按文案猜：① 布了词表内 `reason` → 照用；② 只布了 `message` → **`message-only`**（原因在文案里，只是没结构化）；③ 都没有 → `handler-skip` / `undeclared`（标签改成「连 message 都没给」）。`base` / `tail` 这类显示字段**不算声明**。
+- **`flow-control.js` 的两处 CE 分支只有 `base:`**：一个「CE Plugin 未安装」（`tool-missing`）、一个「已安装但需对话模式」（`interactive`），以前都被归入「一个字原因都没有」。现补上结构化 `reason`。
+- `noop` 桶同步修：`{ status:'noop', message:'无需重复' }` 以前记 `undeclared`（字面意思是没说原因），现记 `message-only`。
+
+### Added
+
+- **债务棘轮（`step-reasons.test.js` 4 例）**：扫全仓 `{ status:'skip'|'noop' }` 返回站点，冻结第三十轮实测的 131 处「没布结构化 reason」作为**上限（只许变少）**；「连 `message` 都不给、把原因塞进显示字段」的站点必须为 0；声明了 `reason` 的站点不得少于 60（防着有人把整批站点改成 `message-only` 抄近路）；扫描面 > 150 防空跑。
+- 分类层新增用例：只布 `message` → `message-only`；连 `message` 都没有（含纯空白）→ `handler-skip`；`base` 不算声明。
+
 ## 2026-10-30（第二十九轮：增强项的「勾了会不会真执行」）
 
 ### Fixed

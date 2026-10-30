@@ -287,8 +287,10 @@ const CE_CANNOT_RUN = '—— 本环境跑不了，动作未执行（不是通�
 
 function ceOutcome(ceAvailable, executed) {
   if (executed) return { status: 'noop', reason: 'delegated', base: '交给对话模式的 agent 执行', tail: CE_HANDOFF };
-  if (ceAvailable) return { status: 'skip', base: 'CE Plugin 已安装，但需对话模式才能跑', tail: CE_CANNOT_RUN };
-  return { status: 'skip', base: 'CE Plugin 未安装', tail: CE_CANNOT_RUN };
+  // 这两个分支以前只写了 `base`（显示字段），所以原因分类里记成「一个字都没说」。
+  // `base` 是给人看的拼接文案，不是声明 —— 声明得落在 `reason` 上。
+  if (ceAvailable) return { status: 'skip', reason: 'interactive', base: 'CE Plugin 已安装，但需对话模式才能跑', tail: CE_CANNOT_RUN };
+  return { status: 'skip', reason: 'tool-missing', base: 'CE Plugin 未安装', tail: CE_CANNOT_RUN };
 }
 
 export function handleCeAction(action, params, targetPath, context) {

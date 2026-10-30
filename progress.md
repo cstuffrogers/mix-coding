@@ -3845,3 +3845,134 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
 - **文档里的一行一场景也必须生成 + 对账**：真正危险的不是正文（没人读），而是 agent 每次会话
   都会 Read 的精简版。
 - **不删 18 个死项**：它们是对话模式 agent 的建议清单；这一轮只保证「说了实话」，接不接步骤是功能开发。
+---
+
+## 第三十轮：skip/noop 的「原因」分类曾经在说谎（2026-10-30）
+
+### 取证：先证明「没声明原因」这句话是假的
+
+第二十轮写了 `SKIP_REASONS` / `NOOP_REASONS` 两套词表，规矩是「没声明就记
+`handler-skip`（明写「没说原因」）」。当时注释里留了一句自我评价：
+
+> 处理器返回 `{ status: 'skip' }` 的那一百多处连一个字的原因都没有。
+
+这一轮先数了它。逐站点扫 `claude-scene/src`（排除 `*.test.js`、注释示例、以及
+`start.js` 里那块写日志的 `appendLog({... status: 'skip' ...})`），196 处
+`status: 'skip' | 'noop'` 的分布是：
+
+| 站点情况 | 数量 | 举例 |
+| --- | --- | --- |
+| 布了结构化 `reason` | 62 | `{ status:'noop', reason:'delegated', … }` |
+| 只布了 `message`（原因就在这句里） | 131 | `{ status:'skip', message:'一致性检查跳过（无 OpenAPI 规范，未测量）' }` |
+| 连 `message` 都没有 | 2 | `flow-control.js` 的 CE 分支，只有 `base:` |
+
+于是「没声明原因」这行的读者会看到两种完全相反的东西：
+
+```
+⏭ skip 细分: 处理器判为跳过但没声明原因 19
+     Step 5 Semgrep 跳过: 未安装（pip install semgrep）
+```
+
+同一屏里，汇总行说「它没说」，明细行就是它的原话。**分类器只读 `result.reason`，
+从不读 `result.message`** —— 不是处理器没说，是分类器没看。
+
+### 修法：三档，只按「它到底说了什么」分
+
+`claude-scene/src/data/step-reasons.js`：
+
+1. `reason` 在词表内 → 照用（原有行为）；
+2. `reason` 是词表外的词 → `handler-skip` + `unknownDeclared` 保留原词（原有行为，
+   「写错词」和「没说」不能混）；
+3. **没有 `reason` 但有非空 `message` → `message-only`**（原因在文案里，只是没结构化）；
+4. 连 `message` 都没有 → `handler-skip` / `undeclared`，标签改成「连 message 都没给」。
+
+`base` / `tail` 这类**显示字段不算声明** —— `flow-control.js` 的两处 CE 分支正好踩在
+这条线上（`base: 'CE Plugin 未安装'`），顺手补成 `reason:'tool-missing'` /
+`reason:'interactive'`。这也是本轮唯一改的处理器。
+
+`noop` 桶同步：`{ status:'noop', message:'无需重复' }` 以前记 `undeclared`，现记
+`message-only`；「声明了词表外的 noop 原因」和「跳过」一样保留原词。
+
+### 契约变更（两处既有断言，都有理由注释）
+
+- `step-reasons.test.js`：「处理器没说原因 → handler-skip」拆成两例（只布 message →
+  `message-only`；连 message 都没有 → `handler-skip`）；分布统计的期望行改成新标签。
+- `log-schema.test.js`：`{ status:'noop', message:'无需重复' }` 的期望 `undeclared` →
+  `message-only`，并补一条「连 message 都没有才是 undeclared」。
+
+### 新增：债务棘轮（而不是批量改 131 处）
+
+把 131 处都补上 `reason` 是逐站点改造（每个都要判断到底属于 `tool-missing` 还是
+`input-missing`），不属于「修一个说谎的标签」。所以这一轮只**冻结债务数字**：
+
+- 没布结构化 reason 的站点 **≤ 131**（只许变少）；
+- 「连 message 都不给、把原因塞进显示字段」的站点 **= 0**；
+- 声明了 `reason` 的站点 **≥ 60**（防着有人把整批站点改成 `message-only` 抄近路）；
+- 扫描面 **> 150**（防空跑：扫描器坏了不能长得像「债务清零」）。
+
+### 自探针（三个都真红）
+
+1. 在 `deps.js` 顶部加一处 `{ status:'skip', message:'探针新增' }` →
+   `expected 132 to be less than or equal to 131` ✓（复原用同目录兄弟副本，`cmp` 字节一致）
+2. 把 `saidAnything()` 改成 `return false`（假装处理器什么都没说）→
+   `message-only` 两例齐红 ✓
+3. 分类逻辑本身不探针也能自证：`base` 不算声明那条用例就是照 `flow-control.js` 的
+   真实形状写的（`skipReasonFrom({ status:'skip', base:'CE Plugin 未安装' })` →
+   `handler-skip`）。
+
+### 真跑（同一场景，修前 vs 修后）
+
+`start qa --auto` / `start cicd --auto`：
+
+```
+⏭ skip 细分: 条件不满足 5 / 原因只在 message 里（没布结构化 reason） 1
+○ noop 细分: 原因只在 message 里（没布结构化 reason） 1      ← cicd
+```
+
+以前这两行是「处理器判为跳过但没声明原因」，而同一屏的明细里就印着它的原话。
+
+### 验收三元组
+
+- **改动**：`src/data/step-reasons.js`（三档分类 + 词表 + 头部数字订正）、
+  `src/handlers/flow-control.js`（CE 两处补 `reason`）、两份测试契约变更、
+  `step-reasons.test.js` 新增 4 例棘轮 + 3 例分类用例、`DECISIONS.md` ADR-018 修订、
+  `CHANGELOG.md` 第三十轮。
+- **验证命令**：
+  ```
+  npx vitest run                                  # 1436 tests / 113 files
+  cd claude-scene && npx eslint . --max-warnings 0
+  node scripts/{check-readme-stats,check-action-stats,check-doc-counts,check-tool-steps,check-dead-actions}.cjs
+  npm run scan:deadcode
+  26 个场景 --dry-run --auto
+  node claude-scene/src/index.js start review --auto --skip-sweep
+  ```
+- **验证结果**：1436/1436 全绿；双 eslint 0/0；5 个 checker 全 EXIT=0；
+  `Total dead: 0`；26 个场景 dry-run 全部 EXIT=0；`review` EXIT=0
+  （17 pass / 0 fail / 3 warn / 19 skip / 4 noop）。
+  `review` 自己的 skip 全是引擎判的条件/缺工具（无 `message-only`），这是对的 ——
+  「细分」只在真有那种站点时才出现。
+
+### 坑
+
+- **滑一步就漏一个子目录**：第一版棘轮 `readdirSync(dir)` 只读顶层文件、没递归，
+  扫出 43 个站点就敢报「全绿」——靠「扫描面 > 150」这条下限当场露头（`expected 43
+  to be greater than 150`）。**下限断言保护的正是它自己那次「读」**。
+- **同一份口音量两遍**：探针脚本和测试里的扫描逻辑各写一份，第一版窗口取 9 行，
+  把 `flow-control.js:291` 的 `message:`（属于隔壁 `handleCeAction`）算进了 290 ——
+  「silent = 1」这个数字当时是错的。现在测试里窗口 7 行 + 「`base`/`tail` 也算说过话」
+  两条口径写在同一处，脚本已删。
+- **湿跑会往仓库里写东西**：`start qa --auto` 落 `.claude/qa/qa-report-*.md`、
+  `start cicd --auto` 落 `Taskfile.yml`，`git status` 立刻见 —— 都已删。
+  这轮不顺手改 `.gitignore`（是产品行为问题，不是审查诚实性问题），记在这里。
+- **`refactor` 场景在本仓 `Step 1 autoUpdate → fail`** 与本轮无关（`--dry-run` 26 个
+  场景全过）；真跑 `refactor` 会去跑更新流程，属于既有行为。
+
+### 决策
+
+- **「没声明」和「没结构化」是两个事实，必须两个键**：`handler-skip` / `undeclared`
+  说的是「它一个字都没给」，`message-only` 说的是「它给了，但只在文案里」。
+  合成一个键等于又造一次「假绿」——只不过假的是「原因不存在」。
+- **不批量改 131 处，先修标签再冻结债务**：把「原因分类」改对是一次外科手术，
+  把 131 个处理器逐个判断成因是另一件事（且每个都要人判断），混在一起做两头都不清。
+- **显示字段不是声明**：`base` / `tail` 是拼接给人看的文案，写在那里的原因
+  分类器看不见 —— 那就承认看不见（`handler-skip`），而不是假装能看见。

@@ -53,8 +53,15 @@ describe('warn 的来源分类', () => {
 });
 
 describe('skip 的原因分类', () => {
-  it('处理器没说原因 → handler-skip（明写「没说」，不是「其它」）', () => {
-    expect(deriveStepStatus({ status: 'skip', message: '跳过' }, {}).skipReason).toBe('handler-skip');
+  it('只布了 message 没说结构化原因 → message-only（它说了，只是没结构化）', () => {
+    expect(deriveStepStatus({ status: 'skip', message: '未安装 semgrep，跳过' }, {}).skipReason).toBe('message-only');
+    // 显示字段不算：`base` / `tail` 是给人看的拼接文案，不是声明
+    expect(skipReasonFrom({ status: 'skip', base: 'CE Plugin 未安装' })).toEqual({ reason: 'handler-skip', unknownDeclared: null });
+  });
+
+  it('连 message 都没有 → handler-skip（一字未说）', () => {
+    expect(deriveStepStatus({ status: 'skip' }, {}).skipReason).toBe('handler-skip');
+    expect(deriveStepStatus({ status: 'skip', message: ' '.repeat(3) }, {}).skipReason).toBe('handler-skip');
   });
 
   it('处理器声明了词表内的原因 → 照抄', () => {
@@ -87,17 +94,19 @@ describe('分布统计按最终状态现算', () => {
       { status: 'warn', warnKind: 'findings' },
       { status: 'warn', warnKind: 'contract' },
       { status: 'skip', skipReason: 'condition' },
+      { status: 'skip', skipReason: 'message-only' },
       { status: 'skip', skipReason: 'handler-skip' },
       { status: 'skip', skipReason: 'handler-skip' },
       { status: 'noop' },
     ];
     const b = describeStatusBreakdown(rows);
     expect(b.warn).toEqual(['有发现 2', '返回对象没布 status 1']);
-    expect(b.skip).toEqual(['条件不满足 1', '处理器判为跳过但没声明原因 2']);
+    // 第 30 轮：handler-skip 的标签改成「连 message 都没给」（它才是真没说）
+    expect(b.skip).toEqual(['条件不满足 1', '原因只在 message 里（没布结构化 reason） 1', '处理器判为跳过，连 message 都没给 2']);
     // 第二十一轮新增 noop 桶：没布 noopReason 的老记录标「未分类」。
     expect(b.noop).toEqual(['未分类 1']);
-    // counted = 落进桶的行数（warn 3 + skip 3 + noop 1），调用方拿它和计数行对账。
-    expect(b.counted).toBe(7);
+    // counted = 落进桶的行数（warn 3 + skip 4 + noop 1），调用方拿它和计数行对账。
+    expect(b.counted).toBe(8);
   });
 
   it('noop 也要说得出为什么无事可做', () => {
@@ -197,5 +206,71 @@ describe('词表与实际代码一致（防手滑写错类别）', () => {
     expect(skipReasonLabel('zzz')).toContain('zzz');
     expect(warnKindLabel()).toBe('');
     expect(skipReasonLabel(null)).toBe('');
+  });
+});
+
+// ── 第三十轮：债务棘轮 ─────────────────────────────────────────────
+//
+// 第二十轮的注释写的是「处理器返回 { status:'skip' } 的那一百多处连一个字的原因
+// 都没有」。第三十轮逐站点点过一遍：这个描述是**错的**。实际情况是
+//   62 处布了结构化 reason
+//  131 处把原因写在了 message / base 里（"未安装 semgrep，跳过" 这种）
+//    0 处一个字都没说
+// 分类器已经能把这三档分开（reason / message-only / handler-skip）。
+// 「把 131 处都补上 reason」是逐站点改造，不属于这一轮 —— 这一轮只把债务数字
+// 冻在这里：**只许变少，不许变多**。新写的处理器没有理由再走同一条缝。
+
+describe('债务棘轮：没布结构化 reason 的 skip/noop 只许变少', () => {
+  // 冻结值 = 第三十轮实测。改造了多少就把这两个数字往下调。
+  const MAX_WITHOUT_REASON = 131;
+  const MIN_DECLARED = 60;
+
+  /** 扫 handler / actions 里 `{ status: 'skip'|'noop' }` 的返回站点（要递归子目录） */
+  function scan() {
+    const out = { scanned: 0, declared: 0, without: 0, silent: [] };
+    const walk = (dir) => {
+      for (const name of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, name.name);
+        if (name.isDirectory()) { walk(p); continue; }
+        if (!name.name.endsWith('.js') || name.name.endsWith('.test.js')) continue;
+        scanFile(p, out);
+      }
+    };
+    walk(SRC);
+    return out;
+  }
+
+  function scanFile(file, out) {
+    const lines = readFileSync(file, 'utf-8').split(/\r?\n/u);
+    lines.forEach((line, i) => {
+      if (!/status:\s*'(?:skip|noop)'/u.test(line)) return;
+      // 注释里的示例、以及日志写盘那一行（不是处理器返回）都不算站点
+      if (/^\s*(?:\/\/|\*)/u.test(line)) return;
+      if (file.endsWith('start.js')) return;
+      out.scanned += 1;
+      const window = lines.slice(i, i + 7).join('\n');
+      if (/reason:\s*['"`]/u.test(window)) { out.declared += 1; return; }
+      if (/message:/.test(window)) { out.without += 1; return; }
+      if (/(?:base|tail):\s*['"`]/u.test(window)) { out.without += 1; return; }
+      out.silent.push(`${file}:${i + 1}`);
+    });
+  }
+
+  it('扫描面不许塌（塌了说明扫描器坏了，不是债务变少了）', () => {
+    expect(scan().scanned).toBeGreaterThan(150);
+  });
+
+  it('没布结构化 reason 的站点不超过冻结值', () => {
+    const { without } = scan();
+    expect(without, '又新增了没布 reason 的 skip/noop：把原因写进 `reason` 字段（词表见 SKIP_REASONS / NOOP_REASONS），'
+      + '或者改造老的把这个上限往下调').toBeLessThanOrEqual(MAX_WITHOUT_REASON);
+  });
+
+  it('连 message 都不给、把原因塞进显示字段的站点 = 0（显示字段不是声明）', () => {
+    expect(scan().silent).toEqual([]);
+  });
+
+  it('声明了结构化 reason 的站点保持规模（这条路不许被绕过）', () => {
+    expect(scan().declared).toBeGreaterThanOrEqual(MIN_DECLARED);
   });
 });

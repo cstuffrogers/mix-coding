@@ -4,12 +4,20 @@
 // 对象却没布 status、处理器一个字都没返回、status 词引擎不认识、文案正则觉得像有发现。
 // 五种东西对读者的要求完全不同（前一种要去看报告，后四种要去看代码），打成一个数字
 // 等于把「哪来的」这件事抹掉。skip 同病：引擎自己判的几种带 reason，处理器返回
-// `{ status: 'skip' }` 那一百多处连一个字的原因都没有。
+// `{ status: 'skip' }` 的那一堆则全被归成「没说原因」。
+//
+// 第二十轮当时写的是「那一百多处连一个字的原因都没有」—— **这句是错的**：
+// 第三十轮逐站点点过 196 处 `status: 'skip'|'noop'`，其中 64 处布了 reason，
+// 129 处把原因写在了 `message` 里（“未安装 semgrep，跳过”这种），
+// 真正一个字都没说的只有 2 处（还都是把原因塞在显示字段 `base:` 里）。
+// 所以第三十轮起：「没布 reason 但有 message」记 `message-only`（原因在文案里，
+// 只是没结构化），只有连 message 都没有才是 `handler-skip` / `undeclared`。
 //
 // 规矩：
 //   1. 类别只能由**处理器自己声明**（`reason` 字段）或**引擎自己的判定分支**给出；
 //   2. 绝不按文案猜类别 —— 猜出来的类别和猜出来的状态一样不可信；
-//   3. 没声明就是 `handler-skip`（明写「没说原因」），不是「其它」也不是沉默。
+//   3. 没布 reason 但有 message → `message-only`（明写「原因只在文案里」）；
+//      连 message 也没有 → `handler-skip` / `undeclared`（明写「一个字都没说」）。
 
 /**
  * warn 的来源分类。键即日志里的 warn_kind 值。
@@ -41,7 +49,8 @@ export const SKIP_REASONS = new Map([
   ['input-missing', '缺输入（参数/文件/配置）'],
   ['input-invalid', '输入不合法'],
   ['engine-disabled', '被开关关掉'],
-  ['handler-skip', '处理器判为跳过但没声明原因'],
+  ['message-only', '原因只在 message 里（没布结构化 reason）'],
+  ['handler-skip', '处理器判为跳过，连 message 都没给'],
 ]);
 
 /**
@@ -56,7 +65,8 @@ export const NOOP_REASONS = new Map([
   ['conversation-mode', '需要对话模式才能执行（CLI 下只能供料）'],
   ['delegated', '交给对话模式的 agent / 别的步骤执行'],
   ['tool-missing', '缺工具或依赖'],
-  ['undeclared', '处理器判为无事可做但没声明原因'],
+  ['message-only', '原因只在 message 里（没布结构化 reason）'],
+  ['undeclared', '处理器判为无事可做，连 message 都没给'],
   ['heuristic', '文案像「没什么可做」（正则猜的）'],
 ]);
 
@@ -119,8 +129,20 @@ export function warnKindFrom(result) {
 }
 
 /**
- * 处理器布了 noop 时它的原因；没声明（或声明了词表外的值）就是 undeclared。
- * 不复用 skip 的 handler-skip：同一个键在两个行上标签不同，grep 起来是两回事。
+ * 处理器自己写的解释文案（`message` / `base` / `tail` 这些显示字段不算）。
+ * 只拿来回答「它到底说没说话」，**不作为分类依据**。
+ */
+function saidAnything(result) {
+  return Boolean(result && typeof result === 'object'
+    && typeof result.message === 'string' && result.message.trim());
+}
+
+/**
+ * 处理器布了 noop 时它的原因。
+ *
+ * 没布 reason 但布了 message → `message-only`：原因在文案里，只是没结构化。
+ * 连 message 都没有 → `undeclared`。两个键分开，是因为对读者的要求不同：
+ * 前者要做的是「把这个消息提成 reason」（可批量），后者是「它一句话都没说」（要去看代码）。
  * 与 skipReasonFrom 同构：`noop` 也要说得出来「为什么没有事可做」。
  */
 export function noopReasonFrom(result) {
@@ -128,17 +150,27 @@ export function noopReasonFrom(result) {
     ? result.reason.trim()
     : null;
   if (isNoopReason(declared)) return { reason: declared, unknownDeclared: null };
-  return { reason: 'undeclared', unknownDeclared: declared };
+  // 声明了词表外的值 → undeclared 并保留原词（它试着说了，只是说错了词）
+  if (declared) return { reason: 'undeclared', unknownDeclared: declared };
+  if (saidAnything(result)) return { reason: 'message-only', unknownDeclared: null };
+  return { reason: 'undeclared', unknownDeclared: null };
 }
 
 /**
- * 处理器说「我跳过了」时它的原因；没声明（或声明了词表外的值）就是 handler-skip。
- * 词表外的值不静默通过：`unknownDeclared` 带着原词，调用方才能把「写错了词」说出来。
+ * 处理器说「我跳过了」时它的原因。
+ *
+ * 三档，按「它到底说了多少」分，而不是按文案猜：
+ *   1. 布了词表内的 `reason` → 照用；
+ *   2. 布了词表外的词 → `handler-skip` + 保留原词（试着说了，但说错了）；
+ *   3. 没布 reason 但布了 `message` → `message-only`（原因在文案里，只是没结构化）；
+ *   4. 连 message 都没有 → `handler-skip`（一个字都没说）。
  */
 export function skipReasonFrom(result) {
   const declared = result && typeof result === 'object' && typeof result.reason === 'string' && result.reason.trim()
     ? result.reason.trim()
     : null;
   if (isSkipReason(declared)) return { reason: declared, unknownDeclared: null };
-  return { reason: 'handler-skip', unknownDeclared: declared };
+  if (declared) return { reason: 'handler-skip', unknownDeclared: declared };
+  if (saidAnything(result)) return { reason: 'message-only', unknownDeclared: null };
+  return { reason: 'handler-skip', unknownDeclared: null };
 }

@@ -535,6 +535,13 @@ characterization test 锁定现状。这在本仓库不成立：
 - 正向：哨兵随代码演进自动生效，新增处理器写裸字符串会被 CI 拦住
 - 负向：移动端/子代理场景在 CLI 下的 skip 数会变多（以前是 pass）——这是如实反映
 - 负向：折叠会在 pass 步骤里隐藏细节，需要人知道去 `.claude/logs/` 翻；提示行已给出路径
+- 修订（第三十轮）：本条把「没跑成」推到 `{ status:'skip', message }`，但**原因分类**当时只有
+  两档——布了 `reason` 就用，没布就记 `handler-skip`（标签写「没声明原因」）。
+  逐站点点过 196 处才发现：**这个标签在很多地方是假的** —— 129 处把原因写在了 `message`
+  里（“未安装 semgrep，跳过”），只有 2 处真的一字未说（还把原因塞进了显示字段 `base:`）。
+  现分三档：布了 `reason` → 照用；只布了 `message` → `message-only`（原因在文案里）；
+  都没有 → `handler-skip` / `undeclared`。**显示字段（`base`/`tail`）不算声明。**
+  同时按 ADR-015 的围栏思路把债务数字冻在 `step-reasons.test.js`（131 / 只许变少）。
 
 ---
 

@@ -87,7 +87,11 @@ describe('warnKind / noopReason：判定权在处理器，词表在引擎', () =
   });
 
   it('noop 必须说得出为什么无事可做', () => {
-    expect(deriveStepStatus({ status: 'noop', message: '无需重复' }, {}).noopReason).toBe('undeclared');
+    // 第 30 轮契约变更：以前「没布 reason」一律记 undeclared（字面意思是「没说原因」），
+    // 而这里明明布了 message='无需重复' —— 它说了，只是没结构化。现记 message-only。
+    expect(deriveStepStatus({ status: 'noop', message: '无需重复' }, {}).noopReason).toBe('message-only');
+    // 连 message 都没有才是 undeclared
+    expect(deriveStepStatus({ status: 'noop' }, {}).noopReason).toBe('undeclared');
     expect(deriveStepStatus({ status: 'noop', reason: 'already-done', message: '已是最新' }, {}).noopReason).toBe('already-done');
     expect(noopReasonFrom({ status: 'noop', reason: 'nope' })).toEqual({ reason: 'undeclared', unknownDeclared: 'nope' });
   });
