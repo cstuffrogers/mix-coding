@@ -49,7 +49,7 @@
 | 1 | `coding.md` + 用户要求 | 用户说了算 |
 | 2 | 本文件 | 写之前决策 → 写之时约束 → 改之后验证 |
 | 3 | `od-craft/*.md` | 设计规范审查 |
-| 4 | `/simplify` `/review` | 清理/审计 |
+| 4 | `/refactor`（simplify 模式） `/review` | 清理/审计 |
 
 ## 不适用场景
 

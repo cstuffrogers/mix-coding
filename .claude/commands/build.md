@@ -24,7 +24,7 @@ Before starting, verify these files exist:
 - `specs/{feature}/plan.md`
 - `specs/{feature}/tasks.md`
 
-If any are missing, tell the user which step to run first (`/spec`, `/design`).
+If any are missing, tell the user which step to run first (`/spec`, then the `speckit-plan` / `speckit-tasks` skills — there is no `/design` command).
 
 ## Phase Implementation Loop
 

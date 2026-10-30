@@ -9,9 +9,9 @@ Designed for non-technical users — integrates the hottest GitHub projects with
 
 A **three-layer architecture + Scene engine** intelligent development system:
 
-- ✅ **27 automated workflows** (21 Web + 6 Mobile) — code review, security scanning, performance optimization, E2E testing, release deployment, environment setup, engine self-check, UI prompt refinement, and more
+- ✅ **26 automated workflows** (20 Web + 6 Mobile) — code review, security scanning, performance optimization, E2E testing, release deployment, environment setup, engine self-check, UI prompt refinement, and more
 - ✅ **Multi-round auto review & fix**: iterate until issues are cleared
-- ✅ **AI-driven design**: Open Design fully integrated (152 brands + 111 templates + 137 skills + 6 device frames + 3 decks + 102 prompt templates + 11 craft principles)
+- ✅ **AI-driven design**: Open Design integrated (design-system catalogs + design templates + skills + craft principles + device frames + prompt templates) — requires a local clone of `open-design/` (gitignored, not in this repo; used by `/ui-polish` and `/new-project`, which print clone instructions when it is missing)
 - ✅ **Frontend polish toolchain**: DaisyUI (35+ themes) + Animal Island UI + Animate.css + Lucide React + Playwright + Impeccable critique (27 anti-AI-pattern rules) + web-design-engineer + ai-friendly-web-design + awesome-design-md (5 brand DESIGN.md: Vercel/Linear/Stripe/Notion/Apple)
 - ✅ **5-layer code review**: ESLint + TypeScript + Security Scan + npm audit + AI Semantic + Handler verification (10-pass stub detection)
 - ✅ **Database migration review**: scans migration files, detects 8 dangerous patterns (DROP TABLE / NOT NULL without DEFAULT, etc.), blocks high-risk changes
@@ -23,7 +23,7 @@ A **three-layer architecture + Scene engine** intelligent development system:
 - ✅ **Zero-conflict architecture**: strict tool isolation and deduplication
 - ✅ **AI/Model switching**: switch AI providers via config files — supports Claude, Gemini, Qwen, and more
 - ✅ **Karpathy Principles**: enforced Think Before Coding, Simplicity First, and more
-- ✅ **jvn Spec-Driven Development**: `/spec` → `/design` → `/build` spec-driven pipelines, powered by [GitHub Spec-Kit](https://github.com/github/spec-kit) (11 speckit skills) with 5 Agent-enhanced review (PM + Architect + UX + Code Review + Constitutional Validator)
+- ✅ **jvn Spec-Driven Development**: `/spec` (speckit specify → clarify → plan → tasks) → `/build` spec-driven pipelines, powered by [GitHub Spec-Kit](https://github.com/github/spec-kit) (11 speckit skills) with 5 Agent-enhanced review (PM + Architect + UX + Code Review + Constitutional Validator)
 
 ---
 
@@ -76,7 +76,7 @@ node src/index.js start ui-polish --auto    # Execute workflow
 
 ## 📋 26 Workflow Scenes (583 Steps Total)
 
-> 9 features merged as enhancements: backup/docker→cicd, sbom→deps, loadtest→setup, log/incident→setup, changelog→release, migration→review, llm-proxy-audit→review. Triggered on-demand in parent workflows.
+> 9 historical features are no longer standalone workflows: `changelog` was merged into `/release` (and `/mobile-release`), log sanitization into `/review`. backup / docker / sbom / loadtest / incident / migration / llm-proxy-audit are registered actions only — no scene step calls them (**unreachable**, tracked as debt; see round 34 in `docs/CHANGELOG.md`).
 
 | Scene | Steps | Description | Command |
 |-------|-------|-------------|---------|
@@ -318,26 +318,25 @@ node src/index.js start hunt --auto
 ```
 mix-coding/
 ├── .claude/
-│   ├── scenes/               # Scene definitions (27 JSON files)
+│   ├── scenes/               # Scene definitions (26 JSON files; this overlay wins over claude-scene/scenes)
 │   │   ├── ui-polish.json    bugfix.json     feature.json
 │   │   ├── review.json       refactor.json   optimize.json
-│   │   ├── hunt.json         loop.json       new-project.json
+│   │   ├── loop.json         new-project.json
 │   │   ├── release.json      deps.json       update.json
 │   │   ├── rollback.json     onboard.json    cicd.json
-│   │   ├── e2e.json          monitor.json
-│   │   ├── qa.json           plan-ceo-review.json  check.json  enhance-prompt.json
-│   │   ├── plan.json
+│   │   ├── qa.json           plan-ceo-review.json  check.json  spec.json
+│   │   ├── plan.json         setup.json
 │   │   ├── mobile-audit.json mobile-review.json mobile-release.json
 │   │   ├── mobile-optimize.json mobile-e2e.json mobile-onboard.json
 │   ├── commands/             # Slash commands (33 .md files: 26 workflows + 7 non-scene entries: /build /docs /loop-start /loop-status /others /report /report-fix)
-│   ├── rules/                # Project rules (conditional/ on-demand: core-rules / workflows / enhancements / 9 files)
+│   ├── rules/                # Project rules (conditional/ on-demand: core-rules / workflows / enhancements / 13 files)
 │   ├── skills/               # Claude Skills (29: 18 core + 11 speckit)
-│   └── agents/               # 8 Agents (PM/Architect/UX/Reviewer/Constitutional-validator + mobile-reviewer/mobile-security/mobile-perf)
+│   └── agents/               # 12 Agents (PM/Architect/UX/Reviewer/Constitutional-validator/test-engineer/security-engineer/database-architect/devops-engineer + mobile-reviewer/mobile-security/mobile-perf)
 │
 ├── .specify/                 # Spec-Kit config (templates / scripts / memory)
 ├── claude-scene/             # CLI tool (Scene engine)
 │   └── src/
-│       ├── commands/         # CLI commands (list / show / start / fork)
+│       ├── commands/         # CLI commands (list / show / start / fork / memory / sync-docs)
 │       ├── handlers/         # Capability handlers
 │       └── lib/              # Utility library (including huashu design integration)
 │

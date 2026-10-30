@@ -18,6 +18,7 @@
  *
  * 定义（写进文档、也写在这里，两边必须是同一套）：
  *   工作流数   = claude-scene/scenes/*.json 的个数
+ *   移动端工作流数 = 场景 id 以 `mobile-` 开头的个数（Web 数 = 总数 − 移动端数）
  *   命令数     = .claude/commands/*.md 的个数（工作流命令 + 非场景命令）
  *   Skills 数  = .claude/skills/* 目录数（`speckit-` 前缀算 speckit）
  *   MCP 数     = .mcp.json 的 mcpServers 键数（启用）/ .mcp.json.full 的键数（完整档）
@@ -81,6 +82,7 @@ function truth() {
   return {
     commands: commands.length,
     scenes: scenes.length,
+    mobile: scenes.filter((s) => s.startsWith('mobile-')).length,
     skills: skills.length,
     speckit: skills.filter((s) => s.startsWith('speckit-')).length,
     deps: Object.keys(pkg.dependencies || {}).length,
@@ -169,6 +171,15 @@ function checkDoc(name, t) {
   if (cmd) {
     cmp('命令数', cmd[1], t.commands, problems);
     cmp('工作流数', cmd[2], t.scenes, problems);
+  }
+
+  const workflows = need('工作流总数 / Web / 移动端', isZh
+    ? /\*\*(\d+) 个自动化工作流\*\*：覆盖 Web 前端（(\d+) 个）\+ 移动端（(\d+) 个）/
+    : /\*\*(\d+) automated workflows\*\* \((\d+) Web \+ (\d+) Mobile\)/);
+  if (workflows) {
+    cmp('工作流总数', workflows[1], t.scenes, problems);
+    cmp('Web 工作流数', workflows[2], t.scenes - t.mobile, problems);
+    cmp('移动端工作流数', workflows[3], t.mobile, problems);
   }
 
   const skills = need('Skills 总数 / 通用 / speckit', isZh

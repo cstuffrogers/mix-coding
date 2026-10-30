@@ -26,8 +26,8 @@ This project implements a **three-layer architecture** following the **12-factor
 │         用户入口 · 场景选择 · 确认打断 · 结果展示                      │
 │   ┌────────────────────────────────────────────────────────────┐    │
 │   │  claude-scene CLI · 场景模板(.claude/scenes/) · 进度展示    │    │
-│   │  /new-project  /feature  /bugfix  /refactor  /design  /review│   │
-│   │  /setup  /loop  /simplify  /optimize  /ui-polish  /qa  /deps   │    │
+│   │  /new-project  /feature  /bugfix  /refactor  /spec    /review│   │
+│   │  /setup  /loop  /rollback  /optimize  /ui-polish  /qa  /deps   │    │
 │   └────────────────────────────────────────────────────────────┘    │
 │                                                                     │
 │   【设计原则】12-factor-agents #7（环境等价）· #10（日志即事件）        │
@@ -193,7 +193,7 @@ For non-professional developers and designers — zero technical knowledge requi
 
 | Tool | GitHub Stars | Function | License | Automation |
 |------|-------------|----------|---------|-------------|
-| **Open Design** | 40k+ | AI design generation (129 design systems) | Apache 2.0 | ✅ |
+| **Open Design** | 40k+ | AI design generation (design systems; count changes upstream) | Apache 2.0 | ✅ |
 | **DaisyUI** | 30k+ | Tailwind theme plugin (35 presets) | MIT | ✅ |
 | **Animate.css** | 77k+ | CSS animations (80+ presets) | MIT | ✅ |
 | **Lucide React** | 12k+ | Icon system (2000+ icons) | ISC | ✅ |
@@ -202,9 +202,9 @@ For non-professional developers and designers — zero technical knowledge requi
 ### Integration Workflow
 
 ```
-User describes need → /design (Open Design)
+User describes need → /ui-polish（Design 流程：Open Design 选型）
      ↓
-Open Design generates design with 129 brand systems
+Open Design generates design with a brand system from its catalog
      ↓
 / polish (DaisyUI + Animate.css + Lucide React)
      ↓
@@ -348,7 +348,7 @@ MCP servers are configured by **exactly two files**, and the engine only ever se
 ### Prerequisites
 - **Node.js ≥ 20.x**（推荐 ≥ 25.x）
 - Git
-- Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
+- 不需要 Claude Code CLI —— 引擎是仓库内的 Node 脚本（`node claude-scene/src/index.js start <场景> --auto`）
 
 ### 1. Initialize Project Structure
 ```bash
@@ -358,7 +358,7 @@ mkdir -p .visual-baselines/playwright
 
 ### 2. Install Frontend Design Tools
 ```bash
-# Open Design (AI design generation)
+# Open Design (AI design generation) — optional, gitignored, local clone only
 git clone https://github.com/nexu-io/open-design.git
 cd open-design && pnpm install
 
@@ -387,7 +387,7 @@ npx playwright install chromium
 
 ### 5. Configure Environment
 ```bash
-cp .env.example .env
+cp claude-scene/.env.example claude-scene/.env
 # Edit .env with your API keys
 ```
 
@@ -423,7 +423,7 @@ node src/index.js start new-project --auto
 
 | File | Purpose |
 |------|---------|
-| `.env.example` | Environment variables template |
+| `claude-scene/.env.example` | Environment variables template |
 | `react-doctor.config.json` | ESLint/react-doctor dedup |
 | `playwright.config.ts` | Visual regression config |
 | `tailwind.config.js` | Tailwind CSS + DaisyUI plugin configuration |

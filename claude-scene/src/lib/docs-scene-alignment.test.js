@@ -37,20 +37,31 @@ const ALIASES = {
   simplify: 'refactor',   // /simplify → /refactor 的 simplify 模式
 };
 
-/** CLAUDE.md 明确写了「已融入 X」的命令：不作为独立入口存在。 */
-const MERGED_INTO = new Set([
-  'backup', 'docker',      // → cicd
-  'sbom',                  // → deps
-  'changelog',             // → release
-  'loadtest',              // → setup
-  'migration',             // → review
-  'llm-proxy-audit',       // → review
+/**
+ * 不是独立入口、但也没有彻底消失的历史命令。两种成因，别混（第三十四轮取证）：
+ *   · `MERGED_INTO_SCENE` —— 真的并进场景了：名字就写在那份场景 JSON 的步骤/模式里；
+ *   · `UNREACHABLE_ACTIONS` —— 只有在 `actions.js` 里注册的 handler，**没有任何场景步骤
+ *     会调用它们**，用户永远触发不到（README / CLAUDE.md 明说「不可达」）。
+ * 前一类的双向真值在 `commands/doc-claims.test.js`（并入的必须真在场景里）；
+ * 这一类在这里只需要「文档还认这些名字」，免得悄悄从文档消失。
+ */
+const MERGED_INTO_SCENE = new Set([
+  'changelog',             // → release / mobile-release 的步骤
   'hunt',                  // → review 的 security_deep 模式（默认开启）
   'analyze',               // → review 的 analyze-only 模式
   'e2e',                   // → setup --kind e2e（默认）
   'monitor',               // → setup --kind monitor
   'property',              // → setup --kind property
 ]);
+const UNREACHABLE_ACTIONS = new Set([
+  'backup', 'docker',      // 当年想去 cicd 分组，分组本身已删
+  'sbom',                  // 想去 deps 分组
+  'loadtest',              // 想去 setup 分组
+  'migration',             // 想去 review 分组
+  'llm-proxy-audit',       // 想去 review 分组
+  'incident',              // 只有 incident-runbook handler
+]);
+const NOT_STANDALONE = MERGED_INTO_SCENE.union(UNREACHABLE_ACTIONS);
 
 /** 宿主（Claude Code / shell）内置，不是本仓库的入口。 */
 const HOST_BUILTINS = new Set([
@@ -171,7 +182,7 @@ describe('文档 ↔ 入口 ↔ 场景 对齐', () => {
     const hasEntry = (cmd) => commands.has(cmd)
       || skills.has(cmd)
       || scenes.has(ALIASES[cmd] ?? cmd)
-      || MERGED_INTO.has(cmd)
+      || NOT_STANDALONE.has(cmd)
       || HOST_BUILTINS.has(cmd);
     const missing = [...documented].filter((cmd) => !hasEntry(cmd));
     expect(
@@ -197,8 +208,8 @@ describe('文档 ↔ 入口 ↔ 场景 对齐', () => {
     ).toEqual([]);
   });
 
-  it('名单不变烂：已融入项必须仍被文档提及', () => {
-    const stale = [...MERGED_INTO].filter((cmd) => !documented.has(cmd));
-    expect(stale, `这些「已融入」项文档里已不提了，请从 MERGED_INTO 删除：${stale.join(', ')}`).toEqual([]);
+  it('名单不变烂：并进场景的 / 不可达的历史项都必须仍被文档提及', () => {
+    const stale = [...NOT_STANDALONE].filter((cmd) => !documented.has(cmd));
+    expect(stale, `这些历史项文档里已不提了，请从 NOT_STANDALONE 删除：${stale.join(', ')}`).toEqual([]);
   });
 });

@@ -44,11 +44,11 @@ Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js star
 | `/setup [kind]` | 测试/监控/属性测试设施搭建（`--kind` 选分支，默认 e2e） | `/new-project` | 新建项目 |
 | `/release` | 发布部署 | `/deps` | 依赖更新 |
 | `/check` | 引擎自检（只检测不改源码） | `/plan` | Manus 持久规划 |
-| `/enhance-prompt` | UI prompt 精炼 | — | — |
+| `/enhance-prompt`（Open Design Skill 提供，需本地 clone `open-design/`） | UI prompt 精炼 | — | — |
 
 > **交互式模式选择**：`/review` `/ui-polish` `/refactor` `/setup` 启动时弹出选择菜单，3秒无操作使用默认。
 >
-> 已融入增强：`/qa`（前端验证）、`/plan-ceo-review`（策略审查）、`/backup` `/docker`（cicd）、`/sbom`（deps）、`/changelog`（release）、`/loadtest`（setup）、`/migration`（review）、`/llm-proxy-audit`（review）。
+> 历史功能的去向（三种，别混）：**已独立成场景**：`/qa`（前端验证）、`/plan-ceo-review`（策略审查）；**已并入**：`/changelog` → `/release`（与 `/mobile-release`）、日志脱敏 → `/review`；**不可达**（只注册了动作、没有任何场景步骤会调用）：`/backup` `/docker` `/sbom` `/loadtest` `/migration` `/llm-proxy-audit` `/incident`。
 >
 > `hunt` 已并入 `/review` 的 `security_deep` 模式；`e2e` `monitor` 已并入 `/setup`。
 >
@@ -81,12 +81,12 @@ Scene 引擎在对话内执行工作流。26 个场景。`node src/index.js star
 |----------|----------|
 | 移动端项目 (RN/Expo/.apk/.ipa) | `conditional/mobile-coding.md` + `conditional/mobile-security-rules.md` |
 | React Web 项目 | `conditional/react-doctor.md` |
-| `/ui-polish` / `/design` 工作流 | `conditional/visual-standards.md` + `conditional/anti-slop-design.md` + `../od-craft/index.md` + **hallmark skill**（20 主题 + 57 slop-test + 9 宏观结构） |
+| `/ui-polish` 工作流 | `conditional/visual-standards.md` + `conditional/anti-slop-design.md` + `../od-craft/index.md` + **hallmark skill**（20 主题 + 57 slop-test + 9 宏观结构） |
 | 重构/优化 (`/refactor`/`/optimize`) | `conditional/core-rules.md`（完整 CodeGuardian 边界） |
 | 自动记忆触发（重要决策/bug/架构） | `conditional/memory-auto-save.md` |
 | `/plan` 工作流或复杂任务 (≥3步) | `conditional/planning-with-files.md` |
 | `/feature` / `/new-project` 多页站点 | `conditional/baton-loop.md`（baton 接力模式） + **hallmark skill**（新页面结构多样化） |
-| 模糊 UI 需求 / prompt 优化 | `/enhance-prompt`（UI 想法精炼器） |
+| 模糊 UI 需求 / prompt 优化 | `/enhance-prompt`（UI 想法精炼器；Open Design Skill 提供，需本地 clone `open-design/`） |
 | hallmark 审计/重构/设计提取 | **hallmark skill** — `audit`（评分+punch list）、`redesign`（保留IA重建视觉）、`study`（截图/URL→DNA→design.md） |
 | `/deps` 依赖更新 | `docs/tool-versions.md`（工具版本与更新记录 — 对比上游判断要不要更新 + 更新后写日志） |
 

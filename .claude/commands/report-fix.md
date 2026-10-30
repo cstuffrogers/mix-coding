@@ -48,7 +48,7 @@ For each issue, choose the right approach:
 - Commit with descriptive message
 
 **Medium fix** (touches multiple files, needs design):
-- Use the `/spec` → `/design` → `/build` pipeline
+- Use the `/spec` → `speckit-plan` → `speckit-tasks` → `/build` pipeline
 - The spec should reference the report finding
 
 **Dependency update**:

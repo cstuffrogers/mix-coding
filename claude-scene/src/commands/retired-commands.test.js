@@ -14,9 +14,14 @@ import { fileURLToPath } from 'node:url';
  * 第二十六轮之后 opencode 整体退役（用户确认「opencode 本来就不用了」），
  * 于是 `.opencode/` 目录 + 生成器 + 部署脚本 + 校验器一起删除 —— 这里一并守住。
  *
+ * 第三十四轮又把 `/design` `/simplify` `/polish` 纳入进来：前两个两年前就并进了 `/ui-polish`
+ * 与 `/refactor` 的 simplify 模式（没有 `design.json` / `simplify.json`），`/polish` 只是 `/ui-polish` 的旧名。
+ * 入口文档把 `/design` 写成「照抄就能跑」时，agent 会拿着一个不存在的命令去建技术方案。
+ *
  * 两条判据：
- *   ① 活的文档里出现 `/hunt` `/e2e` `/monitor` `/analyze` 时，同一行必须写明它是旧名/已合并；
- *   ② 退役的产物（opencode 那套文件、四个场景 JSON）不许复活。
+ *   ① 活的文档里出现 `/hunt` `/e2e` `/monitor` `/analyze` `/audit` `/design` `/simplify` `/polish`
+ *      时，同一行必须写明它是旧名/已合并；直接列在「旧命令 → 新命令」表里也算（整表豁免，见 legacyRows）；
+ *   ② 退役的产物（opencode 那套文件、五个场景 JSON）不许复活。
  *
  * 明确排除的「快照 / 历史」产物：`.zcode/plugins/<包>/<版本>/`（已发布版本的冻结副本）、
  * `.claude/reports/*.md`（日期报告，描述的是当天状态）。
@@ -25,9 +30,9 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..', '..');
 
-const RETIRED_COMMANDS = ['hunt', 'e2e', 'monitor', 'analyze', 'audit'];
+const RETIRED_COMMANDS = ['hunt', 'e2e', 'monitor', 'analyze', 'audit', 'design', 'simplify', 'polish'];
 // 同一行出现这些字样 = 已经交代清楚「它没了」，不算说谎
-const MARKERS = ['旧名', '已合并', '已并入', '退役', '已删除', '原 ', 'merged', 'retired', 'was merged'];
+const MARKERS = ['旧名', '已合并', '已并入', '退役', '已删除', '不存在', '原 ', 'merged', 'retired', 'was merged', 'there is no'];
 
 /** 扫「活的文档」：改了会被 agent / 用户当真的那些。 */
 function liveDocs() {
@@ -69,12 +74,44 @@ function liveDocs() {
 const retiredPattern = new RegExp('`/(' + RETIRED_COMMANDS.join('|') + ')`', 'u');
 const noMarker = (line) => MARKERS.every((m) => !line.includes(m));
 
+/**
+ * 表头自己写着「旧命令 / 旧名」的表格，表里每一行都算已交代清楚 ——
+ * 这类映射表逐行加标记反而看不懂（左边全是旧名，再逐行写「旧名：」是噪声）。
+ * 只认表头：普通表格不会被豁免，散句也不会。
+ */
+function legacyRows(lines) {
+  const marked = new Set();
+  let header = null;
+  let legacy = null;
+  for (const [i, line] of lines.entries()) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('|')) {
+      header = null;
+      legacy = null;
+      continue;
+    }
+    if (/^\|[\s:|-]+\|$/u.test(trimmed)) {
+      legacy = header !== null && /旧命令|旧名|old command/iu.test(header);
+      header = null;
+      continue;
+    }
+    if (legacy === null) {
+      header = trimmed;
+      continue;
+    }
+    if (legacy) marked.add(i);
+  }
+  return marked;
+}
+
 describe('退役命令：活的文档里不许当成还活着', () => {
-  it('没有一行把已退役命令（/hunt /e2e /monitor /analyze /audit）当现存命令，除非写明旧名/已合并', () => {
+  it('没有一行把已退役命令当现存命令，除非写明旧名/已合并（或列在「旧命令」表里）', () => {
     const offenders = [];
     for (const file of liveDocs()) {
       const lines = readFileSync(file, 'utf-8').split(/\r?\n/u);
+      const exempt = legacyRows(lines);
       lines.forEach((line, i) => {
+        if (exempt.has(i)) return;
         if (retiredPattern.test(line) && noMarker(line)) {
           offenders.push(`${relative(ROOT, file)}:${i + 1}: ${line.trim()}`);
         }
@@ -83,7 +120,7 @@ describe('退役命令：活的文档里不许当成还活着', () => {
     expect(offenders, '这些行还在把退役命令当活的用').toEqual([]);
   });
 
-  it('五个已合并的场景 JSON 不许回来', () => {
+  it('八个已退役的场景 JSON 不许回来', () => {
     const scenes = join(ROOT, 'claude-scene', 'scenes');
     for (const slug of RETIRED_COMMANDS) {
       expect(existsSync(join(scenes, `${slug}.json`)), `scenes/${slug}.json 不该存在`).toBe(false);

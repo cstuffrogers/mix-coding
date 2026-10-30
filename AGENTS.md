@@ -79,9 +79,9 @@ bash init.sh
 | `/review` | 5 层代码审查 + 安全审计 |
 | `/feature` | 新功能开发 |
 | `/bugfix` | Bug 修复 |
-| `/design` | AI 辅助 UI 设计（→ `/ui-polish` 的 ai_design 模式） |
-| `/polish` | 前端美化（→ `/ui-polish`） |
-| `/simplify` | 代码简化（→ `/refactor` 的 simplify 模式） |
+| `/design` | 旧名：AI 辅助 UI 设计（→ `/ui-polish` 的 ai_design 模式） |
+| `/polish` | 旧名：前端美化（→ `/ui-polish`） |
+| `/simplify` | 旧名：代码简化（→ `/refactor` 的 simplify 模式） |
 | `/optimize` | 性能优化 |
 | `/refactor` | 重构 |
 | `/setup [kind]` | 测试/监控/属性测试设施搭建（`--kind e2e\|monitor\|property`，默认 e2e） |

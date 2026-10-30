@@ -15,8 +15,8 @@
 > **清单的真值来源是 `claude-scene/src/lib/enhancements.js` 的 `REGISTRY`**：菜单就是从那里生成的，
 > `REGISTRY[场景]` 查不到就一项都不会出现。2026-07-01 清理时删掉了 8 个「场景已经不存在」的分组
 > （`audit` `analyze` `hunt` `monitor` `e2e` `design` `prototype` `changelog`）——它们永远不会被触发。
-> 本文件里对应的节（`/cicd`、`/setup --kind monitor`、`/review 安全深度`、`/setup --kind e2e`、`/design`）
-> 也一并删除，不再宣称这些菜单项存在。
+> 本文件里对应的节均**已删除**，不再宣称这些菜单项存在：`/cicd`、`/setup --kind monitor`、
+> `/review 安全深度`、`/setup --kind e2e`（`/design` 本身也已退役，现为 `/ui-polish`）。
 
 ## 检测规则
 

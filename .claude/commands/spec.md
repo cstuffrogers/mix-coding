@@ -81,7 +81,8 @@ Present the enriched specification to the user:
 
 Suggest next steps:
 - `/speckit.clarify` if there are ambiguities to resolve
-- `/design` to create the technical plan
+- `speckit-plan` skill to create the technical plan, then `speckit-tasks` to break it into tasks
+- `/build` to implement once `plan.md` and `tasks.md` exist
 
 ## Critical Rules
 

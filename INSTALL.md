@@ -304,20 +304,12 @@ git clone https://github.com/your-project/claude-scene.git
 
 **使用场景指令和对应文件关系：**
 
-| 指令 | 场景文件 | 用途 |
-|------|---------|------|
-| `/ui-polish` | `ui-polish.json` | 前端美化 |
-| `/bugfix` | `bugfix.json` | Bug修复 |
-| `/feature` | `feature.json` | 功能开发 |
-| `/review` | `review.json` | 代码审查 |
-| `/refactor` | `refactor.json` | 代码重构 |
-| `/optimize` | `optimize.json` | 性能优化 |
-| `/simplify` | `simplify.json` | 代码简化 |
-| `/hunt` | `hunt.json` | 安全漏洞审查 |
-| `/design` | `design.json` | AI设计生成 |
-| `/analyze` | `analyze.json` | 竞品分析 |
-| `/loop` | `loop.json` | 自动迭代循环 |
-| `/new-project` | `new-project.json` | 新项目从零开始 |
+命令名 = 场景名，场景文件就是 `scenes/<命令名>.json`（例：`/ui-polish` → `ui-polish.json`）。
+当前共 **26 个场景**（Web 20 + 移动端 6），完整清单与每个场景的步骤数看 [`.claude/scenes/README.md`](./.claude/scenes/README.md)
+（那张表由 `npm run sync-docs` 维护，数字由 `scripts/check-doc-counts.cjs` 校验）—— 这里不再手抄一份，免得又抄歪。
+
+已退役的旧工作流（`/hunt` `/e2e` `/monitor` `/analyze` `/audit` `/simplify` `/design` `/polish`）没有对应的 `*.json` 文件了，
+去向见 `AGENTS.md` 的「Scene Commands」表。
 
 ---
 
@@ -589,10 +581,10 @@ claude mcp update --all
 
 ---
 
-**✨ 安装完成！您现在可以开始使用Mix-Coding系统的12个智能工作流了：**
+**✨ 安装完成！您现在可以开始使用 Mix-Coding 的 26 个智能工作流了（完整清单见 [`.claude/scenes/README.md`](./.claude/scenes/README.md)）：**
 - `/ui-polish` - 前端美化
 - `/bugfix` - Bug修复
 - `/feature` - 新功能开发
-- `/review` - 代码审查
-- `/hunt` - 安全漏洞扫描
-- ...还有8个更多功能
+- `/review` - 代码审查（含原 `/hunt` 的安全深度模式）
+- `/release` - 发布部署
+- 移动端 6 个：`/mobile-audit` `/mobile-e2e` `/mobile-onboard` `/mobile-optimize` `/mobile-release` `/mobile-review`

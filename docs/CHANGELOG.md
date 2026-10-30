@@ -1,5 +1,95 @@
 # Changelog
 
+## 2026-10-30（第三十四轮：入口文档承诺的系统不是这个系统）
+
+第三十三轮把「死配置 / 死文档」清完了，但留了一条 Known issue：「README 的工作流数字不对，没有检查器查这一行」。
+顺着这条线取证，发现问题不是一行数字，而是**入口文档整页**在描述一个不存在的系统 —— 读者照做会走进死路，
+而 agent 照着做会去调用不存在的命令。
+
+### Fixed
+
+- **工作流数字三种说法、全都不对**：`README.md` 写「25 个自动化工作流（Web 19 + 移动 6）」，
+  `README_EN.md` 写「27 automated workflows (21 Web + 6 Mobile)」，而同一个文件第 114 行又写 26 —— 真值是 **26（Web 20 + 移动 6）**
+  （`claude-scene/scenes/` 26 个 JSON，其中 `mobile-*` 6 个）。两份都改对，并把这**三个**数字纳入 `check-doc-counts`。
+- **`/design` 被写成「照抄就能跑」，但它两年前就并进了 `/ui-polish`**：没有 `design.json`、没有 `.claude/commands/design.md`。
+  最要命的是 `.claude/commands/build.md` 让 agent「先跑 `/design` 出技术方案」，`report-fix.md` 的流程里也有它 ——
+  agent 会拿着不存在的命令开工。现全部改口为真实链路：`/spec` → `speckit-plan` / `speckit-tasks` 两个 skill → `/build`。
+  同一批修掉的还有 `README.md`、`README_EN.md`、`CLAUDE.md`、`AGENTS.md`、`ARCHITECTURE.md`、`INSTALL.md`、
+  `.claude/rules/conditional/{core-rules,anti-slop-design}.md`、`.claude/rules/od-craft/index.md`、
+  `docs/harness-engineering/12-principles.md`、`.claude/commands/spec.md`、两份 `constitution.md`（后者是本机 gitignored 副本）。
+- **`/simplify` 同样已退役**（→ `/refactor` 的 simplify 模式），却还写在 README、`12-principles.md`、`core-rules.md`、`INSTALL.md` 里。
+- **`/enhance-prompt` 是幽灵命令**：`.claude/commands/` 33 个文件里没有它，29 个 skill 里也没有它 ——
+  它只存在于本机 gitignored 的 `open-design/skills/enhance-prompt/SKILL.md`。README 的表格里写得像自带命令。
+  现三行都标注出处（Open Design Skill 提供，需本地 clone `open-design/`），并在表头之上写明前提。
+- **「另有 9 个功能已融入增强菜单（cicd/deps/setup/review/feature 内按需弹出）」基本是假的**：
+  增强分组 `RAW_REGISTRY` 里根本没有 `cicd`、`setup` 这两个键，增强项全是探测器驱动的（stagehand/mythos/gepa/critiq/huashu/impeccable）。
+  9 项里只有 **`changelog` → `/release`（+ `/mobile-release`）** 与 **日志脱敏 → `/review`** 真有场景步骤；
+  其余 7 项（`backup` `docker` `sbom` `loadtest` `incident` `migration` `llm-proxy-audit`）
+  只在 `actions.js` 里注册了 handler，**任何场景步骤都不会调用**，CLI 也没有 `run <action>` 这种入口 —— 用户永远触发不到。
+  两份 README 与 `CLAUDE.md` 都改成这个三分类（已独立成场景 / 已并入 / 不可达）。
+- **`INSTALL.md` 的「指令 → 场景文件」表有 4 行指向不存在的文件**（`/simplify`→`simplify.json`、`/hunt`→`hunt.json`、
+  `/design`→`design.json`、`/analyze`→`analyze.json`），表后还写「12 个智能工作流」并列 5 个 + 「还有 8 个」= 13。
+  现改为「命令名 = 场景名」的规则 + 指向 `.claude/scenes/README.md`，不再手抄一份会过期的清单。
+- **`ARCHITECTURE.md` 的架构图与 Quick Start 也在描述不存在的系统**：图里有 `/design` `/simplify`（换成 `/spec` `/rollback`，宽度保持）；
+  Prerequisites 要求 `Claude Code CLI`（引擎是仓库内 Node 脚本，不需要）；`cp .env.example .env`（根目录没有，真文件是 `claude-scene/.env.example`）；
+  Open Design 段说「129 design systems」（本地 clone 是 152，且该目录 gitignored、随上游变化）—— 改成不写会过期的数字。
+- **两份 README 的目录树数字**：场景定义 27 → **26**、Agent 8 → **12**、conditional 规则 9 → **13**；
+  `README_EN.md` 的树里点名的 `hunt.json` / `e2e.json` / `monitor.json` / `enhance-prompt.json` 四个文件都不存在，缺 `spec.json` / `setup.json`；
+  CLI 命令清单漏 `memory` / `sync-docs`。现在树里点名的每个 `.json` 都是真实文件。
+- **`README.md` 概览里的 Open Design 数字（152 / 111 / 137 / 11 / 6 / 3 / 102）有 3 个是错的**
+  （skills 实为 138、craft 实为 12、设备框实为 5），而且这个目录 gitignored、随上游每次 pull 都变。
+  现改为不写会过期的精确数字，只写有什么。
+- **`Claude_Code_全自动驾驶系统_融合版.md`（本机 gitignored）** 的触发词表里全是 `/design` `/analyze` `/hotfix` `/deploy`
+  这类从未落地过的命令 —— 按第三十三轮的先例加 `> **归档**` 横幅，保留原文。
+
+### Added
+
+- **`claude-scene/src/commands/doc-claims.test.js`（6 例）** —— 入口文档的三类「点名」开始有机器复核：
+  ① 反引号里的 `` `/命令` `` 必须是真命令（`.claude/commands/*.md` ∪ `.claude/skills/*/SKILL.md`，`speckit.clarify` 这类点号写法归一成横线）、
+  宿主内置（`/compact` `/clear` `/rewind`）或占位符（`/command`），否则同一行必须写明出处（旧名 / 已退役 / 不存在 / Skill 提供 / Open Design）；
+  ② README 目录树 `scenes/` 那一段点名的每个 `xxx.json` 都必须真实存在，注释里的场景数必须等于真值；
+  ③ 「并入某场景」必须真在那份 JSON 里、「不可达」必须真没有场景步骤调用（双向：谁改了场景都得回来改文档）。
+  下限断言：命令 ≥ 25 个、树里文件名 ≥ 20 个、场景 JSON ≥ 20 份 —— 正则失效或结构变了要报「扫不到」，不能静静通过。
+- **`check-doc-counts.cjs` 新增「工作流总数 / Web / 移动端」三个数字**：中文 `**N 个自动化工作流**：覆盖 Web 前端（N 个）+ 移动端（N 个）`、
+  英文 `**N automated workflows** (N Web + N Mobile)`，总数为场景数、移动端为 `mobile-*` 前缀数、Web 为两者之差；
+  句子被改写认不出来 → exit 2（塌面），数字不符 → exit 1 并点名。
+- **`doc-counts.test.js` 18 → 21 例**：夹具改成「最后 6 个场景是 `mobile-*`」，让 Web/移动端拆分是**数文件数出来的**而不是常量；
+  新增三个漂移用例（工作流总数写老 / Web 端对不上 / 移动端对不上）。
+- **`retired-commands.test.js` 扩容**：`RETIRED_COMMANDS` 增加 `design` `simplify` `polish`（11 例仍全绿，含「八个退役场景 JSON 不许回来」）；
+  新增「旧命令表整表豁免」——表头自己写了 `旧命令` / `旧名` 的表格，表里每行都算已交代清楚
+  （逐行再写「旧名：」是噪声），豁免只来自表头，散句和普通表格不豁免。
+- **`docs-scene-alignment.test.js` 的名单从 1 个集合拆成 2 个**：`MERGED_INTO_SCENE`（真并进场景：changelog / hunt / analyze / e2e / monitor / property，
+  已逐个核对确实写在那份 JSON 里）与 `UNREACHABLE_ACTIONS`（只有 handler：backup / docker / sbom / loadtest / migration / llm-proxy-audit / incident）。
+  原来把 12 项混成一个 `MERGED_INTO`「已融入」集合，等于用测试**认可**了文档里那句假话。
+
+### Self-audit
+
+12 条自探针，逐条把守卫弄坏确认变红，再按字节复原（`$TEMP/r34-probes.py`，全部 PASS）：
+中文工作流数字写回 25 → `check-doc-counts` exit 1；英文 Web 写 21 → exit 1；那句话被改写 → exit 2；
+入口文档塞一个 `/hotfix` → `doc-claims` 红；同一行加「（已退役）」→ 放行（说明豁免是按行生效而不是整站放过）；
+目录树点名 `hunt.json` → 红；注释写 27 个 JSON → 红；把 `sbom` 接进 `deps` 场景 → 「不可达」红；
+从 `release.json` 删掉 `changelog` → 「并入」红；复活 `design.json` → 红；规则文档裸写 `/design` → 红；
+把「旧命令」表头改成「命令」→ 表行立刻变红（证明豁免来源是表头，不是文件路径白名单）。
+
+### Known issues（本轮不修，登记在此免得下次又从零发现）
+
+- `ARCHITECTURE.md` 的外部件表仍写「Open Design 40k+ Stars / 129 design systems」这类**会随上游变化**的数字；
+  本轮只去掉了 Quick Start 与流程图里指向不存在事物的部分。
+- `claude-scene/src/handlers/detector-report.js` 的 `workingTreeDirty` 读的是自检记录里的字段，不是现场 `git status`。
+- `skillspector-scan` 在 `/review` 里稳定报 105 个问题（CRITICAL 1 / HIGH 66），全部来自 `.claude/skills/*/references/*.md` 的**示例代码**；
+  这是探测器把文档当源码扫的老问题（结果里已写明「需人工复核」），不是本轮引入。
+- 根 `constitution.md`、`.specify/`、`Claude_Code_全自动驾驶系统_融合版.md` 都是本机 gitignored 的副本，本轮一并改了口径，但**不入库**。
+
+### 验收
+
+- `npx vitest run`：**116 files / 1480 tests 全绿**（上一轮 115 / 1471）。
+- `npx eslint claude-scene --max-warnings 0` 与 `npx eslint .`：干净。
+- 6 个 checker 全部 `EXIT=0`（`check-action-stats` / `check-dead-actions` / `check-doc-counts` / `check-readme-stats` / `check-tool-steps` / `check-toolchain-lists`）。
+- `npm run scan:deadcode`：`Total dead: 0`（Handlers 0/70、Scenes 0/26、Commands 0/33、Skills 0/29、MCP 0/3）；`node scripts/scan-scenes.cjs`：26 场景 / 583 步。
+- `/review --auto --skip-sweep`：`EXIT=0`，`pass 18 / fail 0 / warn 2 / skip 19 / noop 4`（warn = `sec-bug-hunt` 的 npm audit 不可用 + `skillspector` 的 105 条文档误报）。
+
+---
+
 ## 2026-10-30（第三十三轮：死配置与死文档必须死透）
 
 ### Fixed

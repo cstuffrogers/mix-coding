@@ -871,3 +871,61 @@ ADR-023 原文只管「出现了但没执行」。另一半当时没人管：`wh
   Open Design 克隆、`.env.example`、ASCII 架构图里还有 `/design` `/simplify`）。本轮只改了与死机制相关的那一段。
 - 不修（登记为债务）：`detector-report.js` 的 `workingTreeDirty` 读的是自检**记录里**的字段，
   不是现场 `git status` —— 「记录跑的时候工作区是干净的」不等于「现在干净」。
+
+---
+
+## ADR-026：入口文档承诺的东西必须真的存在 —— 而且「并入」和「不可达」是两种事实
+
+**状态**：已采纳（2026-10-30，第三十四轮）
+
+**背景**：
+
+第三十三轮清完死配置与死文档，留了一条 Known issue：「`README.md:11` 的工作流数字和真值 26 不一致，
+`check-doc-counts` 目前不查这一行」。顺着这一行查下去，问题不在这一行：
+
+1. **同一个数字三种说法**：`README.md` 25（19+6）、`README_EN.md` 27（21+6），`README_EN.md` 第 114 行又写 26。
+   真值 26（20 + 6）。三处都能被读者当成「作者刚更新过」。
+2. **命令层面的死路更贵**：`/design` 和 `/simplify` 两年前就并进了 `/ui-polish` 与 `/refactor`，
+   没有 `design.json` / `simplify.json`，也没有 `.claude/commands/design.md`。但 `.claude/commands/build.md`
+   写着「先跑 `/design` 出技术方案」—— **agent 读到就会去调一个不存在的命令**。README、CLAUDE.md、
+   AGENTS.md、ARCHITECTURE.md、INSTALL.md、`.claude/rules/*` 里还有十几处。
+3. **`/enhance-prompt` 是幽灵命令**：只存在于本机 gitignored 的 `open-design/` 克隆里，`docs-scene-alignment.test.js`
+   里甚至为它留了一条「这是 open-design 提供的」豁免注释 —— 也就是说，测试知道它可疑，但选择放过。
+4. **最隐蔽的一类：把「注册了 handler」说成「已融入增强菜单」**。README 原来写「另有 9 个功能已融入增强菜单
+   （cicd/deps/setup/review/feature 内按需弹出）」。取证结果：增强分组 `RAW_REGISTRY` 的 10 个键里没有 `cicd`、没有 `setup`；
+   9 项里 2 项（changelog、日志脱敏）真有场景步骤，另外 **7 项只有 `actions.js` 里的 handler**，
+   没有任何场景步骤会调用，CLI 也没有 `run <action>` 入口 —— 用户永远触发不到。
+
+**决策**：
+
+1. **文档点名的命令必须真的存在，否则必须当场交代出处**。`doc-claims.test.js` 扫活的入口文档里
+   所有反引号 `` `/x` `` 形式：真命令（`.claude/commands/*.md`）∪ 真 skill（`.claude/skills/*/SKILL.md`，
+   `speckit.clarify` 归一成 `speckit-clarify`）∪ 宿主内置（`/compact` `/clear` `/rewind`）∪ 占位符（`/command`），
+   或者同一行写明旧名 / 已退役 / 不存在 / Skill 提供 / Open Design。
+   **豁免按行生效**，不是按文件白名单：读者看到的是一行。
+2. **同一份事实只能有一种说法，而且必须有单一真值来源**。「并入 X」必须真在 `X.json` 里，
+   「不可达」必须真没有任何场景步骤调用 —— 两个方向都断言。有人把 `sbom` 接进 `deps`，测试会红，
+   逼他同时改掉 README 里「不可达」那句。这比「文档 vs 场景各写一遍」强的地方是：**漂移会响**。
+3. **工作流数字从一个地方数出来**：`check-doc-counts` 现在校验 `N 个自动化工作流（Web N + 移动端 N）` 三个数字，
+   N 是场景文件数、移动端是 `mobile-*` 前缀数、Web 是两者之差。句子被改写认不出来 → exit 2（塌面 ≠ 通过）。
+4. **测试里的名单要按事实拆开，不许用「已融入」把两种成因糊在一起**。`docs-scene-alignment.test.js` 原来的
+   `MERGED_INTO` 集合把「真并进场景」和「只有 handler」混成 12 项，等于用测试**认可**了文档里那句假话。
+   现拆成 `MERGED_INTO_SCENE`（6 项，逐条核对写在场景 JSON 里）与 `UNREACHABLE_ACTIONS`（7 项）。
+5. **退役命令的映射表允许整表豁免，但豁免只来自表头**。表头写着「旧命令 / 旧名」的表格，表内每行都算已交代
+   （左边全是旧名，逐行再标「旧名：」是噪声）；散句、普通表格不豁免 —— 探针会把表头改掉确认它立刻变红。
+6. **会随上游变化的数字不进正文**。Open Design 那串「152 品牌 / 111 模版 / 137 Skill / 11 craft / 6 设备框」
+   有 3 个已经错了，而 `open-design/` 是 gitignored、每次 pull 都变。改写成「有什么」而不是「多少个」。
+
+**取舍**：
+
+- 正向：README/EN/CLAUDE/AGENTS/ARCHITECTURE/INSTALL/命令文档/规则文档共 19 个文件改口；
+  新增 6 条文档守卫 + 3 条数字守卫 + 3 条夹具用例；`retired-commands` 从 5 个退役命令扩到 8 个。
+- 负向：`doc-claims.test.js` 依赖「文档用反引号写命令」这个约定。不用反引号的行扫不到 ——
+  这是有意的窄判据（宽判据会把 `README` 里成段的正则/示例文本全卷进来，假红多到没人看）。
+  下限断言（≥ 25 个命令名）保证「一条都没扫到」会被当成失败而不是通过。
+- 负向：`HOST_COMMANDS`（`compact` `clear` `rewind` `help` `config` `init`）与 `PLACEHOLDER_COMMANDS`（`command`）
+  是白名单。它的失效方式是「往白名单里塞本仓库的命令」—— 所以它只放宿主 CLI 的命令，`/help` 这类连命令文件都没有的也算宿主。
+- 不修（登记为债务）：`ARCHITECTURE.md` 外部件表里「Open Design 40k+ Stars / 129 design systems」仍会过期；
+  `skills/*/references/*.md` 的示例代码会被 `skillspector` 当漏洞报（105 条，CRITICAL 1）—— 探测器把文档当源码扫，
+  结果里已写明「需人工复核」，属工具设计问题，不在本轮范围。
+- 不修（登记为债务）：`detector-report.js` 的 `workingTreeDirty` 读的是自检记录里的字段，不是现场 `git status`。

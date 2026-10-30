@@ -59,7 +59,7 @@ hallmark 的 20 个主题自带 OKLCH 调色板。当不使用 hallmark 主题�
 
 ## 使用方式
 
-在 `/ui-polish`、`/design`、`/feature` 等涉及 UI 的工作流中：
+在 `/ui-polish`、`/new-project`、`/feature` 等涉及 UI 的工作流中：
 
 1. **优先触发 hallmark**（默认 Design flow → 选主题 → 57 slop-test）获得基础视觉
 2. **用本文件 4 维度微调**密度/变化度/动效/创意度

@@ -32,12 +32,14 @@ function run(root) {
 }
 
 const LF = String.fromCodePoint(10);
-const N = { commands: 26, scenes: 26, core: 14, speckit: 11, mcpActive: 3, mcpFull: 5, deps: 20, devDeps: 4, tools: 12, rows: 3 };
+const N = { commands: 26, scenes: 26, core: 14, speckit: 11, mcpActive: 3, mcpFull: 5, deps: 20, devDeps: 4, tools: 12, rows: 3, mobile: 6 };
 const skills = N.core + N.speckit;
 const npm = N.deps + N.devDeps;
 const listed = 4; // 3 启用的 + filesystem（明说的参考条目）
 const names = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}${i + 1}`);
 const slash = (list) => list.join(' / ');
+/** 最后 6 个场景写成 mobile-*，让「Web / 移动端」拆分是按文件名数出来的，不是常量。 */
+const sceneName = (i) => (i > N.scenes - N.mobile ? `mobile-${i - (N.scenes - N.mobile)}` : `scene${i}`);
 
 function toolRows() {
   return [
@@ -63,6 +65,8 @@ function docs(over = {}) {
     '# Project',
     '',
     `│   ├── commands/             # Slash commands (${o.commands} .md files: ${o.scenes} workflows + 0 others)`,
+    '',
+    `- ✅ **${o.workflows ?? o.scenes} automated workflows** (${o.web ?? Math.max(0, o.scenes - N.mobile)} Web + ${o.mobileCount ?? N.mobile} Mobile)`,
     `│   ├── skills/               # Claude Skills (${o.skills ?? skills}: ${o.core} core + ${o.speckit} speckit)`,
     '',
     `- ✅ **External security toolchain**: ${o.declaredTools ?? o.tools} tools (${slash(toolList)})`,
@@ -99,6 +103,8 @@ function docs(over = {}) {
     '# 项目',
     '',
     `│   ├── commands/             # Slash commands（${o.commands} 个 .md：${o.scenes} 个工作流 + 0 个非场景命令）`,
+    '',
+    `- ✅ **${o.workflows ?? o.scenes} 个自动化工作流**：覆盖 Web 前端（${o.web ?? Math.max(0, o.scenes - N.mobile)} 个）+ 移动端（${o.mobileCount ?? N.mobile} 个）`,
     `│   ├── skills/               # Claude Skills（${o.skills ?? skills} 个：${o.core} 个通用 + ${o.speckit} 个 speckit）`,
     '',
     `- ✅ **外部安全工具链**：${o.declaredTools ?? o.tools} 个工具（${toolList.join(' / ')}）`,
@@ -156,7 +162,9 @@ function scaffold(over = {}) {
   ].join(LF));
 
   for (const n of names('cmd', N.commands)) writeFileSync(join(dir, '.claude', 'commands', `${n}.md`), '# cmd\n');
-  for (const n of names('scene', over.sceneFiles ?? N.scenes)) writeFileSync(join(dir, 'claude-scene', 'scenes', `${n}.json`), '{}');
+  for (let i = 1; i <= (over.sceneFiles ?? N.scenes); i += 1) {
+    writeFileSync(join(dir, 'claude-scene', 'scenes', `${sceneName(i)}.json`), '{}');
+  }
   for (const n of names('core', N.core)) mkdirSync(join(dir, '.claude', 'skills', n));
   for (const n of names('speckit-', N.speckit)) mkdirSync(join(dir, '.claude', 'skills', n));
 
@@ -198,6 +206,9 @@ describe('check-doc-counts：README/CLAUDE.md 里数得出来的数字', () => {
   const drift = [
     ['CLAUDE.md 场景数少写一个', { claudeScenes: N.scenes - 1 }, 'CLAUDE.md 场景数：文档写 25，实际 26'],
     ['命令数写成 37', { commands: 37 }, '命令数：文档写 37，实际 26'],
+    ['工作流总数写老（第三十四轮之前没人查这一行）', { workflows: N.scenes - 1 }, `工作流总数：文档写 ${N.scenes - 1}，实际 ${N.scenes}`],
+    ['Web 端工作流数对不上', { web: N.scenes - N.mobile + 1 }, `Web 工作流数：文档写 ${N.scenes - N.mobile + 1}，实际 ${N.scenes - N.mobile}`],
+    ['移动端工作流数对不上', { mobileCount: N.mobile - 1 }, `移动端工作流数：文档写 ${N.mobile - 1}，实际 ${N.mobile}`],
     ['Skills 与 core 数都写老', { skills: 24, core: 13, localSkills: 24 }, 'Skills 总数：文档写 24，实际 25'],
     ['MCP 启用数写成 16', { mcpActive: 16 }, '启用的 MCP 数：文档写 16，实际 3'],
     ['npm 包数写成 19', { npm: 19 }, 'npm 包总数：文档写 19，实际 24'],

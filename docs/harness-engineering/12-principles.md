@@ -205,6 +205,6 @@
 | 原则 | 核心观点 | 本系统对应 |
 |------|---------|-----------|
 | **Think Before Coding** | 不假设，不隐藏困惑，主动呈现权衡 | Anti-Rationalization Table（反借口表） |
-| **Simplicity First** | 最少代码解决问题，不添加推测性抽象 | `/simplify` 场景（范围确认→基线→简化→验证） |
-| **Surgical Changes** | 只碰必须改的，不顺手重构 | WIP=1 规则 + `/simplify` scope 确认 |
+| **Simplicity First** | 最少代码解决问题，不添加推测性抽象 | `/refactor` 的 simplify 模式（范围确认→基线→简化→验证） |
+| **Surgical Changes** | 只碰必须改的，不顺手重构 | WIP=1 规则 + `/refactor` simplify 模式的 scope 确认 |
 | **Goal-Driven Execution** | 定义成功标准，循环直到验证通过 | `/feature` `/bugfix` 测试基线步骤 + 5 层审查 |

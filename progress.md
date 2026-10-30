@@ -4333,3 +4333,80 @@ npm 总数/dev/deps、工具矩阵**「Count 列之和 == 列出的工具个数�
   「自检记录来自 048e12f，HEAD 已是 af840c3」，另一条是那 2 个过期用例。本轮把注入点重新锚定、
   在干净工作区重跑自检（记录 sha 与 HEAD 一致、`workingTreeDirty=false`）之后，`证据过期` 归零，
   剩下的 1 条 warn 是环境事实（npm registry 不支持 audit API）。
+
+---
+
+## 第三十四轮（2026-10-30）：入口文档承诺的系统不是这个系统
+
+### 起点
+
+第三十三轮留的 Known issue 写着：「`README.md:11` 的「25 个自动化工作流」与真值 26 不一致，
+`check-doc-counts` 目前不查这一行」。按老办法先取证：这一行有几个作者、几个版本、谁在维护它。
+
+结果：`README.md` 25（19+6）、`README_EN.md` 27（21+6），而 `README_EN.md` 第 114 行自己又写 26 ——
+一个数字三种说法，三种都能被读者当成「刚更新过」。顺着往旁边看，同一页还有 `/design`、`/simplify`、
+`/enhance-prompt` 三个**不存在或不属于本项目**的命令，以及一句「另有 9 个功能已融入增强菜单」。
+
+### 取证（逐条落到真值）
+
+- **工作流 26 = Web 20 + 移动 6**（`claude-scene/scenes/` 26 个 JSON，`mobile-*` 6 个；`.claude/scenes/` 是运行时的赢家，也是 26）。
+- **`/design` 无入口**：`.claude/commands/` 33 个文件（26 场景 + 7 辅助）里没有，场景 JSON 里也没有。
+  但 `.claude/commands/build.md` 让 agent「先跑 `/design` 出技术方案」—— 这个命令 agent 会真的去调。
+- **`/simplify` 无入口**：已并入 `/refactor` 的 simplify 模式。
+- **`/enhance-prompt` 只在本机 gitignored 的 `open-design/skills/enhance-prompt/SKILL.md` 里**；
+  `docs-scene-alignment.test.js:88` 甚至为它留了一条豁免注释 —— 测试知道它可疑，却选择放过。
+- **「9 个已融入增强菜单」**：`RAW_REGISTRY` 10 个键里没有 `cicd`、没有 `setup`；9 项里只有
+  `changelog`（→ `/release`、`/mobile-release`）与日志脱敏（→ `/review`）真有步骤，
+  另外 7 项（`backup` `docker` `sbom` `loadtest` `incident` `migration` `llm-proxy-audit`）
+  只有 `actions.js` 的 handler，**CLI 没有 `run <action>` 入口**，用户永远触发不到。
+- **被我否掉的两条扫描**：① 「全仓死链」——716 条几乎全在 vendored 树（`open-design/` 等），
+  自有文档里 0 条；② 「所有动作名的可达性」—— 朴素测法是 78 个「注册但没被引用」，
+  含别名与动态派发，假红率太高（和第三十二轮否掉「同义词映射」同一个理由）。
+  改为窄判据：只查文档点名的命令、只查 7 个**已确认**不可达的动作名。
+
+### 修（19 个文件改口 + 3 个新守卫）
+
+- README/EN：数字、命令、open-design 前提、目录树（27→26 / 8→12 Agent / 9→13 规则 / 补 `memory` `sync-docs`）、
+  「9 个已融入」改成三分类、删掉 7 个会过期的外部数字（152/111/137/11/6/3/102 里错了 3 个）。
+- CLAUDE.md / AGENTS.md / INSTALL.md / ARCHITECTURE.md / `.claude/commands/{spec,build,report-fix}.md` /
+  `.claude/rules/{conditional/core-rules,conditional/anti-slop-design,od-craft/index}.md` /
+  `docs/harness-engineering/12-principles.md` / `.pi/AGENTS.md` / 两份 `constitution.md`（本机 gitignored）：`/design` `/simplify` 全部改口。
+- 架构图里的 `/design` `/simplify` 换成等宽的 `/spec` `/rollback`（盒子宽度不能变，改完逐行数过）。
+- `INSTALL.md` 那张「指令 → 场景文件」表 4 行指向不存在的 JSON，整表换成规则 + 指针；「12 个智能工作流 5+8」改成 26 + 清单指针。
+- `Claude_Code_全自动驾驶系统_融合版.md`（本机 gitignored）：按第三十三轮先例加 `> **归档**` 横幅。
+
+### 新增守卫（每条都先弄红一次）
+
+- `doc-claims.test.js`（6 例）：文档里的 `` `/命令` `` 必须真存在或当场交代出处；目录树点名的 `xxx.json` 必须存在；
+  「并入 X」必须真在 `X.json`、「不可达」必须真没步骤调用。三条下限断言防空跑。
+- `check-doc-counts.cjs`：工作流总数 / Web / 移动端三个数字（生成器管不到的行，现在有独立判据）。`doc-counts.test.js` 18→21 例。
+- `retired-commands.test.js`：退役命令 5 → 8 个（加 `design` `simplify` `polish`）+ 「旧命令表整表豁免」（豁免只来自表头）。
+- `docs-scene-alignment.test.js`：`MERGED_INTO`（12 项混装）拆成 `MERGED_INTO_SCENE`（6 项，逐条核对）与 `UNREACHABLE_ACTIONS`（7 项）。
+
+### 踩到的坑
+
+- **第一条守卫不是新写的，是改旧测试「认可假话」的地方**：`docs-scene-alignment.test.js` 把「只有 handler」的 7 项
+  和「真并进场景」的 5 项一起放进 `MERGED_INTO`，于是文档说「已融入」测试就点头。**测试的名单也是文档**。
+- **守卫写宽了会自己淹死**：`doc-claims` 第一版把宿主 CLI 的 `/compact` `/clear` `/rewind`、占位符 `/command`、
+  以及「there is no `/design`」这种否定句全判红，11 条假红。窄判据 + 按行豁免 + 宿主白名单之后归零。
+- **sonarjs 的 `super-linear-regex` 连 `([a-z0-9-]+)\.json` 都不放过**：`[a-z]` 与 `[a-z0-9-]+` 前缀重叠 → 每次起点都能重扫。
+  改成按空格 split token；`unicorn/prefer-set-methods` 要求 `A.union(B)` 而不是 `new Set([...a, ...b])`。
+- **认知复杂度 20 > 15**：把「读目录树 → 取 token → 校验」抽成模块级函数 `treeJsonNames()`，回调里只剩累加。
+- **python heredoc 把 `
+` 写成了真的换行**，生成的 JS 变成 `split('` + 换行 + `')`，报 `Unterminated string constant`；
+  用 `edit` 工具改回 `/?
+/u`。**老规矩：能不动 heredoc 就不动。**
+- **`node src/index.js review` 不是命令**：`review` 是场景，要 `start review`。湿跑对着空目录会得到 7 条
+  「扫描范围为 0 个源码文件（结果不可信，按失败处理）」—— 这是假绿守卫在正常工作，不是回归。
+
+### 决策
+
+- **ADR-026**：入口文档点名的命令必须真存在，否则同一行交代出处（豁免按行、不按文件）；
+  「并入」与「不可达」是两种事实，两个方向都要断言；工作流数字只从场景文件数出来；
+  测试里的名单不许用「已融入」把两种成因糊在一起；退役映射表的豁免只来自表头；会随上游变化的数字不进正文。
+- **不查全仓死链、不查全量动作可达性**：假红率太高会把守卫本身变成噪声（第三十二轮同一个取舍）。
+- **登记不修**：① `ARCHITECTURE.md` 外部件表的「40k+ Stars / 129 design systems」仍会过期；
+  ② `skillspector` 把 `.claude/skills/*/references/*.md` 的示例代码当漏洞报（105 条）—— 工具设计问题；
+  ③ `detector-report.js` 的 `workingTreeDirty` 读记录而非现场。
+- **review 本轮 `pass 18 / warn 2`**：warn 是 `sec-bug-hunt`（npm audit 接口不可用，环境事实）+ `skillspector`（105 条文档误报，
+  上一轮日志里同样 105 条，不是本轮引入）。`fail 0 / skip 19 / noop 4` 与上轮一致。
